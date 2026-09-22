@@ -1,5 +1,5 @@
 # ===== DEV: Vite dev server (hot reload) =====
-FROM node:20-alpine AS dev
+FROM node:24-alpine AS dev
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
@@ -8,7 +8,7 @@ EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # ===== PROD: build tĩnh rồi phục vụ bằng nginx =====
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
