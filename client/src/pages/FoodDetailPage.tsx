@@ -2,41 +2,61 @@ import { useEffect, useState } from 'react'
 import { Button, Descriptions, Divider, Form, Input, InputNumber, List, Rate, Space, Tag, Typography, message } from 'antd'
 import { ArrowLeftOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { Link, useParams } from 'react-router-dom'
-import { createReview, getFood, getReviews } from '../api/api'
+import { createReview, getFood, getFoods, getReviews } from '../api/api'
+import useAsyncData from '../hooks/useAsyncData'
+import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
-import type { Food, Review } from '../types'
 import { formatVND } from '../utils/format'
+import FoodCard from '../components/FoodCard'
+import SectionHeader from '../components/SectionHeader'
+import UiImg from '../components/UiImg'
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
 export default function FoodDetailPage() {
   const { id } = useParams()
   const foodId = Number(id)
-  const [food, setFood] = useState<Food>()
-  const [reviews, setReviews] = useState<Review[]>([])
   const [qty, setQty] = useState(1)
   const user = useAuthStore((s) => s.user)
   const add = useCartStore((s) => s.add)
 
-  const loadReviews = () => getReviews(foodId).then(setReviews)
+  const { data: food, error: foodError } = useAsyncData(
+    (signal) => getFood(foodId, signal),
+    [foodId],
+  )
+  const { data: reviews, refresh: refreshReviews } = useAsyncData(
+    (signal) => getReviews(foodId, signal),
+    [foodId],
+  )
+  const { data: related } = useAsyncData(
+    (signal) => (food?.category ? getFoods({ categoryId: food.category.id }, signal) : Promise.resolve([])),
+    [foodId, food?.category?.id],
+  )
+  const { run: submitReview, pending: reviewPending } = useAsyncAction(
+    (payload: { foodId: number; rating: number; comment: string }) => createReview(payload),
+  )
 
   useEffect(() => {
-    getFood(foodId).then(setFood)
-    loadReviews()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [foodId])
+    if (foodError) message.error('Không tải được món ăn')
+  }, [foodError])
 
   if (!food) return null
 
-  const submitReview = async (v: { rating: number; comment: string }) => {
+  const relatedFoods = (related ?? []).filter((x) => x.id !== foodId).slice(0, 4)
+
+  const onReview = async (v: { rating: number; comment: string }) => {
     if (!user) {
       message.warning('Vui lòng đăng nhập để đánh giá')
       return
     }
-    await createReview({ foodId, ...v })
-    message.success('Cảm ơn bạn đã đánh giá!')
-    loadReviews()
+    const res = await submitReview({ foodId, ...v })
+    if (res.ok) {
+      message.success('Cảm ơn bạn đã đánh giá!')
+      void refreshReviews()
+    } else {
+      message.error('Gửi đánh giá thất bại. Vui lòng thử lại.')
+    }
   }
 
   return (
@@ -48,7 +68,13 @@ export default function FoodDetailPage() {
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-stone-200/60">
         <div className="grid gap-8 p-6 md:p-10 lg:grid-cols-2">
           <div className="overflow-hidden rounded-2xl">
-            <img src={food.imageUrl} alt={food.name} className="h-full w-full object-cover lg:max-h-[460px]" />
+            <UiImg
+              src={food.imageUrl}
+              alt={food.name}
+              preview
+              imgClass="h-full min-h-[260px] w-full object-cover"
+              className="lg:max-h-[460px]"
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -105,14 +131,14 @@ export default function FoodDetailPage() {
       <Divider>Đánh giá & nhận xét</Divider>
 
       {user ? (
-        <Form layout="vertical" onFinish={submitReview} className="mb-8 !max-w-lg">
+        <Form layout="vertical" onFinish={onReview} className="mb-8 !max-w-lg">
           <Form.Item name="rating" label="Số sao" rules={[{ required: true, message: 'Chọn số sao' }]}>
             <Rate />
           </Form.Item>
           <Form.Item name="comment" label="Nhận xét">
             <Input.TextArea rows={3} placeholder="Món ăn thế nào? Chia sẻ cảm nhận của bạn..." />
           </Form.Item>
-          <Button htmlType="submit" type="primary">Gửi đánh giá</Button>
+          <Button htmlType="submit" type="primary" loading={reviewPending}>Gửi đánh giá</Button>
         </Form>
       ) : (
         <p className="mb-8 text-stone-500">
@@ -140,6 +166,17 @@ export default function FoodDetailPage() {
           </List.Item>
         )}
       />
+
+      {relatedFoods.length > 0 && (
+        <div className="mt-14">
+          <SectionHeader align="left" title="Món liên quan" subtitle="Cùng loại với món bạn đang xem." />
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {relatedFoods.map((f) => (
+              <FoodCard key={f.id} food={f} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
