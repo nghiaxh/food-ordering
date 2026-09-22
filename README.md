@@ -1,5 +1,16 @@
 # FoodOrdering
 
+[![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](https://vitejs.dev)
+[![React](https://img.shields.io/badge/React-19.3-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Ant Design](https://img.shields.io/badge/Ant%20Design-6.6-1677ff?logo=antdesign&logoColor=white)](https://ant.design)
+[![Zustand](https://img.shields.io/badge/Zustand-5.0-443e38?logo=zustand&logoColor=white)](https://zustand-demo.pmnd.rs)
+[![React Router](https://img.shields.io/badge/React%20Router-7.18-CA4245?logo=reactrouter&logoColor=white)](https://reactrouter.com)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6db33f?logo=spring&logoColor=white)](https://spring.io)
+[![Java](https://img.shields.io/badge/Java-25-f89820?logo=openjdk&logoColor=white)](https://www.java.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Docker](https://img.shields.io/badge/Docker%20Compose-2496ed?logo=docker&logoColor=white)](https://www.docker.com)
+
 Web đặt món tích hợp **Chatbot AI tư vấn món ăn** cho niên luận ngành. Code đơn giản, dễ hiểu, dễ demo.
 
 ## Tính năng
@@ -20,7 +31,7 @@ Web đặt món tích hợp **Chatbot AI tư vấn món ăn** cho niên luận n
 ## Bắt đầu nhanh
 
 ### Yêu cầu
-- Docker + Docker Compose (hoặc Node.js 20 + JDK 17 + Maven để chạy riêng lẻ)
+- Docker + Docker Compose (hoặc Node.js 20.19+ / 22.12+ + JDK 25 + Maven để chạy riêng lẻ)
 
 ### 1. Tạo file `.env` từ mẫu
 
@@ -75,9 +86,9 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 
 | Tầng | Công nghệ |
 |------|-----------|
-| Client | React + TypeScript, Vite, Ant Design, Zustand, Axios, React Router |
-| Server | Spring Boot 3 (Java 17), Spring Security + JWT, Spring Data JPA |
-| Database | PostgreSQL 16 |
+| Client | React 19 + TypeScript 7, Vite 8, Ant Design 6, Zustand 5, Axios, React Router 7 |
+| Server | Spring Boot 3.5 (Java 25), Spring Security + JWT, Spring Data JPA |
+| Database | PostgreSQL 18 |
 | AI | Gemini API (gọi qua REST, class `AiClient`) |
 | Hạ tầng | Docker Compose (1 file, 2 profile: `dev` / `prod`) |
 

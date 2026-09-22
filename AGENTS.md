@@ -9,8 +9,8 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   SPA thuần, không SSR. App code trong `src/` (`main.tsx` + `App.tsx` + `api/` +
   `store/` + `types/` + `components/` + `pages/`). Toast/message dùng AntD trực tiếp.
   UI tiếng Việt.
-- **server/** — Spring Boot 3 (Java 17), Maven, Spring Security + JWT (access token
-  đơn giản), Spring Data JPA, PostgreSQL 16. Package gốc `com.foodordering`, lớp chính
+- **server/** — Spring Boot 3.5 (Java 25), Maven, Spring Security + JWT (access token
+  đơn giản), Spring Data JPA, PostgreSQL 18. Package gốc `com.foodordering`, lớp chính
   `FoodOrderingApplication`. Layered: `controller` → `service` → `repository`; `config`,
   `security`, `entity`, `dto` mỗi thư mục riêng.
 - **AI** — `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`,
