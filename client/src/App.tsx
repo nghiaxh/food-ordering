@@ -12,6 +12,7 @@ import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage, { RegisterPage } from './pages/AuthPages'
 import AdminPage from './pages/admin/AdminPage'
+import ScrollManager from './components/ScrollManager'
 
 function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const user = useAuthStore((s) => s.user)
@@ -75,6 +76,7 @@ export default function App() {
       theme={{ token: { colorPrimary: '#d97706', borderRadius: 10, fontFamily: 'Inter Variable, sans-serif' } }}
     >
       <BrowserRouter>
+        <ScrollManager />
         <AppRoutes />
       </BrowserRouter>
     </ConfigProvider>

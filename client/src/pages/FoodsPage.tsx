@@ -1,10 +1,36 @@
 import { useEffect, useState } from 'react'
-import { Button, Empty, Input, InputNumber, Skeleton, Space, message } from 'antd'
+import { Button, Empty, Input, InputNumber, Select, Space, message } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { getCategories, getFoods } from '../api/api'
 import type { Category, Food } from '../types'
 import FoodCard from '../components/FoodCard'
+
+type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'name-asc'
+
+function PulseBlock({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded-2xl bg-stone-200/70 ${className}`} />
+}
+
+const SORT_OPTIONS = [
+  { label: 'Nổi bật', value: 'featured' },
+  { label: 'Giá tăng dần', value: 'price-asc' },
+  { label: 'Giá giảm dần', value: 'price-desc' },
+  { label: 'Tên A–Z', value: 'name-asc' },
+]
+
+function sortFoods(list: Food[], sort: SortKey): Food[] {
+  switch (sort) {
+    case 'price-asc':
+      return [...list].sort((a, b) => a.price - b.price)
+    case 'price-desc':
+      return [...list].sort((a, b) => b.price - a.price)
+    case 'name-asc':
+      return [...list].sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+    default:
+      return list
+  }
+}
 
 export default function FoodsPage() {
   const [searchParams] = useSearchParams()
@@ -16,6 +42,7 @@ export default function FoodsPage() {
   const [categoryId, setCategoryId] = useState<number | undefined>(
     searchParams.get('category') ? Number(searchParams.get('category')) : undefined,
   )
+  const [sort, setSort] = useState<SortKey>('featured')
   const [loading, setLoading] = useState(true)
 
   const load = (catId: number | undefined, kw: string, min: number | null, max: number | null) =>
@@ -96,32 +123,41 @@ export default function FoodsPage() {
       </div>
 
       {/* Category chips */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setCategoryId(undefined)}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-            categoryId === undefined
-              ? 'bg-amber-600 text-white'
-              : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-amber-50'
-          }`}
-        >
-          Tất cả
-        </button>
-        {categories.map((c) => (
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
-            key={c.id}
             type="button"
-            onClick={() => setCategoryId(c.id)}
+            onClick={() => setCategoryId(undefined)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
-              categoryId === c.id
+              categoryId === undefined
                 ? 'bg-amber-600 text-white'
                 : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-amber-50'
             }`}
           >
-            {c.name}
+            Tất cả
           </button>
-        ))}
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCategoryId(c.id)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                categoryId === c.id
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-amber-50'
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        <Select
+          value={sort}
+          onChange={(v) => setSort(v)}
+          options={SORT_OPTIONS}
+          className="!w-36"
+          aria-label="Sắp xếp"
+        />
       </div>
 
       {/* List */}
@@ -129,14 +165,14 @@ export default function FoodsPage() {
         {loading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton.Node key={i} active style={{ width: '100%', height: 320 }} />
+              <PulseBlock key={i} className="h-72" />
             ))}
           </div>
         ) : foods.length === 0 ? (
           <Empty description="Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc hoặc hỏi chatbot nhé!" />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {foods.map((f) => (
+            {sortFoods(foods, sort).map((f) => (
               <FoodCard key={f.id} food={f} />
             ))}
           </div>

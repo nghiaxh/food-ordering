@@ -17,6 +17,7 @@ import type {
   Category, ChatHistoryMessage, Food, KnowledgeDocument, Order, OrderStatus, User,
 } from '../../types'
 import { formatVND } from '../../utils/format'
+import UiImg from '../../components/UiImg'
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'Chờ xác nhận',
@@ -108,7 +109,11 @@ function FoodsTab() {
             title: 'Món',
             render: (_, f) => (
               <div className="flex items-center gap-3">
-                <img src={f.imageUrl} width={48} height={48} alt={f.name} className="h-12 w-12 rounded-lg object-cover" />
+                <UiImg
+                  src={f.imageUrl}
+                  alt={f.name}
+                  imgClass="h-12 w-12 rounded-lg object-cover"
+                />
                 <div className="text-stone-800">{f.name}</div>
               </div>
             ),
@@ -223,7 +228,7 @@ function CategoriesTab() {
         renderItem={(c) => (
           <List.Item>
             <Card
-              cover={<img src={c.imageUrl} alt={c.name} className="h-32 w-full object-cover" />}
+              cover={<UiImg src={c.imageUrl} alt={c.name} imgClass="h-32 w-full object-cover" />}
               actions={[
                 <Button size="small" key="edit" onClick={() => { setEditing(c); setName(c.name); setModal(true) }}>Sửa</Button>,
                 <Popconfirm key="del" title="Xóa danh mục này?" onConfirm={async () => { try { await adminDeleteCategory(c.id); message.success('Đã xóa'); await fetchData() } catch { message.error('Xóa thất bại') } }}>

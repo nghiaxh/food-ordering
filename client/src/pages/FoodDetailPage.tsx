@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { Button, Descriptions, Divider, Form, Input, InputNumber, List, Rate, Space, Tag, Typography, message } from 'antd'
 import { ArrowLeftOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { Link, useParams } from 'react-router-dom'
-import { createReview, getFood, getReviews } from '../api/api'
+import { createReview, getFood, getFoods, getReviews } from '../api/api'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import type { Food, Review } from '../types'
 import { formatVND } from '../utils/format'
+import FoodCard from '../components/FoodCard'
+import SectionHeader from '../components/SectionHeader'
+import UiImg from '../components/UiImg'
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
@@ -15,6 +18,7 @@ export default function FoodDetailPage() {
   const foodId = Number(id)
   const [food, setFood] = useState<Food>()
   const [reviews, setReviews] = useState<Review[]>([])
+  const [related, setRelated] = useState<Food[]>([])
   const [qty, setQty] = useState(1)
   const user = useAuthStore((s) => s.user)
   const add = useCartStore((s) => s.add)
@@ -22,7 +26,14 @@ export default function FoodDetailPage() {
   const loadReviews = () => getReviews(foodId).then(setReviews)
 
   useEffect(() => {
-    getFood(foodId).then(setFood)
+    getFood(foodId).then((f) => {
+      setFood(f)
+      if (f.category) {
+        getFoods({ categoryId: f.category.id })
+          .then((list) => setRelated(list.filter((x) => x.id !== foodId).slice(0, 4)))
+          .catch(() => undefined)
+      }
+    })
     loadReviews()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [foodId])
@@ -48,7 +59,13 @@ export default function FoodDetailPage() {
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-stone-200/60">
         <div className="grid gap-8 p-6 md:p-10 lg:grid-cols-2">
           <div className="overflow-hidden rounded-2xl">
-            <img src={food.imageUrl} alt={food.name} className="h-full w-full object-cover lg:max-h-[460px]" />
+            <UiImg
+              src={food.imageUrl}
+              alt={food.name}
+              preview
+              imgClass="h-full min-h-[260px] w-full object-cover"
+              className="lg:max-h-[460px]"
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -140,6 +157,17 @@ export default function FoodDetailPage() {
           </List.Item>
         )}
       />
+
+      {related.length > 0 && (
+        <div className="mt-14">
+          <SectionHeader align="left" title="Món liên quan" subtitle="Cùng loại với món bạn đang xem." />
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {related.map((f) => (
+              <FoodCard key={f.id} food={f} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
