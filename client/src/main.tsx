@@ -4,7 +4,6 @@ import '@fontsource-variable/inter'
 import '@fontsource/be-vietnam-pro/600.css'
 import '@fontsource/be-vietnam-pro/700.css'
 import '@fontsource/be-vietnam-pro/800.css'
-import 'antd/dist/reset.css'
 import './index.css'
 import App from './App'
 
