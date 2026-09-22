@@ -1,32 +1,30 @@
-import { useEffect, useState } from 'react'
-import { Avatar, Badge, Button, Drawer, Dropdown, type MenuProps } from 'antd'
-import { MenuOutlined } from '@ant-design/icons'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import UiIcon from './UiIcon'
+import { Badge, Button, Space } from 'antd'
+import { ShoppingCartOutlined } from '@ant-design/icons'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 
-interface NavLink {
-  label: string
-  to: string
-}
+const NAV = [
+  { to: '/', label: 'Trang chủ' },
+  { to: '/foods', label: 'Thực đơn' },
+  { to: '/orders', label: 'Đơn hàng' },
+]
 
-const links: NavLink[] = [
-  { label: 'Trang chủ', to: '/' },
-  { label: 'Thực đơn', to: '/foods' },
-  { label: 'Đơn hàng', to: '/orders' },
-  { label: 'Về chúng tôi', to: '/#about' },
-  { label: 'Liên hệ', to: '/#contact' },
+const backofficeLinks: NavLink[] = [
+  { label: 'Món ăn', to: '/admin/foods' },
+  { label: 'Danh mục', to: '/admin/categories' },
+  { label: 'Đơn hàng', to: '/admin/orders' },
+  { label: 'Khách hàng', to: '/admin/customers' },
+  { label: 'Chatbot', to: '/admin/chatbot' },
 ]
 
 export default function HeaderGlobal() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
+  const { user, logout } = useAuthStore()
   const count = useCartStore((s) => s.count())
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+
+  const isAdmin = user?.role === 'ADMIN'
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -35,7 +33,7 @@ export default function HeaderGlobal() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const navLinks = user?.role === 'ADMIN' ? [...links, { label: 'Quản trị', to: '/admin' }] : links
+  const navLinks = isAdmin ? backofficeLinks : links
 
   const isActive = (link: NavLink): boolean => {
     if (link.to.startsWith('/#')) {
@@ -141,13 +139,15 @@ export default function HeaderGlobal() {
       >
         <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-6">
           <div className="flex items-center justify-self-start">
-            <Button
-              type="text"
-              aria-label="Mở menu"
-              className="mr-1 md:hidden"
-              icon={<MenuOutlined />}
-              onClick={() => setDrawerOpen(true)}
-            />
+            <div className="md:hidden">
+              <Button
+                type="text"
+                aria-label="Mở menu"
+                className="mr-1"
+                icon={<MenuOutlined />}
+                onClick={() => setDrawerOpen(true)}
+              />
+            </div>
             <Link to="/" className="flex items-center gap-2 text-lg font-bold text-stone-900">
               <img src="/favicon.svg" alt="FoodOrdering" className="h-8 w-8 rounded-xl" />
               <span className="text-lg font-bold text-stone-900">
@@ -172,14 +172,16 @@ export default function HeaderGlobal() {
           </nav>
 
           <div className="flex items-center gap-1.5 justify-self-end">
-            <Badge count={count} size="small" color="#d97706">
-              <Button
-                shape="circle"
-                aria-label="Giỏ hàng"
-                icon={<UiIcon name="shopping-cart" size={20} />}
-                onClick={() => navigate('/cart')}
-              />
-            </Badge>
+            {!isAdmin && (
+              <Badge count={count} size="small" color="#d97706">
+                <Button
+                  shape="circle"
+                  aria-label="Giỏ hàng"
+                  icon={<UiIcon name="shopping-cart" size={20} />}
+                  onClick={() => navigate('/cart')}
+                />
+              </Badge>
+            )}
 
             {user ? (
               <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
@@ -215,10 +217,64 @@ export default function HeaderGlobal() {
             <img src="/favicon.svg" alt="FoodOrdering" className="h-7 w-7 rounded-lg" />
             Food<span className="text-amber-600">Ordering</span>
           </span>
-        }
-      >
-        {drawerContent}
-      </Drawer>
-    </>
+          Food<span className="text-amber-600">Ordering</span>
+        </Link>
+
+        <nav className="hidden items-center gap-6 md:flex">
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `text-sm font-medium transition ${
+                  isActive ? 'text-amber-600' : 'text-stone-600 hover:text-stone-900'
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+          {user?.role === 'ADMIN' && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `text-sm font-medium transition ${
+                  isActive ? 'text-amber-600' : 'text-stone-600 hover:text-stone-900'
+                }`
+              }
+            >
+              Quản trị
+            </NavLink>
+          )}
+        </nav>
+
+        <Space size="small">
+          <Badge count={count} size="small">
+            <Button
+              shape="circle"
+              icon={<ShoppingCartOutlined />}
+              onClick={() => navigate('/cart')}
+              aria-label="Giỏ hàng"
+            />
+          </Badge>
+          {user ? (
+            <>
+              <Link
+                to="/profile"
+                className="hidden text-sm font-medium text-stone-700 hover:text-amber-600 sm:inline"
+              >
+                {user.fullName}
+              </Link>
+              <Button onClick={() => { logout(); navigate('/') }}>Đăng xuất</Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => navigate('/login')}>Đăng nhập</Button>
+              <Button type="primary" onClick={() => navigate('/register')}>Đăng ký</Button>
+            </>
+          )}
+        </Space>
+      </div>
+    </header>
   )
 }

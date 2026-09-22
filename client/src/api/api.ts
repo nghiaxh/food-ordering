@@ -56,8 +56,8 @@ export const adminSaveFood = (id: number | null, data: object) =>
 
 export const adminDeleteFood = (id: number) => http.delete(`/admin/foods/${id}`)
 
-export const adminSaveCategory = (id: number | null, name: string) =>
-  id ? http.put(`/admin/categories/${id}`, { name }) : http.post('/admin/categories', { name })
+export const adminSaveCategory = (id: number | null, data: { name: string; slug: string; imageUrl: string }) =>
+  id ? http.put(`/admin/categories/${id}`, data) : http.post('/admin/categories', data)
 
 export const adminDeleteCategory = (id: number) => http.delete(`/admin/categories/${id}`)
 
