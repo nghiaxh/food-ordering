@@ -23,11 +23,6 @@ export default function OrdersPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
-        Lịch sử
-      </div>
-      <h1 className="text-3xl font-bold text-stone-900">Đơn hàng của tôi</h1>
-
       {error ? (
         <div className="mt-6">
           <Alert

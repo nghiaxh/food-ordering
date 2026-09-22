@@ -65,9 +65,7 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <h1 className="text-3xl font-bold text-stone-900">Giỏ hàng</h1>
-
-      <div className="mt-6 space-y-10 lg:flex lg:gap-8">
+      <div className="space-y-10 lg:flex lg:gap-8">
         <div className="flex-1 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60">
           <Table
             rowKey={(r) => r.food.id}
