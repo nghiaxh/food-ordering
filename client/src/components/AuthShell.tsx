@@ -4,13 +4,11 @@ import UiIcon from './UiIcon'
 
 interface AuthShellProps {
   title: string
-  subtitle?: string
-  icon: string
   maxWidth?: string
   children: ReactNode
 }
 
-export default function AuthShell({ title, subtitle, icon, maxWidth = 'max-w-[420px]', children }: AuthShellProps) {
+export default function AuthShell({ title, maxWidth = 'max-w-[400px]', children }: AuthShellProps) {
   return (
     <div
       className="auth-shell relative flex min-h-[100dvh] items-center justify-center overflow-hidden p-4"
@@ -32,18 +30,11 @@ export default function AuthShell({ title, subtitle, icon, maxWidth = 'max-w-[42
       </Link>
 
       <div
-        className={`auth-card relative z-10 w-full ${maxWidth} rounded-3xl bg-white p-8 shadow-2xl shadow-stone-950/40 ring-1 ring-stone-950/5 sm:p-10`}
+        className={`auth-card relative z-10 w-full ${maxWidth} rounded-3xl bg-white p-6 shadow-2xl shadow-stone-950/40 ring-1 ring-stone-950/5 sm:p-8`}
       >
-        <div className="flex flex-col items-center text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-600 text-2xl text-white shadow-lg shadow-amber-600/30">
-            <UiIcon name={icon} />
-          </span>
-          <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-stone-900">{title}</h1>
-          <div className="mt-1.5 w-10 border-t-2 border-amber-500" />
-          {subtitle && <p className="mt-3 text-sm leading-relaxed text-stone-500">{subtitle}</p>}
-        </div>
+        <h1 className="text-center text-2xl font-extrabold tracking-tight text-stone-900">{title}</h1>
 
-        <div className="mt-8">{children}</div>
+        <div className="mt-6">{children}</div>
       </div>
     </div>
   )

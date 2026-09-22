@@ -76,16 +76,8 @@ export default function FoodsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
-      <div className="mb-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
-        Thực đơn
-      </div>
-      <h1 className="text-3xl font-bold text-stone-900">Khám phá món ăn</h1>
-      <p className="mt-2 text-stone-500">
-        Tìm theo tên, danh mục hoặc khoảng giá. Chưa biết ăn gì? Bấm chatbot để được tư vấn.
-      </p>
-
       {/* Filters */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Input.Search
           placeholder="Tìm món..."
           value={keyword}
@@ -129,7 +121,7 @@ export default function FoodsPage() {
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
               categoryId === undefined
                 ? 'bg-amber-600 text-white'
-                : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-amber-50'
+                : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
             }`}
           >
             Tất cả
@@ -142,7 +134,7 @@ export default function FoodsPage() {
               className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                 categoryId === c.id
                   ? 'bg-amber-600 text-white'
-                  : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-amber-50'
+                  : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
               }`}
             >
               {c.name}
