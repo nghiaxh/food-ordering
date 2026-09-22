@@ -1,7 +1,7 @@
 services:
   # ---------- Database (dùng chung dev + prod) ----------
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     profiles: ["dev", "prod"]
     environment:
       POSTGRES_DB: ${DB_NAME}
