@@ -2,8 +2,6 @@
 
 Tài liệu mô tả cách FoodOrdering vận hành: các thành phần, luồng dữ liệu, xác thực, chatbot và những quy ước quan trọng khi làm việc.
 
-> Dự án đang ở giai đoạn **scaffolding** — code hiện chỉ có khung lớp (package + stub). Tài liệu này mô tả kiến trúc thiết kế sẽ được triển khai chi tiết.
-
 ## Tổng quan
 
 FoodOrdering là ứng dụng **đặt món trực tuyến** theo mô hình monorepo gồm client và server. Điểm khác biệt là **trợ lý AI** tư vấn món ăn theo ngôn ngữ tự nhiên, gợi ý luôn nằm trong thực đơn thật và đặt được ngay.
@@ -112,7 +110,7 @@ nginx.conf         prod: serve dist/ và proxy /api tới server
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
 - **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`, `jsonMode` ép JSON, config qua `app.ai.api-key` / `app.ai.model`). Muốn đổi nhà cung cấp AI chỉ sửa file này.
-- **Ảnh món** dùng URL ngoài (mặc định placehold.co trong seed). Admin nhập link ảnh trong form, không có endpoint upload ảnh.
+- **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin). Admin có thể nhập link ảnh ngoài trong form quản lý; không có endpoint upload ảnh món.
 - **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) — đừng log token.
 
 ## Phát triển local (profile dev)
