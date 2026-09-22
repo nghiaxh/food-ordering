@@ -3,7 +3,8 @@ import { Button, Empty, Input, InputNumber, Select, Space, message } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { getCategories, getFoods } from '../api/api'
-import type { Category, Food } from '../types'
+import useAsyncData from '../hooks/useAsyncData'
+import type { Food } from '../types'
 import FoodCard from '../components/FoodCard'
 
 type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'name-asc'
@@ -34,8 +35,6 @@ function sortFoods(list: Food[], sort: SortKey): Food[] {
 
 export default function FoodsPage() {
   const [searchParams] = useSearchParams()
-  const [categories, setCategories] = useState<Category[]>([])
-  const [foods, setFoods] = useState<Food[]>([])
   const [keyword, setKeyword] = useState('')
   const [minPrice, setMinPrice] = useState<number | null>(null)
   const [maxPrice, setMaxPrice] = useState<number | null>(null)
@@ -43,32 +42,36 @@ export default function FoodsPage() {
     searchParams.get('category') ? Number(searchParams.get('category')) : undefined,
   )
   const [sort, setSort] = useState<SortKey>('featured')
-  const [loading, setLoading] = useState(true)
+  const [applyNonce, setApplyNonce] = useState(0)
 
-  const load = (catId: number | undefined, kw: string, min: number | null, max: number | null) =>
-    getFoods({
-      keyword: kw || undefined,
-      categoryId: catId,
-      minPrice: min ?? undefined,
-      maxPrice: max ?? undefined,
-    })
-      .then(setFoods)
-      .catch(() => message.error('Không tải được thực đơn'))
-      .finally(() => setLoading(false))
+  const { data: categories } = useAsyncData((signal) => getCategories(signal), [])
+
+  const { data: foods, loading, error } = useAsyncData(
+    (signal) =>
+      getFoods(
+        {
+          keyword: keyword || undefined,
+          categoryId,
+          minPrice: minPrice ?? undefined,
+          maxPrice: maxPrice ?? undefined,
+        },
+        signal,
+      ),
+    [categoryId, applyNonce],
+  )
 
   useEffect(() => {
-    getCategories().then(setCategories).catch(() => undefined)
-  }, [])
+    if (error) message.error('Không tải được thực đơn')
+  }, [error])
 
-  useEffect(() => {
-    setLoading(true)
-    load(categoryId, keyword, minPrice, maxPrice)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId])
+  const applyFilters = () => setApplyNonce((n) => n + 1)
 
-  const applyFilters = () => {
-    setLoading(true)
-    load(categoryId, keyword, minPrice, maxPrice)
+  const resetFilters = () => {
+    setKeyword('')
+    setMinPrice(null)
+    setMaxPrice(null)
+    setCategoryId(undefined)
+    setApplyNonce((n) => n + 1)
   }
 
   return (
@@ -111,12 +114,7 @@ export default function FoodsPage() {
         </Space.Compact>
         <Button type="primary" onClick={applyFilters}>Lọc</Button>
         <Button
-          onClick={() => {
-            setKeyword('')
-            setMinPrice(null)
-            setMaxPrice(null)
-            setCategoryId(undefined)
-          }}
+          onClick={resetFilters}
         >
           Đặt lại
         </Button>
@@ -136,7 +134,7 @@ export default function FoodsPage() {
           >
             Tất cả
           </button>
-          {categories.map((c) => (
+          {(categories ?? []).map((c) => (
             <button
               key={c.id}
               type="button"
@@ -168,11 +166,11 @@ export default function FoodsPage() {
               <PulseBlock key={i} className="h-72" />
             ))}
           </div>
-        ) : foods.length === 0 ? (
+        ) : (foods?.length ?? 0) === 0 ? (
           <Empty description="Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc hoặc hỏi chatbot nhé!" />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {sortFoods(foods, sort).map((f) => (
+            {sortFoods(foods ?? [], sort).map((f) => (
               <FoodCard key={f.id} food={f} />
             ))}
           </div>

@@ -13,46 +13,34 @@ import {
   adminSetUserActive, adminUpdateOrderStatus, adminUploadDocument,
   getCategories, getFoods,
 } from '../../api/api'
+import useAsyncData from '../../hooks/useAsyncData'
+import useAsyncAction from '../../hooks/useAsyncAction'
 import type {
-  Category, ChatHistoryMessage, Food, KnowledgeDocument, Order, OrderStatus, User,
+  Category, ChatHistoryMessage, Food, KnowledgeDocument, OrderStatus, User,
 } from '../../types'
 import { formatVND } from '../../utils/format'
+import { ORDER_STATUS_COLOR, ORDER_STATUS_LABEL } from '../../utils/orders'
 import UiImg from '../../components/UiImg'
-
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  PREPARING: 'Đang chế biến',
-  COMPLETED: 'Đã giao',
-  CANCELLED: 'Đã hủy',
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  PENDING: 'gold',
-  CONFIRMED: 'blue',
-  PREPARING: 'purple',
-  COMPLETED: 'green',
-  CANCELLED: 'red',
-}
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
+const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED', 'CANCELLED']
+
 function FoodsTab() {
-  const [data, setData] = useState<Food[]>([])
-  const [cats, setCats] = useState<Category[]>([])
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Food | null>(null)
   const [form] = Form.useForm()
-  const [saving, setSaving] = useState(false)
 
-  const fetchData = async () => {
-    setData(await getFoods())
-    setCats(await getCategories())
-  }
+  const { data, loading, error, refresh: refreshData } = useAsyncData((signal) => getFoods(undefined, signal), [])
+  const { data: cats } = useAsyncData((signal) => getCategories(signal), [])
+  const { run: saveFood, pending: saving } = useAsyncAction(
+    (payload: Record<string, unknown>) => adminSaveFood(editing?.id ?? null, payload),
+  )
+  const { run: deleteFood } = useAsyncAction((id: number) => adminDeleteFood(id))
+
   useEffect(() => {
-    fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (error) message.error('Không tải được dữ liệu')
+  }, [error])
 
   const openCreate = () => {
     setEditing(null)
@@ -65,30 +53,27 @@ function FoodsTab() {
     setModal(true)
   }
   const submit = async (v: Record<string, unknown>) => {
-    setSaving(true)
-    try {
-      await adminSaveFood(editing?.id ?? null, {
-        ...v,
-        imageUrl: (v.imageUrl as string)?.trim() || '/images/hero.jpg',
-        price: Number(v.price),
-        spicyLevel: Number(v.spicyLevel),
-        servingSize: Number(v.servingSize),
-      })
-      message.success(editing ? 'Đã cập nhật món ăn!' : 'Đã tạo món ăn!')
-      setModal(false)
-      await fetchData()
-    } catch {
+    const res = await saveFood({
+      ...v,
+      imageUrl: (v.imageUrl as string)?.trim() || '/images/hero.jpg',
+      price: Number(v.price),
+      spicyLevel: Number(v.spicyLevel),
+      servingSize: Number(v.servingSize),
+    })
+    if (!res.ok) {
       message.error('Lưu thất bại')
-    } finally {
-      setSaving(false)
+      return
     }
+    message.success(editing ? 'Đã cập nhật món ăn!' : 'Đã tạo món ăn!')
+    setModal(false)
+    void refreshData()
   }
   const remove = async (id: number) => {
-    try {
-      await adminDeleteFood(id)
+    const res = await deleteFood(id)
+    if (res.ok) {
       message.success('Đã xóa món ăn')
-      await fetchData()
-    } catch {
+      void refreshData()
+    } else {
       message.error('Xóa thất bại')
     }
   }
@@ -102,6 +87,7 @@ function FoodsTab() {
       <Table
         rowKey="id"
         dataSource={data}
+        loading={loading}
         pagination={{ pageSize: 10 }}
         scroll={{ x: 800 }}
         columns={[
@@ -153,7 +139,7 @@ function FoodsTab() {
             <Input />
           </Form.Item>
           <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true, message: 'Chọn danh mục' }]}>
-            <Select options={cats.map((c) => ({ label: c.name, value: c.id }))} />
+            <Select options={(cats ?? []).map((c) => ({ label: c.name, value: c.id }))} />
           </Form.Item>
           <Form.Item name="description" label="Mô tả">
             <Input.TextArea rows={2} />
@@ -185,34 +171,40 @@ function FoodsTab() {
 }
 
 function CategoriesTab() {
-  const [data, setData] = useState<Category[]>([])
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
   const [name, setName] = useState('')
-  const [saving, setSaving] = useState(false)
 
-  const fetchData = () => getCategories().then(setData)
-  useEffect(() => {
-    fetchData()
-  }, [])
+  const { data, refresh: refreshData } = useAsyncData((signal) => getCategories(signal), [])
+  const { run: saveCategory, pending: saving } = useAsyncAction(
+    (payload: { id: number | null; name: string }) => adminSaveCategory(payload.id, payload.name),
+  )
+  const { run: deleteCategory } = useAsyncAction((id: number) => adminDeleteCategory(id))
 
   const save = async () => {
     if (!name.trim()) {
       message.warning('Nhập tên danh mục')
       return
     }
-    setSaving(true)
-    try {
-      await adminSaveCategory(editing?.id ?? null, name.trim())
-      message.success('Đã lưu danh mục')
-      setModal(false)
-      setName('')
-      setEditing(null)
-      await fetchData()
-    } catch {
+    const res = await saveCategory({ id: editing?.id ?? null, name: name.trim() })
+    if (!res.ok) {
       message.error('Lưu thất bại')
-    } finally {
-      setSaving(false)
+      return
+    }
+    message.success('Đã lưu danh mục')
+    setModal(false)
+    setName('')
+    setEditing(null)
+    void refreshData()
+  }
+
+  const remove = async (id: number) => {
+    const res = await deleteCategory(id)
+    if (res.ok) {
+      message.success('Đã xóa')
+      void refreshData()
+    } else {
+      message.error('Xóa thất bại')
     }
   }
 
@@ -231,7 +223,7 @@ function CategoriesTab() {
               cover={<UiImg src={c.imageUrl} alt={c.name} imgClass="h-32 w-full object-cover" />}
               actions={[
                 <Button size="small" key="edit" onClick={() => { setEditing(c); setName(c.name); setModal(true) }}>Sửa</Button>,
-                <Popconfirm key="del" title="Xóa danh mục này?" onConfirm={async () => { try { await adminDeleteCategory(c.id); message.success('Đã xóa'); await fetchData() } catch { message.error('Xóa thất bại') } }}>
+                <Popconfirm key="del" title="Xóa danh mục này?" onConfirm={() => remove(c.id)}>
                   <Button size="small" danger icon={<DeleteOutlined />}>Xóa</Button>
                 </Popconfirm>,
               ]}
@@ -253,33 +245,35 @@ function CategoriesTab() {
 }
 
 function OrdersTab() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [patching, setPatching] = useState(false)
+  const { data: orders, loading, error, refresh: refreshOrders } = useAsyncData(
+    () => adminGetOrders(),
+    [],
+  )
+  const { run: updateStatus, pending: patching } = useAsyncAction(
+    (payload: { id: number; status: OrderStatus }) => adminUpdateOrderStatus(payload.id, payload.status),
+  )
 
-  const fetchData = () => adminGetOrders().then(setOrders)
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (error) message.error('Không tải được đơn hàng')
+  }, [error])
 
   const changeStatus = async (id: number, status: OrderStatus) => {
-    setPatching(true)
-    try {
-      await adminUpdateOrderStatus(id, status)
+    const res = await updateStatus({ id, status })
+    if (res.ok) {
       message.success('Đã cập nhật trạng thái')
-      await fetchData()
-    } catch {
+      void refreshOrders()
+    } else {
       message.error('Cập nhật thất bại')
-    } finally {
-      setPatching(false)
     }
   }
 
   return (
     <div>
-      <p className="mb-4 text-sm text-stone-500">Tổng cộng: <b>{orders.length}</b> đơn hàng. Bấm đổi trạng thái để cập nhật.</p>
+      <p className="mb-4 text-sm text-stone-500">Tổng cộng: <b>{orders?.length ?? 0}</b> đơn hàng. Bấm đổi trạng thái để cập nhật.</p>
       <Table
         rowKey="id"
         dataSource={orders}
+        loading={loading}
         pagination={{ pageSize: 10 }}
         scroll={{ x: 900 }}
         columns={[
@@ -293,8 +287,8 @@ function OrdersTab() {
               width: 230,
               render: (_, o) => (
                 <Space.Compact>
-                  <Tag color={STATUS_COLOR[o.status] ?? 'default'} className="!m-0">
-                    {STATUS_LABEL[o.status] ?? o.status}
+                  <Tag color={ORDER_STATUS_COLOR[o.status] ?? 'default'} className="!m-0">
+                    {ORDER_STATUS_LABEL[o.status] ?? o.status}
                   </Tag>
                   <Select
                     size="small"
@@ -302,13 +296,7 @@ function OrdersTab() {
                     loading={patching}
                     onChange={(s) => changeStatus(o.id, s)}
                     style={{ width: 130 }}
-                    options={[
-                      { label: STATUS_LABEL.PENDING, value: 'PENDING' },
-                      { label: STATUS_LABEL.CONFIRMED, value: 'CONFIRMED' },
-                      { label: STATUS_LABEL.PREPARING, value: 'PREPARING' },
-                      { label: STATUS_LABEL.COMPLETED, value: 'COMPLETED' },
-                      { label: STATUS_LABEL.CANCELLED, value: 'CANCELLED' },
-                    ]}
+                    options={ORDER_STATUSES.map((s) => ({ label: ORDER_STATUS_LABEL[s], value: s }))}
                   />
                 </Space.Compact>
               ),
@@ -320,24 +308,25 @@ function OrdersTab() {
 }
 
 function CustomersTab() {
-  const [users, setUsers] = useState<User[]>([])
-  const [patching, setPatching] = useState(false)
+  const { data: users, loading, error, refresh: refreshUsers } = useAsyncData(
+    () => adminGetUsers(),
+    [],
+  )
+  const { run: toggleActive, pending: patching } = useAsyncAction(
+    (payload: { id: number; active: boolean }) => adminSetUserActive(payload.id, payload.active),
+  )
 
-  const fetchData = () => adminGetUsers().then(setUsers)
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (error) message.error('Không tải được danh sách khách hàng')
+  }, [error])
 
   const toggle = async (u: User) => {
-    setPatching(true)
-    try {
-      await adminSetUserActive(u.id, !u.active)
+    const res = await toggleActive({ id: u.id, active: !u.active })
+    if (res.ok) {
       message.success('Đã thay đổi trạng thái')
-      await fetchData()
-    } catch {
+      void refreshUsers()
+    } else {
       message.error('Cập nhật thất bại')
-    } finally {
-      setPatching(false)
     }
   }
 
@@ -347,6 +336,7 @@ function CustomersTab() {
       <Table
         rowKey="id"
         dataSource={users}
+        loading={loading}
         pagination={false}
         scroll={{ x: 700 }}
         columns={[
@@ -375,45 +365,52 @@ function ChatbotTab() {
   const [history, setHistory] = useState<ChatHistoryMessage[]>([])
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([])
   const [uploading, setUploading] = useState(false)
-  const [savingSettings, setSavingSettings] = useState(false)
   const [maxSuggestions, setMaxSuggestions] = useState(5)
   const [extraRules, setExtraRules] = useState('')
 
-  const fetchData = async () => {
-    const [h, d, s] = await Promise.all([adminGetChatHistory(), adminGetDocuments(), adminGetSettings()])
-    setHistory(h)
-    setDocuments(d)
-    const m = Object.fromEntries(s.map((item) => [item.settingKey, item.settingValue]))
-    setMaxSuggestions(Number(m.max_suggestions ?? 5))
-    setExtraRules(m.extra_rules ?? '')
-  }
-  useEffect(() => {
-    fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const { data, loading, error, refresh: fetchData } = useAsyncData(
+    () => Promise.all([adminGetChatHistory(), adminGetDocuments(), adminGetSettings()]),
+    [],
+  )
 
-  const saveSettings = async () => {
-    setSavingSettings(true)
-    try {
-      await Promise.all([
-        adminSaveSetting('max_suggestions', String(maxSuggestions)),
-        adminSaveSetting('extra_rules', extraRules),
-      ])
+  useEffect(() => {
+    if (!data) return
+    setHistory(data[0])
+    setDocuments(data[1])
+    const settings = Object.fromEntries(data[2].map((item) => [item.settingKey, item.settingValue]))
+    setMaxSuggestions(Number(settings.max_suggestions ?? 5))
+    setExtraRules(settings.extra_rules ?? '')
+  }, [data])
+
+  useEffect(() => {
+    if (error) message.error('Không tải được dữ liệu chatbot')
+  }, [error])
+
+  const { run: saveSettings, pending: savingSettings } = useAsyncAction(() =>
+    Promise.all([
+      adminSaveSetting('max_suggestions', String(maxSuggestions)),
+      adminSaveSetting('extra_rules', extraRules),
+    ]),
+  )
+
+  const { run: deleteDocument } = useAsyncAction((id: number) => adminDeleteDocument(id))
+
+  const onSaveSettings = async () => {
+    const res = await saveSettings()
+    if (res.ok) {
       message.success('Đã lưu cài đặt chatbot')
-      await fetchData()
-    } catch {
+      void fetchData()
+    } else {
       message.error('Lưu thất bại')
-    } finally {
-      setSavingSettings(false)
     }
   }
 
-  const removeDocument = async (id: number) => {
-    try {
-      await adminDeleteDocument(id)
+  const onRemoveDocument = async (id: number) => {
+    const res = await deleteDocument(id)
+    if (res.ok) {
       message.success('Đã xóa tài liệu')
-      await fetchData()
-    } catch {
+      void fetchData()
+    } else {
       message.error('Xóa thất bại')
     }
   }
@@ -438,7 +435,7 @@ function ChatbotTab() {
             placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..."
           />
         </div>
-        <Button type="primary" className="mt-3" loading={savingSettings} onClick={saveSettings}>
+        <Button type="primary" className="mt-3" loading={savingSettings} onClick={onSaveSettings}>
           Lưu cài đặt
         </Button>
       </div>
@@ -460,7 +457,7 @@ function ChatbotTab() {
             try {
               await adminUploadDocument(file)
               message.success('Đã upload tài liệu')
-              await fetchData()
+              void fetchData()
             } catch {
               message.error('Upload thất bại')
             } finally {
@@ -483,7 +480,7 @@ function ChatbotTab() {
           renderItem={(d) => (
             <List.Item
               actions={[
-                <Popconfirm key="del" title="Xóa tài liệu?" onConfirm={() => removeDocument(d.id)}>
+                <Popconfirm key="del" title="Xóa tài liệu?" onConfirm={() => onRemoveDocument(d.id)}>
                   <Button size="small" danger icon={<DeleteOutlined />}>Xóa</Button>
                 </Popconfirm>,
               ]}
@@ -507,6 +504,7 @@ function ChatbotTab() {
         <Table
           rowKey="id"
           dataSource={history}
+          loading={loading}
           pagination={{ pageSize: 8 }}
           scroll={{ x: 800 }}
           columns={[

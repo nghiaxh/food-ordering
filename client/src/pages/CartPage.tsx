@@ -2,6 +2,7 @@ import { Button, Empty, Form, Input, InputNumber, Radio, Table, Typography, mess
 import { DeleteOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { createOrder } from '../api/api'
+import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
@@ -11,21 +12,42 @@ export default function CartPage() {
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
 
+  const { run: submitOrder, pending: submitting } = useAsyncAction(
+    (payload: {
+      items: { foodId: number; quantity: number }[]
+      receiverName: string
+      phone: string
+      address: string
+      paymentMethod: string
+    }) => createOrder(payload),
+  )
+
   const submit = async (v: { receiverName: string; phone: string; address: string; paymentMethod: string }) => {
     if (!user) {
       message.warning('Vui lòng đăng nhập để đặt món')
       navigate('/login')
       return
     }
-    try {
-      await createOrder({ ...v, items: items.map((i) => ({ foodId: i.food.id, quantity: i.quantity })) })
+    if (submitting) return
+    const res = await submitOrder({
+      ...v,
+      items: items.map((i) => ({ foodId: i.food.id, quantity: i.quantity })),
+    })
+    if (res.ok) {
       message.success('Đặt món thành công!')
       clear()
       navigate('/orders')
-    } catch (e) {
-      message.error(typeof e === 'object' && e !== null && 'response' in e
-        ? String((e as { response?: { data?: { message?: string } } }).response?.data?.message ?? 'Đặt món thất bại')
-        : 'Đặt món thất bại')
+    } else {
+      message.error(
+        typeof res.error === 'object' &&
+          res.error !== null &&
+          'response' in res.error
+          ? String(
+              (res.error as { response?: { data?: { message?: string } } }).response?.data?.message ??
+                'Đặt món thất bại',
+            )
+          : 'Đặt món thất bại',
+      )
     }
   }
 
@@ -111,7 +133,7 @@ export default function CartPage() {
                 <Radio value="E_WALLET">Ví điện tử</Radio>
               </Radio.Group>
             </Form.Item>
-            <Button type="primary" htmlType="submit" size="large" block>
+            <Button type="primary" htmlType="submit" size="large" block loading={submitting} disabled={submitting}>
               Đặt món · {formatVND(total())}
             </Button>
           </Form>

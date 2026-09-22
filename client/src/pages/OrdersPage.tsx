@@ -1,26 +1,17 @@
-import { useEffect, useState } from 'react'
-import { Divider, Empty, Skeleton, Tag, Typography } from 'antd'
+import { useEffect } from 'react'
+import { Alert, Button, Divider, Empty, Skeleton, Tag, Typography, message } from 'antd'
 import { CheckCircleOutlined, InboxOutlined } from '@ant-design/icons'
 import { getMyOrders } from '../api/api'
-import type { Order } from '../types'
-
-const STATUS_COLOR: Record<string, string> = {
-  PENDING: 'gold',
-  CONFIRMED: 'blue',
-  PREPARING: 'purple',
-  COMPLETED: 'green',
-  CANCELLED: 'red',
-}
+import useAsyncData from '../hooks/useAsyncData'
+import { ORDER_STATUS_COLOR, ORDER_STATUS_LABEL } from '../utils/orders'
+import { formatVND } from '../utils/format'
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>()
-  const [loading, setLoading] = useState(true)
+  const { data: orders, loading, error, refresh } = useAsyncData((signal) => getMyOrders(signal), [])
 
   useEffect(() => {
-    getMyOrders()
-      .then(setOrders)
-      .finally(() => setLoading(false))
-  }, [])
+    if (error) message.error('Không tải được danh sách đơn hàng')
+  }, [error])
 
   if (loading) {
     return (
@@ -37,7 +28,17 @@ export default function OrdersPage() {
       </div>
       <h1 className="text-3xl font-bold text-stone-900">Đơn hàng của tôi</h1>
 
-      {orders?.length === 0 ? (
+      {error ? (
+        <div className="mt-6">
+          <Alert
+            type="error"
+            showIcon
+            message="Không tải được đơn hàng"
+            description="Đã có lỗi khi kết nối máy chủ. Kiểm tra mạng rồi thử lại."
+          />
+          <Button className="mt-3" onClick={() => void refresh()}>Thử lại</Button>
+        </div>
+      ) : orders?.length === 0 ? (
         <Empty description="Bạn chưa có đơn hàng nào">
           <Typography.Link href="/foods">Khám phá thực đơn ngay!</Typography.Link>
         </Empty>
@@ -51,7 +52,9 @@ export default function OrdersPage() {
                   <span className="flex items-center gap-1 text-xs text-stone-400">
                     <CheckCircleOutlined /> {new Date(o.createdAt).toLocaleDateString('vi-VN')}
                   </span>
-                  <Tag color={STATUS_COLOR[o.status] ?? 'default'}>{o.status}</Tag>
+                  <Tag color={ORDER_STATUS_COLOR[o.status] ?? 'default'}>
+                    {ORDER_STATUS_LABEL[o.status] ?? o.status}
+                  </Tag>
                 </div>
               </div>
               <Divider style={{ margin: '12px 0' }} />
@@ -61,12 +64,12 @@ export default function OrdersPage() {
                     <span className="text-stone-600">
                       {it.quantity}x {it.food.name}
                     </span>
-                    <span className="text-stone-500">{it.price}</span>
+                    <span className="text-stone-500">{formatVND(it.price)}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between border-t border-dashed border-stone-200 pt-2 text-sm">
                   <span className="text-stone-500">{o.paymentMethod}</span>
-                  <b className="text-base text-amber-700">{o.total}</b>
+                  <b className="text-base text-amber-700">{formatVND(o.total)}</b>
                 </div>
               </div>
             </div>
