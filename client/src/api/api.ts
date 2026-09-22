@@ -8,18 +8,22 @@ export const login = (email: string, password: string) =>
 export const register = (data: { email: string; password: string; fullName: string; phone?: string; address?: string }) =>
   http.post<AuthUser>('/auth/register', data).then((r) => r.data)
 
-export const getMe = () => http.get<User>('/auth/me').then((r) => r.data)
+export const getMe = (signal?: AbortSignal) => http.get<User>('/auth/me', { signal }).then((r) => r.data)
 
 export const updateMe = (data: { fullName: string; phone: string; address: string }) =>
   http.put('/auth/me', data).then((r) => r.data)
 
 // ----- Món ăn -----
-export const getCategories = () => http.get<Category[]>('/categories').then((r) => r.data)
+export const getCategories = (signal?: AbortSignal) =>
+  http.get<Category[]>('/categories', { signal }).then((r) => r.data)
 
-export const getFoods = (params?: { keyword?: string; categoryId?: number; minPrice?: number; maxPrice?: number }) =>
-  http.get<Food[]>('/foods', { params }).then((r) => r.data)
+export const getFoods = (
+  params?: { keyword?: string; categoryId?: number; minPrice?: number; maxPrice?: number },
+  signal?: AbortSignal,
+) => http.get<Food[]>('/foods', { params, signal }).then((r) => r.data)
 
-export const getFood = (id: number) => http.get<Food>(`/foods/${id}`).then((r) => r.data)
+export const getFood = (id: number, signal?: AbortSignal) =>
+  http.get<Food>(`/foods/${id}`, { signal }).then((r) => r.data)
 
 // ----- Đơn hàng -----
 export const createOrder = (data: {
@@ -30,10 +34,12 @@ export const createOrder = (data: {
   paymentMethod: string
 }) => http.post<Order>('/orders', data).then((r) => r.data)
 
-export const getMyOrders = () => http.get<Order[]>('/orders/my').then((r) => r.data)
+export const getMyOrders = (signal?: AbortSignal) =>
+  http.get<Order[]>('/orders/my', { signal }).then((r) => r.data)
 
 // ----- Đánh giá -----
-export const getReviews = (foodId: number) => http.get<Review[]>(`/reviews/food/${foodId}`).then((r) => r.data)
+export const getReviews = (foodId: number, signal?: AbortSignal) =>
+  http.get<Review[]>(`/reviews/food/${foodId}`, { signal }).then((r) => r.data)
 
 export const createReview = (data: { foodId: number; rating: number; comment: string }) =>
   http.post<Review>('/reviews', data).then((r) => r.data)
