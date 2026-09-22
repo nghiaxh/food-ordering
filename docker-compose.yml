@@ -1,7 +1,8 @@
 services:
   # ---------- Database (dùng chung dev + prod) ----------
-  db:
+  database:
     image: postgres:18-alpine
+    container_name: food-ordering-database
     profiles: ["dev", "prod"]
     environment:
       POSTGRES_DB: ${DB_NAME}
@@ -10,7 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
@@ -22,12 +23,13 @@ services:
     build:
       context: ./server
       target: dev
+    container_name: food-ordering-server-dev
     profiles: ["dev"]
     depends_on:
-      db:
+      database:
         condition: service_healthy
     environment: &server_env
-      DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      DB_URL: jdbc:postgresql://database:5432/${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -45,6 +47,7 @@ services:
     build:
       context: ./client
       target: dev
+    container_name: food-ordering-client-dev
     profiles: ["dev"]
     environment:
       VITE_API_URL: http://localhost:8080/api
@@ -59,9 +62,10 @@ services:
     build:
       context: ./server
       target: prod
+    container_name: food-ordering-server-prod
     profiles: ["prod"]
     depends_on:
-      db:
+      database:
         condition: service_healthy
     environment: *server_env
     ports:
@@ -74,6 +78,7 @@ services:
       target: prod
       args:
         VITE_API_URL: http://localhost:8080/api
+    container_name: food-ordering-client-prod
     profiles: ["prod"]
     depends_on:
       - server-prod
