@@ -330,19 +330,9 @@ nginx.conf         prod: serve dist/ và fallback về index.html
 - **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); **seed chỉ chạy khi bảng `users` còn trống** (`if (userRepo.count() > 0) return;`), nên lần khởi động sau sẽ bỏ qua toàn bộ seed và không nhân đôi dữ liệu demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
-- **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép JSON). Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không bao giờ gửi xuống client.
-- **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin), toàn bộ là `.webp` đã resize theo ô hiển thị. Admin tải ảnh lên qua `POST /api/admin/uploads/image` hoặc dán URL ngoài trong form quản lý; ảnh tải lên có URL tuyệt đối trỏ vào `/api/uploads/**`.
-- **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) - đừng log token.
-- **Phân trang `/`**: cắt trang phía client 12 món mỗi trang sau khi đã sắp xếp (`PAGE_SIZE` trong `FoodsPage`). Đổi page size thì nhớ kẹp `page` vào `totalPages`.
-- **Bộ lọc nằm trên URL**: `FoodsPage` đọc `category`, `keyword`, `min`, `max` từ `useSearchParams`, không giữ state lọc cục bộ. Thêm bộ lọc mới thì nhớ thêm khoá vào `patch()`.
-- **`useHasCartBar` tính theo đường dẫn**: bảng món giờ là `/` (không phải `/foods`). Thêm trang mới có thanh giỏ ghim đáy thì cập nhật hook này, nếu không nút mở chatbot sẽ bị thanh giỏ che.
-- **Sửa DTO phải cập nhật cả hai phía**: `client/src/types/index.ts` và hàm gọi trong `client/src/api/api.ts`. Sửa đánh giá dùng DTO riêng `UpdateReviewRequest` không có `foodId` vì sửa đánh giá không đổi món.
-- **Comment và tài liệu**: comment tiếng Việt nên giải thích ràng buộc, nguồn dữ liệu, vòng đời state hoặc fallback; không lặp lại cú pháp. Khi đổi hợp đồng API hoặc quy tắc domain, cập nhật đồng bộ tài liệu kiến trúc và test.
-- **Thanh giỏ cố định đáy**: `/foods` (khi giỏ có món), `/foods/:id` và `/cart` đều có thanh `fixed bottom-0`. Mọi trang đó phải chừa padding đáy, và mọi nút nổi (`ChatbotWidget`, `ScrollTopButton`) phải hỏi `useHasCartBar()` để nhảy lên cao hơn thanh. Thêm trang mới có thanh cố định thì cập nhật hook này.
-- **Trang Thực đơn là trang chủ**: route `/` render `FoodsPage`, `/foods/:id` là route con hiện
-  thành panel phủ, `/foods` chuyển hướng về `/`. Trang bảng món cuộn trong vùng riêng nên
-  `ScrollManager` chỉ còn việc đưa `window.scrollTo(0)` khi đổi trang (dùng cho `/cart`,
-  `/orders`, `/profile` vẫn cuộn theo trang).
+- **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`, `jsonMode` ép JSON, config qua `app.ai.api-key` / `app.ai.model`). Muốn đổi nhà cung cấp AI chỉ sửa file này.
+- **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin). Admin có thể nhập link ảnh ngoài trong form quản lý; không có endpoint upload ảnh món.
+- **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) — đừng log token.
 
 ## Phát triển local (profile dev)
 
