@@ -19,6 +19,14 @@ const links: NavLink[] = [
   { label: 'Liên hệ', to: '/#contact' },
 ]
 
+const backofficeLinks: NavLink[] = [
+  { label: 'Món ăn', to: '/admin/foods' },
+  { label: 'Danh mục', to: '/admin/categories' },
+  { label: 'Đơn hàng', to: '/admin/orders' },
+  { label: 'Khách hàng', to: '/admin/customers' },
+  { label: 'Chatbot', to: '/admin/chatbot' },
+]
+
 export default function HeaderGlobal() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -28,6 +36,8 @@ export default function HeaderGlobal() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
+  const isAdmin = user?.role === 'ADMIN'
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
     onScroll()
@@ -35,7 +45,7 @@ export default function HeaderGlobal() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const navLinks = user?.role === 'ADMIN' ? [...links, { label: 'Quản trị', to: '/admin' }] : links
+  const navLinks = isAdmin ? backofficeLinks : links
 
   const isActive = (link: NavLink): boolean => {
     if (link.to.startsWith('/#')) {
@@ -174,14 +184,16 @@ export default function HeaderGlobal() {
           </nav>
 
           <div className="flex items-center gap-1.5 justify-self-end">
-            <Badge count={count} size="small" color="#d97706">
-              <Button
-                shape="circle"
-                aria-label="Giỏ hàng"
-                icon={<UiIcon name="shopping-cart" size={20} />}
-                onClick={() => navigate('/cart')}
-              />
-            </Badge>
+            {!isAdmin && (
+              <Badge count={count} size="small" color="#d97706">
+                <Button
+                  shape="circle"
+                  aria-label="Giỏ hàng"
+                  icon={<UiIcon name="shopping-cart" size={20} />}
+                  onClick={() => navigate('/cart')}
+                />
+              </Badge>
+            )}
 
             {user ? (
               <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">

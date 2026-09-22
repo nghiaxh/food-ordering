@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { ConfigProvider } from 'antd'
 import viVN from 'antd/locale/vi_VN'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import DefaultLayout from './layouts/DefaultLayout'
 import HomePage from './pages/HomePage'
@@ -11,7 +11,11 @@ import CartPage from './pages/CartPage'
 import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage, { RegisterPage } from './pages/AuthPages'
-import AdminPage from './pages/admin/AdminPage'
+import AdminFoodsPage from './pages/admin/AdminFoodsPage'
+import AdminCategoriesPage from './pages/admin/AdminCategoriesPage'
+import AdminOrdersPage from './pages/admin/AdminOrdersPage'
+import AdminCustomersPage from './pages/admin/AdminCustomersPage'
+import AdminChatbotPage from './pages/admin/AdminChatbotPage'
 import ScrollManager from './components/ScrollManager'
 
 function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
@@ -51,16 +55,23 @@ function AppRoutes() {
             </RequireAuth>
           }
         />
-      </Route>
 
-      <Route
-        path="/admin"
-        element={
-          <RequireAuth admin>
-            <AdminPage />
-          </RequireAuth>
-        }
-      />
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth admin>
+              <Outlet />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Navigate to="/admin/foods" replace />} />
+          <Route path="foods" element={<AdminFoodsPage />} />
+          <Route path="categories" element={<AdminCategoriesPage />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="customers" element={<AdminCustomersPage />} />
+          <Route path="chatbot" element={<AdminChatbotPage />} />
+        </Route>
+      </Route>
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
