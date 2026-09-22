@@ -4,7 +4,7 @@ export const HERO = {
   titleHighlight: 'Việt',
   titleB: ', chuẩn vị',
   subtitle:
-    'Thực đơn phong phú từ món truyền thống đến quốc tế, được chế biến bởi đầu bếp giàu kinh nghiệm. Đặt món online cực nhanh — chatbot AI tư vấn cho bạn.',
+    'Món Việt truyền thống đến món Âu tinh tế, chế biến bởi đầu bếp giàu kinh nghiệm. Đặt món online nhanh gọn, có chatbot AI tư vấn.',
 }
 
 export interface Banner {

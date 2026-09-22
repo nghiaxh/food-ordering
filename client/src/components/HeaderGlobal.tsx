@@ -141,13 +141,15 @@ export default function HeaderGlobal() {
       >
         <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-6">
           <div className="flex items-center justify-self-start">
-            <Button
-              type="text"
-              aria-label="Mở menu"
-              className="mr-1 md:hidden"
-              icon={<MenuOutlined />}
-              onClick={() => setDrawerOpen(true)}
-            />
+            <div className="md:hidden">
+              <Button
+                type="text"
+                aria-label="Mở menu"
+                className="mr-1"
+                icon={<MenuOutlined />}
+                onClick={() => setDrawerOpen(true)}
+              />
+            </div>
             <Link to="/" className="flex items-center gap-2 text-lg font-bold text-stone-900">
               <img src="/favicon.svg" alt="FoodOrdering" className="h-8 w-8 rounded-xl" />
               <span className="text-lg font-bold text-stone-900">

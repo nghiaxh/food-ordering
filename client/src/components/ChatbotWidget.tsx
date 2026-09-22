@@ -71,7 +71,7 @@ export default function ChatbotWidget() {
   return (
     <div className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3">
       {open && (
-        <div className="flex h-[480px] w-[360px] max-h-[min(480px,calc(100vh-7rem))] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 transition-all duration-200">
+        <div className="flex h-[560px] w-[400px] max-h-[min(560px,calc(100vh-7rem))] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 transition-all duration-200">
           <div className="flex items-center gap-3 bg-amber-600 px-4 py-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
               <RobotOutlined className="text-lg text-white" />
@@ -184,7 +184,7 @@ export default function ChatbotWidget() {
         shape="circle"
         size="large"
         aria-label="Mở trợ lý"
-        className="shadow-lg shadow-amber-900/20"
+        className="h-20 w-20 text-2xl shadow-lg shadow-amber-900/20"
         icon={open ? <CloseOutlined /> : <MessageOutlined />}
         onClick={open ? handleClose : handleOpen}
       />
