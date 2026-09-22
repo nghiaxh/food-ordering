@@ -15,7 +15,7 @@ export default function AuthShell({ title, subtitle, icon, maxWidth = 'max-w-[42
     <div
       className="auth-shell relative flex min-h-[100dvh] items-center justify-center overflow-hidden p-4"
       style={{
-        backgroundImage: "url('/images/hero.webp')",
+        backgroundImage: "url('/images/hero.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundColor: '#1c1917',
