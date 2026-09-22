@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import type { Food } from '../types'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
+import UiImg from './UiImg'
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
@@ -12,12 +13,11 @@ export default function FoodCard({ food }: { food: Food }) {
 
   return (
     <div className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:-translate-y-1 hover:shadow-lg">
-      <Link to={`/foods/${food.id}`} className="relative block h-44 overflow-hidden">
-        <img
+      <Link to={`/foods/${food.id}`} className="relative block aspect-[4/3] overflow-hidden">
+        <UiImg
           src={food.imageUrl}
           alt={food.name}
-          loading="lazy"
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          className={`transition duration-300 group-hover:scale-105 ${food.available ? '' : 'grayscale'}`}
         />
         {food.category && (
           <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-medium text-stone-700 backdrop-blur">

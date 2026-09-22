@@ -42,7 +42,7 @@ export default function FoodsPage() {
     searchParams.get('category') ? Number(searchParams.get('category')) : undefined,
   )
   const [sort, setSort] = useState<SortKey>('featured')
-  const [applyNonce, setApplyNonce] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   const { data: categories } = useAsyncData((signal) => getCategories(signal), [])
 
@@ -134,7 +134,7 @@ export default function FoodsPage() {
           >
             Tất cả
           </button>
-          {(categories ?? []).map((c) => (
+          {categories.map((c) => (
             <button
               key={c.id}
               type="button"
@@ -170,7 +170,7 @@ export default function FoodsPage() {
           <Empty description="Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc hoặc hỏi chatbot nhé!" />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {sortFoods(foods ?? [], sort).map((f) => (
+            {sortFoods(foods, sort).map((f) => (
               <FoodCard key={f.id} food={f} />
             ))}
           </div>
