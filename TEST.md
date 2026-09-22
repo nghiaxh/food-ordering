@@ -1,11 +1,11 @@
-# Kế hoạch kiểm thử
+# Hướng dẫn chạy test
 
-Tài liệu mô tả cách chạy test của dự án FoodOrdering theo từng tầng:
+Tài liệu tổng hợp cách chạy test của dự án FoodOrdering theo từng tầng:
 client (unit + type), server (unit + integration) và end-to-end.
 
-> **Lưu ý quan trọng:** ở giai đoạn **scaffolding chưa có test nào**. Bảng dưới là
-> kế hoạch và lệnh sẽ dùng; test thật được bổ sung khi triển khai code chi tiết
-> trên branch `draft` / `feat/*`.
+> **Lưu ý:** dự án đang ở giai đoạn **scaffolding chưa có test nào**. Các bảng dưới là
+> kế hoạch framework, cấu trúc và lệnh sẽ dùng; test thật được bổ sung khi triển khai
+> code chi tiết trên branch `draft` / `feat/*`.
 
 ## Tổng quan
 
@@ -15,6 +15,8 @@ client (unit + type), server (unit + integration) và end-to-end.
 | Client (type) | tsc | Không | `npm run typecheck` |
 | Server (unit + integration) | JUnit 5 + Testcontainers | Có | `mvn test` |
 | E2E | Playwright (Chromium) | Không (cần stack dev đang chạy) | `npm test` (trong `e2e/`) |
+
+---
 
 ## 1. Client tests
 
@@ -28,22 +30,26 @@ npm run dev         # dev server, http://localhost:5173
 
 Cấu hình dự kiến: `vitest.config.ts` (jsdom hoặc happy-dom, globals). Không có linter.
 
-Unit test nên tập trung vào phần có logic thuần:
+### Unit test dự kiến (logic thuần)
 
 | Khu vực | Nội dung |
 |---------|----------|
 | `store/cartStore` | Thêm/sửa/xóa/clear giỏ, tính tổng tiền |
 | `store/authStore` | Lưu/khôi phục/đăng xuất phiên JWT |
-| `api/http` | Gắn `Authorization: Bearer` từ localStorage, chuyển hướng khi 401 |
+| `api/http` | Gắn `Authorization: Bearer` từ localStorage, xử lý 401 |
 | `components/ChatbotWidget` | Gửi tin, render thẻ món, trạng thái loading/lỗi |
 
-## 2. Server tests  (chạy trong `server/`, cần Docker)
+---
+
+## 2. Server tests
+
+Chạy trong `server/` (**bắt buộc có Docker** — Testcontainers chạy PostgreSQL thật):
 
 ```bash
-mvn test      # unit + integration (Testcontainers chạy PostgreSQL thật)
+mvn test      # unit + integration
 ```
 
-Unit test (mock bean) nên tập trung vào:
+### Unit test dự kiến (mock bean)
 
 | Service | Nội dung |
 |---------|----------|
@@ -54,7 +60,9 @@ Unit test (mock bean) nên tập trung vào:
 | `AiClient` | Map response Gemini thành text (mock HTTP) |
 | `KnowledgeService` | Tách đoạn, chấm điểm theo từ khóa |
 
-## 3. E2E tests (Playwright, tùy chọn)
+---
+
+## 3. E2E tests (Playwright)
 
 Chạy trong `e2e/` — yêu cầu stack dev đang chạy tại `http://localhost:5173`:
 
@@ -64,11 +72,15 @@ npm install                               # (e2e/) lần đầu
 npm test                                  # headless, chromium
 ```
 
-Kịch bản ưu tiên: luồng đặt món (đăng nhập → chọn món → giỏ → đặt → xem trạng
-thái đơn) và luồng chatbot (hỏi "món Việt, không cay, 100k" → nhận thẻ món).
+Kịch bản ưu tiên:
+
+- Luồng đặt món: đăng nhập → chọn món → giỏ hàng → đặt → xem trạng thái đơn.
+- Luồng chatbot: hỏi "món Việt, không cay, 100k" → nhận thẻ món.
+
+---
 
 ## Ghi chú
 
-- Test server cần Docker vì Testcontainers khởi động PostgreSQL riêng.
+- Test server cần Docker vì Testcontainers khởi động PostgreSQL riêng; test client và E2E không cần.
 - E2E cần stack dev đang chạy và dữ liệu seed (tạo tự động khi server khởi động).
-- Reset dữ liệu demo bằng cách xoá volume `db_data`.
+- Reset dữ liệu demo bằng cách xóa volume `db_data`.

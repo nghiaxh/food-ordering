@@ -11,7 +11,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-2496ed?logo=docker&logoColor=white)](https://www.docker.com)
 
-Web đặt món tích hợp **Chatbot AI tư vấn món ăn** cho niên luận ngành. Code đơn giản, dễ hiểu, dễ demo.
+Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món ăn theo nhu cầu, gợi ý được chọn trực tiếp từ thực đơn.
 
 ## Tính năng
 
@@ -94,10 +94,11 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 
 ## Kiểm thử
 
-Xem [TEST.md](TEST.md) cho kế hoạch kiểm thử từng tầng (Vitest, JUnit, Playwright).
-Ở giai đoạn scaffolding chưa có test — sẽ bổ sung khi triển khai code chi tiết.
+Xem [TEST.md](TEST.md) cho hướng dẫn chạy test từng tầng (Vitest, JUnit, Playwright).
 
-## Cấu trúc
+## Tài liệu
 
-Xem [AGENTS.md](AGENTS.md) cho kiến trúc và quy ước làm việc,
-[BRANCHING.md](BRANCHING.md) cho quy ước phân nhánh và commit.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — kiến trúc, luồng dữ liệu và cấu hình
+- [TEST.md](TEST.md) — hướng dẫn chạy test
+- [BRANCHING.md](BRANCHING.md) — quy ước phân nhánh và commit
+- [AGENTS.md](AGENTS.md) — quy ước làm việc cho agent

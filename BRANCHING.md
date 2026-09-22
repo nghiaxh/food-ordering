@@ -12,24 +12,13 @@ dev  ───────────────────●─────
   ...
 ```
 
-## Trạng thái hiện tại (scaffolding)
-
-| Branch | Vai trò | Trạng thái |
-| ------ | ------- | ----------- |
-| `main` | Production-ready | Chứa commit scaffolding ban đầu |
-| `dev` | Integration | Vừa tạo, **chưa có thay đổi nào** |
-| `draft` | Working scaffold | Chạy tự do, dự kiến **triển khai chi tiết sau** |
-
-> Tạm thời chỉ có `dev` đứng yên. Khi bắt đầu làm tính năng thật, dùng `main` →
-> `dev` → `feat/*` như mô hình bên dưới, còn `draft` dùng để nhồi code to rồi tách commit sau.
-
 ## Quy tắc
 
 | Branch          | Vai trò                     | Quy tắc                                                         |
 | --------------- | --------------------------- | --------------------------------------------------------------- |
 | `main`          | Production-ready            | **Không commit trực tiếp** ngoài scaffolding ban đầu. Chỉ nhận merge từ `dev` khi release |
 | `dev`           | Integration                 | Branch phát triển chính, mọi feature/fix gộp về đây qua PR       |
-| `draft`         | Working scaffold            | Tự do, dùng để triển khai chi tiết sau, có thể rebase/cherry-pick vào `dev` |
+| `draft`         | Working branch              | Tự do, dùng để triển khai chi tiết, có thể rebase/cherry-pick vào `dev` |
 | `feat/<ten>`    | Tính năng mới               | Nhánh ra từ `dev`, merge vào `dev`                              |
 | `fix/<ten>`     | Sửa lỗi                     | Nhánh ra từ `dev`, merge vào `dev`                              |
 | `refactor/<ten>`| Refactor giữ nguyên hành vi | Nhánh ra từ `dev`                                               |
@@ -69,7 +58,7 @@ git push -u origin feat/ten-feature
 # Tạo PR: feat/ten-feature → dev (GitHub UI hoặc: gh pr create)
 ```
 
-Merge PR vào `dev` bằng **squash merge** để lịch sử dev gọn. PR đang làm dở đánh dấu _draft_.
+Merge PR vào `dev` bằng **squash merge** để lịch sử dev gọn.
 
 ### 4. Release
 
