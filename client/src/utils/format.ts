@@ -1,0 +1,1 @@
+export const formatVND = (value: number | string) => `${Number(value).toLocaleString('vi-VN')}đ`
