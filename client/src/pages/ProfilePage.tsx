@@ -2,24 +2,25 @@ import { useEffect, useState } from 'react'
 import { Button, Form, Input, Skeleton, message } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { getMe, updateMe } from '../api/api'
+import useAsyncData from '../hooks/useAsyncData'
 import { useAuthStore } from '../store/authStore'
-import type { User } from '../types'
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user)
   const [form] = Form.useForm()
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  const { data: me, loading, error } = useAsyncData((signal) => getMe(signal), [])
+
   useEffect(() => {
-    getMe()
-      .then((u: User) => {
-        form.setFieldsValue({ fullName: u.fullName, phone: u.phone, address: u.address })
-      })
-      .catch(() => message.error('Không tải được hồ sơ'))
-      .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (me) {
+      form.setFieldsValue({ fullName: me.fullName, phone: me.phone, address: me.address })
+    }
+  }, [me, form])
+
+  useEffect(() => {
+    if (error) message.error('Không tải được hồ sơ')
+  }, [error])
 
   if (loading) return <Skeleton active />
 
