@@ -3,7 +3,18 @@ import { Button, Checkbox, Form, Input, message } from 'antd'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login, register } from '../api/api'
 import { useAuthStore } from '../store/authStore'
+import { apiErrorMessage } from '../utils/api-error'
 import AuthShell from '../components/AuthShell'
+
+function showAuthValidationError(errorFields: { errors?: string[] }[]): void {
+  const messages = errorFields.map((f) => f.errors?.[0]).filter((m): m is string => Boolean(m))
+  if (messages.length === 0) return
+  if (messages.length > 1) {
+    message.error('Vui lòng nhập đầy đủ thông tin')
+    return
+  }
+  message.error(messages[0])
+}
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -22,8 +33,8 @@ export default function LoginPage() {
       const target = isAdmin ? '/admin' : from && from !== '/login' ? from : '/'
       message.success('Đăng nhập thành công!')
       navigate(target, { replace: true })
-    } catch {
-      message.error('Email hoặc mật khẩu không đúng')
+    } catch (error) {
+      message.error(apiErrorMessage(error) ?? 'Đăng nhập thất bại')
     } finally {
       setLoading(false)
     }
@@ -31,11 +42,17 @@ export default function LoginPage() {
 
   return (
     <AuthShell title="Đăng nhập">
-      <Form layout="vertical" onFinish={onFinish} requiredMark={false} className="auth-form">
-        <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Nhập email' }]}>
+      <Form
+        layout="vertical"
+        onFinish={onFinish}
+        onFinishFailed={({ errorFields }) => showAuthValidationError(errorFields)}
+        requiredMark={false}
+        className="auth-form"
+      >
+        <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Vui lòng nhập email' }]}>
           <Input size="middle" placeholder="ban@example.com" autoComplete="username" />
         </Form.Item>
-        <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Nhập mật khẩu' }]}>
+        <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}>
           <Input.Password size="middle" placeholder="••••••••" autoComplete="current-password" />
         </Form.Item>
         <Form.Item className="mb-3">
@@ -74,8 +91,8 @@ export function RegisterPage() {
       await register(v)
       message.success('Đăng ký thành công! Vui lòng đăng nhập.')
       navigate('/login')
-    } catch {
-      message.error('Đăng ký không thành công. Có thể email đã tồn tại.')
+    } catch (error) {
+      message.error(apiErrorMessage(error) ?? 'Đăng ký không thành công')
     } finally {
       setLoading(false)
     }
@@ -83,8 +100,14 @@ export function RegisterPage() {
 
   return (
     <AuthShell title="Đăng ký" maxWidth="max-w-[440px]">
-      <Form layout="vertical" onFinish={onFinish} requiredMark={false} className="auth-form">
-        <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
+      <Form
+        layout="vertical"
+        onFinish={onFinish}
+        onFinishFailed={({ errorFields }) => showAuthValidationError(errorFields)}
+        requiredMark={false}
+        className="auth-form"
+      >
+        <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>
           <Input size="middle" placeholder="Nguyễn Văn A" autoComplete="name" />
         </Form.Item>
         <div className="grid gap-x-3 sm:grid-cols-2">
@@ -92,7 +115,7 @@ export function RegisterPage() {
             name="email"
             label="Email"
             rules={[
-              { required: true, message: 'Nhập email' },
+              { required: true, message: 'Vui lòng nhập email' },
               { type: 'email', message: 'Email không hợp lệ' },
             ]}
           >
@@ -110,8 +133,8 @@ export function RegisterPage() {
           label="Mật khẩu"
           hasFeedback
           rules={[
-            { required: true, message: 'Nhập mật khẩu' },
-            { min: 6, message: 'Tối thiểu 6 ký tự' },
+            { required: true, message: 'Vui lòng nhập mật khẩu' },
+            { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' },
           ]}
         >
           <Input.Password size="middle" placeholder="••••••••" autoComplete="new-password" />
@@ -122,7 +145,7 @@ export function RegisterPage() {
           dependencies={['password']}
           hasFeedback
           rules={[
-            { required: true, message: 'Nhập lại mật khẩu' },
+            { required: true, message: 'Vui lòng nhập lại mật khẩu' },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 return !value || getFieldValue('password') === value
