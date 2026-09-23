@@ -155,7 +155,18 @@ export default function FoodsPage() {
         {loading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <PulseBlock key={i} className="h-72" />
+              <div key={i} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60">
+                <PulseBlock className="aspect-[4/3]" />
+                <div className="space-y-3 p-4">
+                  <PulseBlock className="h-4 w-2/3 !rounded-full" />
+                  <PulseBlock className="h-3 w-full !rounded-full" />
+                  <PulseBlock className="h-3 w-4/5 !rounded-full" />
+                  <div className="flex gap-1.5 pt-1">
+                    <PulseBlock className="h-5 w-16 !rounded-full" />
+                    <PulseBlock className="h-5 w-14 !rounded-full" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         ) : (foods?.length ?? 0) === 0 ? (
