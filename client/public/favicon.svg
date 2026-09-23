@@ -1,4 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#d97706"/>
-  <text x="32" y="42" text-anchor="middle" font-family="Segoe UI Emoji, Apple Color Emoji, sans-serif" font-size="30">🍜</text>
+  <rect width="64" height="64" rx="14" fill="#ffffff" stroke="#d6d3d1" stroke-width="2"/>
+  <path d="M13 42 C13 53 21 57 32 57 C43 57 51 53 51 42 Z" fill="#d97706"/>
+  <ellipse cx="32" cy="42" rx="19" ry="6.5" fill="#92400e"/>
+  <ellipse cx="32" cy="42" rx="15.5" ry="4.5" fill="#fbbf24"/>
+  <path d="M18 41 C16 35 21 33 19 29" stroke="#fde68a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M27 41.5 C25 34 31 32 28.5 27" stroke="#fde68a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M36 41.5 C38 34 33 32 35.5 27" stroke="#fde68a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M45 41 C47 35 43 33 45 29" stroke="#fde68a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M21 44 C20 47 21.5 49 20.5 51" stroke="#fde68a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M31 44.5 C30 47 31.5 49 30.5 51" stroke="#fde68a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M41 44 C42 47 40.5 49 41 51" stroke="#fde68a" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M21 24 C19.5 21.5 22.5 20 21 17.5" stroke="#a8a29e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M42 25 C43.5 22.5 40.5 21 42 18.5" stroke="#a8a29e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
 </svg>
