@@ -7,9 +7,7 @@ export default function FooterGlobal() {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="flex items-center gap-2 text-lg font-bold text-white">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-600 text-lg">
-              🍜
-            </span>
+            <img src="/favicon.svg" alt="FoodOrdering" className="h-9 w-9 rounded-xl" />
             Food<span className="text-amber-500">Ordering</span>
           </div>
           <p className="mt-4 text-sm leading-relaxed text-stone-400">
