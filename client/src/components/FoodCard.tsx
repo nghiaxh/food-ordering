@@ -4,19 +4,13 @@ import { Link } from 'react-router-dom'
 import type { Food } from '../types'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
+import { foodChips } from '../utils/food-tags'
 import UiImg from './UiImg'
-
-const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
 export default function FoodCard({ food }: { food: Food }) {
   const add = useCartStore((s) => s.add)
 
-  const chips = [
-    food.category?.name,
-    SPICY[food.spicyLevel],
-    `${food.servingSize} người`,
-    ...(food.dietaryTags ? food.dietaryTags.split(',').map((t) => t.trim()).filter(Boolean) : []),
-  ].filter(Boolean) as string[]
+  const chips = foodChips(food)
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:-translate-y-1 hover:shadow-lg">
@@ -39,10 +33,10 @@ export default function FoodCard({ food }: { food: Food }) {
         <div className="mt-3 flex flex-wrap gap-1.5">
           {chips.map((chip) => (
             <span
-              key={chip}
-              className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600"
+              key={chip.label}
+              className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${chip.className}`}
             >
-              {chip}
+              {chip.label}
             </span>
           ))}
           {!food.available && (

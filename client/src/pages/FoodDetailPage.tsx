@@ -8,11 +8,10 @@ import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
+import { foodChips } from '../utils/food-tags'
 import FoodCard from '../components/FoodCard'
 import SectionHeader from '../components/SectionHeader'
 import UiImg from '../components/UiImg'
-
-const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
 export default function FoodDetailPage() {
   const { id } = useParams()
@@ -45,12 +44,7 @@ export default function FoodDetailPage() {
 
   const relatedFoods = (related ?? []).filter((x) => x.id !== foodId).slice(0, 4)
 
-  const tags = [
-    food.category?.name,
-    SPICY[food.spicyLevel],
-    `${food.servingSize} người`,
-    ...(food.dietaryTags ? food.dietaryTags.split(',').map((t) => t.trim()).filter(Boolean) : []),
-  ].filter(Boolean) as string[]
+  const tags = foodChips(food)
 
   const allergens = (food.allergens ? food.allergens.split(',').map((t) => t.trim()).filter(Boolean) : [])
 
@@ -107,10 +101,10 @@ export default function FoodDetailPage() {
             </span>
             {tags.map((tag) => (
               <span
-                key={tag}
-                className="rounded-full bg-stone-100 px-3 py-1 text-sm font-medium text-stone-700"
+                key={tag.label}
+                className={`whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium ${tag.className}`}
               >
-                {tag}
+                {tag.label}
               </span>
             ))}
           </div>
@@ -168,7 +162,7 @@ export default function FoodDetailPage() {
                 message.success('Đã thêm vào giỏ')
               }}
             >
-              Thêm vào giỏ · {formatVND(food.price * qty)}
+              Thêm vào giỏ
             </Button>
             {!food.available && (
               <span className="text-sm text-stone-500">Món này hiện đang tạm ngừng phục vụ.</span>
