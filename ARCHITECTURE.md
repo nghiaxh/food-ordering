@@ -35,7 +35,7 @@ Endpoint công khai duy nhất (phần còn lại yêu cầu xác thực):
 - `GET /api/foods/**`, `/api/categories/**`, `/api/reviews/**`
 - `POST /api/chatbot/**`: tư vấn món (không cần đăng nhập)
 
-Bảo vệ route trên client chỉ là UX — **quyền ADMIN được kiểm soát ở server**.
+Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm soát ở server**.
 
 ### 2. Duyệt và tìm món
 
@@ -54,7 +54,7 @@ Giỏ hàng **không lưu trên server**; nó là state React với Zustand (`st
 
 1. Client gửi `POST /api/orders` với danh sách món + số lượng.
 2. `OrderService.create` set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
-3. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) — không tích hợp cổng thanh toán thật.
+3. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) - không tích hợp cổng thanh toán thật.
 4. Khách hàng theo dõi trạng thái đơn; admin xác nhận/cập nhật trạng thái.
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
@@ -106,12 +106,12 @@ nginx.conf         prod: serve dist/ và proxy /api tới server
 
 ## Điểm quan trọng khi làm việc
 
-- **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`), idempotent theo `count()` — tự bỏ qua nếu DB đã có dữ liệu.
+- **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`), idempotent theo `count()` - tự bỏ qua nếu DB đã có dữ liệu.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
 - **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`, `jsonMode` ép JSON, config qua `app.ai.api-key` / `app.ai.model`). Muốn đổi nhà cung cấp AI chỉ sửa file này.
 - **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin). Admin có thể nhập link ảnh ngoài trong form quản lý; không có endpoint upload ảnh món.
-- **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) — đừng log token.
+- **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 
 ## Phát triển local (profile dev)
 
@@ -122,12 +122,12 @@ docker compose --profile dev up --build
 Stack gồm postgres, server-dev và client-dev. Client truy cập tại http://localhost:5173; đường `/api` được Vite proxy tới http://localhost:8080/api.
 
 - **server-dev**: mount `./server:/app`, hot reload qua `spring-boot-devtools` (restart khi file `.class` đổi). Trong container chỉ mount mã nguồn nên cần tự biên dịch: chạy `docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"` ở terminal riêng (hoặc để IDE biên dịch vào `server/target/classes`).
-- **client-dev**: mount `./client:/app` (volume ngăn chặn `node_modules`), Vite HMR với `usePolling` — cập nhật ngay khi lưu file. Chỉ cần build lại image khi đổi `package.json` hoặc `Dockerfile`.
+- **client-dev**: mount `./client:/app` (volume ngăn chặn `node_modules`), Vite HMR với `usePolling` - cập nhật ngay khi lưu file. Chỉ cần build lại image khi đổi `package.json` hoặc `Dockerfile`.
 - Cache Maven dùng volume `maven_cache` chung.
 
 ## Môi trường và cấu hình
 
-Mọi bí mật nằm trong một file `.env` duy nhất ở root (được docker-compose.yml và server đọc). Server đọc env với fallback mặc định dev (`${VAR:default}` trong application.yml). Lưu ý `mvn spring-boot:run` **không tự nạp `.env`** — phải export vars hoặc chạy qua compose.
+Mọi bí mật nằm trong một file `.env` duy nhất ở root (được docker-compose.yml và server đọc). Server đọc env với fallback mặc định dev (`${VAR:default}` trong application.yml). Lưu ý `mvn spring-boot:run` **không tự nạp `.env`** - phải export vars hoặc chạy qua compose.
 
 | Var                 | Ý nghĩa                                      |
 | ------------------- | -------------------------------------------- |

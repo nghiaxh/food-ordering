@@ -98,7 +98,7 @@ Xem [TEST.md](TEST.md) cho hướng dẫn chạy test từng tầng (Vitest, JUn
 
 ## Tài liệu
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — kiến trúc, luồng dữ liệu và cấu hình
-- [TEST.md](TEST.md) — hướng dẫn chạy test
-- [BRANCHING.md](BRANCHING.md) — quy ước phân nhánh và commit
-- [AGENTS.md](AGENTS.md) — quy ước làm việc cho agent
+- [ARCHITECTURE.md](ARCHITECTURE.md) - kiến trúc, luồng dữ liệu và cấu hình
+- [TEST.md](TEST.md) - hướng dẫn chạy test
+- [BRANCHING.md](BRANCHING.md) - quy ước phân nhánh và commit
+- [AGENTS.md](AGENTS.md) - quy ước làm việc cho agent
