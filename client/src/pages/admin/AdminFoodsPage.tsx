@@ -124,13 +124,13 @@ export default function AdminFoodsPage() {
                 </div>
               ),
             },
-            { title: 'Danh mục', width: 140, render: (_, f) => <Tag>{f.category?.name ?? '—'}</Tag> },
+            { title: 'Danh mục', width: 140, render: (_, f) => <Tag>{f.category?.name ?? 'Không có'}</Tag> },
             {
               title: 'Giá',
               width: 140,
               render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
             },
-            { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? '—' },
+            { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? 'Không có' },
             {
               title: 'Trạng thái',
               width: 130,

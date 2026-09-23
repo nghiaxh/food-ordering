@@ -93,14 +93,14 @@ export default function FoodDetailPage() {
             </Typography.Title>
 
             <Descriptions column={1} size="small" className="mt-6" labelStyle={{ color: '#78716c', width: 130 }}>
-              <Descriptions.Item label="Mô tả">{food.description || '—'}</Descriptions.Item>
-              <Descriptions.Item label="Thành phần">{food.ingredients || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Mô tả">{food.description || 'Không có'}</Descriptions.Item>
+              <Descriptions.Item label="Thành phần">{food.ingredients || 'Không có'}</Descriptions.Item>
               <Descriptions.Item label="Khẩu phần">Phục vụ khoảng {food.servingSize} người</Descriptions.Item>
               <Descriptions.Item label="Độ cay">{SPICY[food.spicyLevel]}</Descriptions.Item>
               <Descriptions.Item label="Chế độ ăn">
                 {food.dietaryTags
                   ? food.dietaryTags.split(',').map((t) => <Tag key={t} color="green">{t}</Tag>)
-                  : '—'}
+                  : 'Không có'}
               </Descriptions.Item>
               <Descriptions.Item label="Lưu ý dị ứng">
                 {food.allergens
