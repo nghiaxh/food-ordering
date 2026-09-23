@@ -84,7 +84,7 @@ export default function FoodsPage() {
           onChange={(e) => setKeyword(e.target.value)}
           onSearch={applyFilters}
           enterButton={<SearchOutlined />}
-          className="!w-64"
+          className="w-full sm:!w-64"
         />
         <Space.Compact>
           <InputNumber

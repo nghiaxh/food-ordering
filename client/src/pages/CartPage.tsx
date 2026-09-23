@@ -71,6 +71,8 @@ export default function CartPage() {
             rowKey={(r) => r.food.id}
             dataSource={items}
             pagination={false}
+            size="middle"
+            scroll={{ x: 'max-content' }}
             columns={[
               {
                 title: 'Món',
@@ -83,7 +85,12 @@ export default function CartPage() {
                   </div>
                 ),
               },
-              { title: 'Đơn giá', width: 120, render: (_, r) => formatVND(r.food.price) },
+              {
+                title: 'Đơn giá',
+                width: 120,
+                className: 'hidden sm:table-cell',
+                render: (_, r) => formatVND(r.food.price),
+              },
               {
                 title: 'Số lượng',
                 width: 150,

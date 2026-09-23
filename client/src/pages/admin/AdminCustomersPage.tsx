@@ -53,14 +53,14 @@ export default function AdminCustomersPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Tìm theo tên, email hoặc số điện thoại..."
           allowClear
           prefix={<UiIcon name="search" size={16} />}
-          className="!w-80"
+          className="w-full sm:w-80"
         />
         <span className="text-sm text-stone-500">
           Tổng cộng <b>{rows.length}</b> tài khoản

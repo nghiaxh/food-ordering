@@ -92,7 +92,7 @@ export default function AdminFoodsPage() {
           placeholder="Tìm theo tên hoặc danh mục..."
           allowClear
           prefix={<UiIcon name="search" size={16} />}
-          className="!w-72"
+          className="w-full sm:w-72"
         />
         <Button icon={<PlusOutlined />} onClick={openCreate}>
           Tạo món
