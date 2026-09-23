@@ -13,17 +13,16 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   đơn giản), Spring Data JPA, PostgreSQL 18. Package gốc `com.foodordering`, lớp chính
   `FoodOrderingApplication`. Layered: `controller` → `service` → `repository`; `config`,
   `security`, `entity`, `dto` mỗi thư mục riêng.
-- **AI** - `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép
-  JSON, timeout 15s). Hỗ trợ Gemini và OpenAI; nhà cung cấp + tên mô hình đọc từ bảng `ai_setting`
-  do admin đặt trong trang Chatbot, fallback về `app.ai.provider` / `app.ai.model`. Muốn thêm
-  nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không gửi xuống client.
+- **AI** - `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`,
+  `jsonMode` ép JSON). Muốn đổi nhà cung cấp AI chỉ sửa file này. Config qua
+  `AppProperties` (`app.ai.api-key`, `app.ai.model`).
 - **Infra** - `docker-compose.yml` 1 file, 2 profile: `prod` (db + server-prod +
   client-prod) và `dev` (db + server-dev + client-dev với volume mount, hot reload).
   Server dev reload nhờ `spring-boot-devtools` + tự `mvn compile` (xem Gotchas).
   Một file `.env` duy nhất ở root chứa mọi bí mật; cả compose và `application.yml`
   đều đọc theo cùng tên biến.
 
-### Chatbot - hai lượt gọi AI, bốn bước chống AI bịa món/giá
+### Chatbot - thiết kế 2 bước chống AI bịa món/giá
 
 ```
 Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [AiClient, jsonMode]
@@ -59,16 +58,12 @@ AI bịa món.
 ### Key wiring (không rõ từ tên file)
 
 - **Không dùng Flyway.** `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập
-  nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); seed bị bỏ qua
-  nếu `userRepo.count() > 0`, nên không nhân đôi dữ liệu demo khi chạy lại.
-- **Security**: `SecurityConfig` stateless, `permitAll()` đúng cho `POST /api/auth/register`,
-  `POST /api/auth/login`, GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
-  `/api/uploads/**` và toàn bộ `/api/chatbot/**` (khách vãng lai vẫn chat được);
-  `/api/admin/**` yêu cầu `ROLE_ADMIN`; phần còn lại `authenticated()`.
-  **Phải có `dispatcherTypeMatchers(ERROR).permitAll()`**: thiếu dòng này thì mọi lỗi
-  400/404/500 đều bị đổi thành 401 khi Tomcat dispatch sang `/error`.
-  Token sinh bằng `JwtUtil`, lọc bằng `JwtFilter` (tra CSDL mỗi request để tài khoản bị
-  khoá mất quyền ngay). CORS mở cho demo.
+  nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`), idempotent
+  theo `count()` - tự bỏ qua nếu DB đã có dữ liệu.
+- **Security**: `SecurityConfig` stateless, permitAll cho `/api/auth/**`, GET
+  `/api/foods/**` `/api/categories/**` `/api/reviews/**`, `/api/chatbot/**` (khách vãng lai
+  vẫn chat được); `/api/admin/**` yêu cầu `ROLE_ADMIN`; phần còn lại `authenticated()`.
+  Token sinh bằng `JwtUtil`, lọc bằng `JwtFilter`. CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
   trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
@@ -123,8 +118,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Dev: `docker compose --profile dev up --build` từ repo root (postgres + server-dev +
   client-dev, hot reload), hoặc `mvn spring-boot:run` (cần Postgres ở localhost:5432
   và nạp các biến từ `.env` - Maven không tự đọc `.env`)
-- Build/test: `mvn package` / `mvn test`. Hiện chưa có test source, nên `mvn test`
-  chủ yếu kiểm tra compile.
+- Build/test: `mvn package` / `mvn test`
 - Prod: `docker compose --profile prod up --build -d`
 
 **Full stack** (repo root):
@@ -157,18 +151,5 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   container chỉ mount mã nguồn nên cần biên dịch: chạy `docker compose --profile dev exec
   server-dev sh -c "while true; do mvn -q compile; sleep 3; done"` ở một terminal khác
   (hoặc để IDE biên dịch vào `server/target/classes`).
-- **Lưu ý phiên đăng nhập:** `authStore` hỗ trợ `localStorage` và `sessionStorage`;
-  `client/src/api/http.ts` đọc token từ `localStorage` rồi fallback `sessionStorage`, nên ô
-  "Ghi nhớ đăng nhập" hoạt động đúng cả hai chế độ.
-- **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
-  `AdminLayout` (menu trái 5 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
-  báo trong `AdminLayout`, đừng gắn vào `DefaultLayout`.
-- **`useHasCartBar` tính theo đường dẫn**, hiện chỉ `/` và `/cart`. Trang mới có thanh giỏ
-  ghim đáy thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh giỏ che.
 - `JwtFilter` nuốt exception không hợp lệ (coi như chưa đăng nhập) - đừng log token.
-- **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
-  vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
-- **`AI_API_KEY` trong `.env` phải là khóa thật.** Nếu sai hoặc hết hạn, mọi câu hỏi đều trả
-  thông báo dự phòng và **không có thẻ món nào**; đó là hành vi dự kiến chứ không phải lỗi
-  code. Muốn demo luồng có gợi ý món thì phải thay khoá thật trước.
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.

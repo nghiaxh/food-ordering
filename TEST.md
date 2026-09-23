@@ -23,8 +23,8 @@ client (unit + type), server (unit + integration) và end-to-end.
 Chạy trong `client/`:
 
 ```bash
-npm run typecheck   # tsc --noEmit — kiểm tra type
-npm test            # Vitest — chạy một lần
+npm run typecheck   # tsc --noEmit - kiểm tra type
+npm test            # Vitest - chạy một lần
 npm run dev         # dev server, http://localhost:5173
 ```
 
@@ -43,7 +43,7 @@ Cấu hình dự kiến: `vitest.config.ts` (jsdom hoặc happy-dom, globals). K
 
 ## 2. Server tests
 
-Chạy trong `server/` (**bắt buộc có Docker** — Testcontainers chạy PostgreSQL thật):
+Chạy trong `server/` (**bắt buộc có Docker** - Testcontainers chạy PostgreSQL thật):
 
 ```bash
 mvn test      # unit + integration
@@ -64,7 +64,7 @@ mvn test      # unit + integration
 
 ## 3. E2E tests (Playwright)
 
-Chạy trong `e2e/` — yêu cầu stack dev đang chạy tại `http://localhost:5173`:
+Chạy trong `e2e/` - yêu cầu stack dev đang chạy tại `http://localhost:5173`:
 
 ```bash
 docker compose --profile dev up --build   # từ repo root, chạy stack dev
