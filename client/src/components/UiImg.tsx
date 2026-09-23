@@ -31,7 +31,7 @@ export default function UiImg({
       loading="lazy"
       fallback="/images/placeholder.svg"
       preview={preview}
-      classNames={{ root: 'block', image: mergedClass }}
+      classNames={{ root: 'block h-full overflow-hidden', image: mergedClass }}
     />
   )
 }

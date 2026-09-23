@@ -202,15 +202,8 @@ export default function HomePage() {
           subtitle="Chỉ 4 bước đơn giản, từ chọn món đến thưởng thức món ngon."
         />
         <ol className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((s, i) => (
-            <li
-              key={s.no}
-              className={`group relative flex flex-col ${
-                i > 0
-                  ? "lg:before:absolute lg:before:-left-6 lg:before:top-5 lg:before:h-px lg:before:w-6 lg:before:bg-stone-300 lg:before:content-['']"
-                  : ''
-              }`}
-            >
+          {STEPS.map((s) => (
+            <li key={s.no} className="group flex flex-col">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-600 text-sm font-bold text-white shadow-sm">
                   {s.no}
