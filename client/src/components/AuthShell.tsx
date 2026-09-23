@@ -32,7 +32,7 @@ export default function AuthShell({ title, subtitle, icon, maxWidth = 'max-w-[42
       </Link>
 
       <div
-        className={`auth-card relative z-10 w-full ${maxWidth} rounded-3xl bg-white p-8 shadow-2xl shadow-stone-950/40 ring-1 ring-stone-950/5 sm:p-10`}
+        className={`relative z-10 w-full ${maxWidth} rounded-3xl bg-white p-6 shadow-2xl shadow-stone-950/40 ring-1 ring-stone-950/5 sm:p-8`}
       >
         <div className="flex flex-col items-center text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-600 text-2xl text-white shadow-lg shadow-amber-600/30">
