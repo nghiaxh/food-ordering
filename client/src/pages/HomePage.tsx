@@ -1,20 +1,12 @@
-import { useEffect } from 'react'
-import { Button, Carousel, Empty, Form, Input, message } from 'antd'
+import { useEffect, useState } from 'react'
+import { Button, Form, Input, message } from 'antd'
 import { Link } from 'react-router-dom'
-import { getCategories, getFoods } from '../api/api'
+import { getCategories } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import SectionHeader from '../components/SectionHeader'
-import FoodCard from '../components/FoodCard'
-import Reveal from '../components/Reveal'
 import UiIcon from '../components/UiIcon'
 import UiImg from '../components/UiImg'
-import { BANNERS, CONTACT, FEATURES, HERO, STEPS, TESTIMONIALS } from '../data/home'
-
-const ABOUT_POINTS = [
-  'Nguyên liệu được nhập mới mỗi sáng từ nguồn cung kiểm định',
-  'Đầu bếp hơn 10 năm kinh nghiệm, giữ vẹn hương vị truyền thống',
-  'Đóng gói chuẩn vệ sinh an toàn thực phẩm, giao trong 30–45 phút',
-]
+import { BANNERS, CONTACT, HERO, STEPS } from '../data/home'
 
 function PulseBlock({ className }: { className: string }) {
   return <div className={`animate-pulse rounded-2xl bg-stone-200/70 ${className}`} />
@@ -27,19 +19,109 @@ const CONTACT_ITEMS = [
   { icon: 'clock', label: 'Giờ mở cửa', value: CONTACT.hours },
 ]
 
+function BannerSlider() {
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const count = BANNERS.length
+
+  useEffect(() => {
+    if (paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = setInterval(() => setIndex((i) => (i + 1) % count), 5000)
+    return () => clearInterval(timer)
+  }, [paused, count])
+
+  const go = (i: number) => setIndex(((i % count) + count) % count)
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 pt-16">
+      <div
+        className="relative h-72 overflow-hidden rounded-2xl border border-stone-200/70 bg-stone-950 shadow-sm md:h-80"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <div
+          className="flex h-full transition-transform duration-500 ease-out"
+          style={{ transform: `translateX(-${index * 100}%)` }}
+        >
+          {BANNERS.map((b, i) => (
+            <div key={b.title} className="relative h-full w-full shrink-0">
+              <img
+                src={b.image}
+                alt=""
+                className={`absolute inset-0 h-full w-full object-cover ${
+                  i === index
+                    ? 'scale-105 transition-transform duration-[5000ms] ease-linear'
+                    : 'scale-100'
+                }`}
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-stone-950/85 via-stone-950/50 to-stone-950/15" />
+              <div className="relative z-10 flex h-full flex-col justify-center px-8 md:px-14">
+                <span className="w-fit rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
+                  {b.tag}
+                </span>
+                <h3 className="mt-3 max-w-xl text-2xl font-bold tracking-tight text-balance text-white md:text-3xl">
+                  {b.title}
+                </h3>
+                <p className="mt-2 hidden max-w-md text-sm leading-relaxed text-stone-200 md:block">
+                  {b.subtitle}
+                </p>
+                <Link
+                  to="/foods"
+                  className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-amber-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-amber-500"
+                >
+                  Đặt món ngay <UiIcon name="arrow-right" size={15} />
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          aria-label="Slide trước"
+          onClick={() => go(index - 1)}
+          className="absolute left-3 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur transition hover:bg-white hover:text-stone-900"
+        >
+          <UiIcon name="arrow-left" size={15} />
+        </button>
+        <button
+          type="button"
+          aria-label="Slide sau"
+          onClick={() => go(index + 1)}
+          className="absolute right-3 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur transition hover:bg-white hover:text-stone-900"
+        >
+          <UiIcon name="arrow-right" size={15} />
+        </button>
+
+        <div className="absolute inset-x-0 bottom-4 z-20 flex justify-center">
+          <div className="flex items-center gap-1.5">
+            {BANNERS.map((b, i) => (
+              <button
+                key={b.title}
+                type="button"
+                aria-label={`Chuyển tới slide ${i + 1}`}
+                onClick={() => go(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === index ? 'w-6 bg-amber-400' : 'w-2.5 bg-white/40 hover:bg-white/70'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function HomePage() {
-  const { data, loading, error } = useAsyncData(
-    (signal) => Promise.all([getCategories(signal), getFoods(undefined, signal)]),
+  const { data: categories, loading, error } = useAsyncData(
+    (signal) => getCategories(signal),
     [],
   )
-  const categories = data?.[0] ?? []
-  const foods = data?.[1] ?? []
 
   useEffect(() => {
     if (error) message.error('Không tải được dữ liệu từ máy chủ')
   }, [error])
-
-  const featured = foods.filter((f) => f.available).slice(0, 8)
 
   return (
     <div className="pb-16">
@@ -48,16 +130,16 @@ export default function HomePage() {
         <img
           src="/images/hero.jpg"
           alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-60"
+          className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60 blur-[2px]"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-950/80 to-stone-950/25" />
-        <div className="relative mx-auto flex min-h-[520px] max-w-7xl items-center px-4 py-16 md:min-h-[600px]">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl font-bold tracking-tight text-balance text-white md:text-6xl">
+        <div className="relative mx-auto flex min-h-[560px] w-full items-center px-6 py-16 sm:min-h-[640px] sm:px-10 md:min-h-[760px] lg:px-16 xl:px-20">
+          <div className="max-w-3xl">
+            <h1 className="text-4xl font-bold tracking-tight text-balance text-white md:text-6xl lg:text-7xl">
               {HERO.titleA} <span className="text-amber-400">{HERO.titleHighlight}</span>{' '}
               {HERO.titleB}
             </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-stone-200">{HERO.subtitle}</p>
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-stone-200">{HERO.subtitle}</p>
             <div className="mt-9 flex flex-wrap items-center gap-6">
               <Link to="/foods">
                 <Button type="primary" size="large" icon={<UiIcon name="fire" />}>
@@ -76,59 +158,12 @@ export default function HomePage() {
       </section>
 
       {/* Banner carousel */}
-      <section className="mx-auto max-w-7xl px-4 pt-16">
-        <Carousel autoplay autoplaySpeed={5000} arrows>
-          {BANNERS.map((b) => (
-            <div key={b.title}>
-              <div className="relative h-64 overflow-hidden rounded-2xl border border-stone-200/70 md:h-80">
-                <img src={b.image} alt={b.title} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-r from-stone-950/85 to-transparent" />
-                <div className="absolute inset-y-0 left-0 flex flex-col justify-center px-8 md:px-14">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                    {b.tag}
-                  </span>
-                  <h3 className="mt-3 max-w-lg text-2xl font-bold tracking-tight text-balance text-white md:text-3xl">
-                    {b.title}
-                  </h3>
-                  <p className="mt-2 max-w-md text-sm leading-relaxed text-stone-200 md:text-base">
-                    {b.subtitle}
-                  </p>
-                  <Link
-                    to="/foods"
-                    className="mt-4 flex w-fit items-center gap-1 text-sm font-medium text-white underline-offset-4 hover:underline"
-                  >
-                    Đặt món ngay <UiIcon name="arrow-right" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ))}
-        </Carousel>
-      </section>
-
-      {/* Features */}
-      <section className="mx-auto max-w-7xl px-4 pt-16">
-        <SectionHeader
-          title="Vì sao chọn FoodOrdering?"
-          subtitle="Chúng tôi chăm chút từng món ăn, từ nguyên liệu đến lúc giao đến tay bạn."
-        />
-        <div className="grid gap-px overflow-hidden rounded-2xl border border-stone-200/70 bg-stone-200/70 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="bg-white p-6">
-              <h3 className="font-semibold text-stone-900">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-stone-500">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <BannerSlider />
 
       {/* Categories */}
       <section className="bg-white py-16">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeader
-            title="Khám phá theo loại món"
-            subtitle="Từ món Việt đậm đà đến món Âu tinh tế — đều có trong thực đơn."
-          />
+          <SectionHeader align="left" title="Danh mục món ăn" />
           {loading ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -137,7 +172,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {categories.map((c) => (
+              {categories?.map((c) => (
                 <Link
                   key={c.id}
                   to={`/foods?category=${c.id}`}
@@ -163,119 +198,36 @@ export default function HomePage() {
       {/* How to order */}
       <section className="mx-auto max-w-7xl px-4 py-16">
         <SectionHeader
-          title="Cách đặt món chỉ trong 4 bước"
-          subtitle="Quy trình đơn giản, minh bạch từ lúc chọn món đến khi nhận hàng."
+          title="Hướng dẫn đặt món"
+          subtitle="Chỉ 4 bước đơn giản, từ chọn món đến thưởng thức món ngon."
         />
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((s) => (
-            <div key={s.no} className="overflow-hidden rounded-2xl border border-stone-200/70 bg-white">
-              <div className="relative aspect-[4/3]">
-                <UiImg src={s.image} alt={s.title} />
+        <ol className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+          {STEPS.map((s, i) => (
+            <li
+              key={s.no}
+              className={`group relative flex flex-col ${
+                i > 0
+                  ? "lg:before:absolute lg:before:-left-6 lg:before:top-5 lg:before:h-px lg:before:w-6 lg:before:bg-stone-300 lg:before:content-['']"
+                  : ''
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-600 text-sm font-bold text-white shadow-sm">
+                  {s.no}
+                </span>
+                <h3 className="font-semibold text-stone-900">{s.title}</h3>
               </div>
-              <div className="p-5">
-                <span className="text-sm font-bold tracking-wide text-amber-700">{s.no}</span>
-                <h3 className="mt-1 font-semibold text-stone-900">{s.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-stone-500">{s.desc}</p>
+              <p className="mt-3 text-sm leading-relaxed text-stone-500">{s.desc}</p>
+              <div className="mt-4 aspect-[3/2] overflow-hidden rounded-2xl border border-stone-200/60 bg-stone-100">
+                <UiImg
+                  src={s.image}
+                  alt={s.title}
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                />
               </div>
-            </div>
+            </li>
           ))}
-        </div>
-      </section>
-
-      {/* Featured foods */}
-      <Reveal>
-        <section className="bg-white py-16">
-          <div className="mx-auto max-w-7xl px-4">
-            <SectionHeader
-              title="Món ăn được yêu thích"
-              subtitle="Những lựa chọn được nhiều khách hàng gọi nhất — đặt ngay trước khi hết!"
-            />
-            {loading ? (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <PulseBlock key={i} className="h-64" />
-                ))}
-              </div>
-            ) : featured.length === 0 ? (
-              <Empty description="Chưa có món ăn nào" />
-            ) : (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {featured.map((f) => (
-                  <FoodCard key={f.id} food={f} />
-                ))}
-              </div>
-            )}
-            <div className="mt-10 text-center">
-              <Link to="/foods">
-                <Button size="large">
-                  Xem toàn bộ thực đơn <UiIcon name="arrow-right" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </section>
-      </Reveal>
-
-      {/* About */}
-      <Reveal>
-        <section id="about" className="mx-auto max-w-7xl px-4 py-16">
-          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-stone-200/70">
-              <img
-                src="/images/about-1.jpg"
-                alt="Không gian ấm cúng của FoodOrdering"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            </div>
-            <div>
-              <SectionHeader
-                align="left"
-                title="Câu chuyện về nhà hàng của chúng tôi"
-                subtitle="Bắt đầu từ một quán ăn nhỏ, giờ đây FoodOrdering là điểm đến của những tín đồ ẩm thực."
-              />
-              <p className="leading-relaxed text-stone-600">
-                Chúng tôi tin mỗi món ăn đều kể một câu chuyện riêng. Đó là lý do mọi công thức đều
-                được nghiên cứu kỹ, nấu bằng trái tim và phục vụ bằng sự chu đáo nhất.
-              </p>
-              <ul className="mt-6 space-y-3">
-                {ABOUT_POINTS.map((p) => (
-                  <li key={p} className="flex items-start gap-3 leading-relaxed text-stone-700">
-                    <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-500">
-                      <UiIcon name="check" size={12} />
-                    </span>
-                    {p}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-8 flex flex-wrap items-center gap-8">
-                <Link to="/foods">
-                  <Button type="primary" size="large">
-                    Khám phá thực đơn
-                  </Button>
-                </Link>
-                <span className="text-sm text-stone-400">8+ năm phục vụ khách hàng</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      </Reveal>
-
-      {/* Testimonials */}
-      <section className="bg-stone-900 py-16">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeader title="Khách hàng nói gì về chúng tôi" eyebrow="Cảm nhận" />
-          <div className="grid gap-5 md:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <div key={t.name} className="h-full border border-stone-700/70 bg-stone-800 p-6">
-                <p className="leading-relaxed text-stone-300">&ldquo;{t.quote}&rdquo;</p>
-                <div className="mt-5">
-                  <div className="font-semibold text-white">{t.name}</div>
-                  <div className="text-sm text-stone-400">{t.role}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        </ol>
       </section>
 
       {/* Contact */}
@@ -284,38 +236,74 @@ export default function HomePage() {
           title="Liên hệ & đặt bàn"
           subtitle="Gọi điện hoặc để lại lời nhắn, đội ngũ chúng tôi sẽ phản hồi trong vòng 1 giờ."
         />
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div className="space-y-4">
-            {CONTACT_ITEMS.map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center gap-4 rounded-2xl border border-stone-200/70 bg-white p-5"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-stone-100 text-lg text-stone-600">
-                  <UiIcon name={item.icon} />
-                </span>
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-stone-400">{item.label}</div>
-                  <div className="font-medium text-stone-900">{item.value}</div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="divide-y divide-stone-200/60 overflow-hidden rounded-2xl border border-stone-200/70 bg-white">
+            {CONTACT_ITEMS.map((item) => {
+              const row = (
+                <>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-600">
+                    <UiIcon name={item.icon} />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-wide text-stone-400">{item.label}</div>
+                    <div className="mt-0.5 truncate font-medium text-stone-900">{item.value}</div>
+                  </div>
+                </>
+              )
+              const rowCls = 'flex items-center gap-3 px-5 py-4'
+              if (item.icon === 'phone') {
+                return (
+                  <a key={item.label} href={`tel:${item.value.replace(/\s/g, '')}`} className={`${rowCls} transition hover:bg-stone-50`}>
+                    {row}
+                  </a>
+                )
+              }
+              if (item.icon === 'envelope') {
+                return (
+                  <a key={item.label} href={`mailto:${item.value}`} className={`${rowCls} transition hover:bg-stone-50`}>
+                    {row}
+                  </a>
+                )
+              }
+              return (
+                <div key={item.label} className={rowCls}>
+                  {row}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
-          <div className="rounded-2xl border border-stone-200/70 bg-white p-6">
+
+          <div className="rounded-2xl border border-stone-200/70 bg-white p-5 md:p-6">
+            <h3 className="text-lg font-bold text-stone-900">Gửi lời nhắn</h3>
+            <p className="mt-1 text-sm text-stone-500">Chúng tôi phản hồi trong vòng 1 giờ làm việc.</p>
             <Form
               layout="vertical"
+              className="contact-form mt-5"
               onFinish={() => message.success('Cảm ơn bạn! Chúng tôi sẽ liên hệ sớm.')}
+              onFinishFailed={({ errorFields }) => {
+                const first = errorFields[0]?.errors?.[0]
+                if (first) message.error(first)
+              }}
             >
-              <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
-                <Input placeholder="Nguyễn Văn A" />
-              </Form.Item>
-              <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true, message: 'Nhập số điện thoại' }]}>
-                <Input placeholder="0968.xxx.xxx" />
-              </Form.Item>
-              <Form.Item name="note" label="Lời nhắn">
+              <div className="grid gap-x-3 sm:grid-cols-2">
+                <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
+                  <Input placeholder="Nguyễn Văn A" />
+                </Form.Item>
+                <Form.Item
+                  name="phone"
+                  label="Số điện thoại"
+                  rules={[
+                    { required: true, message: 'Nhập số điện thoại' },
+                    { pattern: /^[0-9+\s.-]{10,15}$/, message: 'Số điện thoại không hợp lệ' },
+                  ]}
+                >
+                  <Input placeholder="0968.xxx.xxx" />
+                </Form.Item>
+              </div>
+              <Form.Item name="message" label="Lời nhắn">
                 <Input.TextArea rows={3} placeholder="Bạn muốn đặt bàn hay có câu hỏi gì?" />
               </Form.Item>
-              <Button type="primary" htmlType="submit" block>
+              <Button type="primary" htmlType="submit" block size="large">
                 Gửi lời nhắn
               </Button>
             </Form>

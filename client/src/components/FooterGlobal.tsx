@@ -6,9 +6,11 @@ export default function FooterGlobal() {
     <footer className="bg-stone-900 text-stone-300">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <div className="flex items-center gap-2 text-lg font-bold text-white">
-            <img src="/favicon.svg" alt="FoodOrdering" className="h-9 w-9 rounded-xl" />
-            Food<span className="text-amber-500">Ordering</span>
+          <div className="flex items-center gap-1.5 text-lg font-bold text-white">
+            <img src="/favicon.svg" alt="FoodOrdering" className="h-10 w-10 rounded-xl" />
+            <span>
+              Food<span className="text-amber-500">Ordering</span>
+            </span>
           </div>
           <p className="mt-4 text-sm leading-relaxed text-stone-400">
             Nhà hàng phục vụ món Việt tinh túy và món Âu cao cấp, đặt món trực tuyến với chatbot AI
@@ -46,7 +48,7 @@ export default function FooterGlobal() {
       </div>
 
       <div className="border-t border-stone-800 py-5 text-center text-sm text-stone-500">
-        © {new Date().getFullYear()} FoodOrdering — Niên luận ngành, mọi nội dung chỉ mang tính
+        © {new Date().getFullYear()} FoodOrdering - Niên luận ngành, mọi nội dung chỉ mang tính
         minh họa.
       </div>
     </footer>

@@ -18,7 +18,7 @@ export const BANNERS: Banner[] = [
   {
     image: '/images/banners/banner-1.jpg',
     tag: 'Ưu đãi cuối tuần',
-    title: 'Lẩu thái hải sản — giảm ngay 15%',
+    title: 'Lẩu thái hải sản: giảm ngay 15%',
     subtitle: 'Áp dụng cho đơn từ 2 phần trở lên, đặt trước 20h mỗi cuối tuần.',
   },
   {
@@ -31,7 +31,7 @@ export const BANNERS: Banner[] = [
     image: '/images/banners/banner-3.jpg',
     tag: 'Món mới',
     title: 'Bò lúc lắc cập bến thực đơn',
-    subtitle: 'Thịt bò mềm, ướp đậm vị — combo kèm cơm trắng và salad tươi.',
+    subtitle: 'Thịt bò mềm, ướp đậm vị, combo kèm cơm trắng và salad tươi.',
   },
 ]
 
@@ -64,61 +64,8 @@ export const STEPS: Step[] = [
   {
     no: '04',
     title: 'Nhận món & thưởng thức',
-    desc: 'Thanh toán linh hoạt khi nhận hàng — món nóng hổi giao tận nơi.',
+    desc: 'Thanh toán linh hoạt khi nhận hàng, món nóng hổi giao tận nơi.',
     image: '/images/steps/step-4.jpg',
-  },
-]
-
-export interface Feature {
-  image: string
-  title: string
-  desc: string
-}
-
-export const FEATURES: Feature[] = [
-  {
-    image: '/images/features/feature-fresh.jpg',
-    title: 'Nguyên liệu tươi mỗi ngày',
-    desc: 'Nhập rau củ, thịt cá tươi từ nguồn cung đã kiểm định.',
-  },
-  {
-    image: '/images/features/feature-chef.jpg',
-    title: 'Đầu bếp chuyên nghiệp',
-    desc: 'Đội ngũ đầu bếp 10+ năm kinh nghiệm, chuẩn hương vị truyền thống.',
-  },
-  {
-    image: '/images/features/feature-delivery.jpg',
-    title: 'Giao hàng siêu tốc',
-    desc: 'Nhận món trong 30–45 phút tại nội thành, đóng gói an toàn.',
-  },
-  {
-    image: '/images/features/feature-support.jpg',
-    title: 'Hỗ trợ tận tình',
-    desc: 'Hotline và chatbot trực tuyến luôn sẵn sàng giải đáp mọi thắc mắc.',
-  },
-]
-
-export interface Testimonial {
-  quote: string
-  name: string
-  role: string
-}
-
-export const TESTIMONIALS: Testimonial[] = [
-  {
-    quote: 'Món ăn chuẩn vị như nấu tại nhà. Chatbot tư vấn rất khéo, tránh đúng món mình không ăn được.',
-    name: 'Thu Hằng',
-    role: 'Khách quen tại Cầu Giấy',
-  },
-  {
-    quote: 'Đặt combo cho 4 người nhanh gọn, tổng tiền không vượt ngân sách. Giao đúng giờ, đồ vẫn nóng hổi.',
-    name: 'Minh Quân',
-    role: 'Nhân viên văn phòng, Đống Đa',
-  },
-  {
-    quote: 'Lần đầu thấy chatbot hiểu được yêu cầu "không cay, không hải sản". Gợi ý đúng gu gia đình mình.',
-    name: 'Lan Phương',
-    role: 'Khách order hằng tuần',
   },
 ]
 
