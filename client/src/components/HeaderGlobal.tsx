@@ -11,11 +11,16 @@ interface NavLink {
   to: string
 }
 
-const links: NavLink[] = [
+const guestLinks: NavLink[] = [
+  { label: 'Trang chủ', to: '/' },
+  { label: 'Thực đơn', to: '/foods' },
+  { label: 'Liên hệ', to: '/#contact' },
+]
+
+const signedInLinks: NavLink[] = [
   { label: 'Trang chủ', to: '/' },
   { label: 'Thực đơn', to: '/foods' },
   { label: 'Đơn hàng', to: '/orders' },
-  { label: 'Về chúng tôi', to: '/#about' },
   { label: 'Liên hệ', to: '/#contact' },
 ]
 
@@ -45,13 +50,13 @@ export default function HeaderGlobal() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const navLinks = isAdmin ? backofficeLinks : links
+  const navLinks = isAdmin ? backofficeLinks : user ? signedInLinks : guestLinks
 
   const isActive = (link: NavLink): boolean => {
     if (link.to.startsWith('/#')) {
       return location.pathname === '/' && location.hash === link.to.slice(1)
     }
-    if (link.to === '/') return location.pathname === '/'
+    if (link.to === '/') return location.pathname === '/' && !location.hash
     return location.pathname === link.to || location.pathname.startsWith(`${link.to}/`)
   }
 
@@ -160,8 +165,8 @@ export default function HeaderGlobal() {
                 onClick={() => setDrawerOpen(true)}
               />
             </div>
-            <Link to="/" className="flex items-center gap-2 text-lg font-bold text-stone-900">
-              <img src="/favicon.svg" alt="FoodOrdering" className="h-8 w-8 rounded-xl" />
+            <Link to="/" className="flex items-center gap-1.5 text-lg font-bold text-stone-900">
+              <img src="/favicon.svg" alt="FoodOrdering" className="h-10 w-10 rounded-xl" />
               <span className="text-lg font-bold text-stone-900">
                 Food<span className="text-amber-600">Ordering</span>
               </span>
@@ -225,8 +230,8 @@ export default function HeaderGlobal() {
         onClose={closeDrawer}
         placement="right"
         title={
-          <span className="flex items-center gap-2 font-bold text-stone-900">
-            <img src="/favicon.svg" alt="FoodOrdering" className="h-7 w-7 rounded-lg" />
+          <span className="flex items-center gap-1.5 font-bold text-stone-900">
+            <img src="/favicon.svg" alt="FoodOrdering" className="h-9 w-9 rounded-lg" />
             Food<span className="text-amber-600">Ordering</span>
           </span>
         }
