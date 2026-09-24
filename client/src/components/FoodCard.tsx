@@ -16,8 +16,7 @@ export default function FoodCard({ food }: { food: Food }) {
         <img
           src={food.imageUrl}
           alt={food.name}
-          loading="lazy"
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          className={`h-full w-full transition duration-300 group-hover:scale-105 ${food.available ? '' : 'grayscale'}`}
         />
         {food.category && (
           <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-medium text-stone-700 backdrop-blur">

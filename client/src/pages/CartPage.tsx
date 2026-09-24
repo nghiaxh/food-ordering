@@ -69,43 +69,67 @@ export default function CartPage() {
 
       <div className="mt-6 space-y-10 lg:flex lg:gap-8">
         <div className="flex-1 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60">
-          <Table
-            rowKey={(r) => r.food.id}
-            dataSource={items}
-            pagination={false}
-            columns={[
-              {
-                title: 'Món',
-                render: (_, r) => (
-                  <div className="flex items-center gap-3">
-                    <img src={r.food.imageUrl} alt={r.food.name} width={44} height={44} className="rounded-lg object-cover" />
-                    <Link to={`/foods/${r.food.id}`} className="font-medium text-stone-800 hover:text-amber-700">
-                      {r.food.name}
-                    </Link>
-                  </div>
-                ),
-              },
-              { title: 'Đơn giá', width: 120, render: (_, r) => formatVND(r.food.price) },
-              {
-                title: 'Số lượng',
-                width: 150,
-                render: (_, r) => (
-                  <InputNumber min={1} value={r.quantity} onChange={(v) => setQuantity(r.food.id, v ?? 1)} />
-                ),
-              },
-              { title: 'Thành tiền', width: 130, render: (_, r) => <b>{formatVND(r.food.price * r.quantity)}</b> },
-              {
-                title: '',
-                width: 60,
-                render: (_, r) => (
-                  <Button danger type="link" icon={<DeleteOutlined />} onClick={() => remove(r.food.id)} aria-label="Xóa" />
-                ),
-              },
-            ]}
-          />
-          <div className="border-t border-stone-100 px-6 py-4 text-right">
-            <div className="text-lg">
-              Tổng cộng: <b className="text-amber-700">{formatVND(total())}</b>
+          <div className="border-b border-stone-100 px-5 py-3 text-sm font-medium text-stone-500">
+            {count()} món trong giỏ
+          </div>
+          {items.map((i) => (
+            <div
+              key={i.food.id}
+              className="flex items-center gap-4 border-b border-stone-100 px-5 py-4 last:border-b-0"
+            >
+              <Link to={`/foods/${i.food.id}`} className="shrink-0">
+                <UiImg
+                  src={i.food.imageUrl}
+                  alt={i.food.name}
+                  className="h-20 w-20 rounded-xl"
+                />
+              </Link>
+
+              <div className="min-w-0 flex-1">
+                <Link
+                  to={`/foods/${i.food.id}`}
+                  className="block truncate font-medium text-stone-800 hover:text-amber-700"
+                >
+                  {i.food.name}
+                </Link>
+                <div className="mt-0.5 text-sm text-stone-500">{formatVND(i.food.price)} / phần</div>
+                {!i.food.available && (
+                  <div className="mt-1 text-xs font-medium text-red-600">Tạm hết</div>
+                )}
+              </div>
+
+              <div className="flex items-center rounded-full ring-1 ring-stone-200">
+                <button
+                  type="button"
+                  aria-label="Giảm số lượng"
+                  disabled={i.quantity <= 1}
+                  onClick={() => setQuantity(i.food.id, i.quantity - 1)}
+                  className="flex h-9 w-9 items-center justify-center rounded-l-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <MinusOutlined style={{ fontSize: 12 }} />
+                </button>
+                <span className="w-10 text-center text-sm font-semibold tabular-nums">{i.quantity}</span>
+                <button
+                  type="button"
+                  aria-label="Tăng số lượng"
+                  onClick={() => setQuantity(i.food.id, i.quantity + 1)}
+                  className="flex h-9 w-9 items-center justify-center rounded-r-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
+                >
+                  <PlusOutlined style={{ fontSize: 12 }} />
+                </button>
+              </div>
+
+              <div className="w-24 text-right font-semibold tabular-nums text-stone-900">
+                {formatVND(i.food.price * i.quantity)}
+              </div>
+
+              <Button
+                danger
+                type="text"
+                icon={<DeleteOutlined />}
+                aria-label="Xóa món"
+                onClick={() => remove(i.food.id)}
+              />
             </div>
           </div>
         </div>

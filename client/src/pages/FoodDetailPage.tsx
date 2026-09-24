@@ -72,8 +72,7 @@ export default function FoodDetailPage() {
               src={food.imageUrl}
               alt={food.name}
               preview
-              imgClass="h-full min-h-[260px] w-full object-cover"
-              className="lg:max-h-[460px]"
+              className="aspect-[4/3] w-full"
             />
           </div>
           <div>
