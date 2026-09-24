@@ -77,7 +77,7 @@ export default function FoodDetailPage() {
               src={food.imageUrl}
               alt={food.name}
               preview
-              imgClass="aspect-[4/3] w-full object-cover"
+              className="aspect-[4/3] w-full"
             />
           </div>
         </div>

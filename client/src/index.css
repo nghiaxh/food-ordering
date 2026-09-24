@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @import "antd/dist/reset.css" layer(base);
 
+/*
+  AntD Image (CSS-in-JS) chèn `.ant-image .ant-image-img { width:100%; height:auto }`
+  ngoài cascade layer nên đè mọi class Tailwind. Ép ảnh luôn lấp đầy wrapper;
+  mọi kích thước đặt ở wrapper (xem UiImg), ảnh chỉ giữ object-fit.
+*/
+.ant-image .ant-image-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
 @theme {
   --font-heading: "Be Vietnam Pro", Inter, sans-serif;
 }

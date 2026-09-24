@@ -18,7 +18,7 @@ export default function FoodCard({ food }: { food: Food }) {
         <UiImg
           src={food.imageUrl}
           alt={food.name}
-          className={`transition duration-300 group-hover:scale-105 ${food.available ? '' : 'grayscale'}`}
+          className={`h-full w-full transition duration-300 group-hover:scale-105 ${food.available ? '' : 'grayscale'}`}
         />
       </Link>
 

@@ -91,7 +91,7 @@ export default function CartPage() {
                 <UiImg
                   src={i.food.imageUrl}
                   alt={i.food.name}
-                  imgClass="h-20 w-20 rounded-xl object-cover"
+                  className="h-20 w-20 rounded-xl"
                 />
               </Link>
 

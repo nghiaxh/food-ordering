@@ -4,26 +4,27 @@ import UiIcon from './UiIcon'
 interface UiImgProps {
   src?: string | null
   alt?: string
-  imgClass?: string
+  /** Classes cho wrapper (kích thước, aspect, bo góc, hover...) */
   className?: string
+  /** Classes cho thẻ <img> (object-fit, filter...) — mặc định CSS ép lấp đầy */
+  imgClass?: string
   preview?: boolean
 }
 
 export default function UiImg({
   src = null,
   alt = '',
-  imgClass = 'h-full w-full object-cover',
-  className,
+  className = 'h-full w-full',
+  imgClass = '',
   preview = false,
 }: UiImgProps) {
   if (!src) {
     return (
-      <div className={`grid place-items-center text-stone-200 ${imgClass}`}>
+      <div className={`grid place-items-center text-stone-200 ${className}`}>
         <UiIcon name="image" className="text-2xl" />
       </div>
     )
   }
-  const mergedClass = className ? `${imgClass} ${className}` : imgClass
   return (
     <Image
       src={src}
@@ -31,7 +32,7 @@ export default function UiImg({
       loading="lazy"
       fallback="/images/placeholder.svg"
       preview={preview}
-      classNames={{ root: 'block h-full overflow-hidden', image: mergedClass }}
+      classNames={{ root: `block shrink-0 overflow-hidden ${className}`, image: imgClass }}
     />
   )
 }
