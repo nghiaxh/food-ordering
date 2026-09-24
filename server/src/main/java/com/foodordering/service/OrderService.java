@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -16,11 +17,16 @@ public class OrderService {
     private final OrdersRepository orderRepo;
     private final FoodRepository foodRepo;
     private final UserRepository userRepo;
+    private final PaymentTransactionRepository paymentTxRepo;
+    private final NotificationRepository notificationRepo;
 
-    public OrderService(OrdersRepository orderRepo, FoodRepository foodRepo, UserRepository userRepo) {
+    public OrderService(OrdersRepository orderRepo, FoodRepository foodRepo, UserRepository userRepo,
+                        PaymentTransactionRepository paymentTxRepo, NotificationRepository notificationRepo) {
         this.orderRepo = orderRepo;
         this.foodRepo = foodRepo;
         this.userRepo = userRepo;
+        this.paymentTxRepo = paymentTxRepo;
+        this.notificationRepo = notificationRepo;
     }
 
     @Transactional
@@ -49,7 +55,16 @@ public class OrderService {
             total = total.add(food.getPrice().multiply(BigDecimal.valueOf(it.quantity())));
         }
         order.setTotal(total);
-        return orderRepo.save(order);
+        Orders saved = orderRepo.save(order);
+
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setOrder(saved);
+        tx.setMethod(saved.getPaymentMethod());
+        tx.setAmount(saved.getTotal());
+        paymentTxRepo.save(tx);
+
+        notify(saved, "Đơn hàng #" + saved.getId() + " đã được tạo. Nhà hàng sẽ sớm xác nhận đơn của bạn.");
+        return saved;
     }
 
     public List<Orders> myOrders(String email) {
@@ -61,10 +76,56 @@ public class OrderService {
         return orderRepo.findAllByOrderByCreatedAtDesc();
     }
 
+    @Transactional
     public Orders updateStatus(Long id, String status) {
         Orders o = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
-        o.setStatus(Orders.Status.valueOf(status));
-        return orderRepo.save(o);
+        Orders.Status next = Orders.Status.valueOf(status);
+        o.setStatus(next);
+        Orders saved = orderRepo.save(o);
+
+        String content = switch (next) {
+            case CONFIRMED -> "Đơn hàng #" + id + " đã được nhà hàng xác nhận.";
+            case PREPARING -> "Đơn hàng #" + id + " đang được chuẩn bị.";
+            case COMPLETED -> "Đơn hàng #" + id + " đã hoàn thành. Cảm ơn bạn đã đặt món!";
+            case CANCELLED -> "Đơn hàng #" + id + " đã bị hủy. Liên hệ nhà hàng nếu bạn cần hỗ trợ.";
+            default -> null;
+        };
+        if (content != null) notify(saved, content);
+        return saved;
+    }
+
+    @Transactional
+    public Orders updatePayment(Long id, boolean paid) {
+        Orders o = orderRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
+        Orders.PaymentStatus next = paid ? Orders.PaymentStatus.PAID : Orders.PaymentStatus.UNPAID;
+        if (o.getPaymentStatus() == next) return o;
+        o.setPaymentStatus(next);
+        Orders saved = orderRepo.save(o);
+
+        paymentTxRepo.findByOrderId(id).ifPresent(tx -> {
+            if (paid) {
+                tx.setStatus(PaymentTransaction.Status.PAID);
+                tx.setPaidAt(LocalDateTime.now());
+            } else {
+                tx.setStatus(PaymentTransaction.Status.PENDING);
+                tx.setPaidAt(null);
+            }
+            paymentTxRepo.save(tx);
+        });
+
+        String content = paid
+                ? "Đơn hàng #" + id + " đã được ghi nhận thanh toán."
+                : "Đơn hàng #" + id + " chuyển về trạng thái chưa thanh toán.";
+        notify(saved, content);
+        return saved;
+    }
+
+    private void notify(Orders order, String content) {
+        Notification n = new Notification();
+        n.setUser(order.getUser());
+        n.setContent(content);
+        notificationRepo.save(n);
     }
 }

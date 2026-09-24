@@ -48,10 +48,13 @@ export interface OrderItem {
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'COMPLETED' | 'CANCELLED'
 
+export type PaymentStatus = 'UNPAID' | 'PAID'
+
 export interface Order {
   id: number
   status: OrderStatus
   paymentMethod: string
+  paymentStatus: PaymentStatus
   total: number
   receiverName: string
   phone: string
@@ -59,6 +62,18 @@ export interface Order {
   createdAt: string
   items: OrderItem[]
   user?: User
+}
+
+export interface CartItem {
+  food: Food
+  quantity: number
+}
+
+export interface NotificationItem {
+  id: number
+  content: string
+  read: boolean
+  createdAt: string
 }
 
 export interface Review {

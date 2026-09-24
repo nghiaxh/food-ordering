@@ -6,6 +6,8 @@ import { createReview, getFood, getFoods, getReviews } from '../api/api'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
+import { foodChips } from '../utils/food-tags'
+import { apiErrorMessage } from '../utils/api-error'
 import FoodCard from '../components/FoodCard'
 import SectionHeader from '../components/SectionHeader'
 import UiImg from '../components/UiImg'
@@ -65,7 +67,7 @@ export default function FoodDetailPage() {
       message.success('Cảm ơn bạn đã đánh giá!')
       void refreshReviews()
     } else {
-      message.error('Gửi đánh giá thất bại. Vui lòng thử lại.')
+      message.error(apiErrorMessage(res.error) ?? 'Gửi đánh giá thất bại. Vui lòng thử lại.')
     }
   }
 
