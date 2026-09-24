@@ -61,10 +61,9 @@ Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm so�
 Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique theo user + món):
 
 - Khách đã đăng nhập: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác thực); giỏ
-  được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
-- Khách vãng lai: giỏ nằm trong bộ nhớ của Zustand (không phải `localStorage` bền); khi
-  đăng nhập, hệ thống đẩy bản nháp lên server rồi tải giỏ chính thức về. Khi đăng xuất,
-  state giỏ của tài khoản được xóa khỏi client.
+  còn nguyên khi đăng nhập lại từ thiết bị khác.
+- Khách vãng lai: giỏ hoạt động ở local (Zustand) như bản nháp; khi đăng nhập, hệ thống
+  đẩy bản nháp lên server rồi tải giỏ chính thức về.
 - Giá món hiển thị từ dữ liệu trả về khi duyệt món.
 
 ### 4. Đặt món (giá lấy từ DB)
@@ -72,8 +71,12 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 1. Client gửi `POST /api/orders` với danh sách món + số lượng, thông tin người nhận,
    phương thức thanh toán và **ghi chú cho quán** (`note`, tối đa 255 ký tự, tuỳ chọn).
 2. `OrderService.create` set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
-3. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) - không tích hợp cổng thanh toán thật.
-4. Khách hàng theo dõi trạng thái đơn; admin xác nhận/cập nhật trạng thái.
+3. Mỗi đơn được ghi một giao dịch thanh toán (`payment_transactions`: phương thức, số tiền,
+   trạng thái PENDING/PAID) và tạo thông báo xác nhận cho khách (`notifications`).
+4. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) - không tích hợp cổng thanh toán thật;
+   admin ghi nhận "đã thanh toán" qua `PATCH /api/admin/orders/{id}/payment?paid=...`.
+5. Khách hàng theo dõi trạng thái đơn và thông báo; admin xác nhận/cập nhật trạng thái;
+   mỗi lần đổi trạng thái, khách nhận thông báo.
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
@@ -252,6 +255,13 @@ Tài liệu tri thức mẫu không được hứa điều mà hệ thống khô
 tiền món nên tài liệu đã bỏ câu "Phí giao hàng 15.000 đồng". Ba câu còn lại (giờ mở cửa, khu vực
 không phục vụ, thời gian giao) là thông tin, không sinh ra con số sai về tiền, nhưng cũng
 không có code kiểm chứng.
+
+### 6. Đánh giá và đặt lại
+
+- Khách chỉ được đánh giá món có trong **đơn hoàn thành** của chính mình
+  (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
+- Trang lịch sử đơn có nút **Đặt lại**: đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ,
+  món ngừng phục vụ bị bỏ qua kèm cảnh báo.
 
 ## Cấu trúc mã nguồn
 

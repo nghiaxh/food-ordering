@@ -19,13 +19,15 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 - Đăng ký / đăng nhập, phiên dùng JWT
 - Duyệt danh mục, tìm kiếm và lọc món theo tên, loại, khoảng giá
 - Chi tiết món: thành phần, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, đánh giá
-- Giỏ hàng và đặt món (thanh toán giả lập: COD / chuyển khoản / ví điện tử)
-- Theo dõi trạng thái đơn hàng
+- Giỏ hàng lưu theo tài khoản (đăng nhập mọi nơi vẫn còn giỏ) và đặt món
+  (thanh toán giả lập: COD / chuyển khoản / ví điện tử)
+- Theo dõi trạng thái đơn hàng, trạng thái thanh toán và nhận thông báo xác nhận
+- Lịch sử đặt món với nút đặt lại chỉ một chạm
 - Chatbot tư vấn món ăn (widget góc phải màn hình): hỏi bằng tự nhiên, nhận gợi ý
   kèm thẻ món có link đặt món
 
 ### Quản trị
-- Quản lý món ăn, danh mục, đơn hàng, người dùng
+- Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
 - Upload tài liệu tham khảo cho chatbot (RAG cơ bản) và chỉnh cấu hình chatbot
 
 ## Bắt đầu nhanh
