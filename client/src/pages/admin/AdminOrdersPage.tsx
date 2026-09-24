@@ -168,7 +168,7 @@ export default function AdminOrdersPage() {
         title={detail ? `Đơn #${detail.id}` : 'Chi tiết đơn'}
         open={detailId !== null}
         onClose={() => setDetailId(null)}
-        width={480}
+        size={480}
       >
         {detail ? (
           <div className="space-y-6">
