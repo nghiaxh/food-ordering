@@ -43,19 +43,26 @@ Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm so�
 - Lọc theo tên, loại, khoảng giá và trạng thái available qua query params.
 - Chi tiết món gồm thành phần, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, đánh giá.
 
-### 3. Giỏ hàng (state phía client)
+### 3. Giỏ hàng (lưu theo tài khoản)
 
-Giỏ hàng **không lưu trên server**; nó là state React với Zustand (`store/cartStore`):
+Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique theo user + món):
 
-- Thêm/sửa/xóa/clear món, tính tổng tiền phía client.
+- Khách đã đăng nhập: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác thực); giỏ
+  còn nguyên khi đăng nhập lại từ thiết bị khác.
+- Khách vãng lai: giỏ hoạt động ở local (Zustand) như bản nháp; khi đăng nhập, hệ thống
+  đẩy bản nháp lên server rồi tải giỏ chính thức về.
 - Giá món hiển thị từ dữ liệu trả về khi duyệt món.
 
 ### 4. Đặt món (giá lấy từ DB)
 
 1. Client gửi `POST /api/orders` với danh sách món + số lượng.
 2. `OrderService.create` set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
-3. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) - không tích hợp cổng thanh toán thật.
-4. Khách hàng theo dõi trạng thái đơn; admin xác nhận/cập nhật trạng thái.
+3. Mỗi đơn được ghi một giao dịch thanh toán (`payment_transactions`: phương thức, số tiền,
+   trạng thái PENDING/PAID) và tạo thông báo xác nhận cho khách (`notifications`).
+4. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) - không tích hợp cổng thanh toán thật;
+   admin ghi nhận "đã thanh toán" qua `PATCH /api/admin/orders/{id}/payment?paid=...`.
+5. Khách hàng theo dõi trạng thái đơn và thông báo; admin xác nhận/cập nhật trạng thái;
+   mỗi lần đổi trạng thái, khách nhận thông báo.
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
@@ -71,6 +78,13 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
 - Prompt truy vấn món chỉ nhận danh sách có sẵn từ `FoodRepository`.
 - Lỗi AI/JSON sai thì xử lý bằng `try/catch` → tiêu chí rỗng, hệ thống vẫn chạy bình thường.
 - RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn và chấm điểm theo từ khóa, không cần vector DB. Admin upload tài liệu tham khảo qua endpoint upload (chỉ cho file, không có upload ảnh món).
+
+### 6. Đánh giá và đặt lại
+
+- Khách chỉ được đánh giá món có trong **đơn hoàn thành** của chính mình
+  (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
+- Trang lịch sử đơn có nút **Đặt lại**: đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ,
+  món ngừng phục vụ bị bỏ qua kèm cảnh báo.
 
 ## Cấu trúc mã nguồn
 
