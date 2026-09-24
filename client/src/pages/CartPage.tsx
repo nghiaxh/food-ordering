@@ -1,4 +1,4 @@
-import { Button, Empty, Form, Input, Radio, message } from 'antd'
+import { Button, Empty, Form, Input, Radio, Skeleton, message } from 'antd'
 import { DeleteOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { createOrder } from '../api/api'
@@ -9,7 +9,7 @@ import { formatVND } from '../utils/format'
 import UiImg from '../components/UiImg'
 
 export default function CartPage() {
-  const { items, setQuantity, remove, clear, count, total } = useCartStore()
+  const { items, loaded, setQuantity, remove, clear, count, total } = useCartStore()
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
 
@@ -50,6 +50,14 @@ export default function CartPage() {
           : 'Đặt món thất bại',
       )
     }
+  }
+
+  if (!loaded) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <Skeleton active />
+      </div>
+    )
   }
 
   if (items.length === 0) {

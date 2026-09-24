@@ -36,6 +36,7 @@ public class DataSeeder implements CommandLineRunner {
         Category au = cat("Món Âu", "mon-au", "/images/categories/mon-au.jpg");
         Category uong = cat("Đồ uống", "do-uong", "/images/categories/do-uong.jpg");
         Category trangMieng = cat("Tráng miệng", "trang-mieng", "/images/categories/trang-mieng.jpg");
+        Category chay = cat("Món chay", "mon-chay", "/images/categories/mon-chay.jpg");
 
         food("Phở bò", viet, "Phở bò truyền thống, nước dùng hầm xương 12 giờ", "bánh phở, thịt bò, hành, quế, hồi",
                 65000, 1, 0, "", "gluten", "pho-bo");
@@ -49,9 +50,9 @@ public class DataSeeder implements CommandLineRunner {
                 45000, 2, 0, "", "hải sản,đậu phộng", "goi-cuon");
         food("Canh chua cá lóc", viet, "Canh chua miền Tây với cá lóc, thơm, cà chua", "cá lóc, thơm, cà chua, đậu bắp",
                 90000, 3, 1, "ít dầu mỡ", "hải sản", "canh-chua-ca-loc");
-        food("Rau muống xào tỏi", viet, "Rau muống xào tỏi giòn xanh", "rau muống, tỏi",
+        food("Rau muống xào tỏi", chay, "Rau muống xào tỏi giòn xanh", "rau muống, tỏi",
                 35000, 2, 0, "chay,ít dầu mỡ", "", "rau-muong-xao-toi");
-        food("Đậu hũ sốt cà chua", viet, "Đậu hũ non sốt cà chua thanh đạm", "đậu hũ, cà chua, hành",
+        food("Đậu hũ sốt cà chua", chay, "Đậu hũ non sốt cà chua thanh đạm", "đậu hũ, cà chua, hành",
                 40000, 2, 0, "chay", "đậu nành", "dau-hu-sot-ca-chua");
         food("Lẩu thái hải sản", viet, "Lẩu chua cay với tôm, mực, nghêu", "tôm, mực, nghêu, sả, ớt, nấm",
                 250000, 4, 3, "", "hải sản", "lau-thai-hai-san");

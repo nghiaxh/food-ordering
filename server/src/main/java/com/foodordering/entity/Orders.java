@@ -21,6 +21,10 @@ public class Orders {
     private Status status = Status.PENDING;
 
     private String paymentMethod;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+
     private BigDecimal total;
     private String receiverName;
     private String phone;
@@ -31,4 +35,6 @@ public class Orders {
     private List<OrderItem> items = new ArrayList<>();
 
     public enum Status { PENDING, CONFIRMED, PREPARING, COMPLETED, CANCELLED }
+
+    public enum PaymentStatus { UNPAID, PAID }
 }

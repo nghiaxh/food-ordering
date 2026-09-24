@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Avatar, Badge, Button, Drawer, Dropdown, type MenuProps } from 'antd'
+import { Avatar, Badge, Button, Drawer, Dropdown, Popover, message, type MenuProps } from 'antd'
 import { MenuOutlined } from '@ant-design/icons'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import UiIcon from './UiIcon'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import { getNotifications, markNotificationsRead } from '../api/api'
+import type { NotificationItem } from '../types'
 
 interface NavLink {
   label: string
@@ -40,8 +42,30 @@ export default function HeaderGlobal() {
   const count = useCartStore((s) => s.count())
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
 
   const isAdmin = user?.role === 'ADMIN'
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([])
+      return
+    }
+    getNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]))
+  }, [user, location.pathname])
+
+  const unread = notifications.filter((n) => !n.read).length
+
+  const markAllRead = async () => {
+    try {
+      await markNotificationsRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch {
+      message.error('Không đánh dấu được thông báo đã đọc')
+    }
+  }
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -189,6 +213,67 @@ export default function HeaderGlobal() {
           </nav>
 
           <div className="flex items-center gap-1.5 justify-self-end">
+            {user && (
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                arrow={false}
+                onOpenChange={(open) => {
+                  if (open) {
+                    getNotifications().then(setNotifications).catch(() => setNotifications([]))
+                  }
+                }}
+                content={
+                  <div className="w-80">
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                      <span className="text-sm font-semibold text-stone-800">Thông báo</span>
+                      {unread > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-amber-700 hover:underline"
+                          onClick={() => void markAllRead()}
+                        >
+                          Đánh dấu đã đọc
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-stone-400">Chưa có thông báo nào.</p>
+                      ) : (
+                        notifications.slice(0, 10).map((n) => (
+                          <div
+                            key={n.id}
+                            className={`rounded-lg px-3 py-2 text-sm ${
+                              n.read ? 'text-stone-500' : 'bg-amber-50 font-medium text-stone-800'
+                            }`}
+                          >
+                            <span
+                              className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+                                n.read ? 'bg-stone-200' : 'bg-amber-500'
+                              }`}
+                            />
+                            {n.content}
+                            <span className="mt-0.5 block text-xs font-normal text-stone-400">
+                              {new Date(n.createdAt).toLocaleString('vi-VN')}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                }
+              >
+                <Badge count={unread} size="small" color="#d97706">
+                  <Button
+                    shape="circle"
+                    aria-label="Thông báo"
+                    icon={<UiIcon name="bell" size={20} />}
+                  />
+                </Badge>
+              </Popover>
+            )}
+
             {!isAdmin && (
               <Badge count={count} size="small" color="#d97706">
                 <Button

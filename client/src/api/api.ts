@@ -1,5 +1,5 @@
 import http from './http'
-import type { AuthUser, Category, ChatHistoryMessage, ChatMessage, Food, FoodCard, KnowledgeDocument, Order, Review, User } from '../types'
+import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, KnowledgeDocument, NotificationItem, Order, Review, User } from '../types'
 
 // ----- Auth -----
 export const login = (email: string, password: string) =>
@@ -37,6 +37,26 @@ export const createOrder = (data: {
 export const getMyOrders = (signal?: AbortSignal) =>
   http.get<Order[]>('/orders/my', { signal }).then((r) => r.data)
 
+// ----- Giỏ hàng -----
+export const getCart = (signal?: AbortSignal) =>
+  http.get<CartItem[]>('/cart', { signal }).then((r) => r.data)
+
+export const addCartItem = (foodId: number, quantity: number) =>
+  http.post<CartItem>('/cart/items', { foodId, quantity }).then((r) => r.data)
+
+export const setCartItemQuantity = (foodId: number, quantity: number) =>
+  http.patch<CartItem>(`/cart/items/${foodId}`, { quantity }).then((r) => r.data)
+
+export const removeCartItem = (foodId: number) => http.delete(`/cart/items/${foodId}`)
+
+export const clearCart = () => http.delete('/cart')
+
+// ----- Thông báo -----
+export const getNotifications = (signal?: AbortSignal) =>
+  http.get<NotificationItem[]>('/notifications', { signal }).then((r) => r.data)
+
+export const markNotificationsRead = () => http.post('/notifications/read-all')
+
 // ----- Đánh giá -----
 export const getReviews = (foodId: number, signal?: AbortSignal) =>
   http.get<Review[]>(`/reviews/food/${foodId}`, { signal }).then((r) => r.data)
@@ -65,6 +85,9 @@ export const adminGetOrders = () => http.get<Order[]>('/admin/orders').then((r) 
 
 export const adminUpdateOrderStatus = (id: number, status: string) =>
   http.patch(`/admin/orders/${id}/status`, { status })
+
+export const adminUpdateOrderPayment = (id: number, paid: boolean) =>
+  http.patch(`/admin/orders/${id}/payment`, null, { params: { paid } })
 
 export const adminGetUsers = () => http.get<User[]>('/admin/users').then((r) => r.data)
 

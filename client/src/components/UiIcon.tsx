@@ -2,6 +2,7 @@ import type { CSSProperties, ComponentType } from 'react'
 import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
+  BellOutlined,
   CheckCircleOutlined,
   CheckOutlined,
   ClockCircleOutlined,
@@ -49,6 +50,7 @@ type IconComponent = ComponentType<{ className?: string; style?: CSSProperties }
 const iconMap: Record<string, IconComponent | undefined> = {
   'arrow-left': ArrowLeftOutlined,
   'arrow-right': ArrowRightOutlined,
+  bell: BellOutlined,
   check: CheckOutlined,
   'check-circle': CheckCircleOutlined,
   clock: ClockCircleOutlined,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Drawer, Select, Table, message } from 'antd'
 import { EyeOutlined } from '@ant-design/icons'
-import { adminGetOrders, adminUpdateOrderStatus } from '../../api/api'
+import { adminGetOrders, adminUpdateOrderPayment, adminUpdateOrderStatus } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
 import type { OrderStatus } from '../../types'
@@ -28,6 +28,9 @@ export default function AdminOrdersPage() {
   )
   const { run: updateStatus } = useAsyncAction(
     (payload: { id: number; status: OrderStatus }) => adminUpdateOrderStatus(payload.id, payload.status),
+  )
+  const { run: updatePayment } = useAsyncAction(
+    (payload: { id: number; paid: boolean }) => adminUpdateOrderPayment(payload.id, payload.paid),
   )
   const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL')
@@ -67,6 +70,22 @@ export default function AdminOrdersPage() {
       void refreshOrders()
     } else {
       message.error(apiErrorMessage(res.error) ?? 'Cập nhật thất bại')
+    }
+  }
+
+  const changePayment = async (id: number, paid: boolean) => {
+    setBusyIds((prev) => new Set(prev).add(id))
+    const res = await updatePayment({ id, paid })
+    setBusyIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+    if (res.ok) {
+      message.success('Đã cập nhật trạng thái thanh toán')
+      void refreshOrders()
+    } else {
+      message.error(apiErrorMessage(res.error) ?? 'Cập nhật thanh toán thất bại')
     }
   }
 
@@ -200,6 +219,34 @@ export default function AdminOrdersPage() {
                 <p>
                   Thanh toán: <b className="font-medium text-stone-800">{detail.paymentMethod}</b>
                 </p>
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <span className="text-sm text-stone-600">
+                    Trạng thái:{' '}
+                    <b className="font-medium text-stone-800">
+                      {detail.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                    </b>
+                  </span>
+                  {detail.paymentStatus === 'PAID' ? (
+                    <Button
+                      size="small"
+                      loading={busyIds.has(detail.id)}
+                      disabled={busyIds.has(detail.id)}
+                      onClick={() => changePayment(detail.id, false)}
+                    >
+                      Hoàn tác
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      type="primary"
+                      loading={busyIds.has(detail.id)}
+                      disabled={busyIds.has(detail.id)}
+                      onClick={() => changePayment(detail.id, true)}
+                    >
+                      Đã thanh toán
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 

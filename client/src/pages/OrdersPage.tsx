@@ -1,17 +1,47 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Button, Divider, Empty, Skeleton, Tag, Typography, message } from 'antd'
-import { CheckCircleOutlined, InboxOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, InboxOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { getMyOrders } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
+import { useCartStore } from '../store/cartStore'
 import { ORDER_STATUS_COLOR, ORDER_STATUS_LABEL } from '../utils/orders'
 import { formatVND } from '../utils/format'
+import type { Order } from '../types'
 
 export default function OrdersPage() {
+  const navigate = useNavigate()
   const { data: orders, loading, error, refresh } = useAsyncData((signal) => getMyOrders(signal), [])
+  const addToCart = useCartStore((s) => s.add)
+  const [reorderingId, setReorderingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (error) message.error('Không tải được danh sách đơn hàng')
   }, [error])
+
+  const reorder = async (order: Order) => {
+    if (reorderingId !== null) return
+    setReorderingId(order.id)
+    const available = order.items.filter((i) => i.food.available)
+    const skipped = order.items.filter((i) => !i.food.available).map((i) => i.food.name)
+    try {
+      for (const item of available) {
+        await addToCart(item.food, item.quantity)
+      }
+    } finally {
+      setReorderingId(null)
+    }
+    if (available.length === 0) {
+      message.warning('Các món trong đơn này đã ngừng phục vụ, không thể đặt lại')
+      return
+    }
+    message.success(
+      skipped.length > 0
+        ? `Đã thêm vào giỏ (bỏ qua món ngừng phục vụ: ${skipped.join(', ')})`
+        : 'Đã thêm toàn bộ món vào giỏ',
+    )
+    navigate('/cart')
+  }
 
   if (loading) {
     return (
@@ -50,6 +80,9 @@ export default function OrdersPage() {
                   <Tag color={ORDER_STATUS_COLOR[o.status] ?? 'default'}>
                     {ORDER_STATUS_LABEL[o.status] ?? o.status}
                   </Tag>
+                  <Tag color={o.paymentStatus === 'PAID' ? 'green' : 'orange'}>
+                    {o.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                  </Tag>
                 </div>
               </div>
               <Divider style={{ margin: '12px 0' }} />
@@ -67,6 +100,14 @@ export default function OrdersPage() {
                   <b className="text-base text-amber-700">{formatVND(o.total)}</b>
                 </div>
               </div>
+              <Button
+                className="mt-4"
+                icon={<ShoppingCartOutlined />}
+                loading={reorderingId === o.id}
+                onClick={() => void reorder(o)}
+              >
+                Đặt lại
+              </Button>
             </div>
           ))}
         </div>

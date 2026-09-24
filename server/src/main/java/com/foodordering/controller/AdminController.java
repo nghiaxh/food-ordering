@@ -84,6 +84,11 @@ public class AdminController {
         return orderService.updateStatus(id, req.status());
     }
 
+    @PatchMapping("/orders/{id}/payment")
+    public Orders updatePayment(@PathVariable Long id, @RequestParam boolean paid) {
+        return orderService.updatePayment(id, paid);
+    }
+
     // ----- Khách hàng -----
     @GetMapping("/users")
     public List<User> users() { return userRepo.findAll(); }

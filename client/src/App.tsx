@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { ConfigProvider } from 'antd'
 import viVN from 'antd/locale/vi_VN'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
+import { useCartStore } from './store/cartStore'
 import DefaultLayout from './layouts/DefaultLayout'
 import HomePage from './pages/HomePage'
 import FoodsPage from './pages/FoodsPage'
@@ -29,6 +30,22 @@ function RequireAuth({ children, admin = false }: { children: ReactNode; admin?:
     return <Navigate to="/" replace />
   }
   return <>{children}</>
+}
+
+function CartSync() {
+  const user = useAuthStore((s) => s.user)
+  const load = useCartStore((s) => s.load)
+  const resetLocal = useCartStore((s) => s.resetLocal)
+
+  useEffect(() => {
+    if (user) {
+      void load()
+    } else {
+      resetLocal()
+    }
+  }, [user, load, resetLocal])
+
+  return null
 }
 
 function AppRoutes() {
@@ -88,6 +105,7 @@ export default function App() {
     >
       <BrowserRouter>
         <ScrollManager />
+        <CartSync />
         <AppRoutes />
       </BrowserRouter>
     </ConfigProvider>
