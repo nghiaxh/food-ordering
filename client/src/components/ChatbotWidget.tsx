@@ -17,6 +17,7 @@ export default function ChatbotWidget() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       sender: 'BOT',
@@ -25,6 +26,7 @@ export default function ChatbotWidget() {
     },
   ])
   const sessionId = useRef(crypto.randomUUID())
+  const lastUserRef = useRef('')
   const listRef = useRef<HTMLDivElement>(null)
   const activeRef = useRef(true)
 
@@ -41,18 +43,27 @@ export default function ChatbotWidget() {
     const text = (raw ?? input).trim()
     if (!text || loading) return
     setInput('')
+    lastUserRef.current = text
     setMessages((m) => [...m, { sender: 'USER', content: text }])
     setLoading(true)
     try {
       const res = await chat(text, sessionId.current)
       if (!activeRef.current) return
+      setError(false)
       setMessages((m) => [...m, { sender: 'BOT', content: res.reply, foods: res.foods }])
     } catch {
       if (!activeRef.current) return
+      setError(true)
       setMessages((m) => [...m, { sender: 'BOT', content: 'Xin lỗi, đã có lỗi xảy ra. Bạn thử lại nhé!' }])
     } finally {
       if (activeRef.current) setLoading(false)
     }
+  }
+
+  const handleRetry = () => {
+    if (!lastUserRef.current) return
+    setError(false)
+    void handleSend(lastUserRef.current)
   }
 
   const handleClose = () => {
@@ -71,14 +82,20 @@ export default function ChatbotWidget() {
   return (
     <div className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3">
       {open && (
-        <div className="flex h-[560px] w-[400px] max-h-[min(560px,calc(100vh-7rem))] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 transition-all duration-200">
+        <div className="flex h-[560px] w-[400px] max-h-[min(560px,calc(100vh-7rem))] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 transition-all duration-200 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:h-dvh max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
           <div className="flex items-center gap-3 bg-amber-600 px-4 py-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20">
               <RobotOutlined className="text-lg text-white" />
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-white">Trợ lý FoodOrdering</p>
-              <p className="text-xs text-amber-100">Gợi ý món theo khẩu vị · hỗ trợ 24/7</p>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                Trợ lý FoodOrdering
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+              </p>
+              <p className="truncate text-xs text-amber-100">Gợi ý món theo khẩu vị · hỗ trợ 24/7</p>
             </div>
             <button
               type="button"
@@ -104,11 +121,7 @@ export default function ChatbotWidget() {
                         : 'rounded-bl-sm bg-white text-stone-700 shadow-sm'
                     }`}
                   >
-                    {m.content ? (
-                      <span>{m.content}</span>
-                    ) : loading && m.sender === 'BOT' && index === messages.length - 1 ? (
-                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-amber-600 border-t-transparent align-middle" />
-                    ) : null}
+                    {m.content ? <span>{m.content}</span> : null}
                   </div>
 
                   {m.foods && m.foods.length > 0 && (
@@ -140,6 +153,30 @@ export default function ChatbotWidget() {
                 </div>
               </div>
             ))}
+
+            {loading && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl rounded-bl-sm bg-white px-4 py-3 shadow-sm">
+                  <span className="flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400" style={{ animationDelay: '0ms' }} />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400" style={{ animationDelay: '150ms' }} />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-400" style={{ animationDelay: '300ms' }} />
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {error && !loading && (
+              <div className="flex justify-start">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="rounded-full bg-white px-3.5 py-1.5 text-xs font-medium text-amber-700 shadow-sm ring-1 ring-stone-200 transition hover:bg-amber-50"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
 
             {!loading && (
               <div className="flex flex-wrap gap-2">
@@ -184,7 +221,7 @@ export default function ChatbotWidget() {
         shape="circle"
         size="large"
         aria-label="Mở trợ lý"
-        className="h-20 w-20 text-2xl shadow-lg shadow-amber-900/20"
+        className={`h-20 w-20 text-2xl shadow-lg shadow-amber-900/20 ${open ? 'max-sm:invisible' : ''}`}
         icon={open ? <CloseOutlined /> : <MessageOutlined />}
         onClick={open ? handleClose : handleOpen}
       />

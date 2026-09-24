@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  Button, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message,
+  Button, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, message,
 } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { adminDeleteFood, adminSaveFood, getCategories, getFoods } from '../../api/api'
@@ -11,7 +11,7 @@ import { formatVND } from '../../utils/format'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiImg from '../../components/UiImg'
 import UiIcon from '../../components/UiIcon'
-import { PageCard } from './shared'
+import { EmptyState, PageCard, PageHeader, StatCard, StatusDot, TableSkeleton } from './shared'
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
@@ -19,8 +19,11 @@ export default function AdminFoodsPage() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Food | null>(null)
   const [search, setSearch] = useState('')
+  const [catFilter, setCatFilter] = useState<number | undefined>()
+  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'hidden'>('all')
   const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
   const [form] = Form.useForm()
+  const liveImage = Form.useWatch('imageUrl', form)
 
   const { data, loading, refresh: refreshData } = useAsyncData((signal) => getFoods(undefined, signal), [])
   const { data: cats } = useAsyncData((signal) => getCategories(signal), [])
@@ -29,14 +32,26 @@ export default function AdminFoodsPage() {
   )
   const { run: deleteFood } = useAsyncAction((id: number) => adminDeleteFood(id))
 
+  const stats = useMemo(() => {
+    const list = data ?? []
+    const available = list.filter((f) => f.available).length
+    const avg = list.length ? Math.round(list.reduce((sum, f) => sum + Number(f.price), 0) / list.length) : 0
+    return { total: list.length, available, hidden: list.length - available, avg }
+  }, [data])
+
   const rows = useMemo(() => {
     const list = data ?? []
     const kw = search.trim().toLowerCase()
-    if (!kw) return list
-    return list.filter(
-      (f) => f.name.toLowerCase().includes(kw) || (f.category?.name ?? '').toLowerCase().includes(kw),
-    )
-  }, [data, search])
+    return list.filter((f) => {
+      if (kw && !f.name.toLowerCase().includes(kw) && !(f.category?.name ?? '').toLowerCase().includes(kw)) {
+        return false
+      }
+      if (catFilter !== undefined && f.category?.id !== catFilter) return false
+      if (statusFilter === 'available' && !f.available) return false
+      if (statusFilter === 'hidden' && f.available) return false
+      return true
+    })
+  }, [data, search, catFilter, statusFilter])
 
   const openCreate = () => {
     setEditing(null)
@@ -85,7 +100,24 @@ export default function AdminFoodsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <PageHeader
+        title="Món ăn"
+        subtitle={`Quản lý ${stats.total} món trong thực đơn.`}
+        extra={
+          <Button icon={<PlusOutlined />} onClick={openCreate}>
+            Tạo món
+          </Button>
+        }
+      />
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Tổng món" value={stats.total} tone="stone" icon="tag" />
+        <StatCard label="Đang bán" value={stats.available} tone="green" icon="check-circle" />
+        <StatCard label="Đã ẩn" value={stats.hidden} tone="red" icon="eye-slash" />
+        <StatCard label="Giá trung bình" value={formatVND(stats.avg)} tone="amber" icon="star-fill" />
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -94,66 +126,99 @@ export default function AdminFoodsPage() {
           prefix={<UiIcon name="search" size={16} />}
           className="w-full sm:w-72"
         />
-        <Button icon={<PlusOutlined />} onClick={openCreate}>
-          Tạo món
-        </Button>
+        <Select
+          allowClear
+          placeholder="Tất cả danh mục"
+          style={{ width: 200 }}
+          value={catFilter}
+          onChange={setCatFilter}
+          options={(cats ?? []).map((c) => ({ label: c.name, value: c.id }))}
+        />
+        <Select
+          style={{ width: 170 }}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { label: 'Tất cả trạng thái', value: 'all' },
+            { label: 'Đang bán', value: 'available' },
+            { label: 'Đã ẩn', value: 'hidden' },
+          ]}
+        />
       </div>
 
       <PageCard>
-        <Table
-          rowKey="id"
-          dataSource={rows}
-          loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
-          scroll={{ x: 800 }}
-          locale={{
-            emptyText: (
-              <div className="flex flex-col items-center py-10 text-stone-400">
-                <UiIcon name="inbox" size={32} className="mb-2 text-stone-300" />
-                <p className="text-sm">Không có món ăn nào.</p>
-              </div>
-            ),
-          }}
-          columns={[
-            {
-              title: 'Món',
-              render: (_, f) => (
-                <div className="flex items-center gap-3">
-                  <UiImg src={f.imageUrl} alt={f.name} imgClass="h-12 w-12 rounded-lg object-cover" />
-                  <span className="font-medium text-stone-800">{f.name}</span>
-                </div>
+        {loading && !data ? (
+          <TableSkeleton />
+        ) : (
+          <Table
+            rowKey="id"
+            dataSource={rows}
+            loading={loading}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            scroll={{ x: 800 }}
+            locale={{
+              emptyText: (
+                <EmptyState
+                  icon="inbox"
+                  title="Không có món ăn nào."
+                  hint="Điều chỉnh bộ lọc hoặc tạo món mới."
+                />
               ),
-            },
-            { title: 'Danh mục', width: 140, render: (_, f) => <Tag>{f.category?.name ?? 'Không có'}</Tag> },
-            {
-              title: 'Giá',
-              width: 140,
-              render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
-            },
-            { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? 'Không có' },
-            {
-              title: 'Trạng thái',
-              width: 130,
-              render: (_, f) => <Tag color={f.available ? 'green' : 'red'}>{f.available ? 'Bán' : 'Ẩn'}</Tag>,
-            },
-            {
-              title: 'Thao tác',
-              width: 170,
-              render: (_, f) => (
-                <Space>
-                  <Button size="small" onClick={() => openEdit(f)}>
-                    Sửa
-                  </Button>
-                  <Popconfirm title="Xóa món này?" onConfirm={() => remove(f.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(f.id)}>
-                      Xóa
+            }}
+            columns={[
+              {
+                title: 'Món',
+                render: (_, f) => (
+                  <div className="flex items-center gap-3">
+                    <UiImg src={f.imageUrl} alt={f.name} imgClass="h-12 w-12 rounded-lg object-cover" />
+                    <span className="font-medium text-stone-800">{f.name}</span>
+                  </div>
+                ),
+              },
+              {
+                title: 'Danh mục',
+                width: 140,
+                render: (_, f) => (
+                  <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+                    {f.category?.name ?? 'Không có'}
+                  </span>
+                ),
+              },
+              {
+                title: 'Giá',
+                width: 140,
+                render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
+              },
+              { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? 'Không có' },
+              {
+                title: 'Trạng thái',
+                width: 130,
+                render: (_, f) =>
+                  f.available ? (
+                    <StatusDot color="#10b981" label="Bán" />
+                  ) : (
+                    <StatusDot color="#ef4444" label="Ẩn" />
+                  ),
+              },
+              {
+                title: 'Thao tác',
+                width: 170,
+                render: (_, f) => (
+                  <Space>
+                    <Button size="small" onClick={() => openEdit(f)}>
+                      Sửa
                     </Button>
-                  </Popconfirm>
-                </Space>
-              ),
-            },
-          ]}
-        />
+                    <Popconfirm title="Xóa món này?" onConfirm={() => remove(f.id)}>
+                      <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(f.id)}>
+                        Xóa
+                      </Button>
+                    </Popconfirm>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        )}
       </PageCard>
 
       <Modal
@@ -183,8 +248,8 @@ export default function AdminFoodsPage() {
             >
               <Select options={(cats ?? []).map((c) => ({ label: c.name, value: c.id }))} />
             </Form.Item>
-            <Form.Item name="price" label="Giá (đ)" rules={[{ required: true, message: 'Nhập giá' }]}>
-              <InputNumber min={0} step={1000} style={{ width: '100%' }} />
+            <Form.Item name="price" label="Giá" rules={[{ required: true, message: 'Nhập giá' }]}>
+              <InputNumber min={0} step={1000} addonAfter="đ" style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="servingSize" label="Khẩu phần (người)">
               <InputNumber min={1} style={{ width: '100%' }} />
@@ -207,6 +272,16 @@ export default function AdminFoodsPage() {
             <Form.Item name="imageUrl" label="URL Ảnh" className="md:col-span-2">
               <Input placeholder="Bỏ trống để dùng ảnh mặc định" />
             </Form.Item>
+            {liveImage ? (
+              <div className="md:col-span-2">
+                <p className="mb-1.5 text-xs font-medium text-stone-400">Xem trước</p>
+                <UiImg
+                  src={liveImage}
+                  alt="Xem trước ảnh món"
+                  imgClass="h-28 w-72 rounded-xl border border-stone-100 object-cover"
+                />
+              </div>
+            ) : null}
             <Form.Item name="available" label="Đang bán" valuePropName="checked" className="md:col-span-2">
               <Checkbox>Hiển thị trên thực đơn</Checkbox>
             </Form.Item>
