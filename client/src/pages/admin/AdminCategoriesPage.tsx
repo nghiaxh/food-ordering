@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Button, Form, Input, Modal, Popconfirm, message } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { Button, Form, Input, Modal, Popconfirm, Tooltip, message } from 'antd'
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { adminDeleteCategory, adminSaveCategory, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
@@ -8,14 +8,17 @@ import type { Category } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import { slugify } from '../../utils/slug'
 import UiImg from '../../components/UiImg'
-import { EmptyState, PageHeader } from './shared'
+import UiIcon from '../../components/UiIcon'
+import { EmptyState, PageHeader, StatCard } from './shared'
 
 export default function AdminCategoriesPage() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
   const [form] = Form.useForm()
   const imageUrl = Form.useWatch('imageUrl', form)
+  const nameValue = Form.useWatch('name', form)
 
   const { data, loading, refresh: refreshData } = useAsyncData((signal) => getCategories(signal), [])
   const { data: foods } = useAsyncData((signal) => getFoods(undefined, signal), [])
@@ -32,6 +35,19 @@ export default function AdminCategoriesPage() {
     }
     return map
   }, [foods])
+
+  const stats = useMemo(() => {
+    const list = data ?? []
+    const withFoods = list.filter((c) => (counts.get(c.id) ?? 0) > 0).length
+    return { total: list.length, withFoods, empty: list.length - withFoods }
+  }, [data, counts])
+
+  const rows = useMemo(() => {
+    const list = data ?? []
+    const kw = search.trim().toLowerCase()
+    if (!kw) return list
+    return list.filter((c) => c.name.toLowerCase().includes(kw) || c.slug.toLowerCase().includes(kw))
+  }, [data, search])
 
   const openCreate = () => {
     setEditing(null)
@@ -79,6 +95,8 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  const slugPreview = editing?.slug ?? slugify(nameValue?.trim() ?? '')
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <PageHeader
@@ -91,60 +109,112 @@ export default function AdminCategoriesPage() {
         }
       />
 
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <StatCard label="Tổng danh mục" value={stats.total} />
+        <StatCard label="Có món ăn" value={stats.withFoods} />
+        <StatCard label="Trống" value={stats.empty} />
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Tìm theo tên hoặc slug..."
+          allowClear
+          prefix={<UiIcon name="search" size={16} />}
+          className="w-full sm:w-72"
+        />
+        {search.trim() ? (
+          <span className="text-sm text-stone-400">
+            Hiển thị {rows.length} / {data?.length ?? 0} danh mục
+          </span>
+        ) : null}
+      </div>
+
       {loading && !data ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60">
-              <div className="h-32 rounded-t-2xl bg-stone-100" />
-              <div className="space-y-2 p-4">
-                <div className="h-4 w-1/3 rounded-full bg-stone-100" />
-                <div className="h-3 w-1/2 rounded-full bg-stone-100" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60">
+              <div className="aspect-[4/3] bg-stone-100" />
+              <div className="space-y-3 p-4">
+                <div className="h-4 w-1/2 rounded-full bg-stone-100" />
+                <div className="h-3 w-1/3 rounded-full bg-stone-100" />
+                <div className="flex gap-2 pt-1">
+                  <div className="h-8 flex-1 rounded-lg bg-stone-100" />
+                  <div className="h-8 w-16 rounded-lg bg-stone-100" />
+                </div>
               </div>
             </div>
           ))}
         </div>
-      ) : data && data.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          {data.map((c) => (
-            <div
-              key={c.id}
-              className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/70"
-            >
-              <div className="relative">
-                <UiImg
-                  src={c.imageUrl}
-                  alt={c.name}
-                  imgClass="h-32 w-full object-cover"
-                  className="transition duration-300 group-hover:scale-[1.03]"
-                />
-                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-stone-900/40 opacity-0 transition group-hover:opacity-100">
-                  <Button size="small" className="!bg-white" onClick={() => openEdit(c)}>
-                    Sửa
-                  </Button>
-                  <Popconfirm title="Xóa danh mục này?" onConfirm={() => remove(c.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />} loading={busyId === c.id}>
-                      Xóa
+      ) : rows.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {rows.map((c) => {
+            const count = counts.get(c.id) ?? 0
+            return (
+              <div
+                key={c.id}
+                className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/70 transition hover:shadow-md"
+              >
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <UiImg
+                    src={c.imageUrl}
+                    alt={c.name}
+                    className="h-full w-full transition duration-300 group-hover:scale-[1.03]"
+                  />
+                  <span className="absolute left-3 top-3 rounded-full bg-stone-900/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                    {count} món
+                  </span>
+                </div>
+                <div className="p-4">
+                  <p className="truncate font-semibold text-stone-800" title={c.name}>
+                    {c.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-stone-400">/{c.slug}</p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(c)} className="flex-1">
+                      Sửa
                     </Button>
-                  </Popconfirm>
+                    <Tooltip title={count > 0 ? `Còn ${count} món, không thể xóa` : undefined}>
+                      <Popconfirm
+                        title="Xóa danh mục này?"
+                        okText="Xóa"
+                        onConfirm={() => remove(c.id)}
+                        disabled={count > 0}
+                      >
+                        <Button
+                          size="small"
+                          danger
+                          icon={<DeleteOutlined />}
+                          loading={busyId === c.id}
+                          disabled={count > 0}
+                        >
+                          Xóa
+                        </Button>
+                      </Popconfirm>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
-              <div className="p-4">
-                <p className="truncate font-semibold text-stone-800">{c.name}</p>
-                <p className="mt-0.5 text-xs text-stone-400">{counts.get(c.id) ?? 0} món ăn</p>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/70">
           <EmptyState
             icon="th-large"
-            title="Chưa có danh mục nào."
-            hint="Tạo danh mục đầu tiên để tổ chức thực đơn."
+            title={data?.length ? 'Không tìm thấy danh mục nào.' : 'Chưa có danh mục nào.'}
+            hint={
+              data?.length
+                ? 'Điều chỉnh từ khóa tìm kiếm.'
+                : 'Tạo danh mục đầu tiên để tổ chức thực đơn.'
+            }
             action={
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                Tạo danh mục
-              </Button>
+              data?.length ? undefined : (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                  Tạo danh mục
+                </Button>
+              )
             }
           />
         </div>
@@ -167,19 +237,26 @@ export default function AdminCategoriesPage() {
           >
             <Input placeholder="Món Việt" onPressEnter={() => form.submit()} />
           </Form.Item>
+          <p className="-mt-2 mb-5 text-xs text-stone-400">
+            Slug tự động: <span className="font-medium text-stone-500">/{slugPreview}</span>
+          </p>
           <Form.Item name="imageUrl" label="URL Ảnh">
             <Input placeholder="https://..." allowClear />
           </Form.Item>
-          {imageUrl ? (
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-stone-400">Xem trước</p>
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-stone-400">Xem trước</p>
+            {imageUrl ? (
               <UiImg
                 src={imageUrl}
                 alt="Xem trước ảnh danh mục"
-                imgClass="h-28 w-full max-w-xs rounded-xl border border-stone-100 object-cover"
+                className="aspect-[4/3] w-full max-w-sm rounded-xl border border-stone-100"
               />
-            </div>
-          ) : null}
+            ) : (
+              <div className="grid aspect-[4/3] w-full max-w-sm place-items-center rounded-xl border border-dashed border-stone-200 text-stone-300">
+                <span className="text-xs">Chưa có ảnh</span>
+              </div>
+            )}
+          </div>
         </Form>
       </Modal>
     </div>
