@@ -111,10 +111,10 @@ export default function AdminFoodsPage() {
       />
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tổng món" value={stats.total} />
-        <StatCard label="Đang bán" value={stats.available} />
-        <StatCard label="Đã ẩn" value={stats.hidden} />
-        <StatCard label="Giá trung bình" value={formatVND(stats.avg)} />
+        <StatCard label="Tổng món" value={stats.total} tone="stone" icon="tag" />
+        <StatCard label="Đang bán" value={stats.available} tone="green" icon="check-circle" />
+        <StatCard label="Đã ẩn" value={stats.hidden} tone="red" icon="eye-slash" />
+        <StatCard label="Giá trung bình" value={formatVND(stats.avg)} tone="amber" icon="star-fill" />
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -129,13 +129,13 @@ export default function AdminFoodsPage() {
         <Select
           allowClear
           placeholder="Tất cả danh mục"
-          className="min-w-0 flex-1 sm:flex-none sm:w-52"
+          style={{ width: 200 }}
           value={catFilter}
           onChange={setCatFilter}
           options={(cats ?? []).map((c) => ({ label: c.name, value: c.id }))}
         />
         <Select
-          className="min-w-0 flex-1 sm:flex-none sm:w-44"
+          style={{ width: 170 }}
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
@@ -144,11 +144,6 @@ export default function AdminFoodsPage() {
             { label: 'Đã ẩn', value: 'hidden' },
           ]}
         />
-        {(search.trim() || catFilter !== undefined || statusFilter !== 'all') && (
-          <span className="text-sm text-stone-400">
-            Hiển thị {rows.length} / {data?.length ?? 0} món
-          </span>
-        )}
       </div>
 
       <PageCard>
@@ -173,10 +168,9 @@ export default function AdminFoodsPage() {
             columns={[
               {
                 title: 'Món',
-                fixed: 'left',
                 render: (_, f) => (
                   <div className="flex items-center gap-3">
-                    <UiImg src={f.imageUrl} alt={f.name} className="h-12 w-12 rounded-lg" />
+                    <UiImg src={f.imageUrl} alt={f.name} imgClass="h-12 w-12 rounded-lg object-cover" />
                     <span className="font-medium text-stone-800">{f.name}</span>
                   </div>
                 ),
@@ -284,7 +278,7 @@ export default function AdminFoodsPage() {
                 <UiImg
                   src={liveImage}
                   alt="Xem trước ảnh món"
-                  className="aspect-[4/3] w-full max-w-xs rounded-xl border border-stone-100"
+                  imgClass="h-28 w-72 rounded-xl border border-stone-100 object-cover"
                 />
               </div>
             ) : null}
