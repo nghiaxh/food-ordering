@@ -119,10 +119,10 @@ export default function AdminChatbotPage() {
       ) : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tài liệu RAG" value={documents.length} tone="purple" icon="file" />
-        <StatCard label="Tin nhắn chat" value={history.length} tone="blue" icon="message" />
-        <StatCard label="Phiên chat" value={sessions.length} tone="green" icon="users" />
-        <StatCard label="Món gợi ý tối đa" value={maxSuggestions} tone="amber" icon="settings" />
+        <StatCard label="Tài liệu RAG" value={documents.length} />
+        <StatCard label="Tin nhắn chat" value={history.length} />
+        <StatCard label="Phiên chat" value={sessions.length} />
+        <StatCard label="Món gợi ý tối đa" value={maxSuggestions} />
       </div>
 
       <PageSection

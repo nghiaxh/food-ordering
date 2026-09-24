@@ -76,9 +76,9 @@ export default function AdminCustomersPage() {
       <PageHeader title="Khách hàng" subtitle="Quản lý tài khoản khách hàng của FoodOrdering." />
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <StatCard label="Tổng khách" value={stats.total} tone="purple" icon="users" />
-        <StatCard label="Đang hoạt động" value={stats.active} tone="green" icon="check-circle" />
-        <StatCard label="Bị khóa" value={stats.locked} tone="red" icon="user-lock" />
+        <StatCard label="Tổng khách" value={stats.total} />
+        <StatCard label="Đang hoạt động" value={stats.active} />
+        <StatCard label="Bị khóa" value={stats.locked} />
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">

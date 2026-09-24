@@ -111,10 +111,10 @@ export default function AdminFoodsPage() {
       />
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tổng món" value={stats.total} tone="stone" icon="tag" />
-        <StatCard label="Đang bán" value={stats.available} tone="green" icon="check-circle" />
-        <StatCard label="Đã ẩn" value={stats.hidden} tone="red" icon="eye-slash" />
-        <StatCard label="Giá trung bình" value={formatVND(stats.avg)} tone="amber" icon="star-fill" />
+        <StatCard label="Tổng món" value={stats.total} />
+        <StatCard label="Đang bán" value={stats.available} />
+        <StatCard label="Đã ẩn" value={stats.hidden} />
+        <StatCard label="Giá trung bình" value={formatVND(stats.avg)} />
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -144,6 +144,11 @@ export default function AdminFoodsPage() {
             { label: 'Đã ẩn', value: 'hidden' },
           ]}
         />
+        {(search.trim() || catFilter !== undefined || statusFilter !== 'all') && (
+          <span className="text-sm text-stone-400">
+            Hiển thị {rows.length} / {data?.length ?? 0} món
+          </span>
+        )}
       </div>
 
       <PageCard>
@@ -170,7 +175,7 @@ export default function AdminFoodsPage() {
                 title: 'Món',
                 render: (_, f) => (
                   <div className="flex items-center gap-3">
-                    <UiImg src={f.imageUrl} alt={f.name} imgClass="h-12 w-12 rounded-lg object-cover" />
+                    <UiImg src={f.imageUrl} alt={f.name} className="h-12 w-12 rounded-lg" />
                     <span className="font-medium text-stone-800">{f.name}</span>
                   </div>
                 ),
@@ -257,10 +262,10 @@ export default function AdminFoodsPage() {
             <Form.Item name="spicyLevel" label="Độ cay">
               <Select options={SPICY.map((s, i) => ({ label: s, value: i }))} />
             </Form.Item>
-            <Form.Item name="description" label="Mô tả">
+            <Form.Item name="description" label="Mô tả" className="md:col-span-2">
               <Input.TextArea rows={2} />
             </Form.Item>
-            <Form.Item name="ingredients" label="Nguyên liệu">
+            <Form.Item name="ingredients" label="Nguyên liệu" className="md:col-span-2">
               <Input.TextArea rows={2} placeholder="Thịt, rau, gia vị..." />
             </Form.Item>
             <Form.Item name="dietaryTags" label="Chế độ ăn">
@@ -278,7 +283,7 @@ export default function AdminFoodsPage() {
                 <UiImg
                   src={liveImage}
                   alt="Xem trước ảnh món"
-                  imgClass="h-28 w-72 rounded-xl border border-stone-100 object-cover"
+                  className="aspect-[4/3] w-full max-w-xs rounded-xl border border-stone-100"
                 />
               </div>
             ) : null}

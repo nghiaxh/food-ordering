@@ -74,52 +74,21 @@ export function PageSection({
   )
 }
 
-export type Tone = 'stone' | 'amber' | 'green' | 'red' | 'blue' | 'purple'
-
-const toneClass: Record<Tone, string> = {
-  stone: 'bg-stone-100 text-stone-500',
-  amber: 'bg-amber-100 text-amber-700',
-  green: 'bg-emerald-100 text-emerald-700',
-  red: 'bg-red-100 text-red-500',
-  blue: 'bg-sky-100 text-sky-700',
-  purple: 'bg-violet-100 text-violet-600',
-}
-
-const toneIcon: Record<Tone, string> = {
-  stone: 'inbox',
-  amber: 'star-fill',
-  green: 'check-circle',
-  red: 'fire',
-  blue: 'shopping-cart',
-  purple: 'users',
-}
-
-/** Thẻ số liệu thống kê admin (tổng đơn, doanh thu...) — client-side. */
+/** Thẻ số liệu thống kê admin — typographic, không icon chip màu. */
 export function StatCard({
   label,
   value,
   hint,
-  tone = 'stone',
-  icon,
 }: {
   label: ReactNode
   value: ReactNode
   hint?: ReactNode
-  tone?: Tone
-  icon?: string
 }) {
   return (
-    <div className="flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200/60">
-      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${toneClass[tone]}`}>
-        <UiIcon name={icon ?? toneIcon[tone]} size={19} />
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-stone-400">{label}</p>
-        <p className="mt-0.5 truncate text-xl font-bold tabular-nums tracking-tight text-stone-900">
-          {value}
-        </p>
-        {hint ? <p className="truncate text-xs text-stone-400">{hint}</p> : null}
-      </div>
+    <div className="rounded-2xl bg-white px-5 py-4 ring-1 ring-stone-200/60">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">{label}</p>
+      <p className="mt-1.5 truncate text-2xl font-bold tracking-tight tabular-nums text-stone-900">{value}</p>
+      {hint ? <p className="mt-1 truncate text-xs text-stone-400">{hint}</p> : null}
     </div>
   )
 }

@@ -94,10 +94,10 @@ export default function AdminOrdersPage() {
       <PageHeader title="Đơn hàng" subtitle={`Theo dõi ${stats.total} đơn đặt trong hệ thống.`} />
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tổng đơn" value={stats.total} tone="stone" icon="shopping-cart" />
-        <StatCard label="Đang xử lý" value={stats.processing} tone="amber" icon="clock" />
-        <StatCard label="Hoàn thành" value={stats.completed} tone="green" icon="check-circle" />
-        <StatCard label="Doanh thu" value={formatVND(stats.revenue)} tone="purple" icon="star-fill" />
+        <StatCard label="Tổng đơn" value={stats.total} />
+        <StatCard label="Đang xử lý" value={stats.processing} />
+        <StatCard label="Hoàn thành" value={stats.completed} />
+        <StatCard label="Doanh thu" value={formatVND(stats.revenue)} />
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -269,7 +269,7 @@ export default function AdminOrdersPage() {
               <div className="space-y-2.5">
                 {detail.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 rounded-xl border border-stone-100 p-2.5">
-                    <UiImg src={item.food.imageUrl} alt={item.food.name} imgClass="h-12 w-12 rounded-lg object-cover" />
+                    <UiImg src={item.food.imageUrl} alt={item.food.name} className="h-12 w-12 rounded-lg" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-stone-800">{item.food.name}</p>
                       <p className="text-xs text-stone-400">
