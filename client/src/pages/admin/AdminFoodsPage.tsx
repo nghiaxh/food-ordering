@@ -85,7 +85,24 @@ export default function AdminFoodsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <PageHeader
+        title="Món ăn"
+        subtitle={`Quản lý ${stats.total} món trong thực đơn.`}
+        extra={
+          <Button icon={<PlusOutlined />} onClick={openCreate}>
+            Tạo món
+          </Button>
+        }
+      />
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Tổng món" value={stats.total} />
+        <StatCard label="Đang bán" value={stats.available} />
+        <StatCard label="Đã ẩn" value={stats.hidden} />
+        <StatCard label="Giá trung bình" value={formatVND(stats.avg)} />
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -94,9 +111,11 @@ export default function AdminFoodsPage() {
           prefix={<UiIcon name="search" size={16} />}
           className="!w-72"
         />
-        <Button icon={<PlusOutlined />} onClick={openCreate}>
-          Tạo món
-        </Button>
+        {(search.trim() || catFilter !== undefined || statusFilter !== 'all') && (
+          <span className="text-sm text-stone-400">
+            Hiển thị {rows.length} / {data?.length ?? 0} món
+          </span>
+        )}
       </div>
 
       <PageCard>
@@ -123,30 +142,49 @@ export default function AdminFoodsPage() {
                   <span className="font-medium text-stone-800">{f.name}</span>
                 </div>
               ),
-            },
-            { title: 'Danh mục', width: 140, render: (_, f) => <Tag>{f.category?.name ?? '—'}</Tag> },
-            {
-              title: 'Giá',
-              width: 140,
-              render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
-            },
-            { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? '—' },
-            {
-              title: 'Trạng thái',
-              width: 130,
-              render: (_, f) => <Tag color={f.available ? 'green' : 'red'}>{f.available ? 'Bán' : 'Ẩn'}</Tag>,
-            },
-            {
-              title: 'Thao tác',
-              width: 170,
-              render: (_, f) => (
-                <Space>
-                  <Button size="small" onClick={() => openEdit(f)}>
-                    Sửa
-                  </Button>
-                  <Popconfirm title="Xóa món này?" onConfirm={() => remove(f.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(f.id)}>
-                      Xóa
+            }}
+            columns={[
+              {
+                title: 'Món',
+                render: (_, f) => (
+                  <div className="flex items-center gap-3">
+                    <UiImg src={f.imageUrl} alt={f.name} className="h-12 w-12 rounded-lg" />
+                    <span className="font-medium text-stone-800">{f.name}</span>
+                  </div>
+                ),
+              },
+              {
+                title: 'Danh mục',
+                width: 140,
+                render: (_, f) => (
+                  <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+                    {f.category?.name ?? 'Không có'}
+                  </span>
+                ),
+              },
+              {
+                title: 'Giá',
+                width: 140,
+                render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
+              },
+              { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? 'Không có' },
+              {
+                title: 'Trạng thái',
+                width: 130,
+                render: (_, f) =>
+                  f.available ? (
+                    <StatusDot color="#10b981" label="Bán" />
+                  ) : (
+                    <StatusDot color="#ef4444" label="Ẩn" />
+                  ),
+              },
+              {
+                title: 'Thao tác',
+                width: 170,
+                render: (_, f) => (
+                  <Space>
+                    <Button size="small" onClick={() => openEdit(f)}>
+                      Sửa
                     </Button>
                   </Popconfirm>
                 </Space>
@@ -192,10 +230,10 @@ export default function AdminFoodsPage() {
             <Form.Item name="spicyLevel" label="Độ cay">
               <Select options={SPICY.map((s, i) => ({ label: s, value: i }))} />
             </Form.Item>
-            <Form.Item name="description" label="Mô tả">
+            <Form.Item name="description" label="Mô tả" className="md:col-span-2">
               <Input.TextArea rows={2} />
             </Form.Item>
-            <Form.Item name="ingredients" label="Nguyên liệu">
+            <Form.Item name="ingredients" label="Nguyên liệu" className="md:col-span-2">
               <Input.TextArea rows={2} placeholder="Thịt, rau, gia vị..." />
             </Form.Item>
             <Form.Item name="dietaryTags" label="Chế độ ăn">
@@ -207,6 +245,16 @@ export default function AdminFoodsPage() {
             <Form.Item name="imageUrl" label="URL Ảnh" className="md:col-span-2">
               <Input placeholder="Bỏ trống để dùng ảnh mặc định" />
             </Form.Item>
+            {liveImage ? (
+              <div className="md:col-span-2">
+                <p className="mb-1.5 text-xs font-medium text-stone-400">Xem trước</p>
+                <UiImg
+                  src={liveImage}
+                  alt="Xem trước ảnh món"
+                  className="aspect-[4/3] w-full max-w-xs rounded-xl border border-stone-100"
+                />
+              </div>
+            ) : null}
             <Form.Item name="available" label="Đang bán" valuePropName="checked" className="md:col-span-2">
               <Checkbox>Hiển thị trên thực đơn</Checkbox>
             </Form.Item>

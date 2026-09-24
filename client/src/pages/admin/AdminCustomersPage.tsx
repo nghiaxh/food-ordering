@@ -53,7 +53,15 @@ export default function AdminCustomersPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <PageHeader title="Khách hàng" subtitle="Quản lý tài khoản khách hàng của FoodOrdering." />
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <StatCard label="Tổng khách" value={stats.total} />
+        <StatCard label="Đang hoạt động" value={stats.active} />
+        <StatCard label="Bị khóa" value={stats.locked} />
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}

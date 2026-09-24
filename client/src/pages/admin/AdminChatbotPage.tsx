@@ -76,38 +76,26 @@ export default function AdminChatbotPage() {
         />
       ) : null}
 
-      <PageCard className="mb-6">
-        <div className="p-6">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-              <UiIcon name="settings" size={16} />
-            </span>
-            <h3 className="font-semibold text-stone-800">Cấu hình AI tư vấn</h3>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-stone-500">
-            max_suggestions: nhiều nhất bao nhiêu món AI được gợi ý. extra_rules: yêu cầu phụ (ưu tiên
-            món, giờ phục vụ...). Chỉ thêm; AI luôn dựa trên cơ sở dữ liệu món ăn thật.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="text-sm text-stone-600">Số món tối đa</span>
-            <InputNumber
-              min={1}
-              max={10}
-              value={maxSuggestions}
-              onChange={(v) => setMaxSuggestions(Number(v))}
-            />
-          </div>
-          <div className="mt-3 max-w-xl">
-            <Input.TextArea
-              rows={3}
-              value={extraRules}
-              onChange={(e) => setExtraRules(e.target.value)}
-              placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..."
-            />
-          </div>
-          <Button type="primary" className="mt-4" loading={savingSettings} onClick={onSaveSettings}>
-            Lưu cài đặt
-          </Button>
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Tài liệu RAG" value={documents.length} />
+        <StatCard label="Tin nhắn chat" value={history.length} />
+        <StatCard label="Phiên chat" value={sessions.length} />
+        <StatCard label="Món gợi ý tối đa" value={maxSuggestions} />
+      </div>
+
+      <PageSection
+        className="mb-6"
+        title="Cấu hình AI tư vấn"
+        subtitle="max_suggestions: nhiều nhất bao nhiêu món AI được gợi ý. extra_rules: yêu cầu phụ (ưu tiên món, giờ phục vụ...). Chỉ thêm; AI luôn dựa trên cơ sở dữ liệu món ăn thật."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm text-stone-600">Số món tối đa</span>
+          <InputNumber
+            min={1}
+            max={10}
+            value={maxSuggestions}
+            onChange={(v) => setMaxSuggestions(Number(v))}
+          />
         </div>
       </PageCard>
 
