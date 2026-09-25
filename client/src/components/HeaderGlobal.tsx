@@ -160,7 +160,7 @@ export default function HeaderGlobal() {
                 onClick={() => setDrawerOpen(true)}
               />
             </div>
-            <Link to="/" className="flex items-center gap-1.5 text-lg font-bold text-stone-900">
+            <Link to="/" className="hidden items-center gap-1 text-lg font-bold text-stone-900 md:flex">
               <img src="/favicon.svg" alt="FoodOrdering" className="h-10 w-10 rounded-xl" />
               <span className="text-lg font-bold text-stone-900">
                 Food<span className="text-amber-600">Ordering</span>
@@ -208,9 +208,7 @@ export default function HeaderGlobal() {
               </Dropdown>
             ) : (
               <>
-                <Button onClick={() => navigate('/login')} className="hidden sm:inline-flex">
-                  Đăng nhập
-                </Button>
+                <Button onClick={() => navigate('/login')}>Đăng nhập</Button>
                 <Button type="primary" onClick={() => navigate('/register')}>
                   Đăng ký
                 </Button>
@@ -225,7 +223,7 @@ export default function HeaderGlobal() {
         onClose={closeDrawer}
         placement="right"
         title={
-          <span className="flex items-center gap-1.5 font-bold text-stone-900">
+          <span className="flex items-center gap-1 font-bold text-stone-900">
             <img src="/favicon.svg" alt="FoodOrdering" className="h-9 w-9 rounded-lg" />
             Food<span className="text-amber-600">Ordering</span>
           </span>
