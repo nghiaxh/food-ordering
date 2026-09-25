@@ -28,7 +28,7 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 
 ### Quản trị
 - Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
-- Upload tài liệu tham khảo cho chatbot (RAG cơ bản) và chỉnh cấu hình chatbot
+- Upload tài liệu tham khảo cho chatbot (PDF/DOCX/text thuần, RAG cơ bản) và chỉnh cấu hình chatbot
 
 ## Bắt đầu nhanh
 
@@ -52,11 +52,17 @@ một chuỗi dài bí mật.
 
 ### 2. Chạy bằng Docker Compose (đơn giản nhất)
 
-Chế độ phát triển (hot reload cả client lẫn server):
+Chế độ phát triển (client HMR và server dev):
 
 ```bash
 docker compose --profile dev up --build
 ```
+
+> Với profile `dev`, client có hot reload. Server container cần chạy thêm compiler watcher ở terminal khác để `spring-boot-devtools` restart khi mã Java được biên dịch:
+>
+> ```bash
+> docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"
+> ```
 
 Chế độ demo / production (bản build tối ưu):
 
@@ -75,7 +81,7 @@ docker compose --profile prod up --build -d
 
 ## Tài khoản demo
 
-Server tự tạo dữ liệu mẫu khi khởi động (idempotent, không nhân đôi khi chạy lại).
+Server tự tạo dữ liệu mẫu khi bảng người dùng còn trống. Nếu đã có dữ liệu user, toàn bộ seed được bỏ qua nên không nhân đôi dữ liệu demo khi chạy lại.
 
 | Vai trò | Email | Mật khẩu |
 |---------|-------|----------|
@@ -94,9 +100,23 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 | AI | Gemini API (gọi qua REST, class `AiClient`) |
 | Hạ tầng | Docker Compose (1 file, 2 profile: `dev` / `prod`) |
 
-## Kiểm thử
+## Kiểm tra nhanh
 
-Xem [TEST.md](TEST.md) cho hướng dẫn chạy test từng tầng (Vitest, JUnit, Playwright).
+Dự án hiện chưa có test tự động. Các lệnh dưới đây là kiểm tra có sẵn:
+
+```bash
+# Client
+cd client
+npm run typecheck
+npm run build
+
+# Server
+cd ../server
+mvn test
+mvn package
+```
+
+`mvn test` hiện build thành công nhưng báo không có test source. `npm test`, thư mục `e2e/` và framework Vitest/JUnit/Playwright là phạm vi kế hoạch trong [TEST.md](TEST.md).
 
 ## Tài liệu
 
