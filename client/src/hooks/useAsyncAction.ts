@@ -6,6 +6,7 @@ export default function useAsyncAction<TArgs extends unknown[], T>(
   fn: (...args: TArgs) => Promise<T>,
 ) {
   const [pending, setPending] = useState(false)
+  // Khoá đồng bộ ngăn hai thao tác submit diễn ra cùng lúc.
   const lockRef = useRef(false)
   const fnRef = useRef(fn)
   fnRef.current = fn

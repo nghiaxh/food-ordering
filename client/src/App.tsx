@@ -19,11 +19,15 @@ import AdminCustomersPage from './pages/admin/AdminCustomersPage'
 import AdminChatbotPage from './pages/admin/AdminChatbotPage'
 import ScrollManager from './components/ScrollManager'
 
+/**
+ * Route guard phía client chỉ hỗ trợ điều hướng UX; quyền thực tế vẫn do server kiểm tra.
+ */
 function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const user = useAuthStore((s) => s.user)
   const location = useLocation()
 
   if (!user) {
+    // Lưu vị trí hiện tại để sau khi đăng nhập người dùng quay lại đúng trang đang truy cập.
     return <Navigate to="/login" state={{ from: location }} replace />
   }
   if (admin && user.role !== 'ADMIN') {
@@ -32,12 +36,16 @@ function RequireAuth({ children, admin = false }: { children: ReactNode; admin?:
   return <>{children}</>
 }
 
+/**
+ * Đồng bộ giỏ khi đổi trạng thái đăng nhập: đã đăng nhập thì tải server, đăng xuất thì xóa giỏ của tài khoản khỏi state.
+ */
 function CartSync() {
   const user = useAuthStore((s) => s.user)
   const load = useCartStore((s) => s.load)
   const resetLocal = useCartStore((s) => s.resetLocal)
 
   useEffect(() => {
+    // `load` sẽ hợp nhất bản nháp local trước khi tải giỏ chính thức từ server.
     if (user) {
       void load()
     } else {

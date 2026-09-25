@@ -25,6 +25,8 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
+        // Token hợp lệ sẽ dựng SecurityContext để các endpoint phía sau đọc được danh tính.
+        // Chỉ header Bearer mới được xử lý; endpoint công khai không cần header này.
         String header = req.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             try {
@@ -34,9 +36,10 @@ public class JwtFilter extends OncePerRequestFilter {
                         List.of(new SimpleGrantedAuthority("ROLE_" + claims.get("role"))));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ignored) {
-                // token sai/hết hạn → coi như chưa đăng nhập
+                // Token sai/hết hạn được coi như chưa đăng nhập; request vẫn đi qua SecurityConfig.
             }
         }
+        // SecurityConfig quyết định endpoint có bắt buộc đăng nhập hay không.
         chain.doFilter(req, res);
     }
 }

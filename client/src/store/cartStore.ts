@@ -17,6 +17,7 @@ interface CartState {
   total: () => number
 }
 
+// Khi đã đăng nhập, server là nguồn giỏ hàng chính thức; local chỉ là bản nháp cho khách.
 function loggedIn(): boolean {
   return useAuthStore.getState().user !== null
 }
@@ -30,6 +31,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       set({ items: [], loaded: true })
       return
     }
+    // Hợp nhất bản nháp của khách vào tài khoản trước khi đọc lại giỏ từ server.
     const local = get().items
     for (const item of local) {
       try {
@@ -56,6 +58,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       })
       return
     }
+    // Cập nhật UI trước để phản hồi nhanh; nếu API lỗi, các catch bên dưới sẽ rollback.
     const before = get().items
     const existing = before.find((i) => i.food.id === food.id)
     set({
@@ -66,6 +69,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       await addCartItem(food.id, quantity)
     } catch {
+      // API là nguồn chính thức; rollback để UI không giữ trạng thái chưa được lưu.
       set({ items: before })
       message.error('Không thêm được món vào giỏ. Vui lòng thử lại.')
     }

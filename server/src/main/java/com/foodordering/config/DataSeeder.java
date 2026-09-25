@@ -25,6 +25,7 @@ public class DataSeeder implements CommandLineRunner {
         this.encoder = encoder;
     }
 
+    // Seeder chỉ chạy khi database còn trống, nhờ vậy khởi động lại không nhân đôi dữ liệu demo.
     @Override
     public void run(String... args) {
         if (userRepo.count() > 0) return;
@@ -94,6 +95,7 @@ public class DataSeeder implements CommandLineRunner {
         return categoryRepo.save(c);
     }
 
+    // `tags` và `allergens` dùng chuỗi phân tách bằng dấu phẩy để chatbot có thể tìm kiếm.
     private void food(String name, Category cat, String desc, String ingredients, long price,
                       int serving, int spicy, String tags, String allergens, String slug) {
         Food f = new Food();

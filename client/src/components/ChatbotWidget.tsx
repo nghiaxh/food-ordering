@@ -25,9 +25,11 @@ export default function ChatbotWidget() {
         'Xin chào! Mình là chatbot tư vấn món ăn của FoodOrdering. Hãy cho mình biết khẩu vị, ngân sách hoặc số người nhé!',
     },
   ])
+  // sessionId giữ một phiên chat; các ref bên dưới dùng cho thao tác gửi lại và vòng đời widget.
   const sessionId = useRef(crypto.randomUUID())
   const lastUserRef = useRef('')
   const listRef = useRef<HTMLDivElement>(null)
+  // Khi widget đóng, request đang chạy không được cập nhật state của component.
   const activeRef = useRef(true)
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function ChatbotWidget() {
     try {
       const res = await chat(text, sessionId.current)
       if (!activeRef.current) return
+      // `res.foods` đã được server lọc và ánh xạ từ entity; không lấy món từ nội dung AI.
       setError(false)
       setMessages((m) => [...m, { sender: 'BOT', content: res.reply, foods: res.foods }])
     } catch {
@@ -62,6 +65,7 @@ export default function ChatbotWidget() {
   }
 
   const handleRetry = () => {
+    // Retry dùng lại câu hỏi gần nhất; handleSend sẽ thêm lượt chat mới vào luồng hiện tại.
     if (!lastUserRef.current) return
     setError(false)
     void handleSend(lastUserRef.current)
@@ -78,6 +82,7 @@ export default function ChatbotWidget() {
     setOpen(true)
   }
 
+  // Chatbot không hiển thị trong khu vực quản trị để tránh che lấp giao diện admin.
   if (isAdmin) return null
 
   return (

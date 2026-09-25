@@ -29,8 +29,10 @@ public class OrderService {
         this.notificationRepo = notificationRepo;
     }
 
+    // Đơn, giao dịch thanh toán và thông báo được ghi trong cùng một transaction.
     @Transactional
     public Orders create(String email, CreateOrderRequest req) {
+        // Giá không lấy từ request; mỗi món sẽ được đọc lại từ Food trong database.
         User user = userRepo.findByEmail(email).orElseThrow();
         Orders order = new Orders();
         order.setUser(user);
@@ -57,6 +59,7 @@ public class OrderService {
         order.setTotal(total);
         Orders saved = orderRepo.save(order);
 
+        // Thanh toán hiện là bản ghi mô phỏng; trạng thái được admin cập nhật riêng.
         PaymentTransaction tx = new PaymentTransaction();
         tx.setOrder(saved);
         tx.setMethod(saved.getPaymentMethod());
@@ -84,6 +87,7 @@ public class OrderService {
         o.setStatus(next);
         Orders saved = orderRepo.save(o);
 
+        // Mỗi trạng thái nghiệp vụ có nội dung thông báo tương ứng; PENDING không gửi thông báo lặp.
         String content = switch (next) {
             case CONFIRMED -> "Đơn hàng #" + id + " đã được nhà hàng xác nhận.";
             case PREPARING -> "Đơn hàng #" + id + " đang được chuẩn bị.";
@@ -99,6 +103,7 @@ public class OrderService {
     public Orders updatePayment(Long id, boolean paid) {
         Orders o = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
+        // Đồng bộ trạng thái của đơn với giao dịch thanh toán tương ứng.
         Orders.PaymentStatus next = paid ? Orders.PaymentStatus.PAID : Orders.PaymentStatus.UNPAID;
         if (o.getPaymentStatus() == next) return o;
         o.setPaymentStatus(next);

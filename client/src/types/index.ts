@@ -11,10 +11,13 @@ export interface Food {
   category: Category | null
   description: string
   ingredients: string
+  /** Đơn vị tiền tệ là VND. */
   price: number
   imageUrl: string
   servingSize: number
+  /** 0 là không cay, 3 là mức cay cao nhất. */
   spicyLevel: number
+  /** Các nhãn được lưu trong một chuỗi, phân tách bằng dấu phẩy. */
   dietaryTags: string
   allergens: string
   available: boolean
@@ -43,6 +46,7 @@ export interface OrderItem {
   id: number
   food: Food
   quantity: number
+  /** Giá được chụp lại lúc đặt món, không phải giá hiện tại của món. */
   price: number
 }
 
@@ -100,6 +104,7 @@ export interface ChatMessage {
 
 export interface ChatHistoryMessage {
   id: number
+  /** Lịch sử của khách vãng lai có thể không gắn với user đã đăng nhập. */
   user: User | null
   sessionId: string
   sender: 'USER' | 'BOT'
