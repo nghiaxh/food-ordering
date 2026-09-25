@@ -42,11 +42,11 @@ function DetailSkeleton() {
         <div className="h-10 w-1/2 animate-pulse rounded-xl bg-stone-200/70" />
         <div className="h-4 w-full animate-pulse rounded-xl bg-stone-200/70" />
         <div className="h-4 w-5/6 animate-pulse rounded-xl bg-stone-200/70" />
-        <div className="grid grid-cols-2 gap-x-8 pt-4">
+        <div className="grid grid-cols-1 gap-x-8 pt-4 sm:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-12 animate-pulse rounded-lg bg-stone-200/60" />
           ))}
-          <div className="col-span-2 h-12 animate-pulse rounded-lg bg-stone-200/60" />
+          <div className="col-span-1 h-12 animate-pulse rounded-lg bg-stone-200/60 sm:col-span-2" />
         </div>
       </div>
     </div>
@@ -172,7 +172,7 @@ export default function FoodDetailPage() {
             <p className="mt-4 max-w-prose leading-relaxed text-stone-600">{food.description}</p>
           )}
 
-          <dl className="mt-8 grid grid-cols-2 gap-x-8 border-t border-stone-100">
+          <dl className="mt-8 grid grid-cols-1 gap-x-8 border-t border-stone-100 sm:grid-cols-2">
             {specs.map((spec) => (
               <div key={spec.label} className="border-b border-stone-100 py-3">
                 <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">{spec.label}</dt>

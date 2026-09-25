@@ -91,7 +91,7 @@ export default function AdminCustomersPage() {
           className="w-full sm:w-80"
         />
         <Select
-          style={{ width: 170 }}
+          className="min-w-0 flex-1 sm:flex-none sm:w-44"
           value={roleFilter}
           onChange={setRoleFilter}
           options={[
@@ -100,7 +100,7 @@ export default function AdminCustomersPage() {
           ]}
         />
         <Select
-          style={{ width: 170 }}
+          className="min-w-0 flex-1 sm:flex-none sm:w-48"
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
@@ -134,10 +134,12 @@ export default function AdminCustomersPage() {
               {
                 title: 'ID',
                 width: 70,
+                fixed: 'left',
                 render: (_, u) => <span className="tabular-nums">#{u.id}</span>,
               },
               {
                 title: 'Họ tên',
+                fixed: 'left',
                 render: (_, u) => (
                   <div className="flex items-center gap-3">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100 text-sm font-semibold text-stone-500">

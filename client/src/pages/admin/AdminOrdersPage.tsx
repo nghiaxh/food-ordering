@@ -102,7 +102,7 @@ export default function AdminOrdersPage() {
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Select
-          style={{ width: 200 }}
+          className="w-full sm:w-56"
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
@@ -135,11 +135,13 @@ export default function AdminOrdersPage() {
               {
                 title: 'Mã đơn',
                 width: 90,
+                fixed: 'left',
                 render: (_, o) => <span className="tabular-nums">#{o.id}</span>,
               },
               {
                 title: 'Khách',
                 width: 160,
+                fixed: 'left',
                 render: (_, o) => (
                   <div className="flex flex-col text-stone-700">
                     <span className="font-medium">{o.receiverName}</span>

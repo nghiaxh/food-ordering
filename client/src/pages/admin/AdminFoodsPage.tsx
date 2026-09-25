@@ -129,13 +129,13 @@ export default function AdminFoodsPage() {
         <Select
           allowClear
           placeholder="Tất cả danh mục"
-          style={{ width: 200 }}
+          className="min-w-0 flex-1 sm:flex-none sm:w-52"
           value={catFilter}
           onChange={setCatFilter}
           options={(cats ?? []).map((c) => ({ label: c.name, value: c.id }))}
         />
         <Select
-          style={{ width: 170 }}
+          className="min-w-0 flex-1 sm:flex-none sm:w-44"
           value={statusFilter}
           onChange={setStatusFilter}
           options={[
@@ -173,6 +173,7 @@ export default function AdminFoodsPage() {
             columns={[
               {
                 title: 'Món',
+                fixed: 'left',
                 render: (_, f) => (
                   <div className="flex items-center gap-3">
                     <UiImg src={f.imageUrl} alt={f.name} className="h-12 w-12 rounded-lg" />

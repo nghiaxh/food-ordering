@@ -38,6 +38,7 @@ export default function ChatbotWidget() {
   }, [messages, loading])
 
   const isAdmin = location.pathname.startsWith('/admin')
+  const isFoodDetail = /^\/foods\/\d+$/.test(location.pathname)
 
   const handleSend = async (raw?: string) => {
     const text = (raw ?? input).trim()
@@ -80,7 +81,11 @@ export default function ChatbotWidget() {
   if (isAdmin) return null
 
   return (
-    <div className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3 max-sm:bottom-20">
+    <div
+      className={`fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3 ${
+        isFoodDetail ? 'bottom-24 lg:bottom-5' : 'max-sm:bottom-20'
+      }`}
+    >
       {open && (
         <div className="flex h-[560px] w-[400px] max-h-[min(560px,calc(100vh-7rem))] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 transition-all duration-200 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:h-dvh max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
           <div className="flex items-center gap-3 bg-amber-600 px-4 py-3">
@@ -100,7 +105,7 @@ export default function ChatbotWidget() {
             <button
               type="button"
               aria-label="Đóng trợ lý"
-              className="rounded-full p-1 text-amber-100 transition hover:bg-white/10 hover:text-white"
+              className="grid h-10 w-10 place-items-center rounded-full text-amber-100 transition hover:bg-white/10 hover:text-white"
               onClick={handleClose}
             >
               <CloseOutlined />

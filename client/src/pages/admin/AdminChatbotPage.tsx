@@ -307,6 +307,7 @@ export default function AdminChatbotPage() {
           dataSource={sessions}
           loading={loading}
           size="middle"
+          scroll={{ x: 720 }}
           pagination={{ pageSize: 8, showSizeChanger: false, hideOnSinglePage: true }}
           locale={{
             emptyText: (
@@ -328,6 +329,7 @@ export default function AdminChatbotPage() {
             {
               title: 'Phiên',
               width: 130,
+              fixed: 'left',
               render: (_, s) => (
                 <code className="rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-xs text-stone-500">
                   {s.id.slice(0, 8)}
@@ -337,6 +339,7 @@ export default function AdminChatbotPage() {
             {
               title: 'Khách',
               width: 190,
+              fixed: 'left',
               render: (_, s) => {
                 const lastUser = [...s.messages].reverse().find((m) => m.user)
                 return lastUser?.user?.email ? (

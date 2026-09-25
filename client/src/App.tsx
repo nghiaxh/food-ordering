@@ -101,7 +101,18 @@ export default function App() {
   return (
     <ConfigProvider
       locale={viVN}
-      theme={{ token: { colorPrimary: '#d97706', borderRadius: 10, fontFamily: 'Inter Variable, sans-serif' } }}
+      theme={{
+        token: {
+          colorPrimary: '#d97706',
+          borderRadius: 10,
+          fontFamily: 'Inter Variable, sans-serif',
+          // Đồng bộ breakpoint AntD với Tailwind (640/768/1024/1280)
+          screenSM: 640,
+          screenMD: 768,
+          screenLG: 1024,
+          screenXL: 1280,
+        },
+      }}
     >
       <BrowserRouter>
         <ScrollManager />
