@@ -80,7 +80,7 @@ export default function ChatbotWidget() {
   if (isAdmin) return null
 
   return (
-    <div className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3">
+    <div className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3 max-sm:bottom-20">
       {open && (
         <div className="flex h-[560px] w-[400px] max-h-[min(560px,calc(100vh-7rem))] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 transition-all duration-200 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:h-dvh max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
           <div className="flex items-center gap-3 bg-amber-600 px-4 py-3">

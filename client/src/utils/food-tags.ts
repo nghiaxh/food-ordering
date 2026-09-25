@@ -5,6 +5,10 @@ export interface FoodChip {
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
+export function spicyLabel(level: number): string {
+  return SPICY[Math.min(Math.max(level, 0), SPICY.length - 1)]
+}
+
 const SPICY_CLASSES = [
   'bg-stone-100 text-stone-600',
   'bg-orange-50 text-orange-700',

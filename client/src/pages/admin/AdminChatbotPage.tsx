@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Alert, Button, Input, InputNumber, List, Popconfirm, Table, Upload, message,
 } from 'antd'
-import { DeleteOutlined, InfoCircleOutlined, UploadOutlined } from '@ant-design/icons'
+import { DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import {
   adminDeleteDocument, adminGetChatHistory, adminGetDocuments, adminGetSettings,
   adminSaveSetting, adminUploadDocument,
@@ -12,34 +12,65 @@ import useAsyncAction from '../../hooks/useAsyncAction'
 import type { ChatHistoryMessage, KnowledgeDocument } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiIcon from '../../components/UiIcon'
-import { EmptyState, PageCard, PageHeader, PageSection, StatCard } from './shared'
+import { EmptyState, PageHeader, PageSection, StatCard } from './shared'
 
-function docMeta(d: KnowledgeDocument): string {
-  const ext = d.title.includes('.') ? d.title.split('.').pop()!.toUpperCase() : 'TXT'
-  const size = (d.content.length / 1024).toFixed(1)
-  return `${ext} · ${size} KB · ${new Date(d.createdAt).toLocaleDateString('vi-VN')}`
+function docExt(title: string): string {
+  return title.includes('.') ? title.split('.').pop()!.toUpperCase() : 'TXT'
 }
 
-function MessageRow({ message }: { message: ChatHistoryMessage }) {
+function docMeta(d: KnowledgeDocument): string {
+  const size = (d.content.length / 1024).toFixed(1)
+  const date = new Date(d.createdAt).toLocaleDateString('vi-VN')
+  return `${docExt(d.title)} · ${size} KB · ${date}`
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Một tin trong luồng chat — cùng ngôn ngữ bong bóng với widget chat ngoài site. */
+function Bubble({ message }: { message: ChatHistoryMessage }) {
   const [expanded, setExpanded] = useState(false)
+  const isBot = message.sender === 'BOT'
   const long = message.content.length > 200
   const text = long && !expanded ? `${message.content.slice(0, 200)}…` : message.content
   return (
-    <div className="rounded-lg bg-white p-3 text-sm text-stone-600 ring-1 ring-stone-100">
-      <p className="text-xs font-medium text-stone-400">
-        {message.sender === 'BOT' ? 'Bot' : 'User'} ·{' '}
-        {new Date(message.createdAt).toLocaleTimeString('vi-VN')}
-      </p>
-      <p className="mt-1 break-words whitespace-pre-wrap">{text}</p>
-      {long ? (
-        <button
-          type="button"
-          className="mt-1 text-xs font-medium text-amber-700 hover:underline"
-          onClick={() => setExpanded((v) => !v)}
+    <div className={`flex ${isBot ? 'justify-start' : 'justify-end'}`}>
+      <div className="max-w-[75%]">
+        <div
+          className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
+            isBot
+              ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200'
+              : 'rounded-br-sm bg-amber-600 text-white'
+          }`}
         >
-          {expanded ? 'Thu gọn' : 'Xem thêm'}
-        </button>
-      ) : null}
+          {text}
+        </div>
+        <p className={`mt-1 text-[11px] text-stone-400 ${isBot ? '' : 'text-right'}`}>
+          {isBot ? 'Bot' : 'User'} · {formatTime(message.createdAt)}
+        </p>
+        {long ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className={`mt-0.5 text-xs font-medium text-amber-700 hover:underline ${
+              isBot ? '' : 'ml-auto block'
+            }`}
+          >
+            {expanded ? 'Thu gọn' : 'Xem thêm'}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function Thread({ messages }: { messages: ChatHistoryMessage[] }) {
+  return (
+    <div className="space-y-2">
+      {messages.map((m) => (
+        <Bubble key={m.id} message={m} />
+      ))}
     </div>
   )
 }
@@ -75,6 +106,23 @@ export default function AdminChatbotPage() {
     return Array.from(groups.entries()).map(([id, messages]) => ({ id, messages }))
   }, [history])
 
+  const stats = useMemo(() => {
+    const emails = new Set<string>()
+    let anonymousSessions = 0
+    for (const s of sessions) {
+      const sessionEmails = s.messages.filter((m) => m.user?.email).map((m) => m.user!.email)
+      for (const e of sessionEmails) emails.add(e)
+      if (sessionEmails.length === 0) anonymousSessions += 1
+    }
+    return {
+      documents: documents.length,
+      messages: history.length,
+      sessions: sessions.length,
+      customers: emails.size,
+      anonymousSessions,
+    }
+  }, [sessions, history, documents])
+
   const { run: saveSettings, pending: savingSettings } = useAsyncAction(() =>
     Promise.all([
       adminSaveSetting('max_suggestions', String(maxSuggestions)),
@@ -104,9 +152,14 @@ export default function AdminChatbotPage() {
     }
   }
 
+  const statPlaceholder = loading && !data ? '–' : null
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <PageHeader title="Chatbot" subtitle="Cấu hình AI tư vấn và dữ liệu tri thức." />
+      <PageHeader
+        title="Chatbot"
+        subtitle="Điều hành trợ lý AI tư vấn món: quy tắc gợi ý, nguồn tri thức và lịch sử hội thoại."
+      />
 
       {error ? (
         <Alert
@@ -119,37 +172,64 @@ export default function AdminChatbotPage() {
       ) : null}
 
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tài liệu RAG" value={documents.length} />
-        <StatCard label="Tin nhắn chat" value={history.length} />
-        <StatCard label="Phiên chat" value={sessions.length} />
-        <StatCard label="Món gợi ý tối đa" value={maxSuggestions} />
+        <StatCard label="Tài liệu tri thức" value={statPlaceholder ?? stats.documents} />
+        <StatCard label="Tin nhắn chat" value={statPlaceholder ?? stats.messages} />
+        <StatCard label="Phiên hội thoại" value={statPlaceholder ?? stats.sessions} />
+        <StatCard
+          label="Khách đã chat"
+          value={statPlaceholder ?? stats.customers}
+          hint={
+            stats.anonymousSessions > 0
+              ? `+${stats.anonymousSessions} phiên ẩn danh`
+              : 'Khách đã đăng nhập khi chat'
+          }
+        />
       </div>
 
       <PageSection
         className="mb-6"
         title="Cấu hình AI tư vấn"
-        subtitle="max_suggestions: nhiều nhất bao nhiêu món AI được gợi ý. extra_rules: yêu cầu phụ (ưu tiên món, giờ phục vụ...). Chỉ thêm; AI luôn dựa trên cơ sở dữ liệu món ăn thật."
+        subtitle="Điều chỉnh cách trợ lý gợi ý món và quy tắc trả lời cho khách."
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-stone-600">Số món tối đa</span>
-          <InputNumber
-            min={1}
-            max={10}
-            value={maxSuggestions}
-            onChange={(v) => setMaxSuggestions(Number(v))}
-          />
+        <div className="space-y-5">
+          <div>
+            <label htmlFor="max-suggestions" className="block text-sm font-medium text-stone-700">
+              Số món gợi ý tối đa
+            </label>
+            <InputNumber
+              id="max-suggestions"
+              className="mt-1.5"
+              min={1}
+              max={10}
+              value={maxSuggestions}
+              onChange={(v) => setMaxSuggestions(Number(v))}
+            />
+            <p className="mt-1.5 text-xs text-stone-400">
+              Nhiều nhất bao nhiêu món được AI đề xuất trong một câu trả lời (1–10).
+            </p>
+          </div>
+          <div>
+            <label htmlFor="extra-rules" className="block text-sm font-medium text-stone-700">
+              Quy tắc bổ sung
+            </label>
+            <Input.TextArea
+              id="extra-rules"
+              className="mt-1.5"
+              rows={3}
+              value={extraRules}
+              onChange={(e) => setExtraRules(e.target.value)}
+              placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..."
+            />
+            <p className="mt-1.5 text-xs text-stone-400">
+              Yêu cầu phụ: ưu tiên món, giờ phục vụ... AI luôn đề xuất dựa trên món ăn thật trong hệ thống.
+            </p>
+          </div>
+          <div className="flex justify-end border-t border-stone-100 pt-4">
+            <Button type="primary" loading={savingSettings} onClick={onSaveSettings}>
+              Lưu cài đặt
+            </Button>
+          </div>
         </div>
-        <div className="mt-3">
-          <Input.TextArea
-            rows={3}
-            value={extraRules}
-            onChange={(e) => setExtraRules(e.target.value)}
-            placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..."
-          />
-        </div>
-        <Button type="primary" className="mt-4" loading={savingSettings} onClick={onSaveSettings}>
-          Lưu cài đặt
-        </Button>
       </PageSection>
 
       <PageSection
@@ -184,9 +264,18 @@ export default function AdminChatbotPage() {
         <List
           dataSource={documents}
           loading={loading}
-          locale={{ emptyText: 'Chưa có tài liệu nào. Hãy upload tài liệu đầu tiên.' }}
+          locale={{
+            emptyText: (
+              <EmptyState
+                icon="file"
+                title="Chưa có tài liệu tri thức nào."
+                hint="Upload file .txt, .md hoặc .pdf để AI trả lời chính xác hơn."
+              />
+            ),
+          }}
           renderItem={(d) => (
             <List.Item
+              className="gap-3"
               actions={[
                 <Popconfirm key="del" title="Xóa tài liệu?" onConfirm={() => onRemoveDocument(d.id)}>
                   <Button size="small" danger icon={<DeleteOutlined />}>
@@ -196,100 +285,105 @@ export default function AdminChatbotPage() {
               ]}
             >
               <List.Item.Meta
-                title={<span className="font-medium text-stone-800">{d.title}</span>}
-                description={<span className="text-xs text-stone-400">{docMeta(d)}</span>}
+                avatar={
+                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-stone-100 text-stone-500">
+                    <UiIcon name="file" size={16} />
+                  </span>
+                }
+                title={<span className="truncate text-sm font-medium text-stone-800">{d.title}</span>}
+                description={<span className="text-xs tabular-nums text-stone-400">{docMeta(d)}</span>}
               />
             </List.Item>
           )}
         />
       </PageSection>
 
-      <PageCard>
-        <div className="p-6">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-              <UiIcon name="message" size={16} />
-            </span>
-            <h3 className="font-semibold text-stone-800">Lịch sử chat ({history.length})</h3>
-          </div>
-          <p className="mb-3 mt-2 flex items-center gap-1 text-xs text-stone-500">
-            <InfoCircleOutlined /> Các phiên chat gần đây, kèm email người dùng nếu đã đăng nhập.
-          </p>
-          <Table
-            rowKey={(s) => s.id}
-            dataSource={sessions}
-            loading={loading}
-            pagination={{ pageSize: 8, showSizeChanger: false }}
-            scroll={{ x: 800 }}
-            locale={{
-              emptyText: (
-                <EmptyState
-                  icon="message"
-                  title="Chưa có phiên chat nào."
-                  hint="Khách hàng chat sẽ được lưu lại ở đây."
-                />
+      <PageSection
+        title={`Lịch sử hội thoại (${sessions.length})`}
+        subtitle="Mở một phiên để xem hội thoại đầy đủ. Email hiển thị nếu khách đã đăng nhập."
+      >
+        <Table
+          rowKey={(s) => s.id}
+          dataSource={sessions}
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 8, showSizeChanger: false, hideOnSinglePage: true }}
+          locale={{
+            emptyText: (
+              <EmptyState
+                icon="message"
+                title="Chưa có hội thoại nào."
+                hint="Khách hàng chat sẽ được lưu lại ở đây."
+              />
+            ),
+          }}
+          expandable={{
+            expandedRowRender: (s) => (
+              <div className="rounded-xl bg-stone-50/80 p-3">
+                <Thread messages={s.messages} />
+              </div>
+            ),
+          }}
+          columns={[
+            {
+              title: 'Phiên',
+              width: 130,
+              render: (_, s) => (
+                <code className="rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-xs text-stone-500">
+                  {s.id.slice(0, 8)}
+                </code>
               ),
-            }}
-            expandable={{
-              expandedRowRender: (s) => (
-                <div className="space-y-2 px-2 pb-2">
-                  {s.messages.map((m) => (
-                    <MessageRow key={m.id} message={m} />
-                  ))}
-                </div>
+            },
+            {
+              title: 'Khách',
+              width: 190,
+              render: (_, s) => {
+                const lastUser = [...s.messages].reverse().find((m) => m.user)
+                return lastUser?.user?.email ? (
+                  <span className="block truncate text-stone-600">{lastUser.user.email}</span>
+                ) : (
+                  <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+                    Ẩn danh
+                  </span>
+                )
+              },
+            },
+            {
+              title: 'Tin nhắn',
+              width: 90,
+              render: (_, s) => (
+                <span className="tabular-nums text-stone-600">{s.messages.length}</span>
               ),
-            }}
-            columns={[
-              {
-                title: 'Phiên',
-                width: 140,
-                render: (_, s) => <code className="text-xs">{s.id.slice(0, 8)}</code>,
-              },
-              {
-                title: 'Khách',
-                width: 160,
-                render: (_, s) => {
-                  const lastUser = [...s.messages].reverse().find((m) => m.user)
-                  return lastUser?.user?.email ? (
-                    <span className="text-stone-600">{lastUser.user.email}</span>
-                  ) : (
-                    <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
-                      Ẩn danh
+            },
+            {
+              title: 'Tin cuối',
+              render: (_, s) => {
+                const last = s.messages[s.messages.length - 1]
+                return (
+                  <span className="block max-w-md truncate text-stone-500">
+                    <span className={last.sender === 'BOT' ? 'text-amber-700' : 'text-stone-600'}>
+                      {last.sender === 'BOT' ? 'Bot' : 'User'} ·{' '}
                     </span>
-                  )
-                },
+                    {last.content}
+                  </span>
+                )
               },
-              { title: 'Số tin', width: 80, render: (_, s) => s.messages.length },
-              {
-                title: 'Tin cuối',
-                render: (_, s) => {
-                  const last = s.messages[s.messages.length - 1]
-                  return (
-                    <span className="block max-w-md truncate text-stone-500">
-                      <b className={last.sender === 'BOT' ? 'text-amber-700' : 'text-stone-700'}>
-                        {last.sender === 'BOT' ? 'Bot:' : 'User:'}
-                      </b>{' '}
-                      {last.content}
-                    </span>
-                  )
-                },
+            },
+            {
+              title: 'Hoạt động cuối',
+              width: 170,
+              render: (_, s) => {
+                const last = s.messages[s.messages.length - 1]
+                return (
+                  <span className="tabular-nums text-stone-500">
+                    {new Date(last.createdAt).toLocaleString('vi-VN')}
+                  </span>
+                )
               },
-              {
-                title: 'Thời gian cuối',
-                width: 160,
-                render: (_, s) => {
-                  const last = s.messages[s.messages.length - 1]
-                  return (
-                    <span className="tabular-nums text-stone-500">
-                      {new Date(last.createdAt).toLocaleString('vi-VN')}
-                    </span>
-                  )
-                },
-              },
-            ]}
-          />
-        </div>
-      </PageCard>
+            },
+          ]}
+        />
+      </PageSection>
     </div>
   )
 }
