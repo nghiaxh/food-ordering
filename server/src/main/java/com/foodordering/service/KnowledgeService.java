@@ -21,6 +21,7 @@ public class KnowledgeService {
         this.repo = repo;
     }
 
+    // PDF/DOCX được trích xuất thành text; các định dạng khác được đọc như text thuần.
     public KnowledgeDocument upload(MultipartFile file) throws Exception {
         String name = Objects.requireNonNullElse(file.getOriginalFilename(), "document").toLowerCase();
         String text;
@@ -43,11 +44,13 @@ public class KnowledgeService {
         return repo.save(d);
     }
 
+    // RAG cơ bản: chấm điểm từng đoạn theo số từ khóa của câu hỏi, không dùng vector database.
     public List<String> findRelevant(String question, int limit) {
         Set<String> words = Arrays.stream(question.toLowerCase().split("\\s+"))
                 .filter(w -> w.length() > 2).collect(Collectors.toSet());
         if (words.isEmpty()) return List.of();
 
+        // Chỉ giữ chunk có ít nhất một từ khóa trùng và sắp xếp theo số từ khóa giảm dần.
         record Scored(String text, int score) {}
         List<Scored> all = new ArrayList<>();
         for (KnowledgeDocument d : repo.findAll()) {
@@ -62,6 +65,7 @@ public class KnowledgeService {
                 .limit(limit).map(Scored::text).toList();
     }
 
+    // Các đoạn có độ dài cố định để giới hạn phần context gửi cho chatbot.
     private List<String> split(String text, int size) {
         List<String> parts = new ArrayList<>();
         if (text == null) return parts;

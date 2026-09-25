@@ -68,6 +68,9 @@ public class ChatbotService {
         this.settingRepo = settingRepo;
     }
 
+    /**
+     * Luồng cố định: lưu câu hỏi, AI trích tiêu chí, server lọc database, AI viết câu trả lời.
+     */
     public ChatResponse chat(String email, ChatRequest req) {
         String sessionId = req.sessionId() == null ? UUID.randomUUID().toString() : req.sessionId();
         User user = email == null ? null : userRepo.findByEmail(email).orElse(null);
@@ -79,6 +82,7 @@ public class ChatbotService {
         String reply = generateReply(req.message(), criteria, matched, docs);
         save(user, sessionId, ChatMessage.Sender.BOT, reply);
 
+        // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = matched.stream().limit(maxSuggestions()).map(FoodCard::from).toList();
         return new ChatResponse(reply, cards);
     }
@@ -91,11 +95,13 @@ public class ChatbotService {
             json = json.replaceAll("```json|```", "").trim();
             return mapper.readValue(json, Criteria.class);
         } catch (Exception e) {
+            // JSON lỗi không được làm sập luồng chat; dùng tiêu chí rỗng để tiếp tục an toàn.
             return new Criteria(null, null, null, null, List.of(), List.of(), List.of());
         }
     }
 
     private List<Food> filterFoods(Criteria c) {
+        // Chỉ Food đang phục vụ và khớp tiêu chí mới đi tiếp; đây là ranh giới tin cậy của chatbot.
         List<Food> result = new ArrayList<>();
         for (Food f : foodRepo.findAll()) {
             if (!f.isAvailable()) continue;
@@ -132,6 +138,7 @@ public class ChatbotService {
     }
 
     private String generateReply(String question, Criteria c, List<Food> foods, List<String> docs) {
+        // Chỉ đưa dữ liệu đã lọc và tài liệu tham khảo vào prompt; AI không tự tạo danh sách món.
         StringBuilder data = new StringBuilder();
         data.append("YÊU CẦU ĐÃ PHÂN TÍCH: ").append(toJson(c)).append("\n\n");
         data.append("DANH SÁCH MÓN PHÙ HỢP (dữ liệu thật từ thực đơn):\n");
@@ -167,6 +174,7 @@ public class ChatbotService {
     }
 
     private void save(User user, String sessionId, ChatMessage.Sender sender, String content) {
+        // Khách vãng lai có user null nhưng vẫn lưu lịch sử theo sessionId.
         ChatMessage m = new ChatMessage();
         m.setUser(user);
         m.setSessionId(sessionId);

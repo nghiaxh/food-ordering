@@ -28,6 +28,7 @@ export default function useAsyncData<T>(
   const [data, setData] = useState<T>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
+  // Mỗi lần chạy tăng sequence để response cũ không ghi đè dữ liệu mới hơn.
   const seqRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
   const fnRef = useRef(fn)
@@ -41,6 +42,7 @@ export default function useAsyncData<T>(
     setLoading(true)
     setError(null)
     void (async () => {
+      // Chỉ retry lỗi mạng; lỗi HTTP không tự động thử lại.
       for (let attempt = 0; ; attempt++) {
         try {
           const result = await fnRef.current(controller.signal)
@@ -66,6 +68,7 @@ export default function useAsyncData<T>(
   useEffect(() => {
     void run()
     return () => {
+      // Khi component unmount hoặc deps đổi, vô hiệu hóa request cũ trước khi chạy request mới.
       seqRef.current += 1
       controllerRef.current?.abort()
     }

@@ -24,6 +24,7 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    // Ứng dụng dùng JWT stateless, không dựa vào session/cookie nên CSRF không cần cho các request này.
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
         http
@@ -35,8 +36,10 @@ public class SecurityConfig {
                 c.setAllowedHeaders(List.of("*"));
                 return c;
             }))
+            // SessionCreationPolicy.STATELESS giữ mỗi request độc lập; không cần lưu phiên trong server.
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+            // Các matcher permitAll phục vụ xác thực, thực đơn và chatbot; endpoint admin yêu cầu ROLE_ADMIN.
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/foods/**", "/api/categories/**").permitAll()

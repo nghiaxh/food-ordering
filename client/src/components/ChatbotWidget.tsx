@@ -17,8 +17,12 @@ export default function ChatbotWidget() {
         'Xin chào! Mình là chatbot tư vấn món ăn của FoodOrdering. Hãy cho mình biết khẩu vị, ngân sách hoặc số người nhé!',
     },
   ])
+  // sessionId giữ một phiên chat; các ref bên dưới dùng cho thao tác gửi lại và vòng đời widget.
   const sessionId = useRef(crypto.randomUUID())
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const lastUserRef = useRef('')
+  const listRef = useRef<HTMLDivElement>(null)
+  // Khi widget đóng, request đang chạy không được cập nhật state của component.
+  const activeRef = useRef(true)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -32,6 +36,9 @@ export default function ChatbotWidget() {
     setLoading(true)
     try {
       const res = await chat(text, sessionId.current)
+      if (!activeRef.current) return
+      // `res.foods` đã được server lọc và ánh xạ từ entity; không lấy món từ nội dung AI.
+      setError(false)
       setMessages((m) => [...m, { sender: 'BOT', content: res.reply, foods: res.foods }])
     } catch {
       setMessages((m) => [...m, { sender: 'BOT', content: 'Xin lỗi, đã có lỗi xảy ra. Bạn thử lại nhé!' }])
@@ -40,17 +47,26 @@ export default function ChatbotWidget() {
     }
   }
 
-  if (!open) {
-    return (
-      <FloatButton
-        type="primary"
-        icon={<MessageOutlined />}
-        onClick={() => setOpen(true)}
-        style={{ right: 24, bottom: 24 }}
-        tooltip="Hỏi chatbot tư vấn món"
-      />
-    )
+  const handleRetry = () => {
+    // Retry dùng lại câu hỏi gần nhất; handleSend sẽ thêm lượt chat mới vào luồng hiện tại.
+    if (!lastUserRef.current) return
+    setError(false)
+    void handleSend(lastUserRef.current)
   }
+
+  const handleClose = () => {
+    activeRef.current = false
+    setOpen(false)
+    setLoading(false)
+  }
+
+  const handleOpen = () => {
+    activeRef.current = true
+    setOpen(true)
+  }
+
+  // Chatbot không hiển thị trong khu vực quản trị để tránh che lấp giao diện admin.
+  if (isAdmin) return null
 
   return (
     <Card
