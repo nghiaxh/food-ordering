@@ -11,27 +11,28 @@ import type { NotificationItem } from '../types'
 interface NavLink {
   label: string
   to: string
+  icon: string
 }
 
 const guestLinks: NavLink[] = [
-  { label: 'Trang chủ', to: '/' },
-  { label: 'Thực đơn', to: '/foods' },
-  { label: 'Liên hệ', to: '/#contact' },
+  { label: 'Trang chủ', to: '/', icon: 'home' },
+  { label: 'Thực đơn', to: '/foods', icon: 'fire' },
+  { label: 'Liên hệ', to: '/#contact', icon: 'phone' },
 ]
 
 const signedInLinks: NavLink[] = [
-  { label: 'Trang chủ', to: '/' },
-  { label: 'Thực đơn', to: '/foods' },
-  { label: 'Đơn hàng', to: '/orders' },
-  { label: 'Liên hệ', to: '/#contact' },
+  { label: 'Trang chủ', to: '/', icon: 'home' },
+  { label: 'Thực đơn', to: '/foods', icon: 'fire' },
+  { label: 'Đơn hàng', to: '/orders', icon: 'inbox' },
+  { label: 'Liên hệ', to: '/#contact', icon: 'phone' },
 ]
 
 const backofficeLinks: NavLink[] = [
-  { label: 'Món ăn', to: '/admin/foods' },
-  { label: 'Danh mục', to: '/admin/categories' },
-  { label: 'Đơn hàng', to: '/admin/orders' },
-  { label: 'Khách hàng', to: '/admin/customers' },
-  { label: 'Chatbot', to: '/admin/chatbot' },
+  { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
+  { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
+  { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
+  { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
+  { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
 ]
 
 export default function HeaderGlobal() {
@@ -109,45 +110,57 @@ export default function HeaderGlobal() {
   const closeDrawer = () => setDrawerOpen(false)
 
   const drawerContent = (
-    <nav className="flex flex-col gap-1">
-      {navLinks.map((link) => (
+    <nav className="flex flex-col">
+      {user && (
         <Link
-          key={link.to}
-          to={link.to}
+          to="/profile"
           onClick={closeDrawer}
-          className={`rounded-lg px-3 py-2 text-sm font-medium ${
-            isActive(link) ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-amber-50 hover:text-amber-700'
-          }`}
+          className="mb-3 flex items-center gap-3 rounded-xl border border-stone-200/70 bg-stone-50/60 p-3 transition hover:bg-amber-50"
         >
-          {link.label}
+          <Avatar size={40} style={{ backgroundColor: '#d97706' }}>
+            {user.fullName.charAt(0).toUpperCase()}
+          </Avatar>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-stone-900">{user.fullName}</span>
+            <span className="block truncate text-xs text-stone-500">{user.email}</span>
+          </span>
         </Link>
-      ))}
+      )}
+
+      <div className="flex flex-col gap-1">
+        {navLinks.map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            onClick={closeDrawer}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium ${
+              isActive(link) ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-amber-50 hover:text-amber-700'
+            }`}
+          >
+            <UiIcon name={link.icon} size={16} />
+            {link.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="mt-3 border-t border-stone-200 pt-4">
         {user ? (
-          <>
-            <Link
-              to="/profile"
-              onClick={closeDrawer}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-amber-50 hover:text-amber-700"
-            >
-              <UiIcon name="user" size={16} /> Tài khoản
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                logout()
-                closeDrawer()
-                navigate('/')
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-amber-50 hover:text-red-600"
-            >
-              <UiIcon name="sign-out" size={16} /> Đăng xuất
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => {
+              logout()
+              closeDrawer()
+              navigate('/')
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 hover:bg-amber-50 hover:text-red-600"
+          >
+            <UiIcon name="sign-out" size={16} /> Đăng xuất
+          </button>
         ) : (
           <div className="flex flex-col gap-2">
             <Button
               block
+              icon={<UiIcon name="user" size={16} />}
               onClick={() => {
                 closeDrawer()
                 navigate('/login')
@@ -158,6 +171,7 @@ export default function HeaderGlobal() {
             <Button
               type="primary"
               block
+              icon={<UiIcon name="user-add" size={16} />}
               onClick={() => {
                 closeDrawer()
                 navigate('/register')
@@ -191,7 +205,7 @@ export default function HeaderGlobal() {
             </div>
             <Link to="/" className="flex items-center gap-1.5 text-lg font-bold text-stone-900">
               <img src="/favicon.svg" alt="FoodOrdering" className="h-10 w-10 rounded-xl" />
-              <span className="text-lg font-bold text-stone-900">
+              <span className="hidden text-lg font-bold text-stone-900 md:inline">
                 Food<span className="text-amber-600">Ordering</span>
               </span>
             </Link>
@@ -224,7 +238,7 @@ export default function HeaderGlobal() {
                   }
                 }}
                 content={
-                  <div className="w-80">
+                  <div style={{ width: 'min(320px, calc(100vw - 2rem))' }}>
                     <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                       <span className="text-sm font-semibold text-stone-800">Thông báo</span>
                       {unread > 0 && (
@@ -298,8 +312,13 @@ export default function HeaderGlobal() {
               </Dropdown>
             ) : (
               <>
-                <Button onClick={() => navigate('/login')} className="hidden sm:inline-flex">
-                  Đăng nhập
+                <Button
+                  onClick={() => navigate('/login')}
+                  aria-label="Đăng nhập"
+                  icon={<UiIcon name="user" size={18} />}
+                  className="!h-10 !w-10 !p-0 sm:!h-auto sm:!w-auto sm:!px-4"
+                >
+                  <span className="max-sm:hidden">Đăng nhập</span>
                 </Button>
                 <Button type="primary" onClick={() => navigate('/register')}>
                   Đăng ký
@@ -313,7 +332,9 @@ export default function HeaderGlobal() {
       <Drawer
         open={drawerOpen}
         onClose={closeDrawer}
-        placement="right"
+        placement="left"
+        size={Math.min(320, Math.round(window.innerWidth * 0.85))}
+        styles={{ body: { padding: 12 } }}
         title={
           <span className="flex items-center gap-1.5 font-bold text-stone-900">
             <img src="/favicon.svg" alt="FoodOrdering" className="h-9 w-9 rounded-lg" />
