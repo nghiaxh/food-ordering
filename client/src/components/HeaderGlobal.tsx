@@ -4,16 +4,179 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 
-const NAV = [
-  { to: '/', label: 'Trang chủ' },
-  { to: '/foods', label: 'Thực đơn' },
-  { to: '/orders', label: 'Đơn hàng' },
+interface NavLink {
+  label: string
+  to: string
+  icon: string
+}
+
+const guestLinks: NavLink[] = [
+  { label: 'Trang chủ', to: '/', icon: 'home' },
+  { label: 'Thực đơn', to: '/foods', icon: 'fire' },
+  { label: 'Liên hệ', to: '/#contact', icon: 'phone' },
+]
+
+const signedInLinks: NavLink[] = [
+  { label: 'Trang chủ', to: '/', icon: 'home' },
+  { label: 'Thực đơn', to: '/foods', icon: 'fire' },
+  { label: 'Đơn hàng', to: '/orders', icon: 'inbox' },
+  { label: 'Liên hệ', to: '/#contact', icon: 'phone' },
+]
+
+const backofficeLinks: NavLink[] = [
+  { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
+  { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
+  { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
+  { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
+  { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
 ]
 
 export default function HeaderGlobal() {
   const { user, logout } = useAuthStore()
   const count = useCartStore((s) => s.count())
-  const navigate = useNavigate()
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+
+  const isAdmin = user?.role === 'ADMIN'
+
+  useEffect(() => {
+    if (!user) {
+      setNotifications([])
+      return
+    }
+    getNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]))
+  }, [user, location.pathname])
+
+  const unread = notifications.filter((n) => !n.read).length
+
+  const markAllRead = async () => {
+    try {
+      await markNotificationsRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch {
+      message.error('Không đánh dấu được thông báo đã đọc')
+    }
+  }
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const navLinks = isAdmin ? backofficeLinks : user ? signedInLinks : guestLinks
+
+  const isActive = (link: NavLink): boolean => {
+    if (link.to.startsWith('/#')) {
+      return location.pathname === '/' && location.hash === link.to.slice(1)
+    }
+    if (link.to === '/') return location.pathname === '/' && !location.hash
+    return location.pathname === link.to || location.pathname.startsWith(`${link.to}/`)
+  }
+
+  const scrollHome = () => {
+    if (location.pathname === '/' && !location.hash) {
+      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+      window.scrollTo({ top: 0, behavior })
+    }
+  }
+
+  const accountMenu: MenuProps = {
+    items: [
+      { key: 'account', label: 'Tài khoản', icon: <UiIcon name="user" size={16} /> },
+      { key: 'logout', label: 'Đăng xuất', icon: <UiIcon name="sign-out" size={16} /> },
+    ],
+    onClick: ({ key }) => {
+      if (key === 'account') {
+        navigate('/profile')
+      } else {
+        logout()
+        navigate('/')
+      }
+    },
+  }
+
+  const closeDrawer = () => setDrawerOpen(false)
+
+  const drawerContent = (
+    <nav className="flex flex-col">
+      {user && (
+        <Link
+          to="/profile"
+          onClick={closeDrawer}
+          className="mb-3 flex items-center gap-3 rounded-xl border border-stone-200/70 bg-stone-50/60 p-3 transition hover:bg-amber-50"
+        >
+          <Avatar size={40} style={{ backgroundColor: '#d97706' }}>
+            {user.fullName.charAt(0).toUpperCase()}
+          </Avatar>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-stone-900">{user.fullName}</span>
+            <span className="block truncate text-xs text-stone-500">{user.email}</span>
+          </span>
+        </Link>
+      )}
+
+      <div className="flex flex-col gap-1">
+        {navLinks.map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            onClick={closeDrawer}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium ${
+              isActive(link) ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-amber-50 hover:text-amber-700'
+            }`}
+          >
+            <UiIcon name={link.icon} size={16} />
+            {link.label}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-3 border-t border-stone-200 pt-4">
+        {user ? (
+          <button
+            type="button"
+            onClick={() => {
+              logout()
+              closeDrawer()
+              navigate('/')
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-600 hover:bg-amber-50 hover:text-red-600"
+          >
+            <UiIcon name="sign-out" size={16} /> Đăng xuất
+          </button>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Button
+              block
+              icon={<UiIcon name="user" size={16} />}
+              onClick={() => {
+                closeDrawer()
+                navigate('/login')
+              }}
+            >
+              Đăng nhập
+            </Button>
+            <Button
+              type="primary"
+              block
+              icon={<UiIcon name="user-add" size={16} />}
+              onClick={() => {
+                closeDrawer()
+                navigate('/register')
+              }}
+            >
+              Đăng ký
+            </Button>
+          </div>
+        )}
+      </div>
+    </nav>
+  )
 
   return (
     <>
@@ -33,9 +196,9 @@ export default function HeaderGlobal() {
                 onClick={() => setDrawerOpen(true)}
               />
             </div>
-            <Link to="/" className="flex items-center gap-2 text-lg font-bold text-stone-900">
-              <img src="/favicon.svg" alt="FoodOrdering" className="h-8 w-8 rounded-xl" />
-              <span className="text-lg font-bold text-stone-900">
+            <Link to="/" className="flex items-center gap-1.5 text-lg font-bold text-stone-900">
+              <img src="/favicon.svg" alt="FoodOrdering" className="h-10 w-10 rounded-xl" />
+              <span className="hidden text-lg font-bold text-stone-900 md:inline">
                 Food<span className="text-amber-600">Ordering</span>
               </span>
             </Link>
@@ -57,14 +220,77 @@ export default function HeaderGlobal() {
           </nav>
 
           <div className="flex items-center gap-1.5 justify-self-end">
-            <Badge count={count} size="small" color="#d97706">
-              <Button
-                shape="circle"
-                aria-label="Giỏ hàng"
-                icon={<UiIcon name="shopping-cart" size={20} />}
-                onClick={() => navigate('/cart')}
-              />
-            </Badge>
+            {user && (
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                arrow={false}
+                onOpenChange={(open) => {
+                  if (open) {
+                    getNotifications().then(setNotifications).catch(() => setNotifications([]))
+                  }
+                }}
+                content={
+                  <div style={{ width: 'min(320px, calc(100vw - 2rem))' }}>
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                      <span className="text-sm font-semibold text-stone-800">Thông báo</span>
+                      {unread > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-amber-700 hover:underline"
+                          onClick={() => void markAllRead()}
+                        >
+                          Đánh dấu đã đọc
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-stone-400">Chưa có thông báo nào.</p>
+                      ) : (
+                        notifications.slice(0, 10).map((n) => (
+                          <div
+                            key={n.id}
+                            className={`rounded-lg px-3 py-2 text-sm ${
+                              n.read ? 'text-stone-500' : 'bg-amber-50 font-medium text-stone-800'
+                            }`}
+                          >
+                            <span
+                              className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+                                n.read ? 'bg-stone-200' : 'bg-amber-500'
+                              }`}
+                            />
+                            {n.content}
+                            <span className="mt-0.5 block text-xs font-normal text-stone-400">
+                              {new Date(n.createdAt).toLocaleString('vi-VN')}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                }
+              >
+                <Badge count={unread} size="small" color="#d97706">
+                  <Button
+                    shape="circle"
+                    aria-label="Thông báo"
+                    icon={<UiIcon name="bell" size={20} />}
+                  />
+                </Badge>
+              </Popover>
+            )}
+
+            {!isAdmin && (
+              <Badge count={count} size="small" color="#d97706">
+                <Button
+                  shape="circle"
+                  aria-label="Giỏ hàng"
+                  icon={<UiIcon name="shopping-cart" size={20} />}
+                  onClick={() => navigate('/cart')}
+                />
+              </Badge>
+            )}
 
             {user ? (
               <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
@@ -79,8 +305,13 @@ export default function HeaderGlobal() {
               </Dropdown>
             ) : (
               <>
-                <Button onClick={() => navigate('/login')} className="hidden sm:inline-flex">
-                  Đăng nhập
+                <Button
+                  onClick={() => navigate('/login')}
+                  aria-label="Đăng nhập"
+                  icon={<UiIcon name="user" size={18} />}
+                  className="!h-10 !w-10 !p-0 sm:!h-auto sm:!w-auto sm:!px-4"
+                >
+                  <span className="max-sm:hidden">Đăng nhập</span>
                 </Button>
                 <Button type="primary" onClick={() => navigate('/register')}>
                   Đăng ký
@@ -94,7 +325,9 @@ export default function HeaderGlobal() {
       <Drawer
         open={drawerOpen}
         onClose={closeDrawer}
-        placement="right"
+        placement="left"
+        size={Math.min(320, Math.round(window.innerWidth * 0.85))}
+        styles={{ body: { padding: 12 } }}
         title={
           <span className="flex items-center gap-2 font-bold text-stone-900">
             <img src="/favicon.svg" alt="FoodOrdering" className="h-7 w-7 rounded-lg" />
