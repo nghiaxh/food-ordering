@@ -203,9 +203,9 @@ export default function HeaderGlobal() {
                 onClick={() => setDrawerOpen(true)}
               />
             </div>
-            <Link to="/" className="flex items-center gap-1.5 text-lg font-bold text-stone-900">
+            <Link to="/" className="hidden items-center gap-1 text-lg font-bold text-stone-900 md:flex">
               <img src="/favicon.svg" alt="FoodOrdering" className="h-10 w-10 rounded-xl" />
-              <span className="hidden text-lg font-bold text-stone-900 md:inline">
+              <span className="text-lg font-bold text-stone-900">
                 Food<span className="text-amber-600">Ordering</span>
               </span>
             </Link>
@@ -312,14 +312,7 @@ export default function HeaderGlobal() {
               </Dropdown>
             ) : (
               <>
-                <Button
-                  onClick={() => navigate('/login')}
-                  aria-label="Đăng nhập"
-                  icon={<UiIcon name="user" size={18} />}
-                  className="!h-10 !w-10 !p-0 sm:!h-auto sm:!w-auto sm:!px-4"
-                >
-                  <span className="max-sm:hidden">Đăng nhập</span>
-                </Button>
+                <Button onClick={() => navigate('/login')}>Đăng nhập</Button>
                 <Button type="primary" onClick={() => navigate('/register')}>
                   Đăng ký
                 </Button>
@@ -336,7 +329,7 @@ export default function HeaderGlobal() {
         size={Math.min(320, Math.round(window.innerWidth * 0.85))}
         styles={{ body: { padding: 12 } }}
         title={
-          <span className="flex items-center gap-1.5 font-bold text-stone-900">
+          <span className="flex items-center gap-1 font-bold text-stone-900">
             <img src="/favicon.svg" alt="FoodOrdering" className="h-9 w-9 rounded-lg" />
             Food<span className="text-amber-600">Ordering</span>
           </span>
