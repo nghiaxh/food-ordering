@@ -94,14 +94,14 @@ export default function FoodsPage() {
           enterButton={<SearchOutlined />}
           className="!w-64"
         />
-        <Space.Compact>
+        <Space.Compact className="w-full sm:w-auto">
           <InputNumber
             placeholder="Giá từ"
             min={0}
             step={10000}
             value={minPrice}
             onChange={(v) => setMinPrice(v)}
-            style={{ width: 120 }}
+            className="min-w-0 flex-1 sm:flex-none sm:w-32"
           />
           <InputNumber
             placeholder="Giá đến"
@@ -109,7 +109,7 @@ export default function FoodsPage() {
             step={10000}
             value={maxPrice}
             onChange={(v) => setMaxPrice(v)}
-            style={{ width: 120 }}
+            className="min-w-0 flex-1 sm:flex-none sm:w-32"
           />
         </Space.Compact>
         <Button type="primary" onClick={applyFilters}>Lọc</Button>

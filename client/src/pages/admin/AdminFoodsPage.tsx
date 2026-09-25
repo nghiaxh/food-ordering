@@ -169,30 +169,50 @@ export default function AdminFoodsPage() {
                   hint="Điều chỉnh bộ lọc hoặc tạo món mới."
                 />
               ),
-            },
-            { title: 'Danh mục', width: 140, render: (_, f) => <Tag>{f.category?.name ?? 'Không có'}</Tag> },
-            {
-              title: 'Giá',
-              width: 140,
-              render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
-            },
-            { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? 'Không có' },
-            {
-              title: 'Trạng thái',
-              width: 130,
-              render: (_, f) => <Tag color={f.available ? 'green' : 'red'}>{f.available ? 'Bán' : 'Ẩn'}</Tag>,
-            },
-            {
-              title: 'Thao tác',
-              width: 170,
-              render: (_, f) => (
-                <Space>
-                  <Button size="small" onClick={() => openEdit(f)}>
-                    Sửa
-                  </Button>
-                  <Popconfirm title="Xóa món này?" onConfirm={() => remove(f.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(f.id)}>
-                      Xóa
+            }}
+            columns={[
+              {
+                title: 'Món',
+                fixed: 'left',
+                render: (_, f) => (
+                  <div className="flex items-center gap-3">
+                    <UiImg src={f.imageUrl} alt={f.name} className="h-12 w-12 rounded-lg" />
+                    <span className="font-medium text-stone-800">{f.name}</span>
+                  </div>
+                ),
+              },
+              {
+                title: 'Danh mục',
+                width: 140,
+                render: (_, f) => (
+                  <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+                    {f.category?.name ?? 'Không có'}
+                  </span>
+                ),
+              },
+              {
+                title: 'Giá',
+                width: 140,
+                render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
+              },
+              { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? 'Không có' },
+              {
+                title: 'Trạng thái',
+                width: 130,
+                render: (_, f) =>
+                  f.available ? (
+                    <StatusDot color="#10b981" label="Bán" />
+                  ) : (
+                    <StatusDot color="#ef4444" label="Ẩn" />
+                  ),
+              },
+              {
+                title: 'Thao tác',
+                width: 170,
+                render: (_, f) => (
+                  <Space>
+                    <Button size="small" onClick={() => openEdit(f)}>
+                      Sửa
                     </Button>
                     <Popconfirm title="Xóa món này?" onConfirm={() => remove(f.id)}>
                       <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(f.id)}>

@@ -12,7 +12,40 @@ import FoodCard from '../components/FoodCard'
 import SectionHeader from '../components/SectionHeader'
 import UiImg from '../components/UiImg'
 
-const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
+function Shell({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-28 md:py-12 lg:pb-12">
+      <Link
+        to="/foods"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-stone-500 transition hover:text-amber-700"
+      >
+        <UiIcon name="arrow-left" size={14} /> Quay lại thực đơn
+      </Link>
+      {children}
+    </div>
+  )
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="grid gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+      <div className="aspect-[4/3] animate-pulse rounded-[1.75rem] bg-stone-200/70" />
+      <div className="space-y-4">
+        <div className="h-9 w-2/3 animate-pulse rounded-xl bg-stone-200/70" />
+        <div className="h-6 w-1/3 animate-pulse rounded-xl bg-stone-200/70" />
+        <div className="h-10 w-1/2 animate-pulse rounded-xl bg-stone-200/70" />
+        <div className="h-4 w-full animate-pulse rounded-xl bg-stone-200/70" />
+        <div className="h-4 w-5/6 animate-pulse rounded-xl bg-stone-200/70" />
+        <div className="grid grid-cols-1 gap-x-8 pt-4 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-stone-200/60" />
+          ))}
+          <div className="col-span-1 h-12 animate-pulse rounded-lg bg-stone-200/60 sm:col-span-2" />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function FoodDetailPage() {
   const { id } = useParams()
@@ -75,14 +108,43 @@ export default function FoodDetailPage() {
               className="aspect-[4/3] w-full"
             />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              {food.category && <Tag color="amber">{food.category.name}</Tag>}
-              {food.available ? (
-                <Tag color="green">Đang phục vụ</Tag>
-              ) : (
-                <Tag color="red">Ngừng phục vụ</Tag>
-              )}
+        </div>
+
+        {/* Info */}
+        <div>
+          {stats.count > 0 && (
+            <a
+              href="#danh-gia"
+              className="inline-flex items-center gap-2 text-sm text-stone-500 transition hover:text-amber-700"
+            >
+              <RatingStars value={Math.round(stats.avg ?? 0)} size={14} />
+              <span className="font-semibold tabular-nums text-stone-800">{stats.avg?.toFixed(1)}</span>
+              <span>· {stats.count} đánh giá</span>
+            </a>
+          )}
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-balance text-stone-900 md:text-5xl">
+            {food.name}
+          </h1>
+          <div className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-amber-700 md:text-4xl">
+            {formatVND(food.price)}
+          </div>
+
+          {food.description && (
+            <p className="mt-4 max-w-prose leading-relaxed text-stone-600">{food.description}</p>
+          )}
+
+          <dl className="mt-8 grid grid-cols-1 gap-x-8 border-t border-stone-100 sm:grid-cols-2">
+            {specs.map((spec) => (
+              <div key={spec.label} className="border-b border-stone-100 py-3">
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">{spec.label}</dt>
+                <dd className="mt-0.5 text-sm font-medium text-stone-800">{spec.value}</dd>
+              </div>
+            ))}
+            <div className="col-span-2 border-b border-stone-100 py-3">
+              <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">Thành phần</dt>
+              <dd className="mt-0.5 text-sm font-medium leading-relaxed text-stone-800">
+                {food.ingredients || 'Chưa cập nhật'}
+              </dd>
             </div>
             <Typography.Title level={2} style={{ marginTop: 12, marginBottom: 8 }}>
               {food.name}

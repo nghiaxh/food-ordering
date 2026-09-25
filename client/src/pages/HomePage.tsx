@@ -133,7 +133,7 @@ export default function HomePage() {
           className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60 blur-[2px]"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-950/80 to-stone-950/25" />
-        <div className="relative mx-auto flex min-h-[560px] w-full items-center px-6 py-16 sm:min-h-[640px] sm:px-10 md:min-h-[760px] lg:px-16 xl:px-20">
+        <div className="relative mx-auto flex min-h-[calc(100svh-4rem)] w-full items-center px-6 py-16 sm:px-10 lg:px-16 xl:px-20">
           <div className="max-w-3xl">
             <h1 className="text-4xl font-bold tracking-tight text-balance text-white md:text-6xl lg:text-7xl">
               {HERO.titleA} <span className="text-amber-400">{HERO.titleHighlight}</span>{' '}

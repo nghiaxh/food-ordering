@@ -24,8 +24,11 @@ export default function ChatbotWidget() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open])
 
-  const send = async () => {
-    const text = input.trim()
+  const isAdmin = location.pathname.startsWith('/admin')
+  const isFoodDetail = /^\/foods\/\d+$/.test(location.pathname)
+
+  const handleSend = async (raw?: string) => {
+    const text = (raw ?? input).trim()
     if (!text || loading) return
     setMessages((m) => [...m, { sender: 'USER', content: text }])
     setInput('')
@@ -53,21 +56,32 @@ export default function ChatbotWidget() {
   }
 
   return (
-    <Card
-      title="Chatbot tư vấn món ăn"
-      extra={<Button type="text" icon={<CloseOutlined />} onClick={() => setOpen(false)} aria-label="Đóng" />}
-      style={{ position: 'fixed', right: 16, bottom: 16, width: 380, maxWidth: 'calc(100vw - 32px)', zIndex: 1000, boxShadow: '0 8px 30px rgba(0,0,0,.18)' }}
-      styles={{ body: { padding: 12 } }}
+    <div
+      className={`fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3 ${
+        isFoodDetail ? 'bottom-24 lg:bottom-5' : 'max-sm:bottom-20'
+      }`}
     >
-      <div className="max-h-[380px] overflow-y-auto pb-2" style={{ height: 380 }}>
-        {messages.map((m, idx) => (
-          <div key={idx} className={`mb-2.5 ${m.sender === 'USER' ? 'text-right' : 'text-left'}`}>
-            <div
-              className="inline-block max-w-[90%] rounded-xl px-3 py-2 text-left whitespace-pre-wrap"
-              style={{
-                background: m.sender === 'USER' ? '#d97706' : '#f5f5f4',
-                color: m.sender === 'USER' ? '#fff' : '#1c1917',
-              }}
+      {open && (
+        <div className="flex h-[560px] w-[400px] max-h-[min(560px,calc(100vh-7rem))] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 transition-all duration-200 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:h-dvh max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
+          <div className="flex items-center gap-3 bg-amber-600 px-4 py-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20">
+              <RobotOutlined className="text-lg text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                Trợ lý FoodOrdering
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+              </p>
+              <p className="truncate text-xs text-amber-100">Gợi ý món theo khẩu vị · hỗ trợ 24/7</p>
+            </div>
+            <button
+              type="button"
+              aria-label="Đóng trợ lý"
+              className="grid h-10 w-10 place-items-center rounded-full text-amber-100 transition hover:bg-white/10 hover:text-white"
+              onClick={handleClose}
             >
               {m.content}
             </div>
