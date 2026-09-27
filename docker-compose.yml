@@ -36,6 +36,14 @@ services:
       AI_MODEL: ${AI_MODEL}
     ports:
       - "8080:8080"
+    # `wget` có sẵn trong image alpine. Healthcheck chỉ báo healthy khi Tomcat thật sự lắng nghe,
+    # tránh client gọi vào cổng đã publish nhưng chưa có backend (net::ERR_EMPTY_RESPONSE).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
     volumes:
       - ./server:/app
       - maven_cache:/root/.m2
@@ -46,6 +54,9 @@ services:
       target: dev
     container_name: food-ordering-client-dev
     profiles: ["dev"]
+    depends_on:
+      server-dev:
+        condition: service_healthy
     environment:
       VITE_API_URL: http://localhost:8080/api
     ports:
@@ -66,6 +77,13 @@ services:
     environment: *server_env
     ports:
       - "8080:8080"
+    # Cùng lý do như server-dev: chỉ coi là sẵn sàng khi API thật sự trả lời.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
 
   client-prod:
     build:
@@ -76,7 +94,8 @@ services:
     container_name: food-ordering-client-prod
     profiles: ["prod"]
     depends_on:
-      - server-prod
+      server-prod:
+        condition: service_healthy
     ports:
       - "80:80"
 
