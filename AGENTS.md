@@ -50,6 +50,11 @@ chấm điểm theo từ khóa, hỗ trợ PDF/DOCX/text thuần, không cần v
   `client/src/types/index.ts`.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin có thể
   nhập link ảnh ngoài trong form, không có endpoint upload ảnh món (chỉ upload tài liệu chatbot).
+- **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
+  Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
+  sửa `DataSeeder` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
+  khi DB đã có dữ liệu. Cỡ ảnh theo ô hiển thị: `foods` 1200px, `categories`/`steps` 800px,
+  `banners` 1280px, `hero` 1280px (hero vốn đã blur + opacity nên quality thấp vẫn đẹp).
 
 ## Commands
 
@@ -88,6 +93,10 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 
 - **`.env` bắt buộc** và chứa mọi bí mật (DB, JWT, Gemini). Copy từ `.env.example` →
   `.env`. `.gitignore` đã chặn `.env` ở root.
+- **`docker compose up` lần đầu chậm ~30s là đúng**: `client-dev`/`client-prod` chờ
+  `condition: service_healthy`, mà server cần ~28s (mvn compile + Spring Boot). Trước đó client
+  gọi vào cổng 8080 đã publish nhưng chưa có backend nên ra `net::ERR_EMPTY_RESPONSE`. Đừng bỏ
+  healthcheck để "nhanh hơn".
 - UI tiếng Việt (`lang: vi`). Giữ chuỗi giao diện và thông báo lỗi bằng tiếng Việt.
 - **Quyền ADMIN kiểm soát ở server** bằng HTTP (`hasRole("ADMIN")` trên `/api/admin/**`),
   không chỉ dựa vào ẩn menu client. Route guard client chỉ là UX.
