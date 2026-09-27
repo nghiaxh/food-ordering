@@ -128,7 +128,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-stone-950">
         <img
-          src="/images/hero.jpg"
+          src="/images/hero.webp"
           alt=""
           className="absolute inset-0 h-full w-full scale-105 object-cover opacity-60 blur-[2px]"
         />
@@ -226,8 +226,8 @@ export default function HomePage() {
       {/* Contact */}
       <section id="contact" className="mx-auto max-w-7xl px-4 pt-16">
         <SectionHeader
-          title="Liên hệ & đặt bàn"
-          subtitle="Gọi điện hoặc để lại lời nhắn, đội ngũ chúng tôi sẽ phản hồi trong vòng 1 giờ."
+          title="Liên hệ & hỗ trợ"
+          subtitle="Gọi điện hoặc gửi lời nhắn, chúng tôi phản hồi trong vòng 1 giờ."
         />
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="divide-y divide-stone-200/60 overflow-hidden rounded-2xl border border-stone-200/70 bg-white">
@@ -294,7 +294,7 @@ export default function HomePage() {
                 </Form.Item>
               </div>
               <Form.Item name="message" label="Lời nhắn">
-                <Input.TextArea rows={3} placeholder="Bạn muốn đặt bàn hay có câu hỏi gì?" />
+                <Input.TextArea rows={3} placeholder="Bạn muốn đặt món, cần hỗ trợ đơn hay có câu hỏi gì?" />
               </Form.Item>
               <Button type="primary" htmlType="submit" block size="large">
                 Gửi lời nhắn

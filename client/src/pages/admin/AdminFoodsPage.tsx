@@ -68,7 +68,7 @@ export default function AdminFoodsPage() {
   const submit = async (v: Record<string, unknown>) => {
     const res = await saveFood({
       ...v,
-      imageUrl: (v.imageUrl as string)?.trim() || '/images/hero.jpg',
+      imageUrl: (v.imageUrl as string)?.trim() || '/images/hero.webp',
       price: Number(v.price),
       spicyLevel: Number(v.spicyLevel),
       servingSize: Number(v.servingSize),

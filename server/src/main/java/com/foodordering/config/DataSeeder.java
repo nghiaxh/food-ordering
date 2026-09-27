@@ -33,11 +33,11 @@ public class DataSeeder implements CommandLineRunner {
         createUser("admin@demo.com", "admin123", "Quản trị viên", User.Role.ADMIN);
         createUser("user@demo.com", "user123", "Khách hàng Demo", User.Role.CUSTOMER);
 
-        Category viet = cat("Món Việt", "mon-viet", "/images/categories/mon-viet.jpg");
-        Category au = cat("Món Âu", "mon-au", "/images/categories/mon-au.jpg");
-        Category uong = cat("Đồ uống", "do-uong", "/images/categories/do-uong.jpg");
-        Category trangMieng = cat("Tráng miệng", "trang-mieng", "/images/categories/trang-mieng.jpg");
-        Category chay = cat("Món chay", "mon-chay", "/images/categories/mon-chay.jpg");
+        Category viet = cat("Món Việt", "mon-viet", "/images/categories/mon-viet.webp");
+        Category au = cat("Món Âu", "mon-au", "/images/categories/mon-au.webp");
+        Category uong = cat("Đồ uống", "do-uong", "/images/categories/do-uong.webp");
+        Category trangMieng = cat("Tráng miệng", "trang-mieng", "/images/categories/trang-mieng.webp");
+        Category chay = cat("Món chay", "mon-chay", "/images/categories/mon-chay.webp");
 
         food("Phở bò", viet, "Phở bò truyền thống, nước dùng hầm xương 12 giờ", "bánh phở, thịt bò, hành, quế, hồi",
                 65000, 1, 0, "", "gluten", "pho-bo");
@@ -108,7 +108,7 @@ public class DataSeeder implements CommandLineRunner {
         f.setSpicyLevel(spicy);
         f.setDietaryTags(tags);
         f.setAllergens(allergens);
-        f.setImageUrl("/images/foods/" + slug + ".jpg");
+        f.setImageUrl("/images/foods/" + slug + ".webp");
         foodRepo.save(f);
     }
 }
