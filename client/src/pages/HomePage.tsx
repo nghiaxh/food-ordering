@@ -46,7 +46,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-stone-950">
         <img
-          src="/images/hero.jpg"
+          src="/images/hero.webp"
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-60"
         />
@@ -281,8 +281,8 @@ export default function HomePage() {
       {/* Contact */}
       <section id="contact" className="mx-auto max-w-7xl px-4 pt-16">
         <SectionHeader
-          title="Liên hệ & đặt bàn"
-          subtitle="Gọi điện hoặc để lại lời nhắn, đội ngũ chúng tôi sẽ phản hồi trong vòng 1 giờ."
+          title="Liên hệ & hỗ trợ"
+          subtitle="Gọi điện hoặc gửi lời nhắn, chúng tôi phản hồi trong vòng 1 giờ."
         />
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="space-y-4">
@@ -306,6 +306,7 @@ export default function HomePage() {
               layout="vertical"
               onFinish={() => message.success('Cảm ơn bạn! Chúng tôi sẽ liên hệ sớm.')}
             >
+<<<<<<< HEAD
               <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
                 <Input placeholder="Nguyễn Văn A" />
               </Form.Item>
@@ -314,6 +315,25 @@ export default function HomePage() {
               </Form.Item>
               <Form.Item name="note" label="Lời nhắn">
                 <Input.TextArea rows={3} placeholder="Bạn muốn đặt bàn hay có câu hỏi gì?" />
+=======
+              <div className="grid gap-x-3 sm:grid-cols-2">
+                <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
+                  <Input placeholder="Nguyễn Văn A" />
+                </Form.Item>
+                <Form.Item
+                  name="phone"
+                  label="Số điện thoại"
+                  rules={[
+                    { required: true, message: 'Nhập số điện thoại' },
+                    { pattern: /^[0-9+\s.-]{10,15}$/, message: 'Số điện thoại không hợp lệ' },
+                  ]}
+                >
+                  <Input placeholder="0968.xxx.xxx" />
+                </Form.Item>
+              </div>
+              <Form.Item name="message" label="Lời nhắn">
+                <Input.TextArea rows={3} placeholder="Bạn muốn đặt món, cần hỗ trợ đơn hay có câu hỏi gì?" />
+>>>>>>> d21bfc2 (perf: serve local images as webp)
               </Form.Item>
               <Button type="primary" htmlType="submit" block>
                 Gửi lời nhắn
