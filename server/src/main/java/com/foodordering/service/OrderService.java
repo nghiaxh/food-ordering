@@ -66,7 +66,7 @@ public class OrderService {
         tx.setAmount(saved.getTotal());
         paymentTxRepo.save(tx);
 
-        notify(saved, "Đơn hàng #" + saved.getId() + " đã được tạo. Nhà hàng sẽ sớm xác nhận đơn của bạn.");
+        notify(saved, "Đơn hàng #" + saved.getId() + " đã được tạo. Chúng tôi sẽ sớm xác nhận đơn của bạn.");
         return saved;
     }
 
@@ -89,10 +89,10 @@ public class OrderService {
 
         // Mỗi trạng thái nghiệp vụ có nội dung thông báo tương ứng; PENDING không gửi thông báo lặp.
         String content = switch (next) {
-            case CONFIRMED -> "Đơn hàng #" + id + " đã được nhà hàng xác nhận.";
+            case CONFIRMED -> "Đơn hàng #" + id + " đã được xác nhận.";
             case PREPARING -> "Đơn hàng #" + id + " đang được chuẩn bị.";
             case COMPLETED -> "Đơn hàng #" + id + " đã hoàn thành. Cảm ơn bạn đã đặt món!";
-            case CANCELLED -> "Đơn hàng #" + id + " đã bị hủy. Liên hệ nhà hàng nếu bạn cần hỗ trợ.";
+            case CANCELLED -> "Đơn hàng #" + id + " đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.";
             default -> null;
         };
         if (content != null) notify(saved, content);
