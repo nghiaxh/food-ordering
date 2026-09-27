@@ -53,6 +53,11 @@ chấm điểm theo từ khóa, hỗ trợ PDF/DOCX/text thuần, không cần v
   `client/src/types/index.ts`.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin có thể
   nhập link ảnh ngoài trong form, không có endpoint upload ảnh món (chỉ upload tài liệu chatbot).
+- **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
+  Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
+  sửa `DataSeeder` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
+  khi DB đã có dữ liệu. Cỡ ảnh theo ô hiển thị: `foods` 1200px, `categories`/`steps` 800px,
+  `banners` 1280px, `hero` 1280px (hero vốn đã blur + opacity nên quality thấp vẫn đẹp).
 
 ## Commands
 
