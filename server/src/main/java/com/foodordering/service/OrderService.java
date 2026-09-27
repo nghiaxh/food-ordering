@@ -49,7 +49,17 @@ public class OrderService {
             total = total.add(food.getPrice().multiply(BigDecimal.valueOf(it.quantity())));
         }
         order.setTotal(total);
-        return orderRepo.save(order);
+        Orders saved = orderRepo.save(order);
+
+        // Thanh toán hiện là bản ghi mô phỏng; trạng thái được admin cập nhật riêng.
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setOrder(saved);
+        tx.setMethod(saved.getPaymentMethod());
+        tx.setAmount(saved.getTotal());
+        paymentTxRepo.save(tx);
+
+        notify(saved, "Đơn hàng #" + saved.getId() + " đã được tạo. Chúng tôi sẽ sớm xác nhận đơn của bạn.");
+        return saved;
     }
 
     public List<Orders> myOrders(String email) {
@@ -64,7 +74,19 @@ public class OrderService {
     public Orders updateStatus(Long id, String status) {
         Orders o = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
-        o.setStatus(Orders.Status.valueOf(status));
-        return orderRepo.save(o);
+        Orders.Status next = Orders.Status.valueOf(status);
+        o.setStatus(next);
+        Orders saved = orderRepo.save(o);
+
+        // Mỗi trạng thái nghiệp vụ có nội dung thông báo tương ứng; PENDING không gửi thông báo lặp.
+        String content = switch (next) {
+            case CONFIRMED -> "Đơn hàng #" + id + " đã được xác nhận.";
+            case PREPARING -> "Đơn hàng #" + id + " đang được chuẩn bị.";
+            case COMPLETED -> "Đơn hàng #" + id + " đã hoàn thành. Cảm ơn bạn đã đặt món!";
+            case CANCELLED -> "Đơn hàng #" + id + " đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.";
+            default -> null;
+        };
+        if (content != null) notify(saved, content);
+        return saved;
     }
 }
