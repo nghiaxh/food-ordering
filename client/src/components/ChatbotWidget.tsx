@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { chat } from '../api/api'
 import type { ChatMessage } from '../types'
 import { formatVND } from '../utils/format'
+import { useHasCartBar } from '../hooks/useCartBar'
 
 const SUGGESTIONS = [
   'Phí giao hàng là bao nhiêu?',
@@ -12,9 +13,14 @@ const SUGGESTIONS = [
   'Món ngon dưới 200k cho 2 người',
 ]
 
-export default function ChatbotWidget() {
+interface ChatbotWidgetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export default function ChatbotWidget({ open, onOpenChange }: ChatbotWidgetProps) {
   const location = useLocation()
-  const [open, setOpen] = useState(false)
+  const hasCartBar = useHasCartBar()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -40,7 +46,6 @@ export default function ChatbotWidget() {
   }, [messages, loading])
 
   const isAdmin = location.pathname.startsWith('/admin')
-  const isFoodDetail = /^\/foods\/\d+$/.test(location.pathname)
 
   const handleSend = async (raw?: string) => {
     const text = (raw ?? input).trim()
@@ -73,13 +78,13 @@ export default function ChatbotWidget() {
 
   const handleClose = () => {
     activeRef.current = false
-    setOpen(false)
+    onOpenChange(false)
     setLoading(false)
   }
 
   const handleOpen = () => {
     activeRef.current = true
-    setOpen(true)
+    onOpenChange(true)
   }
 
   // Chatbot không hiển thị trong khu vực quản trị để tránh che lấp giao diện admin.
@@ -87,8 +92,9 @@ export default function ChatbotWidget() {
 
   return (
     <div
-      className={`fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3 ${
-        isFoodDetail ? 'bottom-24 lg:bottom-5' : 'max-sm:bottom-20'
+      className={`fixed right-5 z-40 flex flex-col items-end gap-3 ${
+        // Thanh giỏ cố định đáy chiếm ~4rem, launcher phải nằm cao hơn để không bị che.
+        hasCartBar ? 'bottom-[7.25rem]' : 'bottom-5'
       }`}
     >
       {open && (

@@ -20,7 +20,7 @@ import UiImg from '../components/UiImg'
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 pb-28 md:py-12 lg:pb-12">
+    <div className="mx-auto max-w-7xl px-4 pt-8 pb-28 md:pt-12">
       <Link
         to="/foods"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-stone-500 transition hover:text-amber-700"
@@ -196,61 +196,12 @@ export default function FoodDetailPage() {
             </div>
           )}
 
-          {/* Buy */}
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <div
-              className={`flex items-center overflow-hidden rounded-full ring-1 ${
-                unavailable ? 'opacity-50 ring-stone-200' : 'ring-stone-200'
-              }`}
-            >
-              <button
-                type="button"
-                aria-label="Giảm số lượng"
-                disabled={unavailable}
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                className={`flex h-12 w-12 items-center justify-center transition ${
-                  unavailable ? 'cursor-not-allowed text-stone-300' : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
-                }`}
-              >
-                <MinusOutlined />
-              </button>
-              <span className="w-12 text-center text-base font-semibold tabular-nums text-stone-900">{qty}</span>
-              <button
-                type="button"
-                aria-label="Tăng số lượng"
-                disabled={unavailable}
-                onClick={() => setQty((q) => q + 1)}
-                className={`flex h-12 w-12 items-center justify-center transition ${
-                  unavailable ? 'cursor-not-allowed text-stone-300' : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
-                }`}
-              >
-                <PlusOutlined />
-              </button>
-            </div>
-
-            {unavailable ? (
-              <button
-                type="button"
-                disabled
-                className="inline-flex h-12 items-center rounded-full bg-stone-200 px-7 text-sm font-semibold text-stone-500"
-              >
-                Hết hàng
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={addToCart}
-                className="inline-flex h-12 items-center gap-2 rounded-full bg-amber-600 px-7 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 active:scale-[0.98]"
-              >
-                <ShoppingCartOutlined /> Thêm vào giỏ
-              </button>
-            )}
-          </div>
+          {/* Nút mua nằm ở thanh cố định đáy để chỉ có một CTA ở mọi cỡ màn hình. */}
         </div>
       </div>
 
-      {/* Mobile sticky buy bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+      {/* Thanh mua cố định: giá, số lượng và nút thêm, dùng chung desktop lẫn mobile */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold tabular-nums text-amber-700">{formatVND(food.price)}</p>
@@ -258,11 +209,38 @@ export default function FoodDetailPage() {
               {qty} phần · {formatVND(Number(food.price) * qty)}
             </p>
           </div>
+
+          <div
+            className={`flex shrink-0 items-center overflow-hidden rounded-full ring-1 ${
+              unavailable ? 'opacity-50 ring-stone-200' : 'ring-stone-200'
+            }`}
+          >
+            <button
+              type="button"
+              aria-label="Giảm số lượng"
+              disabled={unavailable}
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              className="flex h-11 w-11 items-center justify-center text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed"
+            >
+              <MinusOutlined />
+            </button>
+            <span className="w-10 text-center text-base font-semibold tabular-nums text-stone-900">{qty}</span>
+            <button
+              type="button"
+              aria-label="Tăng số lượng"
+              disabled={unavailable}
+              onClick={() => setQty((q) => q + 1)}
+              className="flex h-11 w-11 items-center justify-center text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed"
+            >
+              <PlusOutlined />
+            </button>
+          </div>
+
           {unavailable ? (
             <button
               type="button"
               disabled
-              className="inline-flex h-11 items-center rounded-full bg-stone-200 px-6 text-sm font-semibold text-stone-500"
+              className="inline-flex h-11 shrink-0 items-center rounded-full bg-stone-200 px-6 text-sm font-semibold text-stone-500"
             >
               Hết hàng
             </button>
@@ -270,7 +248,7 @@ export default function FoodDetailPage() {
             <button
               type="button"
               onClick={addToCart}
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-amber-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 active:scale-[0.98]"
+              className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-amber-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-500 active:scale-[0.98]"
             >
               <ShoppingCartOutlined /> Thêm vào giỏ
             </button>
