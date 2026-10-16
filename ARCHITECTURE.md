@@ -74,6 +74,9 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
    admin ghi nhận "đã thanh toán" qua `PATCH /api/admin/orders/{id}/payment?paid=...`.
 6. Khách hàng theo dõi trạng thái đơn và thông báo; admin xác nhận/cập nhật trạng thái;
    mỗi lần đổi trạng thái, khách nhận thông báo.
+7. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
+   trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
+   Nút "Đặt lại" chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
@@ -151,6 +154,8 @@ nginx.conf         prod: serve dist/ và fallback về index.html
 - **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin), toàn bộ là `.webp` đã resize theo ô hiển thị. Admin có thể nhập link ảnh ngoài trong form quản lý; không có endpoint upload ảnh món.
 - **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **Comment và tài liệu**: comment tiếng Việt nên giải thích ràng buộc, nguồn dữ liệu, vòng đời state hoặc fallback; không lặp lại cú pháp. Khi đổi hợp đồng API hoặc quy tắc domain, cập nhật đồng bộ tài liệu kiến trúc và test.
+- **Thanh giỏ cố định đáy**: `/foods` (khi giỏ có món), `/foods/:id` và `/cart` đều có thanh `fixed bottom-0`. Mọi trang đó phải chừa padding đáy, và mọi nút nổi (`ChatbotWidget`, `ScrollTopButton`) phải hỏi `useHasCartBar()` để nhảy lên cao hơn thanh. Thêm trang mới có thanh cố định thì cập nhật hook này.
+- **Trang Thực đơn có hai chế độ hiển thị**: `FoodsPage` nhóm món theo danh mục (`groupByCategory`) rồi render `FoodRow` hoặc `FoodCard` tuỳ `view`. Mặc định lưới ở `lg` trở lên, hàng dọc ở mọi cỡ nhỏ hơn; lựa chọn không được lưu.
 
 ## Phát triển local (profile dev)
 
