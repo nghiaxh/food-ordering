@@ -29,6 +29,8 @@ public class Orders {
     private String receiverName;
     private String phone;
     private String address;
+    /** Ghi chú của khách cho quán, tối đa 255 ký tự. */
+    private String note;
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
