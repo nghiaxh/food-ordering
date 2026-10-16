@@ -40,6 +40,8 @@ public class OrderService {
         order.setPhone(req.phone());
         order.setAddress(req.address());
         order.setPaymentMethod(req.paymentMethod());
+        // Khách có thể để trống ghi chú; trim để lưu gọn và so khớp với giá trị đã validate ở DTO.
+        order.setNote(req.note() == null || req.note().isBlank() ? null : req.note().trim());
 
         BigDecimal total = BigDecimal.ZERO;
         for (OrderItemRequest it : req.items()) {

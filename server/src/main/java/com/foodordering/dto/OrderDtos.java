@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public class OrderDtos {
@@ -14,7 +15,8 @@ public class OrderDtos {
             @NotBlank String receiverName,
             @NotBlank String phone,
             @NotBlank String address,
-            @NotBlank String paymentMethod) {}
+            @NotBlank String paymentMethod,
+            @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note) {}
 
     public record UpdateStatusRequest(@NotBlank String status) {}
 }

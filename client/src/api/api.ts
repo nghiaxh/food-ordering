@@ -32,6 +32,7 @@ export const createOrder = (data: {
   phone: string
   address: string
   paymentMethod: string
+  note?: string
 }) => http.post<Order>('/orders', data).then((r) => r.data)
 
 export const getMyOrders = (signal?: AbortSignal) =>

@@ -99,6 +99,11 @@ export default function OrdersPage() {
                   <span className="text-stone-500">{o.paymentMethod}</span>
                   <b className="text-base text-amber-700">{formatVND(o.total)}</b>
                 </div>
+                {o.note && (
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
+                    <span className="font-semibold">Lưu ý cho quán:</span> {o.note}
+                  </p>
+                )}
               </div>
               <Button
                 className="mt-4"

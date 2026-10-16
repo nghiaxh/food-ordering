@@ -63,6 +63,8 @@ export interface Order {
   receiverName: string
   phone: string
   address: string
+  /** Ghi chú của khách cho quán; null hoặc rỗng nghĩa là không có. */
+  note?: string | null
   createdAt: string
   items: OrderItem[]
   user?: User

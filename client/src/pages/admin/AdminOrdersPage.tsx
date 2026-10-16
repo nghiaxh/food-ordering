@@ -264,6 +264,17 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
+            {detail.note ? (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
+                  Lưu ý cho quán
+                </p>
+                <p className="rounded-xl bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-900">
+                  {detail.note}
+                </p>
+              </div>
+            ) : null}
+
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
                 Món đặt ({detail.items.length})
