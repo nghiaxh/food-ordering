@@ -68,7 +68,7 @@ Các test dự kiến:
 |---------|----------|
 | `AuthService` | Đăng ký trùng email, login sai mật khẩu, tài khoản bị khóa |
 | `FoodService` | Tìm kiếm/lọc theo từ khóa, danh mục, khoảng giá và available |
-| `OrderService` | Tạo đơn, giá lấy từ DB, từ chối món ngừng phục vụ |
+| `OrderService` | Tạo đơn, giá lấy từ DB, từ chối món ngừng phục vụ, ghi chú quá 255 ký tự bị chặn |
 | `ChatbotService` | Trích xuất tiêu chí, lọc món và fallback khi JSON/AI lỗi |
 | `AiClient` | Ánh xạ response Gemini thành text bằng HTTP mock |
 | `KnowledgeService` | Tách đoạn 500 ký tự và chấm điểm theo từ khóa |
@@ -88,6 +88,11 @@ Kịch bản ưu tiên:
 
 - Luồng đặt món: đăng nhập → chọn món → giỏ hàng → đặt → theo dõi đơn.
 - Luồng chatbot: hỏi "món Việt, không cay, 100k" → nhận câu trả lời và thẻ món thật.
+- Ghi chú đơn: nhập "Lưu ý cho quán" ở `/cart` → đặt món → modal thành công đếm ngược rồi về
+  `/foods`; mở `/orders` thấy dòng ghi chú trên đúng thẻ đơn đó; admin mở drawer chi tiết
+  đơn thấy khối "Lưu ý cho quán". Gửi ghi chú dài hơn 255 ký tự phải bị chặn.
+- Chuyển đổi hiển thị ở `/foods`: nút list/grid đổi giữa hàng dọc và lưới card, danh sách vẫn
+  chia section theo danh mục; tải lại trang thì về lại mặc định theo cỡ màn hình.
 
 ## Ghi chú vận hành
 
