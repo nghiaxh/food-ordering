@@ -74,12 +74,12 @@ html:has(.auth-shell)::-webkit-scrollbar {
   display: none;
 }
 
-.auth-form .ant-form-item,
-.contact-form .ant-form-item {
+/* Biểu mẫu đăng nhập và đăng ký: ẩn gợi ý dưới ô nhập vì đã có thông báo riêng
+   khi bấm nút, tránh mỗi lần gõ lại thấy hai lớp thông báo trùng nhau. */
+.auth-form .ant-form-item {
   margin-bottom: 16px;
 }
 
-.auth-form .ant-form-item-explain,
-.contact-form .ant-form-item-explain {
+.auth-form .ant-form-item-explain {
   display: none;
 }

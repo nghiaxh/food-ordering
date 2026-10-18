@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Button, Input, InputNumber, List, Popconfirm, Table, Upload, message,
+  Alert, Button, Input, InputNumber, List, Popconfirm, Select, Table, Upload, message,
 } from 'antd'
 import { DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import {
@@ -12,7 +12,7 @@ import useAsyncAction from '../../hooks/useAsyncAction'
 import type { ChatHistoryMessage, KnowledgeDocument } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiIcon from '../../components/UiIcon'
-import { EmptyState, PageHeader, PageSection, StatCard } from './shared'
+import { EmptyState, PageHeader, PageSection } from './shared'
 
 function docExt(title: string): string {
   return title.includes('.') ? title.split('.').pop()!.toUpperCase() : 'TXT'
@@ -81,6 +81,8 @@ export default function AdminChatbotPage() {
   const [uploading, setUploading] = useState(false)
   const [maxSuggestions, setMaxSuggestions] = useState(5)
   const [extraRules, setExtraRules] = useState('')
+  const [provider, setProvider] = useState('gemini')
+  const [model, setModel] = useState('')
 
   const { data, loading, error, refresh: fetchData } = useAsyncData(
     () => Promise.all([adminGetChatHistory(), adminGetDocuments(), adminGetSettings()]),
@@ -94,6 +96,8 @@ export default function AdminChatbotPage() {
     const settings = Object.fromEntries(data[2].map((item) => [item.settingKey, item.settingValue]))
     setMaxSuggestions(Number(settings.max_suggestions ?? 5))
     setExtraRules(settings.extra_rules ?? '')
+    setProvider(settings.provider ?? 'gemini')
+    setModel(settings.model ?? '')
   }, [data])
 
   const sessions = useMemo(() => {
@@ -127,6 +131,8 @@ export default function AdminChatbotPage() {
     Promise.all([
       adminSaveSetting('max_suggestions', String(maxSuggestions)),
       adminSaveSetting('extra_rules', extraRules),
+      adminSaveSetting('provider', provider),
+      adminSaveSetting('model', model.trim()),
     ]),
   )
 
@@ -155,7 +161,7 @@ export default function AdminChatbotPage() {
   const statPlaceholder = loading && !data ? '–' : null
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <div>
       <PageHeader
         title="Chatbot"
         subtitle="Điều hành trợ lý AI tư vấn món: quy tắc gợi ý, nguồn tri thức và lịch sử hội thoại."
@@ -171,19 +177,11 @@ export default function AdminChatbotPage() {
         />
       ) : null}
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tài liệu tri thức" value={statPlaceholder ?? stats.documents} />
-        <StatCard label="Tin nhắn chat" value={statPlaceholder ?? stats.messages} />
-        <StatCard label="Phiên hội thoại" value={statPlaceholder ?? stats.sessions} />
-        <StatCard
-          label="Khách đã chat"
-          value={statPlaceholder ?? stats.customers}
-          hint={
-            stats.anonymousSessions > 0
-              ? `+${stats.anonymousSessions} phiên ẩn danh`
-              : 'Khách đã đăng nhập khi chat'
-          }
-        />
+      <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone-500">
+        <span>
+          {statPlaceholder ?? stats.documents} tài liệu tri thức · {statPlaceholder ?? stats.messages} tin nhắn ·{' '}
+          {statPlaceholder ?? stats.sessions} phiên hội thoại
+        </span>
       </div>
 
       <PageSection
@@ -192,6 +190,39 @@ export default function AdminChatbotPage() {
         subtitle="Điều chỉnh cách trợ lý gợi ý món và quy tắc trả lời cho khách."
       >
         <div className="space-y-5">
+          <div>
+            <label htmlFor="ai-provider" className="block text-sm font-medium text-stone-700">
+              Nhà cung cấp AI
+            </label>
+            <Select
+              id="ai-provider"
+              className="mt-1.5 w-full sm:w-56"
+              value={provider}
+              onChange={setProvider}
+              options={[
+                { label: 'Google Gemini', value: 'gemini' },
+                { label: 'OpenAI', value: 'openai' },
+              ]}
+            />
+            <p className="mt-1.5 text-xs text-stone-400">
+              Khóa API vẫn nằm ở máy chủ, không gửi xuống trình duyệt.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="ai-model" className="block text-sm font-medium text-stone-700">
+              Tên mô hình
+            </label>
+            <Input
+              id="ai-model"
+              className="mt-1.5"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder={provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.0-flash'}
+            />
+            <p className="mt-1.5 text-xs text-stone-400">
+              Để trống để dùng mô hình mặc định đã cấu hình cho nhà cung cấp trên.
+            </p>
+          </div>
           <div>
             <label htmlFor="max-suggestions" className="block text-sm font-medium text-stone-700">
               Số món gợi ý tối đa
@@ -235,10 +266,10 @@ export default function AdminChatbotPage() {
       <PageSection
         className="mb-6"
         title="Tài liệu tri thức (RAG)"
-        subtitle="Tải lên file .txt, .md hoặc .pdf về món ăn, chính sách... AI sẽ dùng để trả lời chính xác hơn."
+        subtitle="Tải lên file .pdf, .docx, .txt hoặc .md về món ăn, chính sách... AI sẽ dùng để trả lời chính xác hơn."
         extra={
           <Upload
-            accept=".txt,.md,.pdf"
+            accept=".pdf,.docx,.txt,.md"
             showUploadList={false}
             customRequest={async (options) => {
               const file = options.file as unknown as File
@@ -269,7 +300,7 @@ export default function AdminChatbotPage() {
               <EmptyState
                 icon="file"
                 title="Chưa có tài liệu tri thức nào."
-                hint="Upload file .txt, .md hoặc .pdf để AI trả lời chính xác hơn."
+                hint="Upload file .pdf, .docx, .txt hoặc .md để AI trả lời chính xác hơn."
               />
             ),
           }}

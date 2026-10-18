@@ -121,8 +121,12 @@ export function RegisterPage() {
           >
             <Input size="middle" placeholder="ban@example.com" autoComplete="email" />
           </Form.Item>
-          <Form.Item name="phone" label="Số điện thoại">
-            <Input size="middle" placeholder="0968.xxx.xxx" autoComplete="tel" />
+          <Form.Item
+            name="phone"
+            label="Số điện thoại"
+            rules={[{ pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' }]}
+          >
+            <Input size="middle" placeholder="0900000000" autoComplete="tel" />
           </Form.Item>
         </div>
         <Form.Item name="address" label="Địa chỉ">
@@ -134,7 +138,7 @@ export function RegisterPage() {
           hasFeedback
           rules={[
             { required: true, message: 'Vui lòng nhập mật khẩu' },
-            { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' },
+            { min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự' },
           ]}
         >
           <Input.Password size="middle" placeholder="••••••••" autoComplete="new-password" />

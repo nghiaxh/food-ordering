@@ -1,258 +1,217 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Empty, Input, InputNumber, Select, Space, message } from 'antd'
-import { AppstoreOutlined, SearchOutlined, UnorderedListOutlined } from '@ant-design/icons'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+﻿import { useEffect, useMemo, useState } from 'react'
+import { Empty, Pagination, message } from 'antd'
+import { Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { getCategories, getFoods } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
-import type { Food } from '../types'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
 import FoodCard from '../components/FoodCard'
-import FoodRow from '../components/FoodRow'
+import UiButton from '../components/UiButton'
 
-type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'name-asc'
-type ViewMode = 'list' | 'grid'
+/** Số món mỗi trang. Thực đơn hiện vài chục món nên phân trang phía client là đủ. */
+const PAGE_SIZE = 12
 
-function PulseBlock({ className }: { className: string }) {
-  return <div className={`animate-pulse rounded-2xl bg-stone-200/70 ${className}`} />
-}
-
-const SORT_OPTIONS = [
-  { label: 'Nổi bật', value: 'featured' },
-  { label: 'Giá tăng dần', value: 'price-asc' },
-  { label: 'Giá giảm dần', value: 'price-desc' },
-  { label: 'Tên A–Z', value: 'name-asc' },
+/**
+ * Khoảng giá dạng sẵn dễ chạm hơn hai ô nhập số, vẫn là "lọc khoảng giá" của Bảng 2.22.
+ * Mục đầu ghi "Mọi giá" chứ không phải "Tất cả" vì dải danh mục ngay dưới đã có "Tất cả",
+ * hai chữ giống nhau cạnh nhau dễ bị hiểu là cùng một bộ lọc.
+ */
+const PRICE_BANDS = [
+  { label: 'Mọi giá', min: undefined, max: undefined },
+  { label: 'Dưới 50k', min: undefined, max: 50000 },
+  { label: '50 – 100k', min: 50000, max: 100000 },
+  { label: '100 – 150k', min: 100000, max: 150000 },
+  { label: 'Trên 150k', min: 150000, max: undefined },
 ]
 
-function sortFoods(list: Food[], sort: SortKey): Food[] {
-  switch (sort) {
-    case 'price-asc':
-      return [...list].sort((a, b) => a.price - b.price)
-    case 'price-desc':
-      return [...list].sort((a, b) => b.price - a.price)
-    case 'name-asc':
-      return [...list].sort((a, b) => a.name.localeCompare(b.name, 'vi'))
-    default:
-      return list
-  }
+function num(value: string | null): number | undefined {
+  if (value === null) return undefined
+  const n = Number(value)
+  return Number.isFinite(n) ? n : undefined
 }
 
 /**
- * Nhóm món theo danh mục để hiển thị section. Thứ tự nhóm theo vị trí danh mục
- * xuất hiện lần đầu trong danh sách đã sắp xếp, món không có danh mục gom cuối.
+ * Bảng món kiểu kiosk: rail danh mục cố định bên trái, lưới thẻ món cuộn trong vùng riêng,
+ * thanh giỏ ghim đáy. Toàn bộ bộ lọc nằm trên URL nên người dùng chia sẻ được đường dẫn
+ * và nút quay lại của trình duyệt không mất trạng thái đang xem.
  */
-function groupByCategory(list: Food[]): { name: string; foods: Food[] }[] {
-  const groups = new Map<string, Food[]>()
-  for (const food of list) {
-    const name = food.category?.name ?? 'Món khác'
-    const group = groups.get(name)
-    if (group) group.push(food)
-    else groups.set(name, [food])
-  }
-  return [...groups].map(([name, foods]) => ({ name, foods }))
-}
-
 export default function FoodsPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [keyword, setKeyword] = useState('')
-  const [minPrice, setMinPrice] = useState<number | null>(null)
-  const [maxPrice, setMaxPrice] = useState<number | null>(null)
-  const [categoryId, setCategoryId] = useState<number | undefined>(
-    searchParams.get('category') ? Number(searchParams.get('category')) : undefined,
-  )
-  const [sort, setSort] = useState<SortKey>('featured')
-  const [applyNonce, setApplyNonce] = useState(0)
-  // Desktop ưu tiên lưới, mobile ưu tiên hàng dọc; không lưu lựa chọn, mỗi lần vào trang dùng lại mặc định.
-  const [view, setView] = useState<ViewMode>(() =>
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches ? 'grid' : 'list',
-  )
+  const [params, setParams] = useSearchParams()
+  const [page, setPage] = useState(1)
+
+  const categoryId = num(params.get('category'))
+  const keyword = params.get('keyword') ?? undefined
+  const minPrice = num(params.get('min'))
+  const maxPrice = num(params.get('max'))
 
   const count = useCartStore((s) => s.count())
   const total = useCartStore((s) => s.total())
 
   const { data: categories } = useAsyncData((signal) => getCategories(signal), [])
-
   const { data: foods, loading, error } = useAsyncData(
-    (signal) =>
-      getFoods(
-        {
-          keyword: keyword || undefined,
-          categoryId,
-          minPrice: minPrice ?? undefined,
-          maxPrice: maxPrice ?? undefined,
-        },
-        signal,
-      ),
-    [categoryId, applyNonce],
+    (signal) => getFoods({ categoryId, keyword, minPrice, maxPrice }, signal),
+    [categoryId, keyword, minPrice, maxPrice],
   )
 
   useEffect(() => {
     if (error) message.error('Không tải được thực đơn')
   }, [error])
 
-  const groups = useMemo(() => groupByCategory(sortFoods(foods ?? [], sort)), [foods, sort])
+  // Lọc mới có thể làm trang đang xem vượt quá giới hạn.
+  const totalPages = Math.max(1, Math.ceil((foods?.length ?? 0) / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  useEffect(() => {
+    if (page !== currentPage) setPage(currentPage)
+  }, [page, currentPage])
 
-  const applyFilters = () => setApplyNonce((n) => n + 1)
+  const visible = useMemo(
+    () => (foods ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [foods, currentPage],
+  )
 
-  const resetFilters = () => {
-    setKeyword('')
-    setMinPrice(null)
-    setMaxPrice(null)
-    setCategoryId(undefined)
-    setApplyNonce((n) => n + 1)
+  const patch = (next: Record<string, string | undefined>) => {
+    const merged = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(next)) {
+      if (value === undefined) merged.delete(key)
+      else merged.set(key, value)
+    }
+    setParams(merged)
+    setPage(1)
   }
 
-  const chipClass = (active: boolean) =>
-    `whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition ${
+  const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
+  const categoryList = [
+    { id: undefined as number | undefined, name: 'Tất cả', slug: 'tat-ca' },
+    ...(categories ?? []).map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
+  ]
+
+  const railBtn = (active: boolean) =>
+    `block w-full rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition ${
+      active ? 'bg-amber-600 text-white' : 'text-stone-700 hover:bg-amber-50 hover:text-amber-700'
+    }`
+
+  const chipBtn = (active: boolean) =>
+    `whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition sm:px-4 sm:py-2.5 sm:text-sm ${
       active ? 'bg-amber-600 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
     }`
 
+  /** Số cột đổi theo bề rộng; `lg` có rail nên phải bớt cột lại so với mức không có rail. */
+  const gridCols = 'grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+
   return (
-    <div className={`mx-auto max-w-7xl px-4 py-10 ${count > 0 ? 'pb-32' : ''}`}>
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Input.Search
-          placeholder="Tìm món..."
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          onSearch={applyFilters}
-          enterButton={<SearchOutlined />}
-          className="w-full sm:!w-64"
-        />
-        <Space.Compact className="w-full sm:w-auto">
-          <InputNumber
-            placeholder="Giá từ"
-            min={0}
-            step={10000}
-            value={minPrice}
-            onChange={(v) => setMinPrice(v)}
-            className="min-w-0 flex-1 sm:flex-none sm:w-32"
-          />
-          <InputNumber
-            placeholder="Giá đến"
-            min={0}
-            step={10000}
-            value={maxPrice}
-            onChange={(v) => setMaxPrice(v)}
-            className="min-w-0 flex-1 sm:flex-none sm:w-32"
-          />
-        </Space.Compact>
-        <Button type="primary" onClick={applyFilters}>Lọc</Button>
-        <Button onClick={resetFilters}>Đặt lại</Button>
-      </div>
+    <div className="flex h-[calc(100dvh-3.25rem)] flex-col">
+      <div className="flex min-h-0 flex-1">
+        {/* Rail danh mục, chỉ hiện khi đủ rộng. Không nhãn: danh sách đã tự nói là danh mục. */}
+        <aside className="hidden w-52 shrink-0 overflow-y-auto border-r border-stone-200/70 bg-white/60 p-2 lg:block">
+          <nav className="space-y-0.5">
+            {categoryList.map((c) => (
+              <button
+                key={c.slug}
+                type="button"
+                aria-current={categoryId === c.id ? 'true' : undefined}
+                onClick={() => patch({ category: c.id?.toString() })}
+                className={railBtn(categoryId === c.id)}
+              >
+                {c.name}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-      {/* Category chips: một hàng cuộn ngang, không xuống dòng */}
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <div className="-mx-4 flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
-          <button
-            type="button"
-            onClick={() => setCategoryId(undefined)}
-            aria-pressed={categoryId === undefined}
-            className={chipClass(categoryId === undefined)}
-          >
-            Tất cả
-          </button>
-          {(categories ?? []).map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setCategoryId(c.id)}
-              aria-pressed={categoryId === c.id}
-              className={chipClass(categoryId === c.id)}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Select
-            value={sort}
-            onChange={(v) => setSort(v)}
-            options={SORT_OPTIONS}
-            className="!w-36"
-            aria-label="Sắp xếp"
-          />
-          <Space.Compact>
-            <Button
-              type={view === 'list' ? 'primary' : 'default'}
-              icon={<UnorderedListOutlined />}
-              aria-label="Xem dạng danh sách"
-              aria-pressed={view === 'list'}
-              onClick={() => setView('list')}
-            />
-            <Button
-              type={view === 'grid' ? 'primary' : 'default'}
-              icon={<AppstoreOutlined />}
-              aria-label="Xem dạng lưới"
-              aria-pressed={view === 'grid'}
-              onClick={() => setView('grid')}
-            />
-          </Space.Compact>
-        </div>
-      </div>
-
-      {/* Sections theo danh mục, dùng chung cho cả hai chế độ hiển thị */}
-      <div className="mt-8 space-y-10">
-        {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60">
-                <PulseBlock className="aspect-[4/3]" />
-                <div className="space-y-3 p-4">
-                  <PulseBlock className="h-4 w-2/3 !rounded-full" />
-                  <PulseBlock className="h-3 w-full !rounded-full" />
-                  <PulseBlock className="h-3 w-4/5 !rounded-full" />
-                </div>
-              </div>
+        <div className="min-w-0 flex-1 overflow-y-auto">
+          {/* Dải khoảng giá dính đầu vùng lưới thay vì nằm ở một hàng riêng phía trên:
+              tiết kiệm nguyên chiều cao hàng đó mà vẫn luôn nằm trong tầm mắt. */}
+          <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:px-4">
+            {PRICE_BANDS.map((band, i) => (
+              <button
+                key={band.label}
+                type="button"
+                onClick={() => patch({ min: band.min?.toString(), max: band.max?.toString() })}
+                className={chipBtn(activePriceBand === i)}
+              >
+                {band.label}
+              </button>
             ))}
           </div>
-        ) : groups.length === 0 ? (
-          <Empty description="Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc hoặc hỏi chatbot nhé!" />
-        ) : (
-          groups.map((group) => (
-            <section key={group.name} aria-labelledby={`group-${group.name}`}>
-              <h2
-                id={`group-${group.name}`}
-                className="mb-4 text-lg font-bold tracking-tight text-stone-900"
-              >
-                {group.name}{' '}
-                <span className="text-sm font-medium tabular-nums text-stone-400">({group.foods.length})</span>
-              </h2>
-              {view === 'grid' ? (
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                  {group.foods.map((f) => (
+
+          <div className="px-3 py-3 sm:px-4">
+            {/* Màn hình nhỏ không có rail nên danh mục chuyển thành dải chip cuộn ngang. */}
+            <div className="mb-3 flex gap-2 overflow-x-auto lg:hidden">
+              {categoryList.map((c) => (
+                <button
+                  key={c.slug}
+                  type="button"
+                  aria-current={categoryId === c.id ? 'true' : undefined}
+                  onClick={() => patch({ category: c.id?.toString() })}
+                  className={chipBtn(categoryId === c.id)}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className={`grid gap-3 ${gridCols}`}>
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/60">
+                    <div className="aspect-[16/10] animate-pulse bg-stone-200/70" />
+                    <div className="space-y-2 p-3">
+                      <div className="h-4 w-2/3 animate-pulse rounded-full bg-stone-200/70" />
+                      <div className="h-3 w-full animate-pulse rounded-full bg-stone-200/70" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : visible.length === 0 ? (
+              <Empty description="Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc hoặc hỏi chatbot nhé!" />
+            ) : (
+              <>
+                <div className={`grid gap-3 ${gridCols}`}>
+                  {visible.map((f) => (
                     <FoodCard key={f.id} food={f} />
                   ))}
                 </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {group.foods.map((f) => (
-                    <FoodRow key={f.id} food={f} />
-                  ))}
-                </div>
-              )}
-            </section>
-          ))
-        )}
+                {totalPages > 1 && (
+                  <div className="mt-5 flex justify-center pb-2">
+                    <Pagination
+                      current={currentPage}
+                      total={foods?.length ?? 0}
+                      pageSize={PAGE_SIZE}
+                      onChange={setPage}
+                      showSizeChanger={false}
+                      aria-label="Phân trang danh sách món"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Thanh cố định đáy: tóm tắt giỏ, chỉ hiện khi giỏ có món */}
+      {/* Thanh giỏ ghim đáy: tổng tiền và bước tiếp theo luôn nhìn thấy. */}
       {count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+        <div className="shrink-0 border-t border-stone-200/70 bg-white px-4 py-3">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
             <p className="text-sm text-stone-600">
               <b className="font-semibold tabular-nums text-stone-900">{count} món</b>
-              <span className="mx-1.5 text-stone-300">·</span>
+              <span className="mx-2 text-stone-300">·</span>
               <b className="font-semibold tabular-nums text-amber-700">{formatVND(total)}</b>
             </p>
-            <Button type="primary" size="large" onClick={() => navigate('/cart')}>
-              Xem giỏ
-            </Button>
+            <UiButton
+              kind="primary-lg"
+              onClick={() => navigate('/cart')}
+              disabled={false}
+            >
+              Xem giỏ và đặt món
+            </UiButton>
           </div>
         </div>
       )}
+
+      {/* Route con /foods/:id hiện thành panel phủ nên có thể render ở đây. */}
+      <Outlet />
     </div>
   )
 }
