@@ -5,6 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface OrdersRepository extends JpaRepository<Orders, Long> {
+    long countByUserId(Long userId);
     List<Orders> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Orders> findAllByOrderByCreatedAtDesc();
+    boolean existsByUserIdAndStatusAndItemsFoodId(Long userId, Orders.Status status, Long foodId);
+    boolean existsByItemsFoodId(Long foodId);
 }

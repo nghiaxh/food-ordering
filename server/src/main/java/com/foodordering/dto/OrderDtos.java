@@ -17,4 +17,16 @@ public class OrderDtos {
             @NotBlank String paymentMethod) {}
 
     public record UpdateStatusRequest(@NotBlank String status) {}
+
+    /** Biểu mẫu quản trị: tạo/sửa đơn thay khách. Mọi trường đều bắt buộc trừ trạng thái và cờ thanh toán. */
+    public record AdminOrderRequest(
+            @NotBlank String customerEmail,
+            @NotEmpty List<OrderItemRequest> items,
+            @NotBlank String receiverName,
+            @NotBlank String phone,
+            @NotBlank String address,
+            @NotBlank String paymentMethod,
+            @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note,
+            String status,
+            Boolean paid) {}
 }
