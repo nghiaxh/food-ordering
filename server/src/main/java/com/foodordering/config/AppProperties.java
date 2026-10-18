@@ -21,6 +21,8 @@ public class AppProperties {
     @Getter @Setter
     public static class Ai {
         private String apiKey;
+        /** Mặc định khi quản trị viên chưa chọn nhà cung cấp trong trang Chatbot. */
+        private String provider = "gemini";
         private String model;
     }
 }

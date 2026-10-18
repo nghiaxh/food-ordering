@@ -15,4 +15,7 @@ public class Category {
     private String slug;
 
     private String imageUrl;
+
+    /** Mô tả ngắn danh mục, hiển thị ở biểu mẫu quản trị và trang thực đơn. */
+    private String description;
 }
