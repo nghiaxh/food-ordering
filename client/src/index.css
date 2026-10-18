@@ -43,5 +43,24 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(180, 83, 9, 0.35);
+  background-color: rgba(120, 113, 108, 0.55);
+}
+
+html:has(.auth-shell) {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+html:has(.auth-shell)::-webkit-scrollbar {
+  display: none;
+}
+
+/* Biểu mẫu đăng nhập và đăng ký: ẩn gợi ý dưới ô nhập vì đã có thông báo riêng
+   khi bấm nút, tránh mỗi lần gõ lại thấy hai lớp thông báo trùng nhau. */
+.auth-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.auth-form .ant-form-item-explain {
+  display: none;
 }

@@ -1,192 +1,259 @@
-import { useEffect, useState } from 'react'
-import { Button, Descriptions, Divider, Form, Input, InputNumber, List, Rate, Space, Tag, Typography, message } from 'antd'
-import { ArrowLeftOutlined, ShoppingCartOutlined } from '@ant-design/icons'
-import { Link, useParams } from 'react-router-dom'
-import { createReview, getFood, getFoods, getReviews } from '../api/api'
+﻿import { useState } from 'react'
+import { Drawer, message } from 'antd'
+import { MinusOutlined, PlusOutlined } from '@ant-design/icons'
+import { useNavigate, useParams } from 'react-router-dom'
+import { createReview, deleteReview, getFood, getReviews, updateReview } from '../api/api'
+import useAsyncAction from '../hooks/useAsyncAction'
+import useAsyncData from '../hooks/useAsyncData'
+import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
-import FoodCard from '../components/FoodCard'
-import SectionHeader from '../components/SectionHeader'
+import { spicyLabel } from '../utils/food-tags'
+import { reviewStats } from '../utils/reviews'
+import { apiErrorMessage } from '../utils/api-error'
+import RatingStars from '../components/RatingStars'
+import ReviewSection from '../components/ReviewSection'
+import UiButton from '../components/UiButton'
+import UiIcon from '../components/UiIcon'
 import UiImg from '../components/UiImg'
 
-const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
-
+/**
+ * Chi tiết món dạng panel phủ trên bảng món, không phải trang riêng: người dùng không
+ * rời khỏi bảng món khi xem chi tiết. URL `/foods/:id` vẫn giữ nguyên nên thẻ món trong
+ * chatbot liên kết được và nút quay lại của trình duyệt đóng được panel.
+ *
+ * Nội dung panel đủ các thành phần Bảng 2.22: hình, giá, trạng thái, mô tả, thành phần,
+ * mức cay, nhãn chế độ ăn, chất gây dị ứng, khẩu phần, chọn số lượng, Thêm vào giỏ,
+ * điểm trung bình và danh sách đánh giá.
+ */
 export default function FoodDetailPage() {
   const { id } = useParams()
   const foodId = Number(id)
-  const [food, setFood] = useState<Food>()
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [related, setRelated] = useState<Food[]>([])
+  const navigate = useNavigate()
   const [qty, setQty] = useState(1)
   const user = useAuthStore((s) => s.user)
   const add = useCartStore((s) => s.add)
 
-  const { data: food, error: foodError } = useAsyncData(
-    (signal) => getFood(foodId, signal),
-    [foodId],
-  )
-  const { data: reviews, refresh: refreshReviews } = useAsyncData(
-    (signal) => getReviews(foodId, signal),
-    [foodId],
-  )
-  const { data: related } = useAsyncData(
-    (signal) => (food?.category ? getFoods({ categoryId: food.category.id }, signal) : Promise.resolve([])),
-    [foodId, food?.category?.id],
-  )
+  const close = () => navigate('/')
+
+  const {
+    data: food,
+    loading: foodLoading,
+    error: foodError,
+    refresh: reloadFood,
+  } = useAsyncData((signal) => getFood(foodId, signal), [foodId])
+  const {
+    data: reviews,
+    loading: reviewsLoading,
+    error: reviewsError,
+    refresh: refreshReviews,
+  } = useAsyncData((signal) => getReviews(foodId, signal), [foodId])
+
   const { run: submitReview, pending: reviewPending } = useAsyncAction(
     (payload: { foodId: number; rating: number; comment: string }) => createReview(payload),
   )
+  const { run: editReview, pending: editPending } = useAsyncAction(
+    (payload: { id: number; rating: number; comment: string }) =>
+      updateReview(payload.id, { rating: payload.rating, comment: payload.comment }),
+  )
+  const { run: removeReview } = useAsyncAction((id: number) => deleteReview(id))
 
-  useEffect(() => {
-    getFood(foodId).then((f) => {
-      setFood(f)
-      if (f.category) {
-        getFoods({ categoryId: f.category.id })
-          .then((list) => setRelated(list.filter((x) => x.id !== foodId).slice(0, 4)))
-          .catch(() => undefined)
-      }
-    })
-    loadReviews()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [foodId])
-
-  if (!food) return null
-
-  const relatedFoods = (related ?? []).filter((x) => x.id !== foodId).slice(0, 4)
-
-  const onReview = async (v: { rating: number; comment: string }) => {
-    if (!user) {
-      message.warning('Vui lòng đăng nhập để đánh giá')
-      return
-    }
-    const res = await submitReview({ foodId, ...v })
-    if (res.ok) {
-      message.success('Cảm ơn bạn đã đánh giá!')
-      void refreshReviews()
-    } else {
-      message.error('Gửi đánh giá thất bại. Vui lòng thử lại.')
-    }
+  const addToCart = () => {
+    if (!food) return
+    add(food, qty)
+    message.success(`Đã thêm ${qty} phần ${food.name} vào giỏ`)
+    close()
   }
 
+  const onReview = async (payload: { foodId: number; rating: number; comment: string }) => {
+    if (!user) {
+      message.warning('Vui lòng đăng nhập để đánh giá')
+      return { ok: false as const, error: new Error('Chưa đăng nhập') }
+    }
+    const res = await submitReview(payload)
+    if (res.ok) {
+      message.success('Cảm ơn bạn đã đánh giá!')
+      refreshReviews()
+    } else {
+      message.error(apiErrorMessage(res.error) ?? 'Gửi đánh giá thất bại. Vui lòng thử lại.')
+    }
+    return res
+  }
+
+  const onEditReview = async (id: number, payload: { rating: number; comment: string }) => {
+    const res = await editReview({ id, ...payload })
+    if (res.ok) {
+      message.success('Đã cập nhật đánh giá!')
+      refreshReviews()
+    } else {
+      message.error(apiErrorMessage(res.error) ?? 'Cập nhật đánh giá thất bại.')
+    }
+    return res
+  }
+
+  const onDeleteReview = async (id: number) => {
+    const res = await removeReview(id)
+    if (res.ok) {
+      message.success('Đã xóa đánh giá')
+      refreshReviews()
+    } else {
+      message.error(apiErrorMessage(res.error) ?? 'Xóa đánh giá thất bại.')
+    }
+    return res
+  }
+
+  const stats = reviewStats(reviews ?? [])
+  const unavailable = !food?.available
+  const allergens = food?.allergens
+    ? food.allergens.split(',').map((t) => t.trim()).filter(Boolean)
+    : []
+  const specs = food
+    ? [
+        { label: 'Phân loại', value: food.category?.name ?? 'Khác' },
+        { label: 'Khẩu phần', value: `${food.servingSize} người` },
+        { label: 'Độ cay', value: spicyLabel(food.spicyLevel) },
+        { label: 'Chế độ ăn', value: food.dietaryTags || 'Thông thường' },
+      ]
+    : []
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
-      <Link to="/foods" className="mb-6 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-amber-700">
-        <ArrowLeftOutlined /> Quay lại thực đơn
-      </Link>
-
-      <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-stone-200/60">
-        <div className="grid gap-8 p-6 md:p-10 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-2xl">
-            <UiImg
-              src={food.imageUrl}
-              alt={food.name}
-              preview
-              imgClass="h-full min-h-[260px] w-full object-cover"
-              className="lg:max-h-[460px]"
-            />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              {food.category && <Tag color="amber">{food.category.name}</Tag>}
-              {food.available ? (
-                <Tag color="green">Đang phục vụ</Tag>
-              ) : (
-                <Tag color="red">Ngừng phục vụ</Tag>
-              )}
-            </div>
-            <Typography.Title level={2} style={{ marginTop: 12, marginBottom: 8 }}>
-              {food.name}
-            </Typography.Title>
-            <Typography.Title level={3} type="danger" style={{ margin: 0 }} className="!text-amber-700">
-              {formatVND(food.price)}
-            </Typography.Title>
-
-            <Descriptions column={1} size="small" className="mt-6" labelStyle={{ color: '#78716c', width: 130 }}>
-              <Descriptions.Item label="Mô tả">{food.description || '—'}</Descriptions.Item>
-              <Descriptions.Item label="Thành phần">{food.ingredients || '—'}</Descriptions.Item>
-              <Descriptions.Item label="Khẩu phần">Phục vụ khoảng {food.servingSize} người</Descriptions.Item>
-              <Descriptions.Item label="Độ cay">{SPICY[food.spicyLevel]}</Descriptions.Item>
-              <Descriptions.Item label="Chế độ ăn">
-                {food.dietaryTags
-                  ? food.dietaryTags.split(',').map((t) => <Tag key={t} color="green">{t}</Tag>)
-                  : '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Lưu ý dị ứng">
-                {food.allergens
-                  ? food.allergens.split(',').map((t) => <Tag key={t} color="orange">{t}</Tag>)
-                  : 'Không có'}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Space className="mt-8" size="middle">
-              <InputNumber min={1} value={qty} onChange={(v) => setQty(v ?? 1)} />
-              <Button
-                type="primary"
-                size="large"
-                icon={<ShoppingCartOutlined />}
-                disabled={!food.available}
-                onClick={() => {
-                  add(food, qty)
-                  message.success('Đã thêm vào giỏ')
-                }}
-              >
-                Thêm vào giỏ
-              </Button>
-            </Space>
-          </div>
+    <Drawer
+      open
+      onClose={close}
+      // Không dùng `size` của Drawer: giá trị đó đè lên `width` và làm panel tràn hết
+      // màn hình. Chỉ cần `width`, Drawer tự co về 100% khi cửa sổ hẹp hơn.
+      width={720}
+      title={food ? food.name : 'Chi tiết món'}
+      styles={{ body: { paddingTop: 16 } }}
+    >
+      {foodLoading ? (
+        <div className="space-y-4">
+          <div className="aspect-[4/3] animate-pulse rounded-2xl bg-stone-200/70" />
+          <div className="h-8 w-2/3 animate-pulse rounded-xl bg-stone-200/70" />
+          <div className="h-5 w-1/3 animate-pulse rounded-xl bg-stone-200/70" />
         </div>
-      </div>
-
-      <Divider>Đánh giá & nhận xét</Divider>
-
-      {user ? (
-        <Form layout="vertical" onFinish={onReview} className="mb-8 !max-w-lg">
-          <Form.Item name="rating" label="Số sao" rules={[{ required: true, message: 'Chọn số sao' }]}>
-            <Rate />
-          </Form.Item>
-          <Form.Item name="comment" label="Nhận xét">
-            <Input.TextArea rows={3} placeholder="Món ăn thế nào? Chia sẻ cảm nhận của bạn..." />
-          </Form.Item>
-          <Button htmlType="submit" type="primary" loading={reviewPending}>Gửi đánh giá</Button>
-        </Form>
+      ) : foodError || !food ? (
+        <div className="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 px-6 py-14 text-center">
+          <UiIcon name="exclamation-circle" size={28} className="text-stone-300" />
+          <p className="mt-3 font-medium text-stone-900">Không tải được món ăn</p>
+          <p className="mt-1 text-sm text-stone-500">Vui lòng thử lại.</p>
+          <UiButton kind="default" className="mt-5" onClick={() => void reloadFood()}>
+            Thử lại
+          </UiButton>
+        </div>
       ) : (
-        <p className="mb-8 text-stone-500">
-          <Link to="/login" className="text-amber-700 hover:underline">Đăng nhập</Link> để gửi đánh giá cho món này.
-        </p>
-      )}
-
-      <List
-        dataSource={reviews}
-        locale={{ emptyText: 'Chưa có đánh giá nào' }}
-        renderItem={(r) => (
-          <List.Item>
-            <List.Item.Meta
-              title={
-                <Space>
-                  <span className="font-medium text-stone-900">{r.userName}</span>
-                  <Rate disabled value={r.rating} style={{ fontSize: 14 }} />
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    {new Date(r.createdAt).toLocaleString('vi-VN')}
-                  </Typography.Text>
-                </Space>
-              }
-              description={r.comment || 'Không có nhận xét'}
-            />
-          </List.Item>
-        )}
-      />
-
-      {related.length > 0 && (
-        <div className="mt-14">
-          <SectionHeader align="left" title="Món liên quan" subtitle="Cùng loại với món bạn đang xem." />
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {related.map((f) => (
-              <FoodCard key={f.id} food={f} />
-            ))}
+        <>
+          <div className="overflow-hidden rounded-2xl bg-stone-100">
+            <UiImg src={food.imageUrl} alt={food.name} preview className="aspect-[4/3] w-full" />
           </div>
-        </div>
+
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              {stats.count > 0 && (
+                <div className="flex items-center gap-2 text-sm text-stone-500">
+                  <RatingStars value={Math.round(stats.avg ?? 0)} size={14} />
+                  <span className="font-semibold tabular-nums text-stone-800">
+                    {stats.avg?.toFixed(1)}
+                  </span>
+                  <span>· {stats.count} đánh giá</span>
+                </div>
+              )}
+              <div className="mt-1 text-2xl font-bold tabular-nums text-amber-700">
+                {formatVND(food.price)}
+              </div>
+            </div>
+            {!food.available && (
+              <span className="rounded-full bg-red-50 px-3 py-1 text-sm font-semibold text-red-600">
+                Hết món
+              </span>
+            )}
+          </div>
+
+          {food.description && (
+            <p className="mt-4 leading-relaxed text-stone-600">{food.description}</p>
+          )}
+
+          <dl className="mt-5 grid grid-cols-2 gap-x-6 border-t border-stone-100">
+            {specs.map((spec) => (
+              <div key={spec.label} className="border-b border-stone-100 py-3">
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                  {spec.label}
+                </dt>
+                <dd className="mt-0.5 text-sm font-medium text-stone-800">{spec.value}</dd>
+              </div>
+            ))}
+            <div className="col-span-2 border-b border-stone-100 py-3">
+              <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                Thành phần
+              </dt>
+              <dd className="mt-0.5 text-sm font-medium leading-relaxed text-stone-800">
+                {food.ingredients || 'Chưa cập nhật'}
+              </dd>
+            </div>
+          </dl>
+
+          {allergens.length > 0 && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-2xl bg-red-50/70 px-4 py-3 ring-1 ring-red-100">
+              <UiIcon name="exclamation-circle" size={16} className="mt-0.5 shrink-0 text-red-500" />
+              <p className="text-sm leading-relaxed text-red-800">
+                <span className="font-semibold">Lưu ý dị ứng:</span> {allergens.join(', ')}
+              </p>
+            </div>
+          )}
+
+          {/* Số lượng và nút thêm nằm cạnh nhau để đổi số lượng rồi thêm chỉ một lần chạm. */}
+          <div className="mt-6 flex items-center gap-3">
+            <div className="flex shrink-0 items-center overflow-hidden rounded-xl ring-1 ring-stone-200">
+              <button
+                type="button"
+                aria-label="Giảm số lượng"
+                disabled={unavailable}
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                className="flex h-11 w-11 items-center justify-center text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed"
+              >
+                <MinusOutlined />
+              </button>
+              <span className="w-10 text-center text-base font-semibold tabular-nums text-stone-900">
+                {qty}
+              </span>
+              <button
+                type="button"
+                aria-label="Tăng số lượng"
+                disabled={unavailable}
+                onClick={() => setQty((q) => q + 1)}
+                className="flex h-11 w-11 items-center justify-center text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed"
+              >
+                <PlusOutlined />
+              </button>
+            </div>
+            <p className="min-w-0 flex-1 text-sm font-semibold tabular-nums text-stone-700">
+              {formatVND(Number(food.price) * qty)}
+            </p>
+            <UiButton
+              kind="primary-lg"
+              disabled={unavailable}
+              onClick={addToCart}
+              className="shrink-0"
+            >
+              {unavailable ? 'Hết món' : 'Thêm vào giỏ'}
+            </UiButton>
+          </div>
+
+          <ReviewSection
+            foodId={foodId}
+            reviews={reviews}
+            loading={reviewsLoading}
+            error={reviewsError}
+            user={user}
+            submitting={reviewPending || editPending}
+            onRefresh={refreshReviews}
+            onSubmit={onReview}
+            onUpdate={onEditReview}
+            onDelete={onDeleteReview}
+          />
+        </>
       )}
-    </div>
+    </Drawer>
   )
 }

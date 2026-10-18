@@ -11,7 +11,8 @@ import { formatVND } from '../../utils/format'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiImg from '../../components/UiImg'
 import UiIcon from '../../components/UiIcon'
-import { PageCard } from './shared'
+import ImageField from '../../components/ImageField'
+import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
@@ -84,23 +85,16 @@ export default function AdminFoodsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+    <div>
       <PageHeader
         title="Món ăn"
-        subtitle={`Quản lý ${stats.total} món trong thực đơn.`}
+        subtitle={`${stats.total} món · ${stats.available} đang bán · ${stats.hidden} đã ẩn`}
         extra={
           <Button icon={<PlusOutlined />} onClick={openCreate}>
             Tạo món
           </Button>
         }
       />
-
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tổng món" value={stats.total} />
-        <StatCard label="Đang bán" value={stats.available} />
-        <StatCard label="Đã ẩn" value={stats.hidden} />
-        <StatCard label="Giá trung bình" value={formatVND(stats.avg)} />
-      </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Input
@@ -167,7 +161,6 @@ export default function AdminFoodsPage() {
                 width: 140,
                 render: (_, f) => <span className="text-stone-600 tabular-nums">{formatVND(f.price)}</span>,
               },
-              { title: 'Độ cay', width: 110, render: (_, f) => SPICY[f.spicyLevel] ?? 'Không có' },
               {
                 title: 'Trạng thái',
                 width: 130,
@@ -242,19 +235,9 @@ export default function AdminFoodsPage() {
             <Form.Item name="allergens" label="Dị ứng">
               <Input placeholder="Gluten, Tôm..." />
             </Form.Item>
-            <Form.Item name="imageUrl" label="URL Ảnh" className="md:col-span-2">
-              <Input placeholder="Bỏ trống để dùng ảnh mặc định" />
+            <Form.Item name="imageUrl" label="Ảnh món ăn" className="md:col-span-2">
+              <ImageField label="URL Ảnh" />
             </Form.Item>
-            {liveImage ? (
-              <div className="md:col-span-2">
-                <p className="mb-1.5 text-xs font-medium text-stone-400">Xem trước</p>
-                <UiImg
-                  src={liveImage}
-                  alt="Xem trước ảnh món"
-                  className="aspect-[4/3] w-full max-w-xs rounded-xl border border-stone-100"
-                />
-              </div>
-            ) : null}
             <Form.Item name="available" label="Đang bán" valuePropName="checked" className="md:col-span-2">
               <Checkbox>Hiển thị trên thực đơn</Checkbox>
             </Form.Item>

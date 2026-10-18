@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { Button, Form, Input, Modal, Popconfirm, Tooltip, message } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { adminDeleteCategory, adminSaveCategory, getCategories, getFoods } from '../../api/api'
@@ -9,7 +9,8 @@ import { apiErrorMessage } from '../../utils/api-error'
 import { slugify } from '../../utils/slug'
 import UiImg from '../../components/UiImg'
 import UiIcon from '../../components/UiIcon'
-import { EmptyState, PageHeader, StatCard } from './shared'
+import ImageField from '../../components/ImageField'
+import { EmptyState, PageHeader } from './shared'
 
 export default function AdminCategoriesPage() {
   const [modal, setModal] = useState(false)
@@ -18,14 +19,13 @@ export default function AdminCategoriesPage() {
   const [busyId, setBusyId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [form] = Form.useForm()
-  const imageUrl = Form.useWatch('imageUrl', form)
   const nameValue = Form.useWatch('name', form)
 
   const { data, refresh: refreshData } = useAsyncData((signal) => getCategories(signal), [])
   const { data: foods } = useAsyncData((signal) => getFoods(undefined, signal), [])
   const { run: saveCategory, pending: saving } = useAsyncAction(
-    (payload: { id: number | null; name: string; slug: string; imageUrl: string }) =>
-      adminSaveCategory(payload.id, { name: payload.name, slug: payload.slug, imageUrl: payload.imageUrl }),
+    (payload: { id: number | null; name: string; slug: string; imageUrl: string; description: string }) =>
+      adminSaveCategory(payload.id, payload),
   )
   const { run: deleteCategory } = useAsyncAction((id: number) => adminDeleteCategory(id))
 
@@ -36,12 +36,6 @@ export default function AdminCategoriesPage() {
     }
     return map
   }, [foods])
-
-  const stats = useMemo(() => {
-    const list = data ?? []
-    const withFoods = list.filter((c) => (counts.get(c.id) ?? 0) > 0).length
-    return { total: list.length, withFoods, empty: list.length - withFoods }
-  }, [data, counts])
 
   const rows = useMemo(() => {
     const list = data ?? []
@@ -58,12 +52,12 @@ export default function AdminCategoriesPage() {
 
   const openEdit = (c: Category) => {
     setEditing(c)
-    setName(c.name)
+    form.setFieldsValue({ name: c.name, description: c.description ?? '', imageUrl: c.imageUrl ?? '' })
     setModal(true)
   }
 
-  const save = async () => {
-    const trimmed = name.trim()
+  const submit = async (v: { name?: string; description?: string; imageUrl?: string }) => {
+    const trimmed = v.name?.trim() ?? ''
     if (!trimmed) {
       message.warning('Nhập tên danh mục')
       return
@@ -72,7 +66,8 @@ export default function AdminCategoriesPage() {
       id: editing?.id ?? null,
       name: trimmed,
       slug: editing?.slug?.trim() ? editing.slug : slugify(trimmed),
-      imageUrl: editing?.imageUrl ?? '',
+      imageUrl: v.imageUrl?.trim() || editing?.imageUrl || '',
+      description: v.description?.trim() ?? '',
     })
     if (!res.ok) {
       message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
@@ -100,21 +95,16 @@ export default function AdminCategoriesPage() {
   const slugPreview = editing?.slug ?? slugify(nameValue?.trim() ?? '')
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <div className="mb-5 flex items-center justify-between">
-        <p className="text-sm text-stone-500">
-          Hiện có <b>{data?.length ?? 0}</b> danh mục trong thực đơn.
-        </p>
-        <Button icon={<PlusOutlined />} onClick={openCreate}>
-          Tạo danh mục
-        </Button>
-      </div>
-
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <StatCard label="Tổng danh mục" value={stats.total} />
-        <StatCard label="Có món ăn" value={stats.withFoods} />
-        <StatCard label="Trống" value={stats.empty} />
-      </div>
+    <div>
+      <PageHeader
+        title="Danh mục"
+        subtitle={`Xếp thực đơn thành ${data?.length ?? 0} nhóm.`}
+        extra={
+          <Button icon={<PlusOutlined />} onClick={openCreate}>
+            Tạo danh mục
+          </Button>
+        }
+      />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Input
@@ -242,23 +232,12 @@ export default function AdminCategoriesPage() {
           <p className="-mt-2 mb-5 text-xs text-stone-400">
             Slug tự động: <span className="font-medium text-stone-500">/{slugPreview}</span>
           </p>
-          <Form.Item name="imageUrl" label="URL Ảnh">
-            <Input placeholder="https://..." allowClear />
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={2} placeholder="Mô tả ngắn danh mục, tuỳ chọn" />
           </Form.Item>
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-stone-400">Xem trước</p>
-            {imageUrl ? (
-              <UiImg
-                src={imageUrl}
-                alt="Xem trước ảnh danh mục"
-                className="aspect-[4/3] w-full max-w-sm rounded-xl border border-stone-100"
-              />
-            ) : (
-              <div className="grid aspect-[4/3] w-full max-w-sm place-items-center rounded-xl border border-dashed border-stone-200 text-stone-300">
-                <span className="text-xs">Chưa có ảnh</span>
-              </div>
-            )}
-          </div>
+          <Form.Item name="imageUrl" label="URL Ảnh">
+            <ImageField />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

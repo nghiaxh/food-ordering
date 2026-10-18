@@ -74,25 +74,6 @@ export function PageSection({
   )
 }
 
-/** Thẻ số liệu thống kê admin — typographic, không icon chip màu. */
-export function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: ReactNode
-  value: ReactNode
-  hint?: ReactNode
-}) {
-  return (
-    <div className="rounded-2xl bg-white px-5 py-4 ring-1 ring-stone-200/60">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">{label}</p>
-      <p className="mt-1.5 truncate text-2xl font-bold tracking-tight tabular-nums text-stone-900">{value}</p>
-      {hint ? <p className="mt-1 truncate text-xs text-stone-400">{hint}</p> : null}
-    </div>
-  )
-}
-
 /** Chấm trạng thái + nhãn — thay thế Tag rực màu AntD mặc định. */
 export function StatusDot({
   color,

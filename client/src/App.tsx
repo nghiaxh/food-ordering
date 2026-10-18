@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
 import { ConfigProvider } from 'antd'
 import viVN from 'antd/locale/vi_VN'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import DefaultLayout from './layouts/DefaultLayout'
-import HomePage from './pages/HomePage'
+import AdminLayout from './layouts/AdminLayout'
 import FoodsPage from './pages/FoodsPage'
 import FoodDetailPage from './pages/FoodDetailPage'
 import CartPage from './pages/CartPage'
@@ -35,9 +35,12 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<DefaultLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/foods" element={<FoodsPage />} />
-        <Route path="/foods/:id" element={<FoodDetailPage />} />
+        {/* Bảng món là trang chủ; chi tiết món là route con nên hiện thành panel phủ
+            mà vẫn giữ URL thật để thẻ món trong chatbot liên kết được. */}
+        <Route path="/" element={<FoodsPage />}>
+          <Route path="foods/:id" element={<FoodDetailPage />} />
+        </Route>
+        <Route path="/foods" element={<Navigate to="/" replace />} />
         <Route path="/cart" element={<CartPage />} />
         <Route
           path="/orders"
@@ -55,22 +58,23 @@ function AppRoutes() {
             </RequireAuth>
           }
         />
+      </Route>
 
-        <Route
-          path="/admin"
-          element={
-            <RequireAuth admin>
-              <Outlet />
-            </RequireAuth>
-          }
-        >
-          <Route index element={<Navigate to="/admin/foods" replace />} />
-          <Route path="foods" element={<AdminFoodsPage />} />
-          <Route path="categories" element={<AdminCategoriesPage />} />
-          <Route path="orders" element={<AdminOrdersPage />} />
-          <Route path="customers" element={<AdminCustomersPage />} />
-          <Route path="chatbot" element={<AdminChatbotPage />} />
-        </Route>
+      {/* Trang quản trị dùng layout riêng nên tách khỏi DefaultLayout của khách hàng. */}
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth admin>
+            <AdminLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<Navigate to="/admin/foods" replace />} />
+        <Route path="foods" element={<AdminFoodsPage />} />
+        <Route path="categories" element={<AdminCategoriesPage />} />
+        <Route path="orders" element={<AdminOrdersPage />} />
+        <Route path="customers" element={<AdminCustomersPage />} />
+        <Route path="chatbot" element={<AdminChatbotPage />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />

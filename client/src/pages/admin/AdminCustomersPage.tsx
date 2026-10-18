@@ -1,12 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Input, Popconfirm, Table, Tag, message } from 'antd'
-import { adminGetUsers, adminSetUserActive } from '../../api/api'
+﻿import { useEffect, useMemo, useState } from 'react'
+import { Button, Form, Input, Modal, Popconfirm, Select, Table, Tooltip, message } from 'antd'
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { adminDeleteUser, adminGetUsers, adminSaveUser, adminSetUserActive, type UserPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
 import type { User } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiIcon from '../../components/UiIcon'
-import { PageCard } from './shared'
+import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
+
+const PHONE_RULE = { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' }
+
+function initialOf(u: User): string {
+  const source = u.fullName?.trim() || u.email?.trim() || '?'
+  return source.charAt(0).toUpperCase()
+}
 
 export default function AdminCustomersPage() {
   const { data: users, loading, error, refresh: refreshUsers } = useAsyncData(
@@ -16,8 +24,15 @@ export default function AdminCustomersPage() {
   const { run: toggleActive } = useAsyncAction(
     (payload: { id: number; active: boolean }) => adminSetUserActive(payload.id, payload.active),
   )
+  const { run: saveUser, pending: saving } = useAsyncAction(
+    (payload: { id: number | null; data: UserPayload }) => adminSaveUser(payload.id, payload.data),
+  )
+  const { run: deleteUser } = useAsyncAction((id: number) => adminDeleteUser(id))
   const [search, setSearch] = useState('')
   const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
+  const [modal, setModal] = useState(false)
+  const [editing, setEditing] = useState<User | null>(null)
+  const [form] = Form.useForm()
 
   useEffect(() => {
     if (error) message.error('Không tải được danh sách khách hàng')
@@ -35,14 +50,18 @@ export default function AdminCustomersPage() {
     )
   }, [users, search])
 
-  const toggle = async (u: User) => {
-    setBusyIds((prev) => new Set(prev).add(u.id))
-    const res = await toggleActive({ id: u.id, active: !u.active })
+  const markBusy = (id: number, on: boolean) =>
     setBusyIds((prev) => {
       const next = new Set(prev)
-      next.delete(u.id)
+      if (on) next.add(id)
+      else next.delete(id)
       return next
     })
+
+  const toggle = async (u: User) => {
+    markBusy(u.id, true)
+    const res = await toggleActive({ id: u.id, active: !u.active })
+    markBusy(u.id, false)
     if (res.ok) {
       message.success('Đã thay đổi trạng thái')
       void refreshUsers()
@@ -51,15 +70,68 @@ export default function AdminCustomersPage() {
     }
   }
 
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <PageHeader title="Khách hàng" subtitle="Quản lý tài khoản khách hàng của FoodOrdering." />
+  const openCreate = () => {
+    setEditing(null)
+    form.resetFields()
+    setModal(true)
+  }
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        <StatCard label="Tổng khách" value={stats.total} />
-        <StatCard label="Đang hoạt động" value={stats.active} />
-        <StatCard label="Bị khóa" value={stats.locked} />
-      </div>
+  const openEdit = (u: User) => {
+    setEditing(u)
+    form.setFieldsValue({
+      fullName: u.fullName,
+      email: u.email,
+      phone: u.phone,
+      address: u.address,
+    })
+    setModal(true)
+  }
+
+  const submit = async (v: UserPayload) => {
+    const res = await saveUser({
+      id: editing?.id ?? null,
+      data: {
+        email: v.email.trim(),
+        fullName: v.fullName.trim(),
+        phone: v.phone?.trim() ?? '',
+        address: v.address?.trim() ?? '',
+        // Để trống khi sửa nghĩa là giữ mật khẩu cũ, không gửi lên.
+        password: v.password?.trim() || undefined,
+      },
+    })
+    if (!res.ok) {
+      message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
+      return
+    }
+    message.success(editing ? 'Đã cập nhật khách hàng' : 'Đã tạo khách hàng')
+    setModal(false)
+    setEditing(null)
+    void refreshUsers()
+  }
+
+  const remove = async (u: User) => {
+    markBusy(u.id, true)
+    const res = await deleteUser(u.id)
+    markBusy(u.id, false)
+    if (res.ok) {
+      message.success('Đã xóa khách hàng')
+      void refreshUsers()
+    } else {
+      message.error(apiErrorMessage(res.error) ?? 'Xóa thất bại')
+    }
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title="Khách hàng"
+        subtitle="Quản lý tài khoản khách hàng của FoodOrdering."
+        extra={
+          <Button icon={<PlusOutlined />} onClick={openCreate}>
+            Thêm khách hàng
+          </Button>
+        }
+      />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Input
@@ -76,50 +148,155 @@ export default function AdminCustomersPage() {
       </div>
 
       <PageCard>
-        <Table
-          rowKey="id"
-          dataSource={rows}
-          loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
-          scroll={{ x: 700 }}
-          locale={{
-            emptyText: (
-              <div className="flex flex-col items-center py-10 text-stone-400">
-                <UiIcon name="inbox" size={32} className="mb-2 text-stone-300" />
-                <p className="text-sm">Không tìm thấy tài khoản nào.</p>
-              </div>
-            ),
-          }}
-          columns={[
-            { title: 'ID', width: 70, render: (_, u) => `#${u.id}` },
-            { title: 'Họ tên', render: (_, u) => <span className="font-medium text-stone-700">{u.fullName}</span> },
-            { title: 'Email', render: (_, u) => <span className="text-stone-500">{u.email}</span> },
-            {
-              title: 'Vai trò',
-              width: 120,
-              render: (_, u) => <Tag color={u.role === 'ADMIN' ? 'purple' : 'blue'}>{u.role}</Tag>,
-            },
-            {
-              title: 'Trạng thái',
-              width: 140,
-              render: (_, u) => (
-                <Tag color={u.active ? 'green' : 'default'}>{u.active ? 'Hoạt động' : 'Đã khóa'}</Tag>
+        {loading && !users ? (
+          <TableSkeleton />
+        ) : (
+          <Table
+            rowKey="id"
+            dataSource={rows}
+            loading={loading}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            scroll={{ x: 900 }}
+            locale={{
+              emptyText: (
+                <EmptyState
+                  icon="users"
+                  title="Không tìm thấy tài khoản."
+                  hint="Điều chỉnh bộ lọc hoặc từ khóa tìm kiếm."
+                />
               ),
-            },
-            {
-              title: 'Thao tác',
-              width: 150,
-              render: (_, u) => (
-                <Popconfirm title={`${u.active ? 'Khóa' : 'Kích hoạt'} ${u.fullName}?`} onConfirm={() => toggle(u)}>
-                  <Button size="small" loading={busyIds.has(u.id)} danger={u.active}>
-                    {u.active ? 'Khóa' : 'Kích hoạt'}
-                  </Button>
-                </Popconfirm>
-              ),
-            },
-          ]}
-        />
+            }}
+            columns={[
+              {
+                title: 'ID',
+                width: 70,
+                fixed: 'left',
+                render: (_, u) => <span className="tabular-nums">#{u.id}</span>,
+              },
+              {
+                title: 'Họ tên',
+                fixed: 'left',
+                render: (_, u) => (
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100 text-sm font-semibold text-stone-500">
+                      {initialOf(u)}
+                    </span>
+                    <span className="font-medium text-stone-700">{u.fullName || '—'}</span>
+                  </div>
+                ),
+              },
+              { title: 'Email', render: (_, u) => <span className="text-stone-500">{u.email}</span> },
+              {
+                title: 'SĐT',
+                width: 140,
+                render: (_, u) => <span className="tabular-nums text-stone-600">{u.phone || '—'}</span>,
+              },
+              {
+                title: 'Vai trò',
+                width: 120,
+                render: (_, u) => (
+                  <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+                    {u.role === 'ADMIN' ? 'Quản trị' : 'Khách hàng'}
+                  </span>
+                ),
+              },
+              {
+                title: 'Trạng thái',
+                width: 140,
+                render: (_, u) =>
+                  u.active ? (
+                    <StatusDot color="#10b981" label="Hoạt động" />
+                  ) : (
+                    <StatusDot color="#a8a29e" label="Đã khóa" muted />
+                  ),
+              },
+              {
+                title: 'Thao tác',
+                width: 250,
+                render: (_, u) => (
+                  <div className="flex items-center gap-2">
+                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(u)}>
+                      Sửa
+                    </Button>
+                    {/* Tài khoản quản trị không được khoá hay xoá, nên ẩn luôn hai nút này. */}
+                    {u.role === 'CUSTOMER' ? (
+                      <>
+                        <Popconfirm
+                          title={`${u.active ? 'Khóa' : 'Kích hoạt'} ${u.fullName}?`}
+                          onConfirm={() => toggle(u)}
+                        >
+                          <Button size="small" loading={busyIds.has(u.id)} danger={u.active}>
+                            {u.active ? 'Khóa' : 'Kích hoạt'}
+                          </Button>
+                        </Popconfirm>
+                        <Popconfirm
+                          title="Xóa khách hàng này?"
+                          description="Giỏ hàng bị xoá kèm. Đơn hàng đã đặt vẫn được giữ lại."
+                          okText="Xóa"
+                          onConfirm={() => remove(u)}
+                        >
+                          <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(u.id)} />
+                        </Popconfirm>
+                      </>
+                    ) : (
+                      <Tooltip title="Không thể khóa hoặc xóa tài khoản quản trị">
+                        <span className="text-xs text-stone-400">Tài khoản hệ thống</span>
+                      </Tooltip>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
       </PageCard>
+
+      <Modal
+        title={editing ? `Sửa: ${editing.fullName}` : 'Thêm khách hàng'}
+        open={modal}
+        onCancel={() => setModal(false)}
+        onOk={() => form.submit()}
+        confirmLoading={saving}
+        okButtonProps={{ children: 'Lưu' }}
+        cancelButtonProps={{ children: 'Hủy' }}
+      >
+        <Form form={form} layout="vertical" onFinish={submit} style={{ marginTop: 16 }}>
+          <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
+            <Input placeholder="Nguyễn Văn A" />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' },
+            ]}
+          >
+            <Input placeholder="ban@example.com" />
+          </Form.Item>
+          <Form.Item name="phone" label="Số điện thoại" rules={[PHONE_RULE]}>
+            <Input placeholder="0900000000" />
+          </Form.Item>
+          <Form.Item name="address" label="Địa chỉ">
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label={editing ? 'Mật khẩu mới' : 'Mật khẩu'}
+            rules={
+              editing
+                ? [{ min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự' }]
+                : [
+                    { required: true, message: 'Nhập mật khẩu' },
+                    { min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự' },
+                  ]
+            }
+            extra={editing ? 'Để trống nếu không muốn đổi mật khẩu.' : undefined}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
