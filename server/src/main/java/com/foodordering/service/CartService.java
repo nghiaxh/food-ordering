@@ -35,6 +35,10 @@ public class CartService {
         User user = userRepo.findByEmail(email).orElseThrow();
         Food food = foodRepo.findById(foodId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Món không tồn tại"));
+        // Món ngừng phục vụ không được đưa vào giỏ; nếu không thì đơn chỉ chặn được lúc đặt.
+        if (!food.isAvailable()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Món \"" + food.getName() + "\" hiện không phục vụ");
+        }
         CartItem item = itemRepo.findByUserIdAndFoodId(user.getId(), foodId).orElseGet(() -> {
             CartItem created = new CartItem();
             created.setUser(user);
