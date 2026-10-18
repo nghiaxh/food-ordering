@@ -74,17 +74,31 @@ public class ChatbotService {
     public ChatResponse chat(String email, ChatRequest req) {
         String sessionId = req.sessionId() == null ? UUID.randomUUID().toString() : req.sessionId();
         User user = email == null ? null : userRepo.findByEmail(email).orElse(null);
-        save(user, sessionId, ChatMessage.Sender.USER, req.message());
+        // Lịch sử chỉ lưu cho khách đã đăng nhập; khách vãng lai vẫn chat được nhưng để dấu vết rỗng.
+        if (user != null) save(user, sessionId, ChatMessage.Sender.USER, req.message());
 
         Criteria criteria = extractCriteria(req.message());
-        List<Food> matched = filterFoods(criteria);
+        // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
+        // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
+        List<Food> matched = criteria == null ? List.of() : filterFoods(criteria);
         List<String> docs = knowledgeService.findRelevant(req.message(), 3);
-        String reply = generateReply(req.message(), criteria, matched, docs);
-        save(user, sessionId, ChatMessage.Sender.BOT, reply);
+        // Câu hỏi tiếp theo về món vừa gợi ý cần nhớ lượt trước, nên đưa lịch sử phiên vào ngữ cảnh.
+        List<String> history = user != null ? recentTurns(sessionId) : List.of();
+        String reply = generateReply(req.message(), criteria, matched, docs, history);
+        if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
 
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = matched.stream().limit(maxSuggestions()).map(FoodCard::from).toList();
         return new ChatResponse(reply, cards);
+    }
+
+    /** Lấy lượt hỏi gần nhất của phiên, bỏ qua lượt hỏi hiện tại để không lặp nội dung. */
+    private List<String> recentTurns(String sessionId) {
+        return chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(sessionId).stream()
+                .filter(m -> m.getSender() == ChatMessage.Sender.USER)
+                .map(ChatMessage::getContent)
+                .limit(3)
+                .toList();
     }
 
     private Criteria extractCriteria(String message) {
@@ -95,8 +109,8 @@ public class ChatbotService {
             json = json.replaceAll("```json|```", "").trim();
             return mapper.readValue(json, Criteria.class);
         } catch (Exception e) {
-            // JSON lỗi không được làm sập luồng chat; dùng tiêu chí rỗng để tiếp tục an toàn.
-            return new Criteria(null, null, null, null, List.of(), List.of(), List.of());
+            // Lượt này không có tiêu chí đáng tin; chat() sẽ không gợi ý món cho câu hỏi này.
+            return null;
         }
     }
 
@@ -137,9 +151,15 @@ public class ChatbotService {
         return keywords.stream().anyMatch(k -> text.contains(k.toLowerCase()));
     }
 
-    private String generateReply(String question, Criteria c, List<Food> foods, List<String> docs) {
+    private String generateReply(String question, Criteria c, List<Food> foods, List<String> docs,
+                                     List<String> history) {
         // Chỉ đưa dữ liệu đã lọc và tài liệu tham khảo vào prompt; AI không tự tạo danh sách món.
         StringBuilder data = new StringBuilder();
+        if (!history.isEmpty()) {
+            data.append("CÁC CÂU HỎI TRƯỚC CỦA KHÁCH:\n");
+            history.forEach(h -> data.append("- ").append(h).append("\n"));
+            data.append("\n");
+        }
         data.append("YÊU CẦU ĐÃ PHÂN TÍCH: ").append(toJson(c)).append("\n\n");
         data.append("DANH SÁCH MÓN PHÙ HỢP (dữ liệu thật từ thực đơn):\n");
         if (foods.isEmpty()) {
@@ -160,7 +180,7 @@ public class ChatbotService {
         try {
             return ai.generate(String.format(ANSWER_PROMPT, extraRules()), data.toString(), false);
         } catch (Exception e) {
-            return "Xin lỗi, hiện tại chatbot đang gặp sự cố. Bạn vui lòng thử lại sau hoặc xem trực tiếp thực đơn nhé!";
+            return "Mình chưa phản hồi được, bạn thử lại sau nhé.";
         }
     }
 
@@ -174,7 +194,6 @@ public class ChatbotService {
     }
 
     private void save(User user, String sessionId, ChatMessage.Sender sender, String content) {
-        // Khách vãng lai có user null nhưng vẫn lưu lịch sử theo sessionId.
         ChatMessage m = new ChatMessage();
         m.setUser(user);
         m.setSessionId(sessionId);
@@ -184,6 +203,7 @@ public class ChatbotService {
     }
 
     private String toJson(Object o) {
+        if (o == null) return "{}";
         try { return mapper.writeValueAsString(o); } catch (Exception e) { return "{}"; }
     }
 
