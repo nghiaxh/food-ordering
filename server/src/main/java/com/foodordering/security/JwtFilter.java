@@ -1,5 +1,7 @@
 package com.foodordering.security;
 
+import com.foodordering.entity.User;
+import com.foodordering.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,9 +19,11 @@ import java.util.List;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepo;
 
-    public JwtFilter(JwtUtil jwtUtil) {
+    public JwtFilter(JwtUtil jwtUtil, UserRepository userRepo) {
         this.jwtUtil = jwtUtil;
+        this.userRepo = userRepo;
     }
 
     @Override
@@ -29,6 +33,10 @@ public class JwtFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             try {
                 Claims claims = jwtUtil.parse(header.substring(7));
+                // Token vẫn còn hạn sau khi admin khoá tài khoản, nên phải tra CSDL mỗi request;
+                // bỏ qua bước này thì tài khoản bị khoá vẫn dùng được tới khi token hết hạn.
+                User user = userRepo.findByEmail(claims.getSubject()).orElse(null);
+                if (user == null || !user.isActive()) throw new IllegalStateException("Tài khoản không còn hoạt động");
                 var auth = new UsernamePasswordAuthenticationToken(
                         claims.getSubject(), null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + claims.get("role"))));
