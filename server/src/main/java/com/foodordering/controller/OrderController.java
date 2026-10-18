@@ -27,4 +27,14 @@ public class OrderController {
     public List<Orders> myOrders(Authentication auth) {
         return orderService.myOrders(auth.getName());
     }
+
+    @PatchMapping("/{id}/cancel")
+    public Orders cancel(Authentication auth, @PathVariable Long id) {
+        return orderService.cancel(auth.getName(), id);
+    }
+
+    @PatchMapping("/{id}/pay")
+    public Orders pay(Authentication auth, @PathVariable Long id) {
+        return orderService.pay(auth.getName(), id);
+    }
 }

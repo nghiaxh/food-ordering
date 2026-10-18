@@ -6,10 +6,13 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,22 +24,35 @@ public class KnowledgeService {
         this.repo = repo;
     }
 
+    /** Định dạng tài liệu tham khảo mà chatbot đọc được; tài liệu ngoài danh sách này sẽ bị từ chối. */
+    private static final Set<String> ALLOWED = Set.of(".pdf", ".docx", ".txt", ".md");
+
     // PDF/DOCX được trích xuất thành text; các định dạng khác được đọc như text thuần.
     public KnowledgeDocument upload(MultipartFile file) throws Exception {
         String name = Objects.requireNonNullElse(file.getOriginalFilename(), "document").toLowerCase();
+        String ext = name.substring(name.lastIndexOf('.'));
+        if (!ALLOWED.contains(ext)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Chỉ chấp nhận tài liệu PDF, DOCX, TXT hoặc MD");
+        }
         String text;
         try (InputStream in = file.getInputStream()) {
-            if (name.endsWith(".pdf")) {
+            if (ext.equals(".pdf")) {
                 try (var pdf = Loader.loadPDF(in.readAllBytes())) {
                     text = new PDFTextStripper().getText(pdf);
                 }
-            } else if (name.endsWith(".docx")) {
+            } else if (ext.equals(".docx")) {
                 try (var doc = new XWPFDocument(in); var ex = new XWPFWordExtractor(doc)) {
                     text = ex.getText();
                 }
             } else {
-                text = new String(in.readAllBytes());
+                text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             }
+        }
+        // PDF scan không có lớp text sẽ trích ra chuỗi rỗng; lưu vậy thì tài liệu vô dụng mà vẫn hiện thành công.
+        if (text == null || text.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không đọc được nội dung tài liệu. Tệp có thể rỗng hoặc là bản quét chưa nhận dạng ký tự.");
         }
         KnowledgeDocument d = new KnowledgeDocument();
         d.setTitle(file.getOriginalFilename());
