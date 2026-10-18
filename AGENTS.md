@@ -13,9 +13,10 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   đơn giản), Spring Data JPA, PostgreSQL 18. Package gốc `com.foodordering`, lớp chính
   `FoodOrderingApplication`. Layered: `controller` → `service` → `repository`; `config`,
   `security`, `entity`, `dto` mỗi thư mục riêng.
-- **AI** - `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`,
-  `jsonMode` ép JSON). Muốn đổi nhà cung cấp AI chỉ sửa file này. Config qua
-  `AppProperties` (`app.ai.api-key`, `app.ai.model`).
+- **AI** - `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép
+  JSON, timeout 15s). Hỗ trợ Gemini và OpenAI; nhà cung cấp + tên mô hình đọc từ bảng `ai_setting`
+  do admin đặt trong trang Chatbot, fallback về `app.ai.provider` / `app.ai.model`. Muốn thêm
+  nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không gửi xuống client.
 - **Infra** - `docker-compose.yml` 1 file, 2 profile: `prod` (db + server-prod +
   client-prod) và `dev` (db + server-dev + client-dev với volume mount, hot reload).
   Server dev reload nhờ `spring-boot-devtools` + tự `mvn compile` (xem Gotchas).
@@ -32,24 +33,58 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [AiClien
 ```
 
 AI **không bao giờ** được tự nghĩ ra món/giá. Prompt truy vấn món chỉ nhận danh sách
-có sẵn từ `FoodRepository`; nếu lỗi AI/JSON sai thì `try/catch` → tiêu chí rỗng để hệ
-thống vẫn chạy. RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn 500 ký tự,
-chấm điểm theo từ khóa, hỗ trợ PDF/DOCX/text thuần, không cần vector DB.
+có sẵn từ `FoodRepository`; nếu lỗi AI/JSON sai thì `extractCriteria` trả `null` để hệ
+thống vẫn chạy, và `chat()` **không gợi ý món** cho lượt đó. Đừng đổi `null` thành tiêu
+chí rỗng: tiêu chí rỗng khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan
+gì tới câu hỏi, khách hỏi món chay lại nhận cà phê đá. RAG cơ bản (`KnowledgeService`)
+tách tài liệu thành đoạn 500 ký tự,
+chấm điểm theo từ khóa, hỗ trợ PDF/DOCX/TXT/MD, không cần vector DB. Chỉ khách **đã đăng
+nhập** mới ghi lịch sử hội thoại; khách vãng lai chat được nhưng để dấu vết rỗng.
 
 ### Key wiring (không rõ từ tên file)
 
 - **Không dùng Flyway.** `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập
   nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); seed bị bỏ qua
   nếu `userRepo.count() > 0`, nên không nhân đôi dữ liệu demo khi chạy lại.
-- **Security**: `SecurityConfig` stateless, hiện `permitAll()` cho toàn bộ `/api/auth/**`,
-  GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`, và toàn bộ `/api/chatbot/**`
-  (khách vãng lai vẫn chat được); `/api/admin/**` yêu cầu `ROLE_ADMIN`; phần còn lại
-  `authenticated()`. Token sinh bằng `JwtUtil`, lọc bằng `JwtFilter`. CORS mở cho demo.
+- **Security**: `SecurityConfig` stateless, `permitAll()` đúng cho `POST /api/auth/register`,
+  `POST /api/auth/login`, GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
+  `/api/uploads/**` và toàn bộ `/api/chatbot/**` (khách vãng lai vẫn chat được);
+  `/api/admin/**` yêu cầu `ROLE_ADMIN`; phần còn lại `authenticated()`.
+  **Phải có `dispatcherTypeMatchers(ERROR).permitAll()`**: thiếu dòng này thì mọi lỗi
+  400/404/500 đều bị đổi thành 401 khi Tomcat dispatch sang `/error`.
+  Token sinh bằng `JwtUtil`, lọc bằng `JwtFilter` (tra CSDL mỗi request để tài khoản bị
+  khoá mất quyền ngay). CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
+- **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
+  trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
+  từng mục nằm trong `TEST.md`.
 - **Types client phải đồng bộ với DTO server** (thủ công). Sửa DTO nhớ cập nhật
-  `client/src/types/index.ts`.
-- **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin có thể
-  nhập link ảnh ngoài trong form, không có endpoint upload ảnh món (chỉ upload tài liệu chatbot).
+  `client/src/types/index.ts` và `client/src/api/api.ts`.
+- **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
+  lên qua `POST /api/admin/uploads/image` (JPG/PNG/WEBP, ≤ 2 MB, kiểm bằng chữ ký đầu file
+  chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `app.upload.dir`
+  (volume `uploads`) và phục vụ tại `/api/uploads/**`; endpoint trả URL **tuyệt đối** nên
+  không cần sửa nginx.
+- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, chi tiết món là **route con** `/foods/:id`
+  hiện thành Drawer phủ (không phải trang riêng) để không rời bảng món. Bộ lọc của trang này
+  nằm trên URL (`category`, `keyword`, `min`, `max`), đọc bằng `useSearchParams`.
+- **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
+  `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
+  viết class nút mới. **Đừng ghi đè kích thước bằng class.** Hai class `!h-*` có cùng độ ưu
+  tiên nên Tailwind quyết định theo thứ tự sinh CSS, không phải thứ tự truyền vào, nên
+  truyền `className="!h-9"` lên nút có preset `!h-10` sẽ **không** có tác dụng. Muốn nhỏ lại
+  thì truyền `size="small"`; bảng `HEIGHTS` trong UiButton đã tính sẵn.
+- **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
+  sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
+- **Thanh điều hướng chỉ có 4 thành phần** (logo, ô tìm kiếm, giỏ, đăng nhập) theo Bảng 2.22.
+  Đừng thêm menu điều hướng; các trang con nằm trong menu tài khoản. Header cao `3.25rem`;
+  đổi chiều cao này thì sửa luôn `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở
+  `FoodsPage`, nếu không khung chat sẽ tràn lên header hoặc bảng món bị hụt dải phía dưới.
+- **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[3.25rem]` + `justify-end`,
+  khung chat
+  `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
+  cách đó dễ trượt khi header đổi kích thước. Vùng trống của cụm có `pointer-events-none` nên
+  không chặn bấm vào thẻ món.
 - **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
   Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
   sửa `DataSeeder` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
@@ -79,7 +114,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Dev: `docker compose --profile dev up --build`
 - `docker compose up` (không profile) chỉ khởi động Postgres.
 - Tên biến trong compose khớp `application.yml`: `DB_URL`/`DB_USER`/`DB_PASSWORD`,
-  `JWT_SECRET`, `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_MODEL`.
+  `JWT_SECRET`, `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_PROVIDER`, `AI_MODEL`, `UPLOAD_DIR`.
+- Service `db-backup` chạy `pg_dump` lúc 2h sáng vào volume `db_backup`, giữ 7 bản gần nhất.
 
 ## Quy ước comment và tài liệu
 
@@ -104,10 +140,18 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   container chỉ mount mã nguồn nên cần biên dịch: chạy `docker compose --profile dev exec
   server-dev sh -c "while true; do mvn -q compile; sleep 3; done"` ở một terminal khác
   (hoặc để IDE biên dịch vào `server/target/classes`).
-- **Lưu ý phiên đăng nhập:** `authStore` hỗ trợ `localStorage` và `sessionStorage`, nhưng
-  `client/src/api/http.ts` hiện chỉ đọc token từ `localStorage`; lựa chọn không nhớ đăng nhập
-  cần được đồng bộ ở code trước khi xem là hoạt động đầy đủ.
-- `SecurityConfig` hiện dùng `permitAll()` cho toàn bộ `/api/auth/**`; không mô tả
-  `/api/auth/me` là endpoint bắt buộc đăng nhập cho đến khi siết matcher.
+- **Lưu ý phiên đăng nhập:** `authStore` hỗ trợ `localStorage` và `sessionStorage`;
+  `client/src/api/http.ts` đọc token từ `localStorage` rồi fallback `sessionStorage`, nên ô
+  "Ghi nhớ đăng nhập" hoạt động đúng cả hai chế độ.
+- **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
+  `AdminLayout` (menu trái 5 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
+  báo trong `AdminLayout`, đừng gắn vào `DefaultLayout`.
+- **`useHasCartBar` tính theo đường dẫn**, hiện chỉ `/` và `/cart`. Trang mới có thanh giỏ
+  ghim đáy thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh giỏ che.
 - `JwtFilter` nuốt exception không hợp lệ (coi như chưa đăng nhập) - đừng log token.
+- **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
+  vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
+- **`AI_API_KEY` trong `.env` phải là khóa thật.** Nếu sai hoặc hết hạn, mọi câu hỏi đều trả
+  thông báo dự phòng và **không có thẻ món nào**; đó là hành vi dự kiến chứ không phải lỗi
+  code. Muốn demo luồng có gợi ý món thì phải thay khoá thật trước.
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.
