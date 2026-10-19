@@ -2,6 +2,7 @@ package com.foodordering.service;
 
 import com.foodordering.dto.FoodDtos.FoodRequest;
 import com.foodordering.entity.Food;
+import com.foodordering.repository.CartItemRepository;
 import com.foodordering.repository.CategoryRepository;
 import com.foodordering.repository.FoodRepository;
 import com.foodordering.repository.OrdersRepository;
@@ -20,11 +21,14 @@ public class FoodService {
     private final FoodRepository foodRepo;
     private final CategoryRepository categoryRepo;
     private final OrdersRepository orderRepo;
+    private final CartItemRepository cartItemRepo;
 
-    public FoodService(FoodRepository foodRepo, CategoryRepository categoryRepo, OrdersRepository orderRepo) {
+    public FoodService(FoodRepository foodRepo, CategoryRepository categoryRepo,
+                       OrdersRepository orderRepo, CartItemRepository cartItemRepo) {
         this.foodRepo = foodRepo;
         this.categoryRepo = categoryRepo;
         this.orderRepo = orderRepo;
+        this.cartItemRepo = cartItemRepo;
     }
 
     public List<Food> search(String keyword, Long categoryId, BigDecimal minPrice,
@@ -57,14 +61,19 @@ public class FoodService {
     }
 
     /**
- * Món đã phát sinh đơn không xoá vật lý được, vì chi tiết đơn còn tham chiếu tới nó; admin phải
- * chuyển sang trạng thái ngừng phục vụ để giữ nguyên lịch sử đơn hàng.
- */
-public void delete(Long id) {
+     * Món đã phát sinh đơn không xoá vật lý được, vì chi tiết đơn còn tham chiếu tới nó; admin phải
+     * chuyển sang trạng thái ngừng phục vụ để giữ nguyên lịch sử đơn hàng. Món còn nằm trong giỏ
+     * của khách cũng vậy, vì dòng giỏ giữ khoá ngoại tới món.
+     */
+    public void delete(Long id) {
         Food food = getById(id);
         if (orderRepo.existsByItemsFoodId(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Món \"" + food.getName() + "\" đang nằm trong đơn hàng. Hãy chuyển sang trạng thái ngừng phục vụ.");
+        }
+        if (cartItemRepo.existsByFoodId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Món \"" + food.getName() + "\" đang nằm trong giỏ hàng của khách. Hãy chuyển sang trạng thái ngừng phục vụ.");
         }
         foodRepo.delete(food);
     }
