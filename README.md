@@ -24,7 +24,8 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 - Theo dõi trạng thái đơn hàng, trạng thái thanh toán và nhận thông báo xác nhận
 - Lịch sử đặt món với nút đặt lại chỉ một chạm
 - Chatbot tư vấn món ăn (widget góc phải màn hình): hỏi bằng tự nhiên, nhận gợi ý
-  kèm thẻ món có link đặt món
+  kèm thẻ món có link đặt món. Tư vấn được theo nhu cầu, theo khẩu vị, theo số người ăn
+  (tính số phần theo khẩu phần món) và theo tổ hợp món trong một ngân sách chung.
 
 ### Quản trị
 - Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
@@ -86,7 +87,7 @@ Server tự tạo dữ liệu mẫu khi bảng người dùng còn trống. Nế
 | Vai trò | Email | Mật khẩu |
 |---------|-------|----------|
 | ADMIN   | `admin@demo.com` | `admin123` |
-| Customer | `user@demo.com` | `user123` |
+| Customer | `user@demo.com` | `user1234` |
 
 Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 

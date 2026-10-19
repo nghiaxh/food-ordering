@@ -36,6 +36,14 @@ có sẵn từ `FoodRepository`; nếu lỗi AI/JSON sai thì `try/catch` → ti
 thống vẫn chạy. RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn 500 ký tự,
 chấm điểm theo từ khóa, hỗ trợ PDF/DOCX/text thuần, không cần vector DB.
 
+**Cách áp tiêu chí** (`ChatbotService.selectFoods`): lọc thuộc tính món trước (còn phục
+vụ, độ cay, thành phần loại trừ, nhãn chế độ ăn, từ khóa), rồi mới chọn món theo ngân
+sách. `maxBudget` là **TỔNG** tiền của cả bữa, không phải giá một món. Số phần cần tính
+theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá × số phần`; đừng so
+`maxBudget` với giá một phần. `categories` là danh sách loại món kèm số lượng, dùng cho
+câu hỏi kiểu "một món chính và một món uống". Số phần và tổng tiền phải tính ở server và
+gửi kèm thẻ món, không giao cho AI tự tính.
+
 ### Key wiring (không rõ từ tên file)
 
 - **Không dùng Flyway.** `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập

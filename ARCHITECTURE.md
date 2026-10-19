@@ -95,11 +95,54 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
   Danh sách gửi vào prompt bị giới hạn 15 món; số thẻ trả về mặc định là 5 và có thể đổi
   trong cấu hình chatbot.
 - Thẻ món phía client được tạo từ entity đã lọc (`FoodCard.from`), nên ID và giá không lấy
-  từ câu trả lời AI.
+  từ câu trả lời AI. Thẻ mang thêm `portions` và `totalPrice` do server tính, nên giá hiển thị
+  khớp với tổng tiền khách sẽ phải trả.
+- `AiClient` đọc nhà cung cấp và tên mô hình từ bảng cấu hình `ai_setting` (quản trị viên đặt
+  trong trang Chatbot), chỉ fallback về `app.ai.provider` / `app.ai.model` khi chưa đặt. Cả
+  Gemini và OpenAI đều được hỗ trợ; `RestClient` có timeout 15 giâp cho cả kết nối và đọc.
+- Câu hỏi tiếp theo của cùng phiên được đưa vào ngữ cảnh lượt ghi câu trả lời, để khách hỏi
+  tiếp về món vừa được gợi ý mà AI vẫn biết đang nói về món nào.
 - Lỗi AI/JSON sai thì xử lý bằng `try/catch` → tiêu chí rỗng, hệ thống vẫn chạy bình thường.
+  Khi lượt ghi câu trả lời lỗi, chatbot trả thông báo dự phòng và vẫn gửi kèm thẻ món lọc
+  được, nên khách không bị màn hình trắng. JSON AI trả về có thể có thêm trường lạ; mapper
+  bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường thừa không làm mất gợi ý.
+- **Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại.** Khách vãng lai vẫn chat được nhưng
+  tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
 - RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn 500 ký tự, chấm điểm theo từ khóa,
-  hỗ trợ PDF/DOCX/text thuần, không cần vector DB. Admin upload tài liệu qua
-  `POST /api/admin/chatbot/documents` (giới hạn request 10 MB; không có upload ảnh món).
+  hỗ trợ PDF/DOCX/TXT/MD, không cần vector DB. Admin upload tài liệu qua
+  `POST /api/admin/chatbot/documents` (giới hạn request 10 MB). Tài liệu không trích được
+  chữ (file rỗng, PDF scan) bị từ chối thay vì lưu một bản ghi vô dụng.
+
+#### Bốn kiểu tư vấn và cách server lọc
+
+Tiêu chí AI trả về gồm `categories` (loại món và số món mong muốn cho từng loại),
+`maxSpicyLevel`, `maxBudget` (TỔNG ngân sách của cả bữa), `people`, `excludeAllergens`,
+`dietaryTags` và `keywords`. `ChatbotService.selectFoods` áp chúng bằng code, theo hai bước:
+
+1. **Lọc thuộc tính món**: còn phục vụ, độ cay, thành phần loại trừ (quét cả `allergens` lẫn
+   `ingredients`), nhãn chế độ ăn, từ khóa. Danh mục và giá để dành cho bước 2.
+2. **Chọn món theo ngân sách**:
+   - *Một loại món* (hoặc khách không nói rõ loại nào): lấy các món rẻ nhất còn nằm trong
+     tổng ngân sách.
+   - *Kết hợp nhiều loại* ("một món chính và một món uống"): mỗi loại giữ 5 ứng viên rẻ nhất
+     rồi dò tổ hợp, chọn tổ hợp có tổng tiền cao nhất nhưng không vượt ngân sách.
+
+**Số người ăn và khẩu phần**: số phần cần của một món là `ceil(people / khẩu phần)`, ví dụ
+4 người ăn, món phục vụ 2 người thì cần 2 phần. Tổng tiền của món là `giá × số phần`, và
+ngân sách so với **tổng** số phần chứ không phải giá một phần. Số phần và tổng tiền được
+ghi kèm vào prompt để AI đọc lại thay vì tự tính, và gửi kèm thẻ món ra client.
+
+Nếu số người AI đoán ra quá lớn khiến không món nào vừa ngân sách, server thử lại bỏ yếu tố
+số người để lượt hỏi đó vẫn gợi ý được món thay vì trả về danh sách rỗng.
+
+### 5b. Ảnh món do admin tải lên
+
+- `POST /api/admin/uploads/image` nhận JPG/PNG/WEBP tối đa 2 MB. Định dạng được xác định bằng
+  **chữ ký đầu file**, không tin `Content-Type` do client khai.
+- File nằm ở thư mục `app.upload.dir` (mặc định `uploads`), mount thành volume `uploads` trong
+  `docker-compose.yml`, và được phục vụ lại qua `WebConfig` tại đường dẫn `/api/uploads/**`.
+- Endpoint trả về **URL tuyệt đối** dựng từ `ServletUriComponentsBuilder`, nhờ vậy ảnh hiển thị
+  được ở cả dev (Vite ở cổng khác) lẫn bản build qua nginx mà không phải sửa cấu hình proxy.
 
 ### 6. Đánh giá và đặt lại
 
@@ -107,6 +150,97 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
   (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
 - Trang lịch sử đơn có nút **Đặt lại**: đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ,
   món ngừng phục vụ bị bỏ qua kèm cảnh báo.
+
+## Giao diện khách hàng và giao diện quản trị
+
+Hai nhóm dùng hai layout riêng, đúng yêu cầu "tách riêng trang quản trị với trang khách hàng":
+
+- `DefaultLayout` bọc route khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân
+  trang. Trang bảng món tự khoá chiều cao `100dvh - 4rem` và cuộn trong vùng riêng.
+- `AdminLayout` bọc `/admin/*`: menu bên trái 5 mục Món ăn, Danh mục, Đơn hàng, Khách hàng,
+  Chatbot; thu gọn thành drawer ở màn hình nhỏ. Route admin không nằm trong `DefaultLayout`,
+  nên không có khung chatbot hay thanh điều hướng của khách.
+
+### Bảng món kiểu kiosk
+
+Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang chủ / Thực đơn" làm một
+màn hình:
+
+- Rail danh mục cố định bên trái ở màn hình rộng, đổi thành dải chip cuộn ngang ở màn hình nhỏ.
+- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Dải này **dính đầu vùng
+  lưới** (`sticky top-0`) thay vì nằm ở một hàng riêng phía trên, tiết kiệm nguyên chiều cao
+  hàng đó mà vẫn luôn trong tầm mắt. Mục đầu ghi "Mọi giá" chứ không phải "Tất cả" vì dải
+  danh mục ngay dưới đã có "Tất cả", hai chữ giống nhau cạnh nhau dễ bị hiểu là một bộ lọc.
+- Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang. Số cột đổi theo bề rộng
+  (`grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4`); `lg` phải bớt
+  cột lại vì mức đó mới xuất hiện rail.
+- Thanh giỏ ghim đáy hiện khi giỏ có món, chứa tổng tiền và nút "Xem giỏ và đặt món".
+- Toàn bộ bộ lọc nằm trên URL (`category`, `keyword`, `min`, `max`) nên người dùng chia sẻ
+  được đường dẫn đã lọc và ô tìm kiếm trên thanh điều hướng điều khiển được trang này.
+
+Thẻ món được nén để nhìn thấy được nhiều món hơn trên một màn hình: ảnh cắt theo 16:10 (thay
+4:3), đệm `p-3`, tối đa 2 nhãn, chữ giá `text-lg`. Hàng giá và nút dùng `flex-wrap` nên thẻ hẹp
+sẽ xuống dòng thay vì tràn. Đo ở cửa sổ 848×670: chiều cao thẻ 444px xuống 285px, vùng lưới
+tăng từ 546px lên 614px.
+
+`/foods/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`) chứ không phải
+trang riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật để thẻ món
+trong chatbot liên kết được, và nút quay lại của trình duyệt đóng được panel. URL cũ
+`/foods` chuyển hướng về `/`.
+
+### Thanh điều hướng và hệ nút
+
+- Thanh điều hướng chỉ có đúng 4 thành phần Bảng 2.22: logo, ô tìm kiếm, giỏ hàng, đăng
+  nhập, cộng ô thông báo. Không có menu điều hướng tới các trang con; những đích đó nằm trong
+  menu tài khoản (Đơn hàng của tôi, Tài khoản, Trang quản trị nếu là admin, Đăng xuất).
+  Header cao `3.25rem`, chỉ giữ logo nhỏ không kèm chữ tên, các nút trong header dùng
+  `size="small"` (36px). Ô tìm kiếm có `md:max-w-xl`: không chặn bề rộng thì trên màn hình
+  rộng nó giãng hết chỗ trống và đẩy nhóm nút bên phải lệch ra rìa.
+- `components/UiButton.tsx` là nút dùng chung, chỉ 6 dạng: `primary` (44px), `primary-lg`
+  (52px, đúng 1 nút mỗi màn hình), `default`, `danger`, `icon` (40px), `fab` (64px, nút mở
+  chatbot). Mọi kích thước, bo góc và màu nằm ở một chỗ. Kích thước ghi bằng tiền tố `!` vì
+  AntD nạp CSS-in-JS sau Tailwind và ghi đè được chiều cao của nút. Chiều cao nằm ở bảng
+  `HEIGHTS` tách khỏi kiểu dáng, mỗi cỡ một ô riêng: truyền class `!h-*` để ghi đè sẽ không
+  ăn vì hai class `!important` bằng nhau thì Tailwind quyết định theo thứ tự sinh CSS, muốn
+  nhỏ lại phải truyền `size="small"`.
+- Thẻ món dùng nút "Thêm vào giỏ" **có nhãn** vì Bảng 2.22 ghi rõ tên thành phần này; món hết
+  hiện nhãn "Hết món" và nút bị vô hiệu hoá.
+
+### Chatbot nổi
+
+Cụm widget bám trang: `fixed inset-x-0 bottom-0 top-14` cùng `justify-end`, khung chat `flex-1`
+nên tự co theo chiều cao màn hình thay vì hard-code. Vùng trống của cụm mang
+`pointer-events-none` nên không chặn thao tác lên thẻ món phía sau. Launcher là `UiButton`
+dạng `fab` 64px; nó tự nhảy lên cao hơn khi trang đang có thanh giỏ ghim đáy
+(`useHasCartBar`).
+
+Bố cục khung chat:
+
+- Tin bot và tin khách đều nằm trong bong bóng: bot là bong bóng trắng căn trái (`rounded-bl-md`,
+  viền mảnh), khách là bong bóng hổ phách căn phải (`rounded-br-md`). Ô chữ của bot rộng tối đa
+  92%, của khách 85%.
+- Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào, và biến mất sau tin nhắn đầu tiên.
+  Bốn câu gợi ý đều chạy đúng bộ lọc thật: chế độ ăn + độ cay, ngân sách + số người
+  (số phần tính theo khẩu phần), thành phần loại trừ, và kết hợp món theo tổng ngân sách.
+- Thẻ món gộp trong **một khung trắng**, các dòng ngăn bằng đường kẻ, không viền riêng từng
+  thẻ: ảnh 40px, tên một dòng, giá hổ phách căn phải. Cả dòng là liên kết tới `/foods/:id`.
+  Khung này canh cùng mép trái với bong bóng của bot.
+- Khi tin bot không kèm món nào, hiện nút **"Xem thực đơn"** mở `/`, chỉ ở tin bot gần nhất
+  để khung chat không bị dồn nút. Quy tắc này không cần field riêng trong DTO nên `ChatResponse`
+  giữ nguyên `reply` + `foods`.
+- Nút gửi nằm trong ô nhập (`suffix`) thay vì một nút tròn riêng, nên khung chat đỡ một phần
+  tử và ô nhập không bị bó hẹp.
+- Ba chấm "đang trả lời" cũng nằm trong bong bóng trắng cùng kiểu để khung nhìn nhất quán.
+
+Phía server, `extractCriteria` trả `null` khi AI lỗi hoặc JSON sai. `chat()` coi `null` là
+"không phân tích được" và **không gợi ý món**. Lý do: tiêu chí rỗng sẽ khớp mọi món, danh
+sách trả về chỉ là vài món rẻ nhất, khách hỏi món chay sẽ nhận cà phê đá. Khi trích xuất thành
+công nhưng sinh câu trả lời thất bại thì thẻ món vẫn hiện, vì chúng khớp thật câu hỏi.
+
+Tài liệu tri thức mẫu không được hứa điều mà hệ thống không làm: `OrderService.create` chỉ cộng
+tiền món nên tài liệu đã bỏ câu "Phí giao hàng 15.000 đồng". Ba câu còn lại (giờ mở cửa, khu vực
+không phục vụ, thời gian giao) là thông tin, không sinh ra con số sai về tiền, nhưng cũng
+không có code kiểm chứng.
 
 ## Cấu trúc mã nguồn
 
