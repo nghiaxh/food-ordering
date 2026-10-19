@@ -92,7 +92,11 @@ public class OrderService {
 
     @Transactional
     public void adminDelete(Long id) {
-        orderRepo.delete(findOrder(id));
+        Orders order = findOrder(id);
+        // Giao dịch thanh toán giữ khoá ngoại tới đơn nên phải xoá trước, nếu không
+        // việc xoá đơn luôn dính lỗi ràng buộc và trả 409.
+        paymentTxRepo.deleteByOrderId(id);
+        orderRepo.delete(order);
     }
 
     private Orders findOrder(Long id) {
