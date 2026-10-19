@@ -41,6 +41,84 @@ public class OrderService {
         // Khách có thể để trống ghi chú; trim để lưu gọn và so khớp với giá trị đã validate ở DTO.
         order.setNote(req.note() == null || req.note().isBlank() ? null : req.note().trim());
 
+        Orders saved = orderRepo.save(order);
+        savePaymentTx(saved);
+        notify(saved, "Đơn hàng #" + saved.getId() + " đã được tạo. Chúng tôi sẽ sớm xác nhận đơn của bạn.");
+        return saved;
+    }
+
+    // ----- Quản trị: tạo, sửa, xóa đơn thay khách (UC12) -----
+
+    @Transactional
+    public Orders adminCreate(AdminOrderRequest req) {
+        User user = userRepo.findByEmail(req.customerEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khách hàng không tồn tại"));
+        Orders order = new Orders();
+        order.setUser(user);
+        applyDelivery(order, req.receiverName(), req.phone(), req.address(), req.paymentMethod(), req.note());
+        fillItems(order, req.items());
+        if (req.status() != null && !req.status().isBlank()) {
+            order.setStatus(parseStatus(req.status()));
+        }
+
+        Orders saved = orderRepo.save(order);
+        savePaymentTx(saved);
+        if (Boolean.TRUE.equals(req.paid())) applyPayment(saved, true);
+        return saved;
+    }
+
+    @Transactional
+    public Orders adminUpdate(Long id, AdminOrderRequest req) {
+        Orders order = findOrder(id);
+        if (req.receiverName() != null) applyDelivery(order, req.receiverName(), req.phone(), req.address(),
+                req.paymentMethod() == null ? order.getPaymentMethod() : req.paymentMethod(), req.note());
+        // orphanRemoval giải phóng các dòng cũ khi thay cả danh sách món của đơn.
+        if (req.items() != null && !req.items().isEmpty()) {
+            order.getItems().clear();
+            fillItems(order, req.items());
+            paymentTxRepo.findByOrderId(id).ifPresent(tx -> tx.setAmount(order.getTotal()));
+        }
+        if (req.status() != null && !req.status().isBlank()) {
+            Orders.Status next = parseStatus(req.status());
+            if (next != order.getStatus()) {
+                if (!isValidTransition(order.getStatus(), next)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Không thể chuyển đơn từ \"" + label(order.getStatus()) + "\" sang \"" + label(next) + "\"");
+                }
+                order.setStatus(next);
+            }
+        }
+        Orders saved = orderRepo.save(order);
+        if (req.paid() != null) applyPayment(saved, req.paid());
+        return saved;
+    }
+
+    @Transactional
+    public void adminDelete(Long id) {
+        Orders order = findOrder(id);
+        // Giao dịch thanh toán giữ khoá ngoại tới đơn nên phải xoá trước, nếu không
+        // việc xoá đơn luôn dính lỗi ràng buộc và trả 409.
+        paymentTxRepo.deleteByOrderId(id);
+        orderRepo.delete(order);
+    }
+
+    private Orders findOrder(Long id) {
+        return orderRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
+    }
+
+    private void applyDelivery(Orders order, String receiverName, String phone, String address,
+                              String paymentMethod, String note) {
+        order.setReceiverName(receiverName);
+        order.setPhone(phone);
+        order.setAddress(address);
+        order.setPaymentMethod(paymentMethod);
+        // Khách có thể để trống ghi chú; trim để lưu gọn và so khớp với giá trị đã validate ở DTO.
+        order.setNote(note == null || note.isBlank() ? null : note.trim());
+    }
+
+    /** Giá không lấy từ request; mỗi món được đọc lại từ Food trong database rồi chụp lại vào dòng đơn. */
+    private void fillItems(Orders order, List<OrderItemRequest> items) {
         BigDecimal total = BigDecimal.ZERO;
         for (OrderItemRequest it : req.items()) {
             Food food = foodRepo.findById(it.foodId())
