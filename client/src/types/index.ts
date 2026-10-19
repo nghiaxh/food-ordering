@@ -99,6 +99,13 @@ export interface FoodCard {
   price: string
   imageUrl: string
   categoryName: string | null
+  /**
+   * Số phần khách cần để đủ cho số người ăn. Lớn hơn 1 khi khách nói rõ số người và khẩu
+   * phần của món nhỏ hơn số đó; server đã tính sẵn nên client không tự suy luận lại.
+   */
+  portions?: number
+  /** Tổng tiền của `portions` phần, dùng để khách thấy đúng số tiền phải trả. */
+  totalPrice?: string
 }
 
 export interface ChatMessage {

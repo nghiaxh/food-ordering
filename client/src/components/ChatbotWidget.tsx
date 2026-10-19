@@ -13,6 +13,7 @@ const SUGGESTIONS = [
   'Gợi ý món chay không cay',
   'Món ngon dưới 200k cho 2 người',
   'Món nào không chứa hải sản?',
+  '1 món chính và 1 món uống khoảng 150k',
 ]
 
 const GREETING =
@@ -160,9 +161,18 @@ export default function ChatbotWidget() {
                             />
                             <span className="min-w-0 flex-1 truncate text-sm font-medium text-stone-800">
                               {f.name}
+                              {/* Khách hỏi theo số người nên món có thể phải gọi nhiều phần;
+                                  hiện số phần cạnh tên và tổng tiền để khách thấy đúng số phải trả. */}
+                              {f.portions && f.portions > 1 ? (
+                                <span className="ml-1.5 text-xs font-normal text-stone-500">
+                                  x{f.portions} phần
+                                </span>
+                              ) : null}
                             </span>
                             <span className="shrink-0 text-sm font-bold tabular-nums text-amber-700">
-                              {formatVND(Number(f.price))}
+                              {f.portions && f.portions > 1 && f.totalPrice
+                                ? formatVND(Number(f.totalPrice))
+                                : formatVND(Number(f.price))}
                             </span>
                           </Link>
                         ))}
