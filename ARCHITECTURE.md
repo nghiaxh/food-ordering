@@ -118,7 +118,8 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
   Danh sách gửi vào prompt bị giới hạn 15 món; số thẻ trả về mặc định là 5 và có thể đổi
   trong cấu hình chatbot.
 - Thẻ món phía client được tạo từ entity đã lọc (`FoodCard.from`), nên ID và giá không lấy
-  từ câu trả lời AI.
+  từ câu trả lời AI. Thẻ mang thêm `portions` và `totalPrice` do server tính, nên giá hiển thị
+  khớp với tổng tiền khách sẽ phải trả.
 - `AiClient` đọc nhà cung cấp và tên mô hình từ bảng cấu hình `ai_setting` (quản trị viên đặt
   trong trang Chatbot), chỉ fallback về `app.ai.provider` / `app.ai.model` khi chưa đặt. Cả
   Gemini và OpenAI đều được hỗ trợ; `RestClient` có timeout 15 giâp cho cả kết nối và đọc.
@@ -126,13 +127,36 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
   tiếp về món vừa được gợi ý mà AI vẫn biết đang nói về món nào.
 - Lỗi AI/JSON sai thì xử lý bằng `try/catch` → tiêu chí rỗng, hệ thống vẫn chạy bình thường.
   Khi lượt ghi câu trả lời lỗi, chatbot trả thông báo dự phòng và vẫn gửi kèm thẻ món lọc
-  được, nên khách không bị màn hình trắng.
+  được, nên khách không bị màn hình trắng. JSON AI trả về có thể có thêm trường lạ; mapper
+  bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường thừa không làm mất gợi ý.
 - **Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại.** Khách vãng lai vẫn chat được nhưng
   tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
 - RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn 500 ký tự, chấm điểm theo từ khóa,
   hỗ trợ PDF/DOCX/TXT/MD, không cần vector DB. Admin upload tài liệu qua
   `POST /api/admin/chatbot/documents` (giới hạn request 10 MB). Tài liệu không trích được
   chữ (file rỗng, PDF scan) bị từ chối thay vì lưu một bản ghi vô dụng.
+
+#### Bốn kiểu tư vấn và cách server lọc
+
+Tiêu chí AI trả về gồm `categories` (loại món và số món mong muốn cho từng loại),
+`maxSpicyLevel`, `maxBudget` (TỔNG ngân sách của cả bữa), `people`, `excludeAllergens`,
+`dietaryTags` và `keywords`. `ChatbotService.selectFoods` áp chúng bằng code, theo hai bước:
+
+1. **Lọc thuộc tính món**: còn phục vụ, độ cay, thành phần loại trừ (quét cả `allergens` lẫn
+   `ingredients`), nhãn chế độ ăn, từ khóa. Danh mục và giá để dành cho bước 2.
+2. **Chọn món theo ngân sách**:
+   - *Một loại món* (hoặc khách không nói rõ loại nào): lấy các món rẻ nhất còn nằm trong
+     tổng ngân sách.
+   - *Kết hợp nhiều loại* ("một món chính và một món uống"): mỗi loại giữ 5 ứng viên rẻ nhất
+     rồi dò tổ hợp, chọn tổ hợp có tổng tiền cao nhất nhưng không vượt ngân sách.
+
+**Số người ăn và khẩu phần**: số phần cần của một món là `ceil(people / khẩu phần)`, ví dụ
+4 người ăn, món phục vụ 2 người thì cần 2 phần. Tổng tiền của món là `giá × số phần`, và
+ngân sách so với **tổng** số phần chứ không phải giá một phần. Số phần và tổng tiền được
+ghi kèm vào prompt để AI đọc lại thay vì tự tính, và gửi kèm thẻ món ra client.
+
+Nếu số người AI đoán ra quá lớn khiến không món nào vừa ngân sách, server thử lại bỏ yếu tố
+số người để lượt hỏi đó vẫn gợi ý được món thay vì trả về danh sách rỗng.
 
 ### 5b. Ảnh món do admin tải lên
 
@@ -222,7 +246,8 @@ Bố cục khung chat:
   viền mảnh), khách là bong bóng hổ phách căn phải (`rounded-br-md`). Ô chữ của bot rộng tối đa
   92%, của khách 85%.
 - Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào, và biến mất sau tin nhắn đầu tiên.
-  Ba câu gợi ý đều chạy đúng bộ lọc thật (chế độ ăn + độ cay, ngân sách + số người, dị ứng).
+  Bốn câu gợi ý đều chạy đúng bộ lọc thật: chế độ ăn + độ cay, ngân sách + số người
+  (số phần tính theo khẩu phần), thành phần loại trừ, và kết hợp món theo tổng ngân sách.
 - Thẻ món gộp trong **một khung trắng**, các dòng ngăn bằng đường kẻ, không viền riêng từng
   thẻ: ảnh 40px, tên một dòng, giá hổ phách căn phải. Cả dòng là liên kết tới `/foods/:id`.
   Khung này canh cùng mép trái với bong bóng của bot.

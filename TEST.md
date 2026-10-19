@@ -3,9 +3,10 @@
 Tài liệu này ghi rõ các kiểm tra đang có của FoodOrdering và lộ trình bổ sung test cho
 client, server và end-to-end.
 
-> **Trạng thái hiện tại:** dự án chưa có test tự động. `client/package.json` chưa có script
-> `npm test`, `server/src/test/` chưa tồn tại và thư mục `e2e/` chưa được tạo. `mvn test`
-> hiện build thành công nhưng báo không có test source.
+> **Trạng thái hiện tại:** server đã có test tự động đầu tiên (`server/src/test/java/com/
+> foodordering/service/ChatbotServiceTest.java`, 5 test) chạy bằng JUnit 5 + Mockito, không
+> cần Docker. `client/package.json` chưa có script `npm test` và thư mục `e2e/` chưa được
+> tạo, nên phía client vẫn mới chỉ có typecheck và build.
 >
 > **Đã kiểm chứng thủ công (không tự động hoá):** các ràng buộc ở bảng "Ràng buộc nghiệp vụ đã
 > kiểm chứng" bên dưới đã chạy thật trên stack `prod` bằng HTTP và trên trình duyệt. Khi sửa
@@ -18,9 +19,9 @@ client, server và end-to-end.
 |----------|------------|:----------:|------|
 | Client typecheck | Có | Không | `cd client && npm run typecheck` |
 | Client build | Có | Không | `cd client && npm run build` |
-| Server compile/test | Có, hiện có 0 test | Không | `cd server && mvn test` |
+| Server compile/test | Có, hiện có 5 test | Không | `cd server && mvn test` |
 | Client unit test | Chưa cài đặt | Không | Dự kiến: Vitest + Testing Library |
-| Server unit/integration | Chưa cài đặt | Có khi dùng Testcontainers | Dự kiến: JUnit 5 + Testcontainers |
+| Server unit/integration | Có test unit, chưa có test tích hợp | Có khi dùng Testcontainers | Dự kiến: Testcontainers |
 | E2E | Chưa cài đặt | Cần stack chạy | Dự kiến: Playwright trong `e2e/` |
 
 ## Kiểm tra hiện có
@@ -39,8 +40,25 @@ mvn test
 mvn package
 ```
 
-Hiện tại không có linter, Vitest, test source hoặc test E2E. Không chạy `npm test` ở client
-vì script này chưa được khai báo.
+Chưa có linter, Vitest, test E2E. Không chạy `npm test` ở client vì script này chưa được
+khai báo.
+
+## 0. Server unit test đã có
+
+`server/src/test/java/com/foodordering/service/ChatbotServiceTest.java` — 5 test, chạy ở mức
+service với repository và `AiClient` giả lập, nên không cần database hay Docker. Test bọc
+`AiClient.generate` để trả về JSON tiêu chí đã định sẵn, rồi kiểm tra danh sách món server
+lọc ra:
+
+| Test | Kiểm chứng |
+|------|------------|
+| `tuVanTheoSoNguoi` | Số phần tính theo khẩu phần (Phở bò khẩu phần 1 người, 2 người ăn → 2 phần = 130.000đ) và mọi món đều vừa tổng ngân sách |
+| `tuVanKetHopMon` | Câu hỏi "1 món chính + 1 món uống" trả về đúng 2 món, đúng danh mục, tổng tiền không vượt ngân sách |
+| `tuVanTheoKhauVi` | Món gợi ý đều không cay và không chứa thành phần khách loại trừ |
+| `aiLoiKhongGoiYMon` | AI lỗi thì không gợi ý món nào, không bịa món |
+| `aiTraThemTruongLa` | AI trả JSON có thêm trường lạ thì tiêu chí vẫn được dùng |
+
+Lệnh chạy riêng: `cd server && mvn test -Dtest=ChatbotServiceTest`
 
 ## 1. Client tests (kế hoạch)
 
