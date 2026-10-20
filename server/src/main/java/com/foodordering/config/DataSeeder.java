@@ -89,12 +89,12 @@ public class DataSeeder implements CommandLineRunner {
                 45000, 1, 0, "chay", "sữa,hạt", "che-khuc-bach");
 
         // Đơn mẫu để màn hình quản trị và luồng đánh giá (chỉ món từ đơn Hoàn thành) có dữ liệu ngay.
-        order(khach, Orders.Status.COMPLETED, "BANK_TRANSFER", Orders.PaymentStatus.PAID,
+        order(khach, Orders.Status.COMPLETED, "QR", Orders.PaymentStatus.PAID,
                 khach.getAddress(), null, LocalDateTime.now().minusDays(6), new Line(pho, 2), new Line(bunCha, 1));
-        order(khach, Orders.Status.PREPARING, "CASH", Orders.PaymentStatus.UNPAID,
+        order(khach, Orders.Status.PREPARING, "COD", Orders.PaymentStatus.UNPAID,
                 khach.getAddress(), "Ít cay, gọi trước 10 phút", LocalDateTime.now().minusHours(2),
                 new Line(bunBoHue, 1), new Line(dauHu, 2));
-        order(khach, Orders.Status.PENDING, "E_WALLET", Orders.PaymentStatus.UNPAID,
+        order(khach, Orders.Status.PENDING, "QR", Orders.PaymentStatus.UNPAID,
                 khach.getAddress(), null, LocalDateTime.now().minusMinutes(20),
                 new Line(rau, 1), new Line(myY, 1));
 
