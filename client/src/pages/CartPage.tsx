@@ -194,8 +194,7 @@ export default function CartPage() {
               <Form.Item name="paymentMethod" label="Thanh toán (giả lập)">
                 <Radio.Group className="flex flex-col gap-1">
                   <Radio value="COD">Tiền mặt khi nhận</Radio>
-                  <Radio value="BANK_TRANSFER">Chuyển khoản</Radio>
-                  <Radio value="E_WALLET">Ví điện tử</Radio>
+                  <Radio value="QR">Thanh toán bằng mã QR</Radio>
                 </Radio.Group>
               </Form.Item>
               <Form.Item
