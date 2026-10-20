@@ -70,13 +70,35 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
    trạng thái PENDING/PAID) và tạo thông báo xác nhận cho khách (`notifications`).
 4. Trạng thái đơn dùng các giá trị `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`;
    trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
-5. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) - không tích hợp cổng thanh toán thật;
-   admin ghi nhận "đã thanh toán" qua `PATCH /api/admin/orders/{id}/payment?paid=...`.
-6. Khách hàng theo dõi trạng thái đơn và thông báo; admin xác nhận/cập nhật trạng thái;
-   mỗi lần đổi trạng thái, khách nhận thông báo.
-7. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
+5. **Trạng thái đi đúng một chiều**: `PENDING → CONFIRMED → PREPARING → COMPLETED`, được canh
+   trong `OrderService.isValidTransition`. Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
+   thái được. `CANCELLED` được phép từ mọi trạng thái chưa chốt. Client cũng lọc danh sách trạng
+   thái hợp lệ bằng `allowedNextStatuses`, nhưng server mới là nơi quyết định.
+6. Khách tự hủy được đơn của mình qua `PATCH /api/orders/{id}/cancel`, chỉ khi còn `PENDING`.
+7. Thanh toán giả lập (COD / QR) - không tích hợp cổng thanh toán thật.
+   Khách tự xác nhận đã trả qua `PATCH /api/orders/{id}/pay`; admin vẫn ghi nhận hoặc hoàn tác
+   thủ công bằng `PATCH /api/admin/orders/{id}/payment?paid=...`. Mã QR trên `/orders` chỉ là
+   hình minh hoạ sinh từ mã đơn (`FOOD-{id}-{tổng tiền}`), không mã hoá thông tin thật, và chỉ hiện với phương thức `QR`.
+8. Admin có thể tạo, sửa và xoá đơn thay khách qua `/api/admin/orders` (UC12), trong đó sửa sẽ
+   thay cả danh sách món và đồng bộ lại số tiền của giao dịch thanh toán.
+9. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
    trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
    Nút "Đặt lại" chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
+
+### 4b. Ràng buộc dữ liệu ở biên
+
+- Mật khẩu tối thiểu 8 ký tự (`@Size(min = 8)`), số điện thoại đúng 10 chữ số bắt đầu bằng 0
+  (`@Pattern("^0\\d{9}$")`). Client và server cùng kiểm tra để báo lỗi ngay tại trường nhập.
+- Phương thức thanh toán phải thuộc danh sách `COD|QR` (`@Pattern(regexp =
+  PAYMENT_METHOD_PATTERN)` trong `OrderDtos`). `COD` là **tiền mặt khi nhận**, `QR` là **quét
+  mã QR để chuyển khoản**; không có phương thức khác. Nhãn hiển thị nằm ở
+  `client/src/utils/orders.ts` (`PAYMENT_METHOD_LABEL`) để trang khách và trang quản trị hiện
+  giống nhau, không lộ mã thôi ra giao diện.
+- Giỏ hàng chỉ nhận món đang phục vụ (`CartService.add`); lỗi hiện ở lúc thêm chứ không đợi tới
+  lúc đặt.
+- Món đã có trong đơn không xoá được (`FoodService.delete` trả 409 kèm gợi ý chuyển sang
+  ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
+- Admin không khoá hay xoá được tài khoản quản trị (`AuthService.requireCustomer`).
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
@@ -281,7 +303,8 @@ nginx.conf         prod: serve dist/ và fallback về index.html
 
 ## Điểm quan trọng khi làm việc
 
-- **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); seed bị bỏ qua nếu `userRepo.count() > 0`.
+- **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); **seed chỉ chạy khi bảng `users` còn trống** (`if (userRepo.count() > 0) return;`), nên lần khởi động sau sẽ bỏ qua toàn bộ seed và không nhân đôi dữ liệu demo.
+- **Sao lưu database**: service `db-backup` trong compose chạy `pg_dump` lúc 2h sáng vào volume `db_backup`, giữ lại 7 bản gần nhất. Khôi phục bằng `pg_restore -d food_ordering /backups/db-YYYYMMDD.dump`.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
 - **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`, `jsonMode` ép JSON, config qua `app.ai.api-key` / `app.ai.model`). Muốn đổi nhà cung cấp AI chỉ sửa file này.

@@ -121,6 +121,7 @@ mvn package
 
 ## Tài liệu
 
+- [SPEC.md](SPEC.md) - đặc tả phần mềm: actor, use case, mô hình lớp, thiết kế CSDL, REST API và bảng truy vết
 - [ARCHITECTURE.md](ARCHITECTURE.md) - kiến trúc, luồng dữ liệu và cấu hình
 - [TEST.md](TEST.md) - hướng dẫn chạy test
 - [BRANCHING.md](BRANCHING.md) - quy ước phân nhánh và commit
