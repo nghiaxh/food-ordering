@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Select, Table, message } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
 import { adminDeleteOrder, adminGetOrders, adminGetUsers, adminSaveOrder, adminUpdateOrderPayment, adminUpdateOrderStatus, getFoods, type AdminOrderPayload } from '../../api/api'
@@ -6,18 +6,12 @@ import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
 import type { Order, OrderStatus } from '../../types'
 import { formatVND } from '../../utils/format'
-import { ORDER_STATUS_LABEL, allowedNextStatuses } from '../../utils/orders'
+import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, allowedNextStatuses } from '../../utils/orders'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiImg from '../../components/UiImg'
 import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
 
 const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED', 'CANCELLED']
-
-const PAYMENT_METHODS = [
-  { label: 'Tiền mặt khi nhận', value: 'CASH' },
-  { label: 'Chuyển khoản', value: 'BANK_TRANSFER' },
-  { label: 'Ví điện tử', value: 'E_WALLET' },
-]
 
 const STATUS_HEX: Record<OrderStatus, string> = {
   PENDING: '#f59e0b',
@@ -115,7 +109,7 @@ export default function AdminOrdersPage() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ items: [{ foodId: undefined, quantity: 1 }], paymentMethod: 'CASH', status: 'PENDING' })
+    form.setFieldsValue({ items: [{ foodId: undefined, quantity: 1 }], paymentMethod: 'COD', status: 'PENDING' })
     setModal(true)
   }
 
@@ -310,7 +304,10 @@ export default function AdminOrdersPage() {
                   </b>
                 </p>
                 <p>
-                  Thanh toán: <b className="font-medium text-stone-800">{detail.paymentMethod}</b>
+                  Thanh toán:{' '}
+                  <b className="font-medium text-stone-800">
+                    {PAYMENT_METHOD_LABEL[detail.paymentMethod] ?? detail.paymentMethod}
+                  </b>
                 </p>
                 <div className="flex items-center justify-between gap-3 pt-2">
                   <span className="text-sm text-stone-600">

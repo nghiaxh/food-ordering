@@ -5,17 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import { ORDER_FLOW, ORDER_STATUS_LABEL } from '../utils/orders'
+import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL } from '../utils/orders'
 import { formatVND } from '../utils/format'
 import type { Order, OrderStatus } from '../types'
 import FakeQr from '../components/FakeQr'
 import UiButton from '../components/UiButton'
-
-const PAYMENT_LABEL: Record<string, string> = {
-  CASH: 'Tiền mặt khi nhận',
-  BANK_TRANSFER: 'Chuyển khoản',
-  E_WALLET: 'Ví điện tử',
-}
 
 export default function OrdersPage() {
   const navigate = useNavigate()
@@ -162,7 +156,7 @@ export default function OrdersPage() {
                       ))}
                       <div className="flex items-center justify-between border-t border-dashed border-stone-200 pt-2 text-sm">
                         <span className="text-stone-500">
-                          {PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}
+                          {PAYMENT_METHOD_LABEL[o.paymentMethod] ?? o.paymentMethod}
                         </span>
                         <b className="text-base text-amber-700">{formatVND(o.total)}</b>
                       </div>
@@ -222,15 +216,20 @@ export default function OrdersPage() {
         {paying && (
           <div className="flex flex-col items-center gap-3 py-2 text-center">
             <div className="text-sm text-stone-500">
-              Phương thức: {PAYMENT_LABEL[paying.paymentMethod] ?? paying.paymentMethod}
+              Phương thức: {PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod}
             </div>
-            <FakeQr value={`FOOD-${paying.id}-${paying.total}`} />
+            {/* Chỉ phương thức QR mới có mã để quét; COD trả tiền khi nhận món nên không hiện QR. */}
+            {paying.paymentMethod === 'QR' && <FakeQr value={`FOOD-${paying.id}-${paying.total}`} />}
             <div className="text-lg font-bold text-stone-900">{formatVND(paying.total)}</div>
             <Alert
               type="warning"
               showIcon
               message="Thanh toán mô phỏng"
-              description="Mã trên không dùng để chuyển tiền thật. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn."
+              description={
+                paying.paymentMethod === 'QR'
+                  ? 'Mã trên không dùng để chuyển tiền thật. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
+                  : 'Bạn trả tiền mặt khi nhận món. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
+              }
             />
           </div>
         )}
