@@ -1,36 +1,18 @@
-import { Badge, Button, Space } from 'antd'
-import { ShoppingCartOutlined } from '@ant-design/icons'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+﻿import { useEffect, useState } from 'react'
+import { Avatar, Badge, Dropdown, Input, Popover, type MenuProps } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import UiIcon from './UiIcon'
+import UiButton from './UiButton'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 
-interface NavLink {
-  label: string
-  to: string
-  icon: string
-}
-
-const guestLinks: NavLink[] = [
-  { label: 'Trang chủ', to: '/', icon: 'home' },
-  { label: 'Thực đơn', to: '/foods', icon: 'fire' },
-  { label: 'Liên hệ', to: '/#contact', icon: 'phone' },
-]
-
-const signedInLinks: NavLink[] = [
-  { label: 'Trang chủ', to: '/', icon: 'home' },
-  { label: 'Thực đơn', to: '/foods', icon: 'fire' },
-  { label: 'Đơn hàng', to: '/orders', icon: 'inbox' },
-  { label: 'Liên hệ', to: '/#contact', icon: 'phone' },
-]
-
-const backofficeLinks: NavLink[] = [
-  { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
-  { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
-  { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
-  { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
-  { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
-]
-
+/**
+ * Thanh điều hướng dạng kiosk: nút trang chủ, ô tìm kiếm, nút đơn hàng, giỏ hàng, đăng nhập.
+ * Logo không nằm ở đây mà ở các trang không có thanh điều hướng (đăng nhập, đăng ký).
+ * Nút đơn hàng chỉ hiện khi đã đăng nhập vì trang `/orders` cần token; các trang con
+ * khác vẫn nằm trong menu tài khoản.
+ */
 export default function HeaderGlobal() {
   const { user, logout } = useAuthStore()
   const count = useCartStore((s) => s.count())
@@ -100,25 +82,19 @@ export default function HeaderGlobal() {
     },
   }
 
-  const closeDrawer = () => setDrawerOpen(false)
-
-  const drawerContent = (
-    <nav className="flex flex-col">
-      {user && (
-        <Link
-          to="/profile"
-          onClick={closeDrawer}
-          className="mb-3 flex items-center gap-3 rounded-xl border border-stone-200/70 bg-stone-50/60 p-3 transition hover:bg-amber-50"
-        >
-          <Avatar size={40} style={{ backgroundColor: '#d97706' }}>
-            {user.fullName.charAt(0).toUpperCase()}
-          </Avatar>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-stone-900">{user.fullName}</span>
-            <span className="block truncate text-xs text-stone-500">{user.email}</span>
-          </span>
-        </Link>
-      )}
+  return (
+    <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/95 backdrop-blur-xl">
+      <div className="mx-auto flex h-[3.25rem] max-w-[1600px] items-center gap-2 px-4 sm:gap-3 sm:px-5">
+        {/* Không đặt logo ở thanh điều hướng để dành chỗ cho ô tìm kiếm; thương hiệu hiện ở
+            các trang không có thanh này (đăng nhập, đăng ký). Nút trang chủ giữ đường về
+            bảng món cho những trang con như /cart, /orders, /profile. */}
+        <UiButton
+          kind="icon"
+          size="small"
+          aria-label="Trang chủ"
+          icon={<UiIcon name="home" size={18} />}
+          onClick={() => navigate('/')}
+        />
 
       <div className="flex flex-col gap-1">
         {navLinks.map((link) => (
@@ -292,83 +268,22 @@ export default function HeaderGlobal() {
               </Badge>
             )}
 
-            {user ? (
-              <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
-                <button
-                  type="button"
-                  aria-label="Menu tài khoản"
-                  className="flex items-center gap-2 rounded-lg p-1 hover:bg-amber-50"
-                >
-                  <Avatar style={{ backgroundColor: '#d97706' }}>{user.fullName.charAt(0).toUpperCase()}</Avatar>
-                  <span className="hidden text-sm font-medium text-stone-700 sm:inline">{user.fullName}</span>
-                </button>
-              </Dropdown>
-            ) : (
-              <>
-                <Button
-                  onClick={() => navigate('/login')}
-                  aria-label="Đăng nhập"
-                  icon={<UiIcon name="user" size={18} />}
-                  className="!h-10 !w-10 !p-0 sm:!h-auto sm:!w-auto sm:!px-4"
-                >
-                  <span className="max-sm:hidden">Đăng nhập</span>
-                </Button>
-                <Button type="primary" onClick={() => navigate('/register')}>
-                  Đăng ký
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={closeDrawer}
-        placement="left"
-        size={Math.min(320, Math.round(window.innerWidth * 0.85))}
-        styles={{ body: { padding: 12 } }}
-        title={
-          <span className="flex items-center gap-2 font-bold text-stone-900">
-            <img src="/favicon.svg" alt="FoodOrdering" className="h-7 w-7 rounded-lg" />
-            Food<span className="text-amber-600">Ordering</span>
-          </span>
-          Food<span className="text-amber-600">Ordering</span>
-        </Link>
-
-        <nav className="hidden items-center gap-6 md:flex">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `text-sm font-medium transition ${
-                  isActive ? 'text-amber-600' : 'text-stone-600 hover:text-stone-900'
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-          {user?.role === 'ADMIN' && (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                `text-sm font-medium transition ${
-                  isActive ? 'text-amber-600' : 'text-stone-600 hover:text-stone-900'
-                }`
-              }
-            >
-              Quản trị
-            </NavLink>
+          {user && (
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label="Đơn hàng"
+              icon={<UiIcon name="inbox" size={18} />}
+              onClick={() => navigate('/orders')}
+            />
           )}
-        </nav>
 
-        <Space size="small">
-          <Badge count={count} size="small">
-            <Button
-              shape="circle"
-              icon={<ShoppingCartOutlined />}
+          <Badge count={count} size="small" color="#d97706">
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label="Giỏ hàng"
+              icon={<UiIcon name="shopping-cart" size={18} />}
               onClick={() => navigate('/cart')}
               aria-label="Giỏ hàng"
             />
