@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { Alert, Empty, Modal, Popconfirm, Select, Skeleton, Steps, Tag, message } from 'antd'
+import { Alert, Empty, Modal, Popconfirm, QRCode, Select, Skeleton, Steps, Tag, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
@@ -8,7 +8,6 @@ import { useCartStore } from '../store/cartStore'
 import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL } from '../utils/orders'
 import { formatVND } from '../utils/format'
 import type { Order, OrderStatus } from '../types'
-import FakeQr from '../components/FakeQr'
 import UiButton from '../components/UiButton'
 
 export default function OrdersPage() {
@@ -218,8 +217,11 @@ export default function OrdersPage() {
             <div className="text-sm text-stone-500">
               Phương thức: {PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod}
             </div>
-            {/* Chỉ phương thức QR mới có mã để quét; COD trả tiền khi nhận món nên không hiện QR. */}
-            {paying.paymentMethod === 'QR' && <FakeQr value={`FOOD-${paying.id}-${paying.total}`} />}
+            {/* Chỉ phương thức QR mới có mã để quét; COD trả tiền khi nhận món nên không hiện QR.
+                Mã hoá mã đơn để quét ra thông tin nhận dạng đơn, không phải payload chuyển khoản. */}
+            {paying.paymentMethod === 'QR' && (
+              <QRCode value={`FOOD-${paying.id}-${paying.total}`} size={168} errorLevel="M" />
+            )}
             <div className="text-lg font-bold text-stone-900">{formatVND(paying.total)}</div>
             <Alert
               type="warning"
@@ -227,7 +229,7 @@ export default function OrdersPage() {
               message="Thanh toán mô phỏng"
               description={
                 paying.paymentMethod === 'QR'
-                  ? 'Mã trên không dùng để chuyển tiền thật. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
+                  ? 'Mã QR trên chỉ chứa mã đơn, không phải mã chuyển khoản nên không chuyển tiền thật. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
                   : 'Bạn trả tiền mặt khi nhận món. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
               }
             />
