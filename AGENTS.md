@@ -44,6 +44,15 @@ theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá ×
 câu hỏi kiểu "một món chính và một món uống". Số phần và tổng tiền phải tính ở server và
 gửi kèm thẻ món, không giao cho AI tự tính.
 
+**Nhánh dự phòng khi không gọi được AI** (thiếu/hỏng khóa, hết thời gian chờ):
+`chat()` rơi sang `selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code theo
+từ khóa trùng tên món/nguyên liệu/nhãn (không tính mô tả món, không tính từng từ của tên
+danh mục), rồi áp ràng buộc đọc chắc chắn từ câu: không cay, chay, loại trừ hải sản, ngân
+sách, số người. Câu trả lời chỉ tóm tắt một dòng rồi mời khách bấm thẻ món, **không** liệt
+kê lại danh sách món (thẻ món đã hiện bên dưới) - luật 9 của prompt AI cũng cấm AI làm vậy.
+Câu hỏi ngoài lề không gợi ý món nào. Thẻ món vẫn lấy ID/giá từ DB nên không có chuyện
+AI bịa món.
+
 ### Key wiring (không rõ từ tên file)
 
 - **Không dùng Flyway.** `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập
@@ -58,9 +67,35 @@ gửi kèm thẻ món, không giao cho AI tự tính.
   trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
   từng mục nằm trong `TEST.md`.
 - **Types client phải đồng bộ với DTO server** (thủ công). Sửa DTO nhớ cập nhật
-  `client/src/types/index.ts`.
-- **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin có thể
-  nhập link ảnh ngoài trong form, không có endpoint upload ảnh món (chỉ upload tài liệu chatbot).
+  `client/src/types/index.ts` và `client/src/api/api.ts`.
+- **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
+  lên qua `POST /api/admin/uploads/image` (JPG/PNG/WEBP, ≤ 2 MB, kiểm bằng chữ ký đầu file
+  chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `app.upload.dir`
+  (volume `uploads`) và phục vụ tại `/api/uploads/**`; endpoint trả URL **tuyệt đối** nên
+  không cần sửa nginx.
+- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, chi tiết món là **route con** `/foods/:id`
+  hiện thành Drawer phủ (không phải trang riêng) để không rời bảng món. Bộ lọc của trang này
+  nằm trên URL (`category`, `keyword`, `min`, `max`), đọc bằng `useSearchParams`.
+- **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
+  `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
+  viết class nút mới. **Đừng ghi đè kích thước bằng class.** Hai class `!h-*` có cùng độ ưu
+  tiên nên Tailwind quyết định theo thứ tự sinh CSS, không phải thứ tự truyền vào, nên
+  truyền `className="!h-9"` lên nút có preset `!h-10` sẽ **không** có tác dụng. Muốn nhỏ lại
+  thì truyền `size="small"`; bảng `HEIGHTS` trong UiButton đã tính sẵn.
+- **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
+  sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
+- **Thanh điều hướng có 5 thành phần** (nút trang chủ, ô tìm kiếm, đơn hàng, giỏ, đăng nhập)
+  theo Bảng 2.22. Logo **không** nằm ở thanh điều hướng, thương hiệu hiện ở trang đăng nhập và
+  đăng ký (`AuthShell`) vì hai trang này không có thanh điều hướng. Nút đơn hàng (icon `inbox`)
+  chỉ hiện khi đã đăng nhập vì `/orders` cần token; đừng thêm menu điều hướng, các trang con còn
+  lại nằm trong menu tài khoản. Header cao `3.25rem`; đổi chiều cao này thì sửa luôn
+  `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở `FoodsPage`, nếu không khung chat sẽ
+  tràn lên header hoặc bảng món bị hụt dải phía dưới.
+- **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[3.25rem]` + `justify-end`,
+  khung chat
+  `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
+  cách đó dễ trượt khi header đổi kích thước. Vùng trống của cụm có `pointer-events-none` nên
+  không chặn bấm vào thẻ món.
 - **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
   Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
   sửa `DataSeeder` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
