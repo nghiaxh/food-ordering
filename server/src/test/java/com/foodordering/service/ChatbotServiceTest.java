@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -35,6 +36,7 @@ class ChatbotServiceTest {
     private AiClient ai;
     private FoodRepository foodRepo;
     private CategoryRepository categoryRepo;
+    private KnowledgeService knowledgeService;
     private ChatbotService service;
 
     private Category monChinh;
@@ -49,6 +51,7 @@ class ChatbotServiceTest {
         UserRepository userRepo = mock(UserRepository.class);
         KnowledgeService knowledgeService = mock(KnowledgeService.class);
         AiSettingRepository settingRepo = mock(AiSettingRepository.class);
+        this.knowledgeService = knowledgeService;
 
         monChinh = new Category();
         monChinh.setId(1L);
@@ -59,7 +62,7 @@ class ChatbotServiceTest {
 
         when(categoryRepo.findAll()).thenReturn(List.of(monChinh, doUong));
         when(foodRepo.findAll()).thenAnswer(inv -> thucDong());
-        when(knowledgeService.findRelevant(anyString(), org.mockito.ArgumentMatchers.anyInt()))
+        when(knowledgeService.findRelevant(anyString(), anyInt()))
                 .thenReturn(List.of());
         when(settingRepo.findById(anyString())).thenReturn(Optional.empty());
 
@@ -131,13 +134,50 @@ class ChatbotServiceTest {
     }
 
     @Test
-    @DisplayName("AI lỗi hoặc trả JSON sai thì không gợi ý món thay vì bịa ra món")
-    void aiLoiKhongGoiYMon() {
+    @DisplayName("AI lỗi thì rơi sang nhánh dự phòng: món gợi ý lấy từ CSDL chứ không do AI bịa")
+    void aiLoiRoiSangNhanhDungPhong() {
         when(ai.generate(anyString(), anyString(), anyBoolean())).thenThrow(new RuntimeException("AI lỗi"));
 
-        ChatResponse res = service.chat(null, new ChatRequest("món nào ngon?", "s4"));
+        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s4"));
+
+        assertThat(res.foods()).isNotEmpty();
+        assertThat(res.foods()).allSatisfy(c -> {
+            Food f = thucDong().stream().filter(x -> x.getName().equals(c.name())).findFirst().orElseThrow();
+            assertThat(f.getDietaryTags().toLowerCase()).contains("chay");
+            assertThat(f.getSpicyLevel()).isZero();
+        });
+        // Câu trả lời chỉ tóm tắt, không liệt kê lại món (thẻ món đã hiện bên dưới).
+        assertThat(res.reply()).startsWith("Mình tìm được 2 món chay, không cay");
+        assertThat(res.reply()).doesNotContain("Trà đào cam sả");
+        assertThat(res.reply()).contains("Bấm vào thẻ món bên dưới");
+    }
+
+    @Test
+    @DisplayName("AI lỗi và câu hỏi ngoài lề thì không gợi ý món nào")
+    void aiLoiCauHoiNgoaiLe() {
+        when(ai.generate(anyString(), anyString(), anyBoolean())).thenThrow(new RuntimeException("AI lỗi"));
+
+        ChatResponse res = service.chat(null, new ChatRequest("Ai là Tổng thống Việt Nam?", "s6"));
 
         assertThat(res.foods()).isEmpty();
+        assertThat(res.reply()).contains("Mình chỉ tư vấn được về món ăn của quán");
+    }
+
+    @Test
+    @DisplayName("AI lỗi và câu hỏi có đáp án trong tài liệu thì trích đúng dòng tài liệu")
+    void aiLoiCauHoiTrongTaiLieu() {
+        when(ai.generate(anyString(), anyString(), anyBoolean())).thenThrow(new RuntimeException("AI lỗi"));
+        when(knowledgeService.findRelevant(anyString(), anyInt())).thenReturn(List.of(
+                "QUY ĐỊNH PHỤC VỤ\n\n1. Giờ mở cửa: 10:00 đến 22:00 tất cả các ngày trong tuần.\n"
+                        + "2. Giao hàng trong nội thành Hà Nội tối thiểu 30 phút."));
+
+        ChatResponse res = service.chat(null, new ChatRequest("Giờ mở cửa mấy giờ?", "s7"));
+
+        assertThat(res.foods()).isEmpty();
+        assertThat(res.reply()).contains("Theo thông tin của quán:");
+        assertThat(res.reply()).contains("- Giờ mở cửa: 10:00 đến 22:00 tất cả các ngày trong tuần.");
+        // Tiêu đề tài liệu không phải nội dung trả lời nên không được lọt vào.
+        assertThat(res.reply()).doesNotContain("QUY ĐỊNH PHỤC VỤ");
     }
 
     @Test
