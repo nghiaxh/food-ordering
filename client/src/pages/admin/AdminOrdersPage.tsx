@@ -6,7 +6,7 @@ import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
 import type { Order, OrderStatus } from '../../types'
 import { formatVND } from '../../utils/format'
-import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, allowedNextStatuses } from '../../utils/orders'
+import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, allowedNextStatuses, orderCode } from '../../utils/orders'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiImg from '../../components/UiImg'
 import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
@@ -205,7 +205,7 @@ export default function AdminOrdersPage() {
                 title: 'Mã đơn',
                 width: 90,
                 fixed: 'left',
-                render: (_, o) => <span className="tabular-nums">#{o.id}</span>,
+                render: (_, o) => <span className="tabular-nums">#{orderCode(o.id)}</span>,
               },
               {
                 title: 'Khách',

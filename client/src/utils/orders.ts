@@ -32,6 +32,14 @@ export const PAYMENT_METHODS = [
   { label: PAYMENT_METHOD_LABEL.QR, value: 'QR' },
 ]
 
+/**
+ * Mã hoá đơn hiển thị cho khách và quản trị viên: tiền tố `FO` kèm id đệm 4 chữ số.
+ * Một chỗ sinh mã để hai bên không lệch nhau; id do server cấp nên không cần đổi dữ liệu.
+ */
+export function orderCode(id: number): string {
+  return `FO-${String(id).padStart(4, '0')}`
+}
+
 /** Trình tự quy trình của một đơn; Hủy là nhánh ngoài nên không nằm trong dãy này. */
 export const ORDER_FLOW: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED']
 

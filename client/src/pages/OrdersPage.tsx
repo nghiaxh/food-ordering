@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL } from '../utils/orders'
+import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '../utils/orders'
 import { formatVND } from '../utils/format'
 import type { Order, OrderStatus } from '../types'
 import UiButton from '../components/UiButton'
@@ -49,7 +49,7 @@ export default function OrdersPage() {
   const cancel = async (order: Order) => {
     try {
       await cancelOrder(order.id)
-      message.success(`Đã hủy đơn #RH-${String(order.id).padStart(4, '0')}`)
+      message.success(`Đã hủy đơn #${orderCode(order.id)}`)
       await refresh()
     } catch {
       message.error('Không hủy được đơn này')
@@ -120,7 +120,7 @@ export default function OrdersPage() {
                   <div key={o.id} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200/60">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold text-stone-900">
-                        Đơn #RH-{String(o.id).padStart(4, '0')}
+                        Đơn #{orderCode(o.id)}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-stone-400">
@@ -202,7 +202,7 @@ export default function OrdersPage() {
       <Modal
         open={paying !== null}
         onCancel={() => setPaying(null)}
-        title={`Thanh toán đơn #RH-${String(paying?.id ?? 0).padStart(4, '0')}`}
+        title={`Thanh toán đơn #${orderCode(paying?.id ?? 0)}`}
         footer={[
           <UiButton key="back" kind="default" onClick={() => setPaying(null)}>
             Quay lại
