@@ -49,6 +49,15 @@ theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá ×
 câu hỏi kiểu "một món chính và một món uống". Số phần và tổng tiền phải tính ở server và
 gửi kèm thẻ món, không giao cho AI tự tính.
 
+**Nhánh dự phòng khi không gọi được AI** (thiếu/hỏng khóa, hết thời gian chờ):
+`chat()` rơi sang `selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code theo
+từ khóa trùng tên món/nguyên liệu/nhãn (không tính mô tả món, không tính từng từ của tên
+danh mục), rồi áp ràng buộc đọc chắc chắn từ câu: không cay, chay, loại trừ hải sản, ngân
+sách, số người. Câu trả lời chỉ tóm tắt một dòng rồi mời khách bấm thẻ món, **không** liệt
+kê lại danh sách món (thẻ món đã hiện bên dưới) - luật 9 của prompt AI cũng cấm AI làm vậy.
+Câu hỏi ngoài lề không gợi ý món nào. Thẻ món vẫn lấy ID/giá từ DB nên không có chuyện
+AI bịa món.
+
 ### Key wiring (không rõ từ tên file)
 
 - **Không dùng Flyway.** `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập
@@ -84,10 +93,13 @@ gửi kèm thẻ món, không giao cho AI tự tính.
   thì truyền `size="small"`; bảng `HEIGHTS` trong UiButton đã tính sẵn.
 - **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
   sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
-- **Thanh điều hướng chỉ có 4 thành phần** (logo, ô tìm kiếm, giỏ, đăng nhập) theo Bảng 2.22.
-  Đừng thêm menu điều hướng; các trang con nằm trong menu tài khoản. Header cao `3.25rem`;
-  đổi chiều cao này thì sửa luôn `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở
-  `FoodsPage`, nếu không khung chat sẽ tràn lên header hoặc bảng món bị hụt dải phía dưới.
+- **Thanh điều hướng có 5 thành phần** (nút trang chủ, ô tìm kiếm, đơn hàng, giỏ, đăng nhập)
+  theo Bảng 2.22. Logo **không** nằm ở thanh điều hướng, thương hiệu hiện ở trang đăng nhập và
+  đăng ký (`AuthShell`) vì hai trang này không có thanh điều hướng. Nút đơn hàng (icon `inbox`)
+  chỉ hiện khi đã đăng nhập vì `/orders` cần token; đừng thêm menu điều hướng, các trang con còn
+  lại nằm trong menu tài khoản. Header cao `3.25rem`; đổi chiều cao này thì sửa luôn
+  `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở `FoodsPage`, nếu không khung chat sẽ
+  tràn lên header hoặc bảng món bị hụt dải phía dưới.
 - **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[3.25rem]` + `justify-end`,
   khung chat
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,

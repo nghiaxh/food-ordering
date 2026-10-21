@@ -83,13 +83,17 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 6. Khách tự hủy được đơn của mình qua `PATCH /api/orders/{id}/cancel`, chỉ khi còn `PENDING`.
 7. Thanh toán giả lập (COD / QR) - không tích hợp cổng thanh toán thật.
    Khách tự xác nhận đã trả qua `PATCH /api/orders/{id}/pay`; admin vẫn ghi nhận hoặc hoàn tác
-   thủ công bằng `PATCH /api/admin/orders/{id}/payment?paid=...`. Mã QR trên `/orders` chỉ là
-   hình minh hoạ sinh từ mã đơn (`FOOD-{id}-{tổng tiền}`), không mã hoá thông tin thật, và chỉ hiện với phương thức `QR`.
+   thủ công bằng `PATCH /api/admin/orders/{id}/payment?paid=...`. Mã QR trên `/orders` do component
+   `QRCode` của antd sinh, mã hoá mã đơn (`FOOD-{id}-{tổng tiền}`) nên quét ra chỉ có thông tin
+   nhận dạng đơn, không phải payload chuyển khoản; chỉ hiện với phương thức `QR`.
 8. Admin có thể tạo, sửa và xoá đơn thay khách qua `/api/admin/orders` (UC12), trong đó sửa sẽ
    thay cả danh sách món và đồng bộ lại số tiền của giao dịch thanh toán.
 9. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
    trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
    Nút "Đặt lại" chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
+10. Mã đơn hiển thị cho khách và quản trị viên là `FO-xxxx` (tiền tố `FO` + id đệm 4 chữ số),
+    sinh bởi `orderCode` trong `client/src/utils/orders.ts` để hai bên không lệch nhau. Id do
+    server cấp nên đổi tiền tố không cần sửa dữ liệu; mã QR vẫn giữ `FOOD-{id}-{tổng tiền}`.
 
 ### 4b. Ràng buộc dữ liệu ở biên
 
@@ -130,10 +134,20 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
   Gemini và OpenAI đều được hỗ trợ; `RestClient` có timeout 15 giâp cho cả kết nối và đọc.
 - Câu hỏi tiếp theo của cùng phiên được đưa vào ngữ cảnh lượt ghi câu trả lời, để khách hỏi
   tiếp về món vừa được gợi ý mà AI vẫn biết đang nói về món nào.
-- Lỗi AI/JSON sai thì xử lý bằng `try/catch` → tiêu chí rỗng, hệ thống vẫn chạy bình thường.
-  Khi lượt ghi câu trả lời lỗi, chatbot trả thông báo dự phòng và vẫn gửi kèm thẻ món lọc
-  được, nên khách không bị màn hình trắng. JSON AI trả về có thể có thêm trường lạ; mapper
-  bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường thừa không làm mất gợi ý.
+- Lỗi AI/JSON sai thì xử lý bằng `try/catch` → hệ thống vẫn chạy bình thường. JSON AI trả về có
+  thể có thêm trường lạ; mapper bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường
+  thừa không làm mất gợi ý.
+- **Nhánh dự phòng khi không gọi được AI** (thiếu khóa, khóa hỏng, hết thời gian chờ): `chat()`
+  rơi sang `ChatbotService.selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code
+  theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm
+  tên danh mục, rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải
+  sản, ngân sách, số người). Câu trả lời chỉ tóm tắt một dòng ("Mình tìm được 5 món chay, không
+  cay, giá từ 35.000đ.") rồi mời khách bấm thẻ món, **không** liệt kê lại danh sách món vì
+  thẻ món đã hiện ngay dưới. Khi không có món nào để gợi ý, câu trả lời lấy các dòng tài liệu
+  có từ khoá của câu hỏi (tối đa 3 dòng, bỏ số thứ tự và dòng bị cắt dở); câu hỏi ngoài lề thì
+  không gợi ý môn nào. Thẻ món vẫn lấy ID/giá từ CSDL nên không có chuyện AI bịa món.
+- Prompt của lượt ghi câu trả lời có luật số 9: AI cũng không được liệt kê lại danh sách món,
+  để câu trả lời của hai nhánh (AI và dự phòng) nhìn giống nhau.
 - **Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại.** Khách vãng lai vẫn chat được nhưng
   tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
 - RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn 500 ký tự, chấm điểm theo từ khóa,
@@ -221,12 +235,18 @@ trong chatbot liên kết được, và nút quay lại của trình duyệt đ�
 
 ### Thanh điều hướng và hệ nút
 
-- Thanh điều hướng chỉ có đúng 4 thành phần Bảng 2.22: logo, ô tìm kiếm, giỏ hàng, đăng
-  nhập, cộng ô thông báo. Không có menu điều hướng tới các trang con; những đích đó nằm trong
-  menu tài khoản (Đơn hàng của tôi, Tài khoản, Trang quản trị nếu là admin, Đăng xuất).
-  Header cao `3.25rem`, chỉ giữ logo nhỏ không kèm chữ tên, các nút trong header dùng
-  `size="small"` (36px). Ô tìm kiếm có `md:max-w-xl`: không chặn bề rộng thì trên màn hình
-  rộng nó giãng hết chỗ trống và đẩy nhóm nút bên phải lệch ra rìa.
+- Thanh điều hướng có 5 thành phần Bảng 2.22: nút trang chủ, ô tìm kiếm, đơn hàng, giỏ hàng,
+  đăng nhập, cộng ô thông báo. Nút đơn hàng (icon `inbox`, cạnh nút giỏ hàng) chỉ hiện khi đã đăng
+  nhập vì route `/orders` bắt buộc token; khách vãng lai vẫn vào được `/orders` qua
+  `RequireAuth` nhưng không thấy nút này. Không có menu điều hướng tới các trang con; những
+  đích đó nằm trong menu tài khoản (Đơn hàng của tôi, Tài khoản, Trang quản trị nếu là admin,
+  Đăng xuất). Header cao `3.25rem`, các nút trong header dùng `size="small"` (36px). Ô tìm
+  kiếm có `md:max-w-xl`: không chặn bề rộng thì trên màn hình rộng nó giãng hết chỗ trống và
+  đẩy nhóm nút bên phải lệch ra rìa.
+- **Logo không nằm ở thanh điều hướng**: chỗ ấy để nút trang chủ (icon `home`) quay về bảng món.
+  Thương hiệu hiện ở hai trang không có thanh điều hướng là `/login` và `/register` (`AuthShell`:
+  logo `favicon.svg` + chữ "FoodOrdering", link về `/`); trang quản trị có logo riêng trong
+  `AdminLayout`.
 - `components/UiButton.tsx` là nút dùng chung, chỉ 6 dạng: `primary` (44px), `primary-lg`
   (52px, đúng 1 nút mỗi màn hình), `default`, `danger`, `icon` (40px), `fab` (64px, nút mở
   chatbot). Mọi kích thước, bo góc và màu nằm ở một chỗ. Kích thước ghi bằng tiền tố `!` vì
@@ -235,7 +255,7 @@ trong chatbot liên kết được, và nút quay lại của trình duyệt đ�
   ăn vì hai class `!important` bằng nhau thì Tailwind quyết định theo thứ tự sinh CSS, muốn
   nhỏ lại phải truyền `size="small"`.
 - Thẻ món dùng nút "Thêm vào giỏ" **có nhãn** vì Bảng 2.22 ghi rõ tên thành phần này; món hết
-  hiện nhãn "Hết món" và nút bị vô hiệu hoá.
+  hiện nhãn "Hết món" và nút bị vô hiệu hoá. Nút chỉ có chữ, không kèm icon dấu "+".
 
 ### Chatbot nổi
 

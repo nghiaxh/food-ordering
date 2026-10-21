@@ -49,7 +49,8 @@ chấm điểm của môn CT250E:
 ### 3.2.2. Ngoài phạm vi
 
 - Thanh toán qua cổng thanh toán thật (ngân hàng, ví) — hệ thống chỉ mô phỏng.
-- Mã QR thật do ngân hàng phát hành — hệ thống chỉ hiện hình minh hoạ sinh từ mã đơn.
+- Mã QR phát hành bởi ngân hàng — hệ thống tự sinh mã QR chuẩn (component `QRCode` của antd) mã hoá
+  mã đơn `FOOD-{id}-{tổng tiền}`, quét ra không chuyển tiền thật.
 - Tải tải và kiểm thử trên thiết bị thật iOS/Android — giao diện là web responsive.
 - Hiệu năng tải đồng thời lớn, kiểm thử tải (load test) và kiểm thử xâm nhập chuyên sâu.
 
@@ -196,6 +197,9 @@ cd ../server && mvn test
 | TC-DN-12 | UC05 | Đã đăng nhập | Đổi mật khẩu với mật khẩu cũ sai | `currentPassword: "sai"`, `newPassword: "matkhaumoi123"` | HTTP 400, message "Mật khẩu hiện tại không đúng"; mật khẩu cũ vẫn dùng được | | |
 | TC-DN-13 | UC05 | Đã đăng nhập | Đổi mật khẩu hợp lệ | `currentPassword: "user1234"`, `newPassword: "matkhaumoi123"` | HTTP 200; đăng nhậu lại được bằng mật khẩu mới; mật khẩu cũ không còn dùng được | | |
 | TC-DN-14 | UC03 | Đã đăng nhập | Nhấn "Đăng xuất" | — | Token bị xoá khỏi `localStorage` và `sessionStorage`; truy cập `/orders` bị đưa về `/login`; giỏ hàng của tài khoản bị xoá khỏi state | | |
+| TC-DN-15 | UC14 | Đã đăng nhập | Xem thanh điều hướng rồi bấm nút đơn hàng (icon `inbox`, cạnh nút giỏ hàng) | — | Thanh điều hướng hiện nút "Đơn hàng" cạnh nút giỏ hàng; bấm sang trang `/orders` | | |
+| TC-DN-16 | UC14 | Chưa đăng nhập | Xem thanh điều hướng | — | Không có nút "Đơn hàng" trên thanh điều hướng (chỉ có nút giỏ hàng và ô "Đăng nhập") | | |
+| TC-DN-17 | UC02 | — | Xem thanh điều hướng rồi bấm nút trang chủ (icon `home`), sau đó mở `/login` | — | Nút trang chủ đưa về `/`; trang `/login` và `/register` hiện logo FoodOrdering ở góc trên trái (hai trang không có thanh điều hướng) | | |
 
 ## 2.2. Đặt món và thanh toán (UC09–UC16, UC30, UC31)
 
@@ -218,7 +222,7 @@ cd ../server && mvn test
 | TC-DM-15 | UC15 | Có đơn `PENDING` | Bấm "Hủy đơn" | — | HTTP 200; `status = CANCELLED`; có thông báo xác nhận hủy | | |
 | TC-DM-16 | UC15 | Đơn đã `CANCELLED` | Bấm "Hủy đơn" lần nữa | — | HTTP 400, message "Chỉ đơn đang chờ xác nhận mới hủy được..." | | |
 | TC-DM-17 | UC15 | Có đơn `PREPARING` | Gọi `PATCH /api/orders/{id}/cancel` | — | HTTP 400 — đơn đã vào chế biến không tự hủy được | | |
-| TC-DM-18 | UC13 | Đơn `PENDING` chọn `paymentMethod = "QR"` | Mở modal thanh toán | — | Hiện mã QR minh hoạ kèm cảnh báo "Thanh toán mô phỏng"; mã QR **không** hiện với phương thức COD | | |
+| TC-DM-18 | UC13 | Đơn `PENDING` chọn `paymentMethod = "QR"` | Mở modal thanh toán | — | Hiện mã QR quét được (mã hoá `FOOD-{id}-{tổng tiền}`) kèm cảnh báo "Thanh toán mô phỏng"; mã QR **không** hiện với phương thức COD | | |
 | TC-DM-19 | UC30 | Đã đăng nhập admin, có đơn `PENDING` | Chuyển đơn sang "Đã xác nhận" | `status: "CONFIRMED"` | HTTP 200; `status = CONFIRMED`; khách nhận thông báo | | |
 | TC-DM-20 | UC30 | Đơn `CONFIRMED` | Thử chuyển thẳng sang `COMPLETED` | `status: "COMPLETED"` | HTTP 400 — trạng thái đơn đi đúng một chiều, không nhảy cóc | | |
 | TC-DM-21 | UC30 | Đơn `COMPLETED` | Thử chuyển trạng thái bất kỳ | `status: "PENDING"` | HTTP 400 — đơn đã chốt không đổi trạng thái được | | |
@@ -226,6 +230,7 @@ cd ../server && mvn test
 | TC-DM-23 | UC31 | Đơn `PAID` | Hoàn tác ghi nhận thanh toán | `paid=false` | HTTP 200; `paymentStatus = UNPAID`; giao dịch thanh toán `PENDING`, `paidAt = null` | | |
 | TC-DM-24 | UC32 | Đã đăng nhập khách | Gọi `GET /api/admin/orders` bằng token khách | Bearer token của khách | HTTP 403 — quyền quản trị được kiểm soát ở server, không chỉ ẩn menu | | |
 | TC-DM-25 | UC16 | Có đơn cũ `COMPLETED` chứa Phở bò và Bún chả | Bấm "Đặt lại" | — | Cả 2 món còn phục vụ được đưa về giỏ; món ngừng phục vụ bị bỏ qua kèm cảnh báo; **ghi chú cũ không** được mang theo | | |
+| TC-DM-26 | UC14 | Có đơn của chính mình | Xem `/orders`, sau đó mở `/admin/orders` | — | Mã đơn hiển thị giống nhau ở cả hai trang, dạng `FO-xxxx` (tiền tố `FO` + id đệm 4 chữ số) | | |
 
 ## 2.3. Quản lý món và danh mục (UC26–UC28, UC27)
 
@@ -278,15 +283,19 @@ cd ../server && mvn test
 | TC-CB-17 | UC21 | Đã đăng nhập | Hỏi một câu, rồi hỏi tiếp câu liên quan | "Món Việt nào ngon?" → "Món đó ăn cay không?" | Lượt thứ hai dùng được ngữ cảnh lượt trước: trả lời về **món vừa gợi ý**, không hỏi lại từ đầu | | |
 | TC-CB-18 | UC21 | Đã đăng nhập | Hỏi một câu | "Món chay dưới 100k" | Trả về đúng các món chay dưới 100.000đ (Rau muống 35.000đ, Đậu hũ 40.000đ, Trà đào 40.000đ, Nước cam 35.000đ); **không** có Cà phê sữa đá (30.000đ) dù rẻ hơn vì không phải món chay | | |
 | TC-CB-19 | UC35 | Đã đăng nhập admin | Mở `/admin/chatbot`, xem lịch sử hội thoại | — | Hiện đủ các lượt hỏi–đáp của khách đã đăng nhập, kèm thời gian và `sessionId`; tin nhắn của khách vãng lai **không** có trong danh sách | | |
-| TC-CB-20 | UC21 | AI_API_KEY sai hoặc hết hạn | Hỏi một câu bất kỳ | "Món nào ngon?" | Chatbot trả thông báo dự phòng ngắn gọn, **không** gợi ý món giả; ứng dụng không bị treo hay báo lỗi 500 | | |
+| TC-CB-20 | UC21 | AI_API_KEY sai hoặc hết hạn | Hỏi một câu bất kỳ | "Món nào ngon?" | Ứng dụng không bị treo hay báo lỗi 500; câu trả lời do server dựng theo mẫu dự phòng (không phải nội dung AI) và mọi thẻ món gợi ý đều là món thật lấy từ CSDL, **không** có món giả | | |
+| TC-CB-21 | UC21 | AI_API_KEY thiếu hoặc hỏng | Hỏi về khẩu vị | "Gợi ý món chay không cay" | Nhánh dự phòng lọc món bằng code: chỉ trả món **chay** và **không cay** (Rau muống 35.000đ, Đậu hũ 40.000đ, Nước cam 35.000đ, Trà đào 40.000đ, Chè khúc bạch 45.000đ), không có món cay. Câu trả lời chỉ tóm tắt ("Mình tìm được 5 món chay, không cay, giá từ 35.000đ.") và mời bấm thẻ món, **không** liệt kê lại danh sách món | | |
+| TC-CB-22 | UC21 | AI_API_KEY thiếu hoặc hỏng | Hỏi ngoài lề | "Ai là Tổng thống Việt Nam?" | Chatbot **không** gợi ý món nào (câu hỏi không có từ khoá món), chỉ nhắc tư vấn về món ăn của quán | | |
+| TC-CB-23 | UC21 | AI_API_KEY thiếu hoặc hỏng | Hỏi kèm ngân sách và số người | "Món ngon dưới 200k cho 2 người" | Nhánh dự phòng áp đúng số phần và tổng tiền: tổng tiền mỗi thẻ = giá × số phần và **không** vượt 200.000đ | | |
+| TC-CB-24 | UC21 | AI_API_KEY thiếu hoặc hỏng | Hỏi về quy định phục vụ | "Giờ mở cửa mấy giờ?" | Không gợi ý món nào; câu trả lời trích đúng dòng tài liệu có từ khoá ("Giờ mở cửa: 10:00 đến 22:00..."), không lẫn tiêu đề tài liệu hay đoạn text bị cắt dở | | |
 
 ## 2.5. Kiểm thử tự động (mục 3.8 — kịch bản chạy bằng máy)
 
 | ID | UC | Lệnh | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |----|----|------|-------------------|------------------|----------|
-| TC-AU-01 | UC23 | `cd server && mvn test -Dtest=ChatbotServiceTest` | 5 test Pass: số phần theo khẩu phần, kết hợp món, lọc theo khẩu vị, AI lỗi không gợi ý món, AI trả thêm trường lạ | | |
+| TC-AU-01 | UC23 | `cd server && mvn test -Dtest=ChatbotServiceTest` | 7 test Pass: số phần theo khẩu phần, kết hợp món, lọc theo khẩu vị, AI lỗi rơi sang nhánh dự phòng, AI lỗi + câu hỏi ngoài lề không gợi ý món, AI lỗi + câu hỏi trong tài liệu trích đúng dòng, AI trả thêm trường lạ | | |
 | TC-AU-02 | UC12 | `cd server && mvn test -Dtest=OrderDtosValidationTest` | 11 test Pass: whitelist `COD`/`QR`, chặn giá trị lạ, chặn ghi chú > 255 ký tự, chặn đơn không có món | | |
-| TC-AU-03 | — | `cd server && mvn test` | `Tests run: 16, Failures: 0, Errors: 0`, `BUILD SUCCESS` | | |
+| TC-AU-03 | — | `cd server && mvn test` | `Tests run: 18, Failures: 0, Errors: 0`, `BUILD SUCCESS` | | |
 | TC-AU-04 | — | `cd client && npm run typecheck` | Không có lỗi kiểu dữ liệu (exit code 0) | | |
 | TC-AU-05 | — | `cd client && npm run build` | Build thành công, sinh `client/dist/` (exit code 0) | | |
 
