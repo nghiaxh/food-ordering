@@ -1,5 +1,4 @@
 ﻿import { message } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import type { Food } from '../types'
 import { useCartStore } from '../store/cartStore'
@@ -68,7 +67,6 @@ export default function FoodCard({ food }: { food: Food }) {
           <UiButton
             kind="primary"
             className="!px-3 !text-sm"
-            icon={<PlusOutlined />}
             disabled={!food.available}
             onClick={() => {
               add(food)
