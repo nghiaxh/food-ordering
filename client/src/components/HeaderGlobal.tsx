@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { Avatar, Badge, Dropdown, Input, Popover, type MenuProps } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import UiIcon from './UiIcon'
 import UiButton from './UiButton'
 import { useAuthStore } from '../store/authStore'
@@ -10,8 +10,10 @@ import { getNotifications, markNotificationsRead } from '../api/api'
 import type { NotificationItem } from '../types'
 
 /**
- * Thanh điều hướng dạng kiosk, bám đúng Bảng 2.22: logo, ô tìm kiếm, giỏ hàng, đăng nhập.
- * Không có menu điều hướng tới các trang con; những đích đó nằm trong menu tài khoản.
+ * Thanh điều hướng dạng kiosk: nút trang chủ, ô tìm kiếm, nút đơn hàng, giỏ hàng, đăng nhập.
+ * Logo không nằm ở đây mà ở các trang không có thanh điều hướng (đăng nhập, đăng ký).
+ * Nút đơn hàng chỉ hiện khi đã đăng nhập vì trang `/orders` cần token; các trang con
+ * khác vẫn nằm trong menu tài khoản.
  */
 export default function HeaderGlobal() {
   const navigate = useNavigate()
@@ -84,15 +86,16 @@ export default function HeaderGlobal() {
   return (
     <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/95 backdrop-blur-xl">
       <div className="mx-auto flex h-[3.25rem] max-w-[1600px] items-center gap-2 px-4 sm:gap-3 sm:px-5">
-        {/* Chỉ giữ logo, bỏ chữ tên: tên thương hiệu lặp ở favicon tab và tiêu đề trang,
-            ở đây chỉ còn chỗ bấm về bảng món. */}
-        <Link
-          to="/"
-          aria-label="Về bảng món"
-          className="flex shrink-0 items-center rounded-xl p-0.5 transition hover:bg-amber-50"
-        >
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
-        </Link>
+        {/* Không đặt logo ở thanh điều hướng để dành chỗ cho ô tìm kiếm; thương hiệu hiện ở
+            các trang không có thanh này (đăng nhập, đăng ký). Nút trang chủ giữ đường về
+            bảng món cho những trang con như /cart, /orders, /profile. */}
+        <UiButton
+          kind="icon"
+          size="small"
+          aria-label="Trang chủ"
+          icon={<UiIcon name="home" size={18} />}
+          onClick={() => navigate('/')}
+        />
 
         {/* Chặn bề rộng: không có `max-w` thì trên màn hình rộng ô tìm kiếm giãng hết
             chiều ngang còn lại, nhóm nút bên phải bị đẩy lệch ra rìa. */}
@@ -166,6 +169,16 @@ export default function HeaderGlobal() {
                 />
               </Badge>
             </Popover>
+          )}
+
+          {user && (
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label="Đơn hàng"
+              icon={<UiIcon name="inbox" size={18} />}
+              onClick={() => navigate('/orders')}
+            />
           )}
 
           <Badge count={count} size="small" color="#d97706">
