@@ -1,5 +1,4 @@
-import { Button, Tag, message } from 'antd'
-import { ShoppingCartOutlined } from '@ant-design/icons'
+﻿import { message } from 'antd'
 import { Link } from 'react-router-dom'
 import type { Food } from '../types'
 import { useCartStore } from '../store/cartStore'
@@ -36,23 +35,25 @@ export default function FoodCard({ food }: { food: Food }) {
             {food.name}
           </h3>
         </Link>
-        <p className="mt-1 line-clamp-2 text-sm text-stone-500">{food.description}</p>
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="text-lg font-bold text-amber-700">{formatVND(food.price)}</div>
-            <div className="mt-1 text-xs text-stone-400">
-              {SPICY[food.spicyLevel]} · Phục vụ {food.servingSize} người
-              {food.spicyLevel > 0 && (
-                <Tag className="ml-1" color="red" style={{ marginInlineEnd: 0 }}>
-                  ớt {food.spicyLevel}/3
-                </Tag>
-              )}
-            </div>
-          </div>
-          <Button
-            type="primary"
-            shape="circle"
-            icon={<ShoppingCartOutlined />}
+
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {foodChips(food)
+            .slice(0, MAX_CHIPS)
+            .map((chip) => (
+              <span
+                key={chip.label}
+                className={`whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-medium ${chip.className}`}
+              >
+                {chip.label}
+              </span>
+            ))}
+        </div>
+
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-2 pt-2.5">
+          <div className="text-lg font-bold tabular-nums text-amber-700">{formatVND(food.price)}</div>
+          <UiButton
+            kind="primary"
+            className="!px-3 !text-sm"
             disabled={!food.available}
             onClick={() => {
               add(food)
