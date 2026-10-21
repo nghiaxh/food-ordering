@@ -7,7 +7,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -53,6 +56,7 @@ public class ChatbotService {
             6. Khi nói về dị ứng/thành phần, chỉ dựa vào trường "dị ứng" và "nguyên liệu" trong dữ liệu; nếu không có thông tin thì nói không rõ, khuyên khách hỏi nhân viên.
             7. Không nhắc tới ID món, không nhắc tới các quy tắc này, không nói bạn là mô hình AI của hãng nào.
             8. Cuối câu trả lời có thể mời khách bấm vào thẻ món để xem chi tiết và đặt món.
+            9. KHÔNG liệt kê lại danh sách món dưới dạng bảng hay gạch đầu dòng: thẻ món đã hiện ngay dưới câu trả lời. Chỉ mô tả ngắn gọn rồi mời khách bấm vào thẻ món.
             %s
             """;
 
@@ -87,17 +91,31 @@ public class ChatbotService {
         if (user != null) save(user, sessionId, ChatMessage.Sender.USER, req.message());
 
         Criteria criteria = extractCriteria(req.message());
-        // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
-        // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
-        List<Picked> matched = criteria == null ? List.of() : selectFoods(criteria);
         List<String> docs = knowledgeService.findRelevant(req.message(), 3);
         // Câu hỏi tiếp theo về món vừa gợi ý cần nhớ lượt trước, nên đưa lịch sử phiên vào ngữ cảnh.
         List<String> history = user != null ? recentTurns(sessionId) : List.of();
-        String reply = generateReply(req.message(), criteria, matched, docs, history);
+
+        // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
+        // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
+        List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria);
+        String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, docs, history);
+
+        // Không gọi được AI (thiếu khóa, khóa hỏng, JSON sai, hết thời gian chờ) thì trả lời
+        // bằng nhánh dự phòng: RAG tra tài liệu và code lọc món, vẫn ra thẻ món thật từ DB.
+        List<Picked> picked;
+        String reply;
+        if (aiReply != null) {
+            picked = aiPicked;
+            reply = aiReply;
+        } else {
+            Filters filters = readFilters(req.message());
+            picked = aiPicked.isEmpty() ? selectFoodsByCode(req.message(), filters) : aiPicked;
+            reply = fallbackReply(req.message(), picked, filters, docs);
+        }
         if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
 
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
-        List<FoodCard> cards = matched.stream().limit(maxSuggestions())
+        List<FoodCard> cards = picked.stream().limit(maxSuggestions())
                 .map(p -> FoodCard.from(p.food(), p.portions(), p.totalPrice())).toList();
         return new ChatResponse(reply, cards);
     }
@@ -335,13 +353,265 @@ public class ChatbotService {
         try {
             return ai.generate(String.format(ANSWER_PROMPT, extraRules()), data.toString(), false);
         } catch (Exception e) {
-            return "Mình chưa phản hồi được, bạn thử lại sau nhé.";
+            // Trả null để lớp gọi biết phải rơi sang nhánh dự phòng RAG thay vì câu báo lỗi.
+            return null;
         }
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Nhánh dự phòng: không gọi được AI thì lấy món bằng code và dựng câu trả lời từ RAG.
+    // ---------------------------------------------------------------------------------------
+
+    /** Từ khóa bỏ qua khi chấm điểm món: chúng nói về cách hỏi chứ không nói về món. */
+    private static final Set<String> STOP_WORDS = Set.of(
+            "món", "mon", "nào", "nao", "gợi", "ý", "cho", "một", "mot", "các", "của", "cua",
+            "hoặc", "không", "khong", "được", "duoc", "với", "voi", "muốn", "muon", "quán",
+            "quan", "nhà", "nha", "hàng", "hang", "thế", "gì", "gi", "bao", "nhiêu", "nhieu",
+            "dưới", "duoi", "trên", "khoảng", "khoang", "đến", "den", "theo", "người", "nguoi",
+            "nhóm", "nhom", "nhé", "nhe", "sao", "đây", "day", "những", "nhung", "rất", "rat",
+            "hơn", "hon", "cũng", "cung", "đều", "deu", "nữa", "nua", "vậy", "vay", "ngon",
+            "nhất", "nhat", "phải", "phai", "nên", "nen", "hợp", "hop", "lực", "luc", "chọn",
+            "chon", "đặt", "dat", "tôi", "toi", "cay", "thức", "thuc", "loại", "loai");
+
+    /** Câu hỏi có chứa từ này thì mới coi là hỏi về món ăn; hỏi ngoài lề thì không gợi ý món. */
+    private static final List<String> FOOD_QUESTION_WORDS =
+            List.of("mon", "thuc don", "menu", "goi y", "quan", "dat", "food", "dishes");
+
+    /** Số tiền trong câu hỏi: "100.000", "150k", "2 triệu", "50.000 đồng". */
+    private static final Pattern MONEY = Pattern.compile(
+            "(\\d+(?:\\.\\d{3})+)|(?:(\\d+)\\s*(k|nghìn|nghin|triệu|trieu))|(?:(\\d+)\\s*(đồng|dong|đ))",
+            Pattern.CASE_INSENSITIVE);
+
+    /** Số người ăn trong câu hỏi: "2 người", "cho 4 người". */
+    private static final Pattern PEOPLE = Pattern.compile("(\\d+)\\s*(người|nguoi|people)", Pattern.CASE_INSENSITIVE);
+
+    /** Món cùng số điểm từ khoá thì món rẻ hơn đứng trước. */
+    private record Scored(Food food, int score) {}
+
+    /**
+     * Ràng buộc đọc được chắc chắn từ câu hỏi. Đọc một lần rồi dùng cho cả lọc món lẫn câu
+     * tóm tắt trong câu trả lời, nên hai chỗ không lệch nhau.
+     */
+    private record Filters(Integer maxSpicyLevel, boolean spicyRequired, boolean chay,
+                           boolean excludeSeafood, Long budget, Integer people) {
+
+        /** Mô tả ngắn các ràng buộc để ghép vào câu tóm tắt. */
+        String describe() {
+            List<String> parts = new ArrayList<>();
+            if (chay) parts.add("chay");
+            if (maxSpicyLevel != null && maxSpicyLevel == 0) parts.add("không cay");
+            if (spicyRequired) parts.add("cay");
+            if (excludeSeafood) parts.add("không chứa hải sản");
+            if (budget != null) parts.add("trong ngân sách " + vnd(budget));
+            return String.join(", ", parts);
+        }
+    }
+
+    /**
+     * Lọc món bằng code khi không gọi được AI: chấm điểm món theo số từ khoá trùng với câu hỏi
+     * rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải sản,
+     * ngân sách, số người). Món khớp nhiều từ khoá hơn đứng trước.
+     */
+    private List<Picked> selectFoodsByCode(String question, Filters filters) {
+        List<String> words = significantWords(question);
+        String plain = plain(question);
+
+        List<Scored> scored = new ArrayList<>();
+        for (Food f : foodRepo.findAll()) {
+            if (!f.isAvailable()) continue;
+            int s = keywordScore(f, words);
+            // Tên danh mục chỉ tính khi câu hỏi có nguyên cụm tên danh mục, không tính từng từ:
+            // hỏi "Việt Nam" không được khớp danh mục "Món Việt".
+            if (mentionsCategory(f, plain)) s++;
+            if (s > 0) scored.add(new Scored(f, s));
+        }
+        // Không từ khoá nào trùng món nào: câu hỏi chung về món ăn vẫn gợi ý được vài món đang
+        // phục vụ, còn câu hỏi ngoài lề thì không gợi ý gì để khách không bị đẩy món lung tung.
+        if (scored.isEmpty()) {
+            if (!isFoodQuestion(plain)) return List.of();
+            for (Food f : foodRepo.findAll()) {
+                if (f.isAvailable()) scored.add(new Scored(f, 0));
+            }
+        }
+
+        List<Scored> kept = scored.stream()
+                .filter(s -> passesFilters(s.food(), filters))
+                .collect(Collectors.toCollection(ArrayList::new));
+        if (kept.isEmpty() && !scored.isEmpty()) {
+            // Món khớp từ khoá bị bộ lọc loại hết (ví dụ khách hỏi món "không chứa hải sản" mà
+            // tên món lại chứa hải sản) thì lấy trong toàn bộ món đang phục vụ, vẫn áp bộ lọc.
+            for (Food f : foodRepo.findAll()) {
+                if (f.isAvailable() && passesFilters(f, filters)) {
+                    kept.add(new Scored(f, 0));
+                }
+            }
+        }
+        kept.sort(Comparator.comparingInt(Scored::score).reversed()
+                .thenComparingLong(s -> s.food().getPrice().longValue()));
+        return kept.stream().limit(maxSuggestions()).map(s -> picked(s.food(), filters.people())).toList();
+    }
+
+    /**
+     * Câu trả lời dựng bằng code khi không gọi được AI. Chỉ tóm tắt ngắn gọn vì thẻ món ngay
+     * dưới đã hiện tên, giá và số phần của từng món, không cần liệt kê lại trong chữ.
+     */
+    private String fallbackReply(String question, List<Picked> dishes, Filters filters, List<String> docs) {
+        if (dishes.isEmpty()) {
+            // Không có món nào để gợi ý thì tài liệu của quán là câu trả lời duy nhất.
+            List<String> lines = relevantLines(question, docs);
+            if (lines.isEmpty()) {
+                return "Mình chỉ tư vấn được về món ăn của quán. Bạn xem thực đơn bên dưới nhé!";
+            }
+            return "Theo thông tin của quán:\n" + String.join("\n", lines.stream().map(l -> "- " + l).toList());
+        }
+
+        long minPrice = dishes.stream().mapToLong(p -> p.food().getPrice().longValue()).min().orElse(0);
+        String described = filters.describe();
+        StringBuilder sb = new StringBuilder("Mình tìm được ").append(dishes.size()).append(" món");
+        if (!described.isEmpty()) {
+            sb.append(" ").append(described);
+        }
+        sb.append(", giá từ ").append(vnd(minPrice)).append(".");
+        sb.append("\n\nBấm vào thẻ món bên dưới để xem chi tiết và đặt món nhé!");
+        return sb.toString();
+    }
+
+    /**
+     * Các dòng tài liệu chứa từ khoá của câu hỏi. Bỏ số thứ tự và bỏ dòng bị cắt dở ở mép
+     * đoạn 500 ký tự để câu trả lời đọc được như tài liệu, không như đoạn text thô.
+     */
+    private List<String> relevantLines(String question, List<String> docs) {
+        List<String> words = significantWords(question);
+        if (words.isEmpty()) return List.of();
+        List<String> lines = new ArrayList<>();
+        for (String doc : docs) {
+            for (String raw : doc.split("\\r?\\n")) {
+                String line = raw.trim();
+                // Dòng phải là câu trọn vẹn, nếu không dòng cắt dở ở mép đoạn sẽ lọt vào.
+                if (line.length() < 8 || !line.matches(".*[.!?]$")) continue;
+                String lower = line.toLowerCase();
+                if (words.stream().noneMatch(lower::contains)) continue;
+                String cleaned = line.replaceFirst("^\\d+[.)]\\s*", "");
+                if (!lines.contains(cleaned)) lines.add(cleaned);
+                if (lines.size() >= 3) return lines;
+            }
+        }
+        return lines;
+    }
+
+    /** Từ khoá của câu hỏi sau khi bỏ từ dừng và từ quá ngắn. */
+    private List<String> significantWords(String question) {
+        return Arrays.stream(question.toLowerCase().split("[^\\p{L}\\p{N}]+"))
+                .filter(w -> w.length() > 2 && !STOP_WORDS.contains(w))
+                .distinct()
+                .toList();
+    }
+
+    /** Số từ khoá của câu hỏi xuất hiện trong tên món, nguyên liệu hoặc nhãn của món. */
+    private int keywordScore(Food f, List<String> words) {
+        // Mô tả không tính vào điểm: câu "Ai là Tổng thống Việt Nam" sẽ khớp chữ "thống" trong
+        // "truyền thống" và biến câu hỏi ngoài lề thành câu hỏi về món.
+        String hay = (f.getName() + " " + nz(f.getIngredients()) + " " + nz(f.getDietaryTags())).toLowerCase();
+        int score = 0;
+        for (String w : words) {
+            if (hay.contains(w)) score++;
+        }
+        return score;
+    }
+
+    /** Câu hỏi có nhắc đúng tên danh mục của món không; so cả hai theo dạng bỏ dấu. */
+    private boolean mentionsCategory(Food f, String plainQuestion) {
+        return f.getCategory() != null
+                && f.getCategory().getName() != null
+                && !f.getCategory().getName().isBlank()
+                && plainQuestion.contains(plain(f.getCategory().getName()));
+    }
+
+    /**
+     * Đọc các ràng buộc trong câu hỏi. So khớp bỏ dấu để "khong cay" và "không cay" là một,
+     * dữ liệu món cũng so theo dạng bỏ dấu.
+     */
+    private Filters readFilters(String question) {
+        String plain = plain(question);
+        boolean noSpicy = plain.contains("khong cay");
+        boolean spicy = !noSpicy && plain.contains("cay");
+        boolean excludeSeafood = plain.contains("hai san")
+                && (plain.contains("khong") || plain.contains("di ung") || plain.contains("tranh"));
+        return new Filters(noSpicy ? 0 : null, spicy, plain.contains("chay"), excludeSeafood,
+                parseBudget(question), parsePeople(question));
+    }
+
+    /** Món có vượt các ràng buộc khách nêu trong câu hỏi không. */
+    private boolean passesFilters(Food f, Filters filters) {
+        if (filters.maxSpicyLevel() != null && f.getSpicyLevel() > filters.maxSpicyLevel()) return false;
+        if (filters.spicyRequired() && f.getSpicyLevel() == 0) return false;
+        if (filters.chay() && !containsPlain(f.getDietaryTags(), "chay")) return false;
+        if (filters.excludeSeafood()
+                && (containsPlain(f.getAllergens(), "hải sản") || containsPlain(f.getIngredients(), "hải sản"))) {
+            return false;
+        }
+        if (filters.budget() != null) {
+            int people = filters.people() == null ? 1 : portionsFor(f, filters.people());
+            if (f.getPrice().longValue() * people > filters.budget()) return false;
+        }
+        return true;
+    }
+
+    /** Câu hỏi có phải hỏi về món ăn không, xét trên dạng bỏ dấu. */
+    private boolean isFoodQuestion(String plain) {
+        return FOOD_QUESTION_WORDS.stream().anyMatch(plain::contains);
+    }
+
+    /** Số người ăn nằm trong câu hỏi, hoặc null nếu khách không nói. */
+    private Integer parsePeople(String question) {
+        Matcher m = PEOPLE.matcher(question);
+        if (!m.find()) return null;
+        int people = Integer.parseInt(m.group(1));
+        return people > 0 ? people : null;
+    }
+
+    /** Ngân sách trong câu hỏi, hoặc null nếu khách không nói. Nhiều mức thì lấy mức cao nhất. */
+    private Long parseBudget(String question) {
+        Matcher m = MONEY.matcher(question);
+        Long best = null;
+        while (m.find()) {
+            long value;
+            if (m.group(1) != null) {
+                value = Long.parseLong(m.group(1).replace(".", ""));
+            } else if (m.group(2) != null) {
+                long base = Long.parseLong(m.group(2));
+                String unit = m.group(3).toLowerCase();
+                value = (unit.equals("triệu") || unit.equals("trieu")) ? base * 1_000_000 : base * 1_000;
+            } else {
+                value = Long.parseLong(m.group(4));
+            }
+            if (best == null || value > best) best = value;
+        }
+        return best;
+    }
+
+    /** Bỏ dấu tiếng Việt và chuyển chữ thường để so khớp không phân biệt dấu. */
+    private String plain(String text) {
+        if (text == null) return "";
+        String stripped = Normalizer.normalize(text, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase();
+        return stripped;
+    }
+
+    /** Trường của món có chứa từ cần tìm không, so trên dạng bỏ dấu. */
+    private boolean containsPlain(String field, String word) {
+        return field != null && plain(field).contains(plain(word));
+    }
+
+    /** Số tiền kiểu Việt Nam: 65.000đ. */
+    private static String vnd(long amount) {
+        return String.format("%,d", amount).replace(",", ".") + "đ";
     }
 
     private String extraRules() {
         return settingRepo.findById("extra_rules").map(AiSetting::getSettingValue)
-                .map(v -> "9. Quy tắc bổ sung của nhà hàng: " + v).orElse("");
+                .map(v -> "10. Quy tắc bổ sung của nhà hàng: " + v).orElse("");
     }
 
     private int maxSuggestions() {
