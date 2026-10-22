@@ -244,9 +244,8 @@ trong chatbot liên kết được, và nút quay lại của trình duyệt đ�
   kiếm có `md:max-w-xl`: không chặn bề rộng thì trên màn hình rộng nó giãng hết chỗ trống và
   đẩy nhóm nút bên phải lệch ra rìa.
 - **Logo không nằm ở thanh điều hướng**: chỗ ấy để nút trang chủ (icon `home`) quay về bảng món.
-  Thương hiệu hiện ở hai trang không có thanh điều hướng là `/login` và `/register` (`AuthShell`:
-  logo `favicon.svg` + chữ "FoodOrdering", link về `/`); trang quản trị có logo riêng trong
-  `AdminLayout`.
+  Trang `/login` và `/register` (`AuthShell`) không còn hiển thị thương hiệu/link về bảng món;
+  trang quản trị có logo riêng trong `AdminLayout`.
 - `components/UiButton.tsx` là nút dùng chung, chỉ 6 dạng: `primary` (44px), `primary-lg`
   (52px, đúng 1 nút mỗi màn hình), `default`, `danger`, `icon` (40px), `fab` (64px, nút mở
   chatbot). Mọi kích thước, bo góc và màu nằm ở một chỗ. Kích thước ghi bằng tiền tố `!` vì
