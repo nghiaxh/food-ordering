@@ -1,5 +1,5 @@
 import http from './http'
-import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, KnowledgeDocument, NotificationItem, Order, OrderStatus, Review, User } from '../types'
+import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, KnowledgeDocument, NotificationItem, Order, OrderStatus, Review, SavedAddress, User } from '../types'
 
 /** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
 export interface AdminOrderPayload {
@@ -69,6 +69,23 @@ export const cancelOrder = (id: number) => http.patch<Order>(`/orders/${id}/canc
 
 /** Thanh toán giả lập: khách tự xác nhận đã trả. */
 export const payOrder = (id: number) => http.patch<Order>(`/orders/${id}/pay`).then((r) => r.data)
+
+// ----- Địa chỉ -----
+export interface AddressPayload {
+  label?: string
+  receiverName: string
+  phone: string
+  address: string
+  isDefault?: boolean
+}
+
+export const getAddresses = (signal?: AbortSignal) =>
+  http.get<SavedAddress[]>('/addresses', { signal }).then((r) => r.data)
+
+export const saveAddress = (id: number | null, data: AddressPayload) =>
+  id ? http.put<SavedAddress>(`/addresses/${id}`, data).then((r) => r.data) : http.post<SavedAddress>('/addresses', data).then((r) => r.data)
+
+export const deleteAddress = (id: number) => http.delete(`/addresses/${id}`)
 
 // ----- Giỏ hàng -----
 export const getCart = (signal?: AbortSignal) =>
