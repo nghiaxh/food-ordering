@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { Button, Form, Input, Modal, Popconfirm, Select, Table, Tooltip, message } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { Button, Form, Input, Modal, Select, Table, Tooltip, message } from 'antd'
+import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { adminDeleteUser, adminGetUsers, adminSaveUser, adminSetUserActive, type UserPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
@@ -8,6 +8,7 @@ import type { User } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiIcon from '../../components/UiIcon'
 import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
+import UiButton from '../../components/UiButton'
 
 const PHONE_RULE = { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' }
 
@@ -134,11 +135,10 @@ export default function AdminCustomersPage() {
     <div>
       <PageHeader
         title="Khách hàng"
-        subtitle="Quản lý tài khoản khách hàng của FoodOrdering."
         extra={
-          <Button icon={<PlusOutlined />} onClick={openCreate}>
+          <UiButton kind="primary" onClick={openCreate}>
             Thêm khách hàng
-          </Button>
+          </UiButton>
         }
       />
 
@@ -246,22 +246,40 @@ export default function AdminCustomersPage() {
                     {/* Tài khoản quản trị không được khoá hay xoá, nên ẩn luôn hai nút này. */}
                     {u.role === 'CUSTOMER' ? (
                       <>
-                        <Popconfirm
-                          title={`${u.active ? 'Khóa' : 'Kích hoạt'} ${u.fullName}?`}
-                          onConfirm={() => toggle(u)}
+                        <Button
+                          size="small"
+                          loading={busyIds.has(u.id)}
+                          danger={u.active}
+                          onClick={() =>
+                            Modal.confirm({
+                              title: `${u.active ? 'Khóa' : 'Kích hoạt'} ${u.fullName}?`,
+                              centered: true,
+                              okText: u.active ? 'Khóa' : 'Kích hoạt',
+                              okButtonProps: u.active ? { danger: true } : undefined,
+                              cancelText: 'Hủy',
+                              onOk: () => toggle(u),
+                            })
+                          }
                         >
-                          <Button size="small" loading={busyIds.has(u.id)} danger={u.active}>
-                            {u.active ? 'Khóa' : 'Kích hoạt'}
-                          </Button>
-                        </Popconfirm>
-                        <Popconfirm
-                          title="Xóa khách hàng này?"
-                          description="Giỏ hàng bị xoá kèm. Đơn hàng đã đặt vẫn được giữ lại."
-                          okText="Xóa"
-                          onConfirm={() => remove(u)}
-                        >
-                          <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(u.id)} />
-                        </Popconfirm>
+                          {u.active ? 'Khóa' : 'Kích hoạt'}
+                        </Button>
+                        <Button
+                          size="small"
+                          danger
+                          icon={<DeleteOutlined />}
+                          loading={busyIds.has(u.id)}
+                          onClick={() =>
+                            Modal.confirm({
+                              title: 'Xóa khách hàng này?',
+                              content: 'Giỏ hàng bị xoá kèm. Đơn hàng đã đặt vẫn được giữ lại.',
+                              centered: true,
+                              okText: 'Xóa',
+                              okButtonProps: { danger: true },
+                              cancelText: 'Hủy',
+                              onOk: () => remove(u),
+                            })
+                          }
+                        />
                       </>
                     ) : (
                       <Tooltip title="Không thể khóa hoặc xóa tài khoản quản trị">

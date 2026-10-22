@@ -30,9 +30,9 @@ export function PageHeader({
   extra?: ReactNode
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div className="min-w-0">
-        <h2 className="text-xl font-bold tracking-tight text-stone-900">{title}</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-stone-900">{title}</h2>
         {subtitle ? <p className="mt-1 text-sm text-stone-500">{subtitle}</p> : null}
       </div>
       {extra ? <div className="flex shrink-0 items-center gap-2">{extra}</div> : null}

@@ -3,6 +3,7 @@ import { Avatar, Button, Drawer, Dropdown, type MenuProps } from 'antd'
 import { MenuOutlined } from '@ant-design/icons'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import UiIcon from '../components/UiIcon'
+import UiButton from '../components/UiButton'
 import { useAuthStore } from '../store/authStore'
 
 interface NavItem {
@@ -28,6 +29,7 @@ export default function AdminLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const isActive = (item: NavItem) => location.pathname === item.to
+
   const close = () => setDrawerOpen(false)
 
   const accountMenu: MenuProps = {
@@ -76,25 +78,31 @@ export default function AdminLayout() {
             icon={<MenuOutlined />}
             onClick={() => setDrawerOpen(true)}
           />
-          <Link to="/admin/foods" className="flex items-center gap-2">
-            <img src="/favicon.svg" alt="" className="h-9 w-9 rounded-xl" />
-            <span className="text-base font-bold text-stone-900">
-              Food<span className="text-amber-600">Ordering</span>
-            </span>
-            <span className="hidden rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500 sm:inline">
-              Trang quản trị
-            </span>
-          </Link>
 
           <div className="ml-auto flex items-center gap-2">
-            <Link to="/" className="hidden text-sm font-medium text-stone-500 hover:text-amber-600 sm:inline">
-              Xem trang khách
-            </Link>
+            {NAV.map((item) => (
+              <UiButton
+                key={item.to}
+                kind="icon"
+                size="small"
+                aria-label={item.label}
+                icon={<UiIcon name={item.icon} size={18} />}
+                onClick={() => navigate(item.to)}
+                className={location.pathname === item.to ? 'text-amber-700' : ''}
+              />
+            ))}
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label="Xem trang khách"
+              icon={<UiIcon name="home" size={18} />}
+              onClick={() => navigate('/')}
+            />
             <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
               <button
                 type="button"
                 aria-label="Menu tài khoản"
-                className="flex items-center gap-2 rounded-lg p-1 hover:bg-amber-50"
+                className="flex cursor-pointer items-center gap-2 rounded-lg p-1 hover:bg-amber-50"
               >
                 <Avatar style={{ backgroundColor: '#d97706' }}>
                   {user?.fullName.charAt(0).toUpperCase()}
@@ -108,7 +116,7 @@ export default function AdminLayout() {
 
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6 sm:px-6">
         <aside className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-24 rounded-2xl border border-stone-200/70 bg-white p-3">{nav}</div>
+          <div className="sticky top-24 min-h-[calc(100dvh-6rem)] rounded-2xl border border-stone-200/70 bg-white p-3">{nav}</div>
         </aside>
         <main className="min-w-0 flex-1">
           <Outlet />
@@ -121,11 +129,6 @@ export default function AdminLayout() {
         placement="left"
         size={Math.min(280, Math.round(window.innerWidth * 0.8))}
         styles={{ body: { padding: 12 } }}
-        title={
-          <span className="font-bold text-stone-900">
-            Menu quản <span className="text-amber-600">trị</span>
-          </span>
-        }
       >
         {nav}
       </Drawer>

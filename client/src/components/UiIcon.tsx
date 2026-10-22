@@ -1,5 +1,6 @@
 import type { CSSProperties, ComponentType } from 'react'
 import {
+  AppstoreOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
   BellOutlined,
@@ -78,7 +79,7 @@ const iconMap: Record<string, IconComponent | undefined> = {
   star: StarOutlined,
   'star-fill': StarFilled,
   tag: TagOutlined,
-  'th-large': HomeOutlined,
+  'th-large': AppstoreOutlined,
   times: CloseOutlined,
   upload: UploadOutlined,
   user: UserOutlined,
