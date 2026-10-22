@@ -85,8 +85,8 @@ AI bịa món.
 - **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
   sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
 - **Thanh điều hướng có 5 thành phần** (nút trang chủ, ô tìm kiếm, đơn hàng, giỏ, đăng nhập)
-  theo Bảng 2.22. Logo **không** nằm ở thanh điều hướng, thương hiệu hiện ở trang đăng nhập và
-  đăng ký (`AuthShell`) vì hai trang này không có thanh điều hướng. Nút đơn hàng (icon `inbox`)
+  theo Bảng 2.22. Logo **không** nằm ở thanh điều hướng; trang đăng nhập/đăng ký (`AuthShell`)
+  không còn hiển thị thương hiệu/link về bảng món. Nút đơn hàng (icon `inbox`)
   chỉ hiện khi đã đăng nhập vì `/orders` cần token; đừng thêm menu điều hướng, các trang con còn
   lại nằm trong menu tài khoản. Header cao `3.25rem`; đổi chiều cao này thì sửa luôn
   `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở `FoodsPage`, nếu không khung chat sẽ
@@ -99,8 +99,8 @@ AI bịa món.
 - **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
   Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
   sửa `DataSeeder` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
-  khi DB đã có dữ liệu. Cỡ ảnh theo ô hiển thị: `foods` 1200px, `categories`/`steps` 800px,
-  `banners` 1280px, `hero` 1280px (hero vốn đã blur + opacity nên quality thấp vẫn đẹp).
+  khi DB đã có dữ liệu. Cỡ ảnh theo ô hiển thị: `foods` 1200px, `categories` 800px,
+  `hero` 1280px (hero vốn đã blur + opacity nên quality thấp vẫn đẹp).
 
 ## Commands
 
