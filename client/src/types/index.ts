@@ -71,6 +71,17 @@ export interface CartItem {
   quantity: number
 }
 
+/** Địa chỉ đã lưu của user; đơn hàng vẫn chụp riêng thông tin giao hàng khi đặt. */
+export interface SavedAddress {
+  id: number
+  label: string
+  receiverName: string
+  phone: string
+  address: string
+  isDefault: boolean
+  createdAt: string
+}
+
 export interface NotificationItem {
   id: number
   content: string
