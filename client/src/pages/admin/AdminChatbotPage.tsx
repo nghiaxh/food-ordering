@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Button, Input, InputNumber, List, Popconfirm, Select, Table, Upload, message,
+  Alert, Button, Input, InputNumber, List, Modal, Select, Table, Upload, message,
 } from 'antd'
 import { DeleteOutlined, InfoCircleOutlined, UploadOutlined } from '@ant-design/icons'
 import {
@@ -12,7 +12,8 @@ import useAsyncAction from '../../hooks/useAsyncAction'
 import type { ChatHistoryMessage, KnowledgeDocument } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiIcon from '../../components/UiIcon'
-import { EmptyState, PageHeader, PageSection } from './shared'
+import { EmptyState, PageSection } from './shared'
+import UiButton from '../../components/UiButton'
 
 function docExt(title: string): string {
   return title.includes('.') ? title.split('.').pop()!.toUpperCase() : 'TXT'
@@ -100,6 +101,16 @@ export default function AdminChatbotPage() {
     setModel(settings.model ?? '')
   }, [data])
 
+  const sessions = useMemo(() => {
+    const groups = new Map<string, ChatHistoryMessage[]>()
+    for (const h of history) {
+      const list = groups.get(h.sessionId) ?? []
+      list.push(h)
+      groups.set(h.sessionId, list)
+    }
+    return Array.from(groups.entries()).map(([id, messages]) => ({ id, messages }))
+  }, [history])
+
   const { run: saveSettings, pending: savingSettings } = useAsyncAction(() =>
     Promise.all([
       adminSaveSetting('max_suggestions', String(maxSuggestions)),
@@ -131,12 +142,12 @@ export default function AdminChatbotPage() {
     }
   }
 
+
   return (
     <div>
-      <PageHeader
-        title="Chatbot"
-        subtitle="Điều hành trợ lý AI tư vấn món: quy tắc gợi ý, nguồn tri thức và lịch sử hội thoại."
-      />
+      <div className="mb-3">
+        <h1 className="text-2xl font-bold tracking-tight text-stone-900">Cấu hình chatbot</h1>
+      </div>
 
       {error ? (
         <Alert
@@ -148,26 +159,19 @@ export default function AdminChatbotPage() {
         />
       ) : null}
 
-      <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-stone-500">
-        <span>
-          {statPlaceholder ?? stats.documents} tài liệu tri thức · {statPlaceholder ?? stats.messages} tin nhắn ·{' '}
-          {statPlaceholder ?? stats.sessions} phiên hội thoại
-        </span>
-      </div>
-
       <PageSection
         className="mb-6"
         title="Cấu hình AI tư vấn"
-        subtitle="max_suggestions: nhiều nhất bao nhiêu món AI được gợi ý. extra_rules: yêu cầu phụ (ưu tiên món, giờ phục vụ...). Chỉ thêm; AI luôn dựa trên cơ sở dữ liệu món ăn thật."
+        subtitle="Mô hình, số gợi ý và quy tắc trả lời."
       >
-        <div className="space-y-5">
+        <div className="grid gap-6 sm:grid-cols-2">
           <div>
             <label htmlFor="ai-provider" className="block text-sm font-medium text-stone-700">
               Nhà cung cấp AI
             </label>
             <Select
               id="ai-provider"
-              className="mt-1.5 w-full sm:w-56"
+              className="mt-2 w-full"
               value={provider}
               onChange={setProvider}
               options={[
@@ -175,9 +179,6 @@ export default function AdminChatbotPage() {
                 { label: 'OpenAI', value: 'openai' },
               ]}
             />
-            <p className="mt-1.5 text-xs text-stone-400">
-              Khóa API vẫn nằm ở máy chủ, không gửi xuống trình duyệt.
-            </p>
           </div>
           <div>
             <label htmlFor="ai-model" className="block text-sm font-medium text-stone-700">
@@ -185,14 +186,11 @@ export default function AdminChatbotPage() {
             </label>
             <Input
               id="ai-model"
-              className="mt-1.5"
+              className="mt-2"
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder={provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.0-flash'}
             />
-            <p className="mt-1.5 text-xs text-stone-400">
-              Để trống để dùng mô hình mặc định đã cấu hình cho nhà cung cấp trên.
-            </p>
           </div>
           <div>
             <label htmlFor="max-suggestions" className="block text-sm font-medium text-stone-700">
@@ -200,39 +198,33 @@ export default function AdminChatbotPage() {
             </label>
             <InputNumber
               id="max-suggestions"
-              className="mt-1.5"
+              className="mt-2 w-full"
               min={1}
               max={10}
               value={maxSuggestions}
               onChange={(v) => setMaxSuggestions(Number(v))}
             />
-            <p className="mt-1.5 text-xs text-stone-400">
-              Nhiều nhất bao nhiêu món được AI đề xuất trong một câu trả lời (1–10).
-            </p>
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label htmlFor="extra-rules" className="block text-sm font-medium text-stone-700">
               Quy tắc bổ sung
             </label>
             <Input.TextArea
               id="extra-rules"
-              className="mt-1.5"
+              className="mt-2"
               rows={3}
               value={extraRules}
               onChange={(e) => setExtraRules(e.target.value)}
               placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..."
             />
-            <p className="mt-1.5 text-xs text-stone-400">
-              Yêu cầu phụ: ưu tiên món, giờ phục vụ... AI luôn đề xuất dựa trên món ăn thật trong hệ thống.
-            </p>
-          </div>
-          <div className="flex justify-end border-t border-stone-100 pt-4">
-            <Button type="primary" loading={savingSettings} onClick={onSaveSettings}>
-              Lưu cài đặt
-            </Button>
           </div>
         </div>
-      </PageCard>
+        <div className="mt-5 flex justify-end border-t border-stone-100 pt-4">
+          <UiButton kind="primary" loading={savingSettings} onClick={onSaveSettings}>
+            Lưu cài đặt
+          </UiButton>
+        </div>
+      </PageSection>
 
       <PageSection
         className="mb-6"
@@ -279,11 +271,24 @@ export default function AdminChatbotPage() {
             <List.Item
               className="gap-3"
               actions={[
-                <Popconfirm key="del" title="Xóa tài liệu?" onConfirm={() => onRemoveDocument(d.id)}>
-                  <Button size="small" danger icon={<DeleteOutlined />}>
-                    Xóa
-                  </Button>
-                </Popconfirm>,
+                <Button
+                  key="del"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() =>
+                    Modal.confirm({
+                      title: 'Xóa tài liệu?',
+                      centered: true,
+                      okText: 'Xóa',
+                      okButtonProps: { danger: true },
+                      cancelText: 'Hủy',
+                      onOk: () => onRemoveDocument(d.id),
+                    })
+                  }
+                >
+                  Xóa
+                </Button>,
               ]}
             >
               <List.Item.Meta

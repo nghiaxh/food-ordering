@@ -1,6 +1,4 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import UiIcon from './UiIcon'
 
 interface AuthShellProps {
   title: string
@@ -19,15 +17,10 @@ export default function AuthShell({ title, maxWidth = 'max-w-[400px]', children 
         backgroundColor: '#1c1917',
       }}
     >
-      <div className="absolute inset-0 bg-stone-950/70 backdrop-blur-sm" aria-hidden="true" />
-
-      <Link
-        to="/"
-        className="absolute left-4 top-4 z-20 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium text-stone-200 ring-1 ring-white/15 backdrop-blur-sm transition hover:bg-white/20 hover:text-white"
-      >
-        <UiIcon name="arrow-left" size={14} />
-        Trang chủ
-      </Link>
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-stone-950/45 via-stone-950/65 to-stone-950/80 backdrop-blur-[2px]"
+        aria-hidden="true"
+      />
 
       <div
         className={`auth-card relative z-10 w-full ${maxWidth} rounded-3xl bg-white p-6 shadow-2xl shadow-stone-950/40 ring-1 ring-stone-950/5 sm:p-8`}

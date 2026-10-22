@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import {
-  Button, Checkbox, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, message,
+  Button, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Table, message,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined } from '@ant-design/icons'
 import { adminDeleteFood, adminSaveFood, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
@@ -10,6 +10,7 @@ import type { Food } from '../../types'
 import { formatVND } from '../../utils/format'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiImg from '../../components/UiImg'
+import UiButton from '../../components/UiButton'
 import UiIcon from '../../components/UiIcon'
 import ImageField from '../../components/ImageField'
 import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
@@ -88,11 +89,10 @@ export default function AdminFoodsPage() {
     <div>
       <PageHeader
         title="Món ăn"
-        subtitle={`${stats.total} món · ${stats.available} đang bán · ${stats.hidden} đã ẩn`}
         extra={
-          <Button icon={<PlusOutlined />} onClick={openCreate}>
+          <UiButton kind="primary" onClick={openCreate}>
             Tạo món
-          </Button>
+          </UiButton>
         }
       />
 
@@ -142,7 +142,7 @@ export default function AdminFoodsPage() {
                 title: 'Món',
                 render: (_, f) => (
                   <div className="flex items-center gap-3">
-                    <UiImg src={f.imageUrl} alt={f.name} className="h-12 w-12 rounded-lg" />
+                    <UiImg src={f.imageUrl} alt={f.name} className="h-16 w-16 rounded-lg" />
                     <span className="font-medium text-stone-800">{f.name}</span>
                   </div>
                 ),
@@ -179,12 +179,30 @@ export default function AdminFoodsPage() {
                     <Button size="small" onClick={() => openEdit(f)}>
                       Sửa
                     </Button>
-                  </Popconfirm>
-                </Space>
-              ),
-            },
-          ]}
-        />
+                    <Button
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      loading={busyIds.has(f.id)}
+                      onClick={() =>
+                        Modal.confirm({
+                          title: 'Xóa món này?',
+                          centered: true,
+                          okText: 'Xóa',
+                          okButtonProps: { danger: true },
+                          cancelText: 'Hủy',
+                          onOk: () => remove(f.id),
+                        })
+                      }
+                    >
+                      Xóa
+                    </Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        )}
       </PageCard>
 
       <Modal
@@ -238,7 +256,13 @@ export default function AdminFoodsPage() {
             <Form.Item name="imageUrl" label="Ảnh món ăn" className="md:col-span-2">
               <ImageField label="URL Ảnh" />
             </Form.Item>
-            <Form.Item name="available" label="Đang bán" valuePropName="checked" className="md:col-span-2">
+            <Form.Item
+              name="available"
+              label={<span className="font-semibold text-emerald-700">Đang bán</span>}
+              valuePropName="checked"
+              className="md:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2"
+              tooltip="Tắt để ẩn món khỏi thực đơn"
+            >
               <Checkbox>Hiển thị trên thực đơn</Checkbox>
             </Form.Item>
           </div>

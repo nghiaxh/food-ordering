@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { Alert, Empty, Modal, Popconfirm, Select, Skeleton, Steps, Tag, message } from 'antd'
+import { Alert, Empty, Modal, QRCode, Select, Skeleton, Steps, Tag, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
@@ -182,15 +182,22 @@ export default function OrdersPage() {
                         </UiButton>
                       )}
                       {o.status === 'PENDING' && (
-                        <Popconfirm
-                          title="Hủy đơn này?"
-                          description="Chỉ hủy được khi đơn còn chờ xác nhận."
-                          okText="Hủy đơn"
-                          cancelText="Giữ đơn"
-                          onConfirm={() => void cancel(o)}
+                        <UiButton
+                          kind="danger"
+                          onClick={() =>
+                            Modal.confirm({
+                              title: 'Hủy đơn này?',
+                              content: 'Chỉ hủy được khi đơn còn chờ xác nhận.',
+                              centered: true,
+                              okText: 'Hủy đơn',
+                              okButtonProps: { danger: true },
+                              cancelText: 'Giữ đơn',
+                              onOk: () => cancel(o),
+                            })
+                          }
                         >
-                          <UiButton kind="danger">Hủy đơn</UiButton>
-                        </Popconfirm>
+                          Hủy đơn
+                        </UiButton>
                       )}
                     </div>
                   </div>

@@ -1,6 +1,6 @@
-﻿import { useEffect, useMemo, useState } from 'react'
-import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Select, Table, message } from 'antd'
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
+import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import { adminDeleteOrder, adminGetOrders, adminGetUsers, adminSaveOrder, adminUpdateOrderPayment, adminUpdateOrderStatus, getFoods, type AdminOrderPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
@@ -9,6 +9,7 @@ import { formatVND } from '../../utils/format'
 import { ORDER_STATUS_LABEL, allowedNextStatuses } from '../../utils/orders'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiImg from '../../components/UiImg'
+import UiButton from '../../components/UiButton'
 import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
 
 const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED', 'CANCELLED']
@@ -55,6 +56,12 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     if (error) message.error('Không tải được đơn hàng')
   }, [error])
+
+  const rows = useMemo(() => {
+    const list = orders ?? []
+    if (statusFilter === 'ALL') return list
+    return list.filter((o) => o.status === statusFilter)
+  }, [orders, statusFilter])
 
   const changeStatus = async (id: number, status: OrderStatus) => {
     setBusyIds((prev) => new Set(prev).add(id))
@@ -151,11 +158,10 @@ export default function AdminOrdersPage() {
     <div>
       <PageHeader
         title="Đơn hàng"
-        subtitle={`Theo dõi ${stats.total} đơn đặt trong hệ thống.`}
         extra={
-          <Button icon={<PlusOutlined />} onClick={openCreate}>
+          <UiButton kind="primary" onClick={openCreate}>
             Thêm đơn
-          </Button>
+          </UiButton>
         }
       />
 
@@ -180,7 +186,7 @@ export default function AdminOrdersPage() {
             dataSource={rows}
             loading={loading}
             pagination={{ pageSize: 10, showSizeChanger: false }}
-            scroll={{ x: 900 }}
+            scroll={{ x: 1200 }}
             locale={{
               emptyText: (
                 <EmptyState
@@ -203,18 +209,21 @@ export default function AdminOrdersPage() {
                 fixed: 'left',
                 render: (_, o) => (
                   <div className="flex flex-col text-stone-700">
-                    <span className="font-medium">{o.receiverName}</span>
+                    <span className="block truncate font-medium" title={o.receiverName}>
+                      {o.receiverName}
+                    </span>
                     <span className="text-xs tabular-nums text-stone-400">{o.phone}</span>
                   </div>
                 ),
               },
-              { title: 'Địa chỉ', render: (_, o) => <span className="text-stone-500">{o.address}</span> },
+              { title: 'Địa chỉ', width: 200, render: (_, o) => <span className="text-stone-500">{o.address}</span> },
               {
                 title: 'Món đặt',
-                width: 100,
+                width: 110,
+                 onCell: () => ({ style: { verticalAlign: 'top' } }),
                 render: (_, o) => (
-                  <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
-                    {o.items.length} món
+                  <span className="whitespace-nowrap rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+                    {o.items.reduce((sum, i) => sum + i.quantity, 0)} món
                   </span>
                 ),
               },
@@ -241,9 +250,22 @@ export default function AdminOrdersPage() {
                     <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(o)}>
                       Sửa
                     </Button>
-                    <Popconfirm title="Xóa đơn này?" okText="Xóa" onConfirm={() => remove(o.id)}>
-                      <Button size="small" danger icon={<DeleteOutlined />} loading={busyIds.has(o.id)} />
-                    </Popconfirm>
+                    <Button
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      loading={busyIds.has(o.id)}
+                      onClick={() =>
+                        Modal.confirm({
+                          title: 'Xóa đơn này?',
+                          centered: true,
+                          okText: 'Xóa',
+                          okButtonProps: { danger: true },
+                          cancelText: 'Hủy',
+                          onOk: () => remove(o.id),
+                        })
+                      }
+                    />
                   </div>
                 ),
               },
@@ -463,7 +485,7 @@ export default function AdminOrdersPage() {
                     <Button danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
                   </div>
                 ))}
-                <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ quantity: 1 })}>
+                <Button type="dashed" block onClick={() => add({ quantity: 1 })}>
                   Thêm món
                 </Button>
               </>

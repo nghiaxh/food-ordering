@@ -1,6 +1,6 @@
 ﻿import { useMemo, useState } from 'react'
-import { Button, Form, Input, Modal, Popconfirm, Tooltip, message } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { Button, Form, Input, Modal, Tooltip, message } from 'antd'
+import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { adminDeleteCategory, adminSaveCategory, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
@@ -11,6 +11,7 @@ import UiImg from '../../components/UiImg'
 import UiIcon from '../../components/UiIcon'
 import ImageField from '../../components/ImageField'
 import { EmptyState, PageHeader } from './shared'
+import UiButton from '../../components/UiButton'
 
 export default function AdminCategoriesPage() {
   const [modal, setModal] = useState(false)
@@ -98,11 +99,10 @@ export default function AdminCategoriesPage() {
     <div>
       <PageHeader
         title="Danh mục"
-        subtitle={`Xếp thực đơn thành ${data?.length ?? 0} nhóm.`}
         extra={
-          <Button icon={<PlusOutlined />} onClick={openCreate}>
+          <UiButton kind="primary" onClick={openCreate}>
             Tạo danh mục
-          </Button>
+          </UiButton>
         }
       />
 
@@ -167,22 +167,25 @@ export default function AdminCategoriesPage() {
                       Sửa
                     </Button>
                     <Tooltip title={count > 0 ? `Còn ${count} món, không thể xóa` : undefined}>
-                      <Popconfirm
-                        title="Xóa danh mục này?"
-                        okText="Xóa"
-                        onConfirm={() => remove(c.id)}
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        loading={busyId === c.id}
                         disabled={count > 0}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: 'Xóa danh mục này?',
+                            centered: true,
+                            okText: 'Xóa',
+                            okButtonProps: { danger: true },
+                            cancelText: 'Hủy',
+                            onOk: () => remove(c.id),
+                          })
+                        }
                       >
-                        <Button
-                          size="small"
-                          danger
-                          icon={<DeleteOutlined />}
-                          loading={busyId === c.id}
-                          disabled={count > 0}
-                        >
-                          Xóa
-                        </Button>
-                      </Popconfirm>
+                        Xóa
+                      </Button>
                     </Tooltip>
                   </div>
                 </div>
@@ -202,7 +205,7 @@ export default function AdminCategoriesPage() {
             }
             action={
               data?.length ? undefined : (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                <Button type="primary" onClick={openCreate}>
                   Tạo danh mục
                 </Button>
               )
