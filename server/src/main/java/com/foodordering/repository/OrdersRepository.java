@@ -7,5 +7,6 @@ import java.util.List;
 public interface OrdersRepository extends JpaRepository<Orders, Long> {
     List<Orders> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Orders> findAllByOrderByCreatedAtDesc();
+    boolean existsByItemsFoodId(Long foodId);
     boolean existsByUserIdAndStatusAndItemsFoodId(Long userId, Orders.Status status, Long foodId);
 }
