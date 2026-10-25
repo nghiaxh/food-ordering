@@ -133,7 +133,6 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - `docker compose up` (không profile) chỉ khởi động Postgres.
 - Tên biến trong compose khớp `application.yml`: `DB_URL`/`DB_USER`/`DB_PASSWORD`,
   `JWT_SECRET`, `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_PROVIDER`, `AI_MODEL`, `UPLOAD_DIR`.
-- Service `db-backup` chạy `pg_dump` lúc 2h sáng vào volume `db_backup`, giữ 7 bản gần nhất.
 
 ## Quy ước comment và tài liệu
 

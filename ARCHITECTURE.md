@@ -328,7 +328,6 @@ nginx.conf         prod: serve dist/ và fallback về index.html
 ## Điểm quan trọng khi làm việc
 
 - **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); **seed chỉ chạy khi bảng `users` còn trống** (`if (userRepo.count() > 0) return;`), nên lần khởi động sau sẽ bỏ qua toàn bộ seed và không nhân đôi dữ liệu demo.
-- **Sao lưu database**: service `db-backup` trong compose chạy `pg_dump` lúc 2h sáng vào volume `db_backup`, giữ lại 7 bản gần nhất. Khôi phục bằng `pg_restore -d food_ordering /backups/db-YYYYMMDD.dump`.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
 - **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép JSON). Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không bao giờ gửi xuống client.
