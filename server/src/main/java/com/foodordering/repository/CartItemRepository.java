@@ -8,5 +8,6 @@ import java.util.Optional;
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     List<CartItem> findByUserIdOrderByIdAsc(Long userId);
     Optional<CartItem> findByUserIdAndFoodId(Long userId, Long foodId);
+    boolean existsByFoodId(Long foodId);
     void deleteByUserId(Long userId);
 }

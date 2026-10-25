@@ -7,7 +7,6 @@ import com.foodordering.repository.*;
 import com.foodordering.service.*;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,21 +18,16 @@ public class AdminController {
     private final CategoryRepository categoryRepo;
     private final UserRepository userRepo;
     private final ChatMessageRepository chatRepo;
-    private final KnowledgeDocumentRepository docRepo;
-    private final KnowledgeService knowledgeService;
     private final AiSettingRepository settingRepo;
 
-    public AdminController(FoodService foodService, OrderService orderService, CategoryRepository categoryRepo,
-                           UserRepository userRepo, ChatMessageRepository chatRepo,
-                           KnowledgeDocumentRepository docRepo, KnowledgeService knowledgeService,
-                           AiSettingRepository settingRepo) {
+    public AdminController(FoodService foodService, OrderService orderService,
+                           CategoryRepository categoryRepo, UserRepository userRepo,
+                           ChatMessageRepository chatRepo, AiSettingRepository settingRepo) {
         this.foodService = foodService;
         this.orderService = orderService;
         this.categoryRepo = categoryRepo;
         this.userRepo = userRepo;
         this.chatRepo = chatRepo;
-        this.docRepo = docRepo;
-        this.knowledgeService = knowledgeService;
         this.settingRepo = settingRepo;
     }
 
@@ -88,18 +82,6 @@ public class AdminController {
     // ----- Chatbot: lịch sử hội thoại -----
     @GetMapping("/chatbot/history")
     public List<ChatMessage> history() { return chatRepo.findAllByOrderByCreatedAtDesc(); }
-
-    // ----- Chatbot: tài liệu tham khảo (RAG cơ bản) -----
-    @GetMapping("/chatbot/documents")
-    public List<KnowledgeDocument> documents() { return docRepo.findAll(); }
-
-    @PostMapping("/chatbot/documents")
-    public KnowledgeDocument upload(@RequestParam("file") MultipartFile file) throws Exception {
-        return knowledgeService.upload(file);
-    }
-
-    @DeleteMapping("/chatbot/documents/{id}")
-    public void deleteDocument(@PathVariable Long id) { docRepo.deleteById(id); }
 
     // ----- Chatbot: cấu hình -----
     @GetMapping("/chatbot/settings")
