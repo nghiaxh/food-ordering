@@ -2,22 +2,20 @@
 
 Tài liệu mô tả cách FoodOrdering vận hành: các thành phần, luồng dữ liệu, xác thực, chatbot và những quy ước quan trọng khi làm việc.
 
-> Dự án đang ở giai đoạn **scaffolding** — code hiện chỉ có khung lớp (package + stub). Tài liệu này mô tả kiến trúc thiết kế sẽ được triển khai chi tiết.
-
 ## Tổng quan
 
 FoodOrdering là ứng dụng **đặt món trực tuyến** theo mô hình monorepo gồm client và server. Điểm khác biệt là **trợ lý AI** tư vấn món ăn theo ngôn ngữ tự nhiên, gợi ý luôn nằm trong thực đơn thật và đặt được ngay.
 
 ```
-┌──────────────────┐  same-origin /api (Vite dev proxy / nginx)  ┌──────────────────────┐
-│  Vite SPA client │  ─────────────────────────────────────────▶ │  Spring Boot server  │
-│(React + antd 6)  │ ◀─────────────────────────────────────────  │  Java 25 + JPA       │
-└──────────────────┘    Authorization: Bearer (JWT)              └──────────┬───────────┘
+┌──────────────────┐       VITE_API_URL (Bearer JWT)       ┌──────────────────────┐
+│  Vite SPA client │  ───────────────────────────────────▶  │  Spring Boot server  │
+│(React + antd 6)  │  ◀───────────────────────────────────  │  Java 25 + JPA       │
+└──────────────────┘                                        └──────────┬───────────┘
                                                                              │
                                                        PostgreSQL 18 (ddl-auto: update)
 ```
 
-- **client/**: React 19 + TypeScript 7 + Vite 8 + Ant Design 6 + Zustand 5 + Axios + React Router 7. SPA thuần, không SSR. UI tiếng Việt. Ở dev, Vite proxy `/api` tới `VITE_API_URL` (default http://localhost:8080/api); ở prod, container nginx (nginx.conf) proxy `/api` tới service server.
+- **client/**: React 19 + TypeScript 7 + Vite 8 + Ant Design 6 + Zustand 5 + Axios + React Router 7. SPA thuần, không SSR. UI tiếng Việt. `client/src/api/http.ts` dùng `VITE_API_URL` làm `baseURL` (mặc định `http://localhost:8080/api`). Vite hiện không có proxy `/api`; nginx ở prod chỉ phục vụ static SPA và fallback route.
 - **server/**: Spring Boot 3.5 (Java 25) + Spring Security (JWT access token đơn giản) + Spring Data JPA. Package gốc `com.foodordering`, layered `controller` → `service` → `repository`.
 - **PostgreSQL**: `ddl-auto: update` đồng bộ schema khi khởi động (không dùng Flyway).
 
@@ -27,17 +25,30 @@ FoodOrdering là ứng dụng **đặt món trực tuyến** theo mô hình mono
 
 1. Client gọi `POST /api/auth/login` hoặc `POST /api/auth/register` với email và mật khẩu.
 2. Server trả về access token JWT kèm thông tin user và role (ADMIN / CUSTOMER).
-3. Client lưu token, gắn `Authorization: Bearer <token>` cho mọi request qua lớp `api/http`.
-4. `JwtFilter` trên server đọc và verify token, dựng `SecurityContext`. Token không hợp lệ bị nuốt, request được coi là chưa đăng nhập.
-5. `SecurityConfig` stateless: cho phép công khai `POST /api/auth/**`, `GET /api/foods/**` `/api/categories/**` `/api/reviews/**`, `/api/chatbot/**` (khách vãng lai vẫn chat được); yêu cầu `ROLE_ADMIN` cho `/api/admin/**`; phần còn lại `authenticated()`.
+3. `authStore` lưu phiên theo lựa chọn remember: `localStorage` hoặc `sessionStorage`.
+4. `api/http` đọc token từ `localStorage`, chưa có thì lấy từ `sessionStorage`, rồi gắn
+   `Authorization: Bearer <token>` cho request. Khi gặp 401 sẽ xoá token ở cả hai kho và đưa
+   người dùng về trang đăng nhập.
+5. `JwtFilter` trên server đọc và verify token, tra CSDL kiểm tra tài khoản còn `active`
+   rồi mới dựng `SecurityContext`. Token không hợp lệ hoặc tài khoản đã bị khoá bị nuốt,
+   request được coi là chưa đăng nhập. Cần tra CSDL mỗi request vì token vẫn còn hạn sau khi
+   admin khoá tài khoản.
+6. `SecurityConfig` stateless: yêu cầu `ROLE_ADMIN` cho `/api/admin/**`; phần còn lại dùng
+   `authenticated()`, trừ các matcher được khai báo `permitAll()`.
 
-Endpoint công khai duy nhất (phần còn lại yêu cầu xác thực):
+Endpoint và chính sách public hiện tại:
 
-- `POST /api/auth/**`: login, register
-- `GET /api/foods/**`, `/api/categories/**`, `/api/reviews/**`
-- `POST /api/chatbot/**`: tư vấn món (không cần đăng nhập)
+- `permitAll()` áp dụng đúng cho `POST /api/auth/register` và `POST /api/auth/login`.
+  `/api/auth/me` và `/api/auth/password` yêu cầu đăng nhập, gọi vô danh sẽ nhận 401.
+- `GET /api/foods/**`, `/api/categories/**`, `GET /api/reviews/**`, `GET /api/uploads/**`
+  (ảnh admin tải lên được phục vụ công khai vì mọi khách đều cần xem thực đơn).
+- `POST /api/chatbot/chat`: tư vấn món, khách vãng lai vẫn dùng được.
+- `dispatcherTypeMatchers(ERROR).permitAll()`: khi controller ném lỗi, Tomcat dispatch sang
+  `/error`; nếu không cho phép riêng thì mọi lỗi 400/404/500 đều bị đổi thành 401 và mất
+  thông báo gốc. Đây là lý do các lỗi validation trả về đúng mã 400.
+- `POST /api/reviews` yêu cầu đăng nhập vì chỉ có matcher GET được permitAll.
 
-Bảo vệ route trên client chỉ là UX — **quyền ADMIN được kiểm soát ở server**.
+Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm soát ở server**.
 
 ### 2. Duyệt và tìm món
 
@@ -45,23 +56,63 @@ Bảo vệ route trên client chỉ là UX — **quyền ADMIN được kiểm s
 - Lọc theo tên, loại, khoảng giá và trạng thái available qua query params.
 - Chi tiết món gồm thành phần, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, đánh giá.
 
-### 3. Giỏ hàng (state phía client)
+### 3. Giỏ hàng (lưu theo tài khoản)
 
-Giỏ hàng **không lưu trên server**; nó là state React với Zustand (`store/cartStore`):
+Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique theo user + món):
 
-- Thêm/sửa/xóa/clear món, tính tổng tiền phía client.
+- Khách đã đăng nhập: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác thực); giỏ
+  được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
+- Khách vãng lai: giỏ nằm trong bộ nhớ của Zustand (không phải `localStorage` bền); khi
+  đăng nhập, hệ thống đẩy bản nháp lên server rồi tải giỏ chính thức về. Khi đăng xuất,
+  state giỏ của tài khoản được xóa khỏi client.
 - Giá món hiển thị từ dữ liệu trả về khi duyệt món.
 
 ### 4. Đặt món (giá lấy từ DB)
 
-1. Client gửi `POST /api/orders` với danh sách món + số lượng.
+1. Client gửi `POST /api/orders` với danh sách món + số lượng, thông tin người nhận,
+   phương thức thanh toán và **ghi chú cho quán** (`note`, tối đa 255 ký tự, tuỳ chọn).
 2. `OrderService.create` set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
-3. Thanh toán giả lập (COD / chuyển khoản / ví điện tử) — không tích hợp cổng thanh toán thật.
-4. Khách hàng theo dõi trạng thái đơn; admin xác nhận/cập nhật trạng thái.
+3. Mỗi đơn được ghi một giao dịch thanh toán (`payment_transactions`: phương thức, số tiền,
+   trạng thái PENDING/PAID) và tạo thông báo xác nhận cho khách (`notifications`).
+4. Trạng thái đơn dùng các giá trị `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`;
+   trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
+5. **Trạng thái đi đúng một chiều**: `PENDING → CONFIRMED → PREPARING → COMPLETED`, được canh
+   trong `OrderService.isValidTransition`. Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
+   thái được. `CANCELLED` được phép từ mọi trạng thái chưa chốt. Client cũng lọc danh sách trạng
+   thái hợp lệ bằng `allowedNextStatuses`, nhưng server mới là nơi quyết định.
+6. Khách tự hủy được đơn của mình qua `PATCH /api/orders/{id}/cancel`, chỉ khi còn `PENDING`.
+7. Thanh toán giả lập (COD / QR) - không tích hợp cổng thanh toán thật.
+   Khách tự xác nhận đã trả qua `PATCH /api/orders/{id}/pay`; admin vẫn ghi nhận hoặc hoàn tác
+   thủ công bằng `PATCH /api/admin/orders/{id}/payment?paid=...`. Mã QR trên `/orders` do component
+   `QRCode` của antd sinh, mã hoá mã đơn (`FOOD-{id}-{tổng tiền}`) nên quét ra chỉ có thông tin
+   nhận dạng đơn, không phải payload chuyển khoản; chỉ hiện với phương thức `QR`.
+8. Admin có thể tạo, sửa và xoá đơn thay khách qua `/api/admin/orders` (UC12), trong đó sửa sẽ
+   thay cả danh sách món và đồng bộ lại số tiền của giao dịch thanh toán.
+9. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
+   trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
+   Nút "Đặt lại" chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
+10. Mã đơn hiển thị cho khách và quản trị viên là `FO-xxxx` (tiền tố `FO` + id đệm 4 chữ số),
+    sinh bởi `orderCode` trong `client/src/utils/orders.ts` để hai bên không lệch nhau. Id do
+    server cấp nên đổi tiền tố không cần sửa dữ liệu; mã QR vẫn giữ `FOOD-{id}-{tổng tiền}`.
+
+### 4b. Ràng buộc dữ liệu ở biên
+
+- Mật khẩu tối thiểu 8 ký tự (`@Size(min = 8)`), số điện thoại đúng 10 chữ số bắt đầu bằng 0
+  (`@Pattern("^0\\d{9}$")`). Client và server cùng kiểm tra để báo lỗi ngay tại trường nhập.
+- Phương thức thanh toán phải thuộc danh sách `COD|QR` (`@Pattern(regexp =
+  PAYMENT_METHOD_PATTERN)` trong `OrderDtos`). `COD` là **tiền mặt khi nhận**, `QR` là **quét
+  mã QR để chuyển khoản**; không có phương thức khác. Nhãn hiển thị nằm ở
+  `client/src/utils/orders.ts` (`PAYMENT_METHOD_LABEL`) để trang khách và trang quản trị hiện
+  giống nhau, không lộ mã thôi ra giao diện.
+- Giỏ hàng chỉ nhận món đang phục vụ (`CartService.add`); lỗi hiện ở lúc thêm chứ không đợi tới
+  lúc đặt.
+- Món đã có trong đơn không xoá được (`FoodService.delete` trả 409 kèm gợi ý chuyển sang
+  ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
+- Admin không khoá hay xoá được tài khoản quản trị (`AuthService.requireCustomer`).
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
-Trợ lý AI được thiết kế thành **2 bước** để AI không bao giờ tự nghĩ ra món hoặc giá:
+Trợ lý AI dùng **hai lượt gọi AI, bốn bước xử lý** để AI không bao giờ tự nghĩ ra món hoặc giá:
 
 ```
 Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, jsonMode]
@@ -70,9 +121,172 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
            → (4) Thẻ món trả về client luôn lấy ID từ DB, không từ text AI
 ```
 
-- Prompt truy vấn món chỉ nhận danh sách có sẵn từ `FoodRepository`.
-- Lỗi AI/JSON sai thì xử lý bằng `try/catch` → tiêu chí rỗng, hệ thống vẫn chạy bình thường.
-- RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn và chấm điểm theo từ khóa, không cần vector DB. Admin upload tài liệu tham khảo qua endpoint upload (chỉ cho file, không có upload ảnh món).
+- Lượt AI đầu tiên trích xuất tiêu chí dưới dạng JSON; server lọc `Food` bằng code và chỉ
+  dùng các entity đang phục vụ.
+- Lượt AI thứ hai viết câu trả lời từ danh sách món đã lọc. Danh sách gửi vào prompt bị
+  giới hạn 15 món; số thẻ trả về mặc định là 5 và có thể đổi trong cấu hình chatbot.
+- Thẻ món phía client được tạo từ entity đã lọc (`FoodCard.from`), nên ID và giá không lấy
+  từ câu trả lời AI. Thẻ mang thêm `portions` và `totalPrice` do server tính, nên giá hiển thị
+  khớp với tổng tiền khách sẽ phải trả.
+- `AiClient` đọc nhà cung cấp và tên mô hình từ bảng cấu hình `ai_setting` (quản trị viên đặt
+  trong trang Chatbot), chỉ fallback về `app.ai.provider` / `app.ai.model` khi chưa đặt. Cả
+  Gemini và OpenAI đều được hỗ trợ; `RestClient` có timeout 15 giâp cho cả kết nối và đọc.
+- Câu hỏi tiếp theo của cùng phiên được đưa vào ngữ cảnh lượt ghi câu trả lời, để khách hỏi
+  tiếp về món vừa được gợi ý mà AI vẫn biết đang nói về món nào.
+- Lỗi AI/JSON sai thì xử lý bằng `try/catch` → hệ thống vẫn chạy bình thường. JSON AI trả về có
+  thể có thêm trường lạ; mapper bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường
+  thừa không làm mất gợi ý.
+- **Nhánh dự phòng khi không gọi được AI** (thiếu khóa, khóa hỏng, hết thời gian chờ): `chat()`
+  rơi sang `ChatbotService.selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code
+  theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm
+  tên danh mục, rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải
+  sản, ngân sách, số người). Câu trả lời chỉ tóm tắt một dòng ("Mình tìm được 5 món chay, không
+  cay, giá từ 35.000đ.") rồi mời khách bấm thẻ món, **không** liệt kê lại danh sách món vì
+  thẻ món đã hiện ngay dưới. Câu hỏi ngoài lề thì không gợi ý món nào. Thẻ món vẫn lấy
+  ID/giá từ CSDL nên không có chuyện AI bịa món.
+- Prompt của lượt ghi câu trả lời có luật số 9: AI cũng không được liệt kê lại danh sách món,
+  để câu trả lời của hai nhánh (AI và dự phòng) nhìn giống nhau.
+- **Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại.** Khách vãng lai vẫn chat được nhưng
+  tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
+- Không còn RAG/tài liệu tham khảo: chatbot chỉ dùng dữ liệu món trong DB và cấu hình AI
+  (provider/model), nên không có tài liệu nào để nạp hay trích dẫn.
+
+#### Bốn kiểu tư vấn và cách server lọc
+
+Tiêu chí AI trả về gồm `categories` (loại món và số món mong muốn cho từng loại),
+`maxSpicyLevel`, `maxBudget` (TỔNG ngân sách của cả bữa), `people`, `excludeAllergens`,
+`dietaryTags` và `keywords`. `ChatbotService.selectFoods` áp chúng bằng code, theo hai bước:
+
+1. **Lọc thuộc tính món**: còn phục vụ, độ cay, thành phần loại trừ (quét cả `allergens` lẫn
+   `ingredients`), nhãn chế độ ăn, từ khóa. Danh mục và giá để dành cho bước 2.
+2. **Chọn món theo ngân sách**:
+   - *Một loại món* (hoặc khách không nói rõ loại nào): lấy các món rẻ nhất còn nằm trong
+     tổng ngân sách.
+   - *Kết hợp nhiều loại* ("một món chính và một món uống"): mỗi loại giữ 5 ứng viên rẻ nhất
+     rồi dò tổ hợp, chọn tổ hợp có tổng tiền cao nhất nhưng không vượt ngân sách.
+
+**Số người ăn và khẩu phần**: số phần cần của một món là `ceil(people / khẩu phần)`, ví dụ
+4 người ăn, món phục vụ 2 người thì cần 2 phần. Tổng tiền của món là `giá × số phần`, và
+ngân sách so với **tổng** số phần chứ không phải giá một phần. Số phần và tổng tiền được
+ghi kèm vào prompt để AI đọc lại thay vì tự tính, và gửi kèm thẻ món ra client.
+
+Nếu số người AI đoán ra quá lớn khiến không món nào vừa ngân sách, server thử lại bỏ yếu tố
+số người để lượt hỏi đó vẫn gợi ý được món thay vì trả về danh sách rỗng.
+
+### 5b. Ảnh món do admin tải lên
+
+- `POST /api/admin/uploads/image` nhận JPG/PNG/WEBP tối đa 2 MB. Định dạng được xác định bằng
+  **chữ ký đầu file**, không tin `Content-Type` do client khai.
+- File nằm ở thư mục `app.upload.dir` (mặc định `uploads`), mount thành volume `uploads` trong
+  `docker-compose.yml`, và được phục vụ lại qua `WebConfig` tại đường dẫn `/api/uploads/**`.
+- Endpoint trả về **URL tuyệt đối** dựng từ `ServletUriComponentsBuilder`, nhờ vậy ảnh hiển thị
+  được ở cả dev (Vite ở cổng khác) lẫn bản build qua nginx mà không phải sửa cấu hình proxy.
+
+### 6. Đánh giá và đặt lại
+
+- Khách chỉ được đánh giá món có trong **đơn hoàn thành** của chính mình
+  (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
+- `GET /api/reviews/food/{foodId}` trả kèm cờ `mine` để client biết đánh giá nào của chính
+  mình và chỉ hiện nút Sửa/Xóa ở đúng đánh giá đó. `PUT` và `DELETE /api/reviews/{id}` đều kiểm
+  tra chủ sở hữu ở server, không tin cờ `mine` từ client.
+- Trang lịch sử đơn có nút **Đặt lại**: đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ,
+  món ngừng phục vụ bị bỏ qua kèm cảnh báo.
+
+## Giao diện khách hàng và giao diện quản trị
+
+Hai nhóm dùng hai layout riêng, đúng yêu cầu "tách riêng trang quản trị với trang khách hàng":
+
+- `DefaultLayout` bọc route khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân
+  trang. Trang bảng món tự khoá chiều cao `100dvh - 4rem` và cuộn trong vùng riêng.
+- `AdminLayout` bọc `/admin/*`: menu bên trái 5 mục Món ăn, Danh mục, Đơn hàng, Khách hàng,
+  Chatbot; thu gọn thành drawer ở màn hình nhỏ. Route admin không nằm trong `DefaultLayout`,
+  nên không có khung chatbot hay thanh điều hướng của khách.
+
+### Bảng món kiểu kiosk
+
+Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang chủ / Thực đơn" làm một
+màn hình:
+
+- Rail danh mục cố định bên trái ở màn hình rộng, đổi thành dải chip cuộn ngang ở màn hình nhỏ.
+- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Dải này **dính đầu vùng
+  lưới** (`sticky top-0`) thay vì nằm ở một hàng riêng phía trên, tiết kiệm nguyên chiều cao
+  hàng đó mà vẫn luôn trong tầm mắt. Mục đầu ghi "Mọi giá" chứ không phải "Tất cả" vì dải
+  danh mục ngay dưới đã có "Tất cả", hai chữ giống nhau cạnh nhau dễ bị hiểu là một bộ lọc.
+- Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang. Số cột đổi theo bề rộng
+  (`grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4`); `lg` phải bớt
+  cột lại vì mức đó mới xuất hiện rail.
+- Thanh giỏ ghim đáy hiện khi giỏ có món, chứa tổng tiền và nút "Xem giỏ và đặt món".
+- Toàn bộ bộ lọc nằm trên URL (`category`, `keyword`, `min`, `max`) nên người dùng chia sẻ
+  được đường dẫn đã lọc và ô tìm kiếm trên thanh điều hướng điều khiển được trang này.
+
+Thẻ món được nén để nhìn thấy được nhiều món hơn trên một màn hình: ảnh cắt theo 16:10 (thay
+4:3), đệm `p-3`, tối đa 2 nhãn, chữ giá `text-lg`. Hàng giá và nút dùng `flex-wrap` nên thẻ hẹp
+sẽ xuống dòng thay vì tràn. Đo ở cửa sổ 848×670: chiều cao thẻ 444px xuống 285px, vùng lưới
+tăng từ 546px lên 614px.
+
+`/foods/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`) chứ không phải
+trang riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật để thẻ món
+trong chatbot liên kết được, và nút quay lại của trình duyệt đóng được panel. URL cũ
+`/foods` chuyển hướng về `/`.
+
+### Thanh điều hướng và hệ nút
+
+- Thanh điều hướng có 5 thành phần Bảng 2.22: nút trang chủ, ô tìm kiếm, đơn hàng, giỏ hàng,
+  đăng nhập, cộng ô thông báo. Nút đơn hàng (icon `inbox`, cạnh nút giỏ hàng) chỉ hiện khi đã đăng
+  nhập vì route `/orders` bắt buộc token; khách vãng lai vẫn vào được `/orders` qua
+  `RequireAuth` nhưng không thấy nút này. Không có menu điều hướng tới các trang con; những
+  đích đó nằm trong menu tài khoản (Đơn hàng của tôi, Tài khoản, Trang quản trị nếu là admin,
+  Đăng xuất). Header cao `3.25rem`, các nút trong header dùng `size="small"` (36px). Ô tìm
+  kiếm có `md:max-w-xl`: không chặn bề rộng thì trên màn hình rộng nó giãng hết chỗ trống và
+  đẩy nhóm nút bên phải lệch ra rìa.
+- **Logo không nằm ở thanh điều hướng**: chỗ ấy để nút trang chủ (icon `home`) quay về bảng món.
+  Trang `/login` và `/register` (`AuthShell`) không còn hiển thị thương hiệu/link về bảng món;
+  trang quản trị có logo riêng trong `AdminLayout`.
+- `components/UiButton.tsx` là nút dùng chung, chỉ 6 dạng: `primary` (44px), `primary-lg`
+  (52px, đúng 1 nút mỗi màn hình), `default`, `danger`, `icon` (40px), `fab` (64px, nút mở
+  chatbot). Mọi kích thước, bo góc và màu nằm ở một chỗ. Kích thước ghi bằng tiền tố `!` vì
+  AntD nạp CSS-in-JS sau Tailwind và ghi đè được chiều cao của nút. Chiều cao nằm ở bảng
+  `HEIGHTS` tách khỏi kiểu dáng, mỗi cỡ một ô riêng: truyền class `!h-*` để ghi đè sẽ không
+  ăn vì hai class `!important` bằng nhau thì Tailwind quyết định theo thứ tự sinh CSS, muốn
+  nhỏ lại phải truyền `size="small"`.
+- Thẻ món dùng nút "Thêm vào giỏ" **có nhãn** vì Bảng 2.22 ghi rõ tên thành phần này; món hết
+  hiện nhãn "Hết món" và nút bị vô hiệu hoá. Nút chỉ có chữ, không kèm icon dấu "+".
+
+### Chatbot nổi
+
+Cụm widget bám trang: `fixed inset-x-0 bottom-0 top-14` cùng `justify-end`, khung chat `flex-1`
+nên tự co theo chiều cao màn hình thay vì hard-code. Vùng trống của cụm mang
+`pointer-events-none` nên không chặn thao tác lên thẻ món phía sau. Launcher là `UiButton`
+dạng `fab` 64px; nó tự nhảy lên cao hơn khi trang đang có thanh giỏ ghim đáy
+(`useHasCartBar`).
+
+Bố cục khung chat:
+
+- Tin bot và tin khách đều nằm trong bong bóng: bot là bong bóng trắng căn trái (`rounded-bl-md`,
+  viền mảnh), khách là bong bóng hổ phách căn phải (`rounded-br-md`). Ô chữ của bot rộng tối đa
+  92%, của khách 85%.
+- Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào, và biến mất sau tin nhắn đầu tiên.
+  Bốn câu gợi ý đều chạy đúng bộ lọc thật: chế độ ăn + độ cay, ngân sách + số người
+  (số phần tính theo khẩu phần), thành phần loại trừ, và kết hợp món theo tổng ngân sách.
+- Thẻ món gộp trong **một khung trắng**, các dòng ngăn bằng đường kẻ, không viền riêng từng
+  thẻ: ảnh 40px, tên một dòng, giá hổ phách căn phải. Cả dòng là liên kết tới `/foods/:id`.
+  Khung này canh cùng mép trái với bong bóng của bot.
+- Khi tin bot không kèm món nào, hiện nút **"Xem thực đơn"** mở `/`, chỉ ở tin bot gần nhất
+  để khung chat không bị dồn nút. Quy tắc này không cần field riêng trong DTO nên `ChatResponse`
+  giữ nguyên `reply` + `foods`.
+- Nút gửi nằm trong ô nhập (`suffix`) thay vì một nút tròn riêng, nên khung chat đỡ một phần
+  tử và ô nhập không bị bó hẹp.
+- Ba chấm "đang trả lời" cũng nằm trong bong bóng trắng cùng kiểu để khung nhìn nhất quán.
+
+Phía server, `extractCriteria` trả `null` khi AI lỗi hoặc JSON sai. `chat()` coi `null` là
+"không phân tích được" và **không gợi ý món**. Lý do: tiêu chí rỗng sẽ khớp mọi món, danh
+sách trả về chỉ là vài món rẻ nhất, khách hỏi món chay sẽ nhận cà phê đá. Khi trích xuất thành
+công nhưng sinh câu trả lời thất bại thì thẻ món vẫn hiện, vì chúng khớp thật câu hỏi.
+
+Tài liệu tri thức mẫu không được hứa điều mà hệ thống không làm: `OrderService.create` chỉ cộng
+tiền món nên tài liệu đã bỏ câu "Phí giao hàng 15.000 đồng". Ba câu còn lại (giờ mở cửa, khu vực
+không phục vụ, thời gian giao) là thông tin, không sinh ra con số sai về tiền, nhưng cũng
+không có code kiểm chứng.
 
 ## Cấu trúc mã nguồn
 
@@ -86,8 +300,8 @@ entity/        JPA entities
 repository/    Spring Data JPA repositories
 dto/           request/response payloads (đồng bộ thủ công với types client)
 service/       nghiệp vụ chính (FoodService, OrderService, AuthService, ChatbotService,
-               AiClient, KnowledgeService)
-controller/    controller mỏng, mapping dưới /api/...
+               AiClient)
+controller/    mapping và điều phối request dưới /api/...
 ```
 
 ### Client (client/)
@@ -96,24 +310,39 @@ controller/    controller mỏng, mapping dưới /api/...
 src/
   main.tsx         bootstrap SPA, render root
   App.tsx          layout gốc và router
-  api/             lớp HTTP (http.ts), hàm gọi từng endpoint
+  api/             lớp HTTP và hàm gọi từng endpoint
+  components/      component dùng chung (ChatbotWidget...)
+  data/            dữ liệu tĩnh cho trang giới thiệu/marketing
+  hooks/           hook xử lý request và thao tác bất đồng bộ
+  layouts/         layout dùng chung cho các nhóm route
+  pages/           trang theo route (auth, foods, cart, orders, admin...)
   store/           Zustand stores (authStore, cartStore)
   types/           TS interfaces phản ánh DTO backend (giữ đồng bộ thủ công)
-  components/      component dùng chung (ChatbotWidget...)
-  pages/           trang theo route (auth, foods, cart, orders, admin...)
+  utils/           hàm tiện ích dùng chung
+  index.css        style gốc của SPA
 index.html         entry HTML
-vite.config.ts     React plugin, dev server (usePolling cho Docker)
-nginx.conf         prod: serve dist/ và proxy /api tới server
+vite.config.ts     React plugin, dev server (usePolling cho Docker; không có proxy /api)
+nginx.conf         prod: serve dist/ và fallback về index.html
 ```
 
 ## Điểm quan trọng khi làm việc
 
-- **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`), idempotent theo `count()` — tự bỏ qua nếu DB đã có dữ liệu.
+- **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); **seed chỉ chạy khi bảng `users` còn trống** (`if (userRepo.count() > 0) return;`), nên lần khởi động sau sẽ bỏ qua toàn bộ seed và không nhân đôi dữ liệu demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
-- **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`, `jsonMode` ép JSON, config qua `app.ai.api-key` / `app.ai.model`). Muốn đổi nhà cung cấp AI chỉ sửa file này.
-- **Ảnh món** dùng URL ngoài (mặc định placehold.co trong seed). Admin nhập link ảnh trong form, không có endpoint upload ảnh.
-- **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) — đừng log token.
+- **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép JSON). Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không bao giờ gửi xuống client.
+- **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin), toàn bộ là `.webp` đã resize theo ô hiển thị. Admin tải ảnh lên qua `POST /api/admin/uploads/image` hoặc dán URL ngoài trong form quản lý; ảnh tải lên có URL tuyệt đối trỏ vào `/api/uploads/**`.
+- **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) - đừng log token.
+- **Phân trang `/`**: cắt trang phía client 12 món mỗi trang sau khi đã sắp xếp (`PAGE_SIZE` trong `FoodsPage`). Đổi page size thì nhớ kẹp `page` vào `totalPages`.
+- **Bộ lọc nằm trên URL**: `FoodsPage` đọc `category`, `keyword`, `min`, `max` từ `useSearchParams`, không giữ state lọc cục bộ. Thêm bộ lọc mới thì nhớ thêm khoá vào `patch()`.
+- **`useHasCartBar` tính theo đường dẫn**: bảng món giờ là `/` (không phải `/foods`). Thêm trang mới có thanh giỏ ghim đáy thì cập nhật hook này, nếu không nút mở chatbot sẽ bị thanh giỏ che.
+- **Sửa DTO phải cập nhật cả hai phía**: `client/src/types/index.ts` và hàm gọi trong `client/src/api/api.ts`. Sửa đánh giá dùng DTO riêng `UpdateReviewRequest` không có `foodId` vì sửa đánh giá không đổi món.
+- **Comment và tài liệu**: comment tiếng Việt nên giải thích ràng buộc, nguồn dữ liệu, vòng đời state hoặc fallback; không lặp lại cú pháp. Khi đổi hợp đồng API hoặc quy tắc domain, cập nhật đồng bộ tài liệu kiến trúc và test.
+- **Thanh giỏ cố định đáy**: `/foods` (khi giỏ có món), `/foods/:id` và `/cart` đều có thanh `fixed bottom-0`. Mọi trang đó phải chừa padding đáy, và mọi nút nổi (`ChatbotWidget`, `ScrollTopButton`) phải hỏi `useHasCartBar()` để nhảy lên cao hơn thanh. Thêm trang mới có thanh cố định thì cập nhật hook này.
+- **Trang Thực đơn là trang chủ**: route `/` render `FoodsPage`, `/foods/:id` là route con hiện
+  thành panel phủ, `/foods` chuyển hướng về `/`. Trang bảng món cuộn trong vùng riêng nên
+  `ScrollManager` chỉ còn việc đưa `window.scrollTo(0)` khi đổi trang (dùng cho `/cart`,
+  `/orders`, `/profile` vẫn cuộn theo trang).
 
 ## Phát triển local (profile dev)
 
@@ -121,15 +350,15 @@ nginx.conf         prod: serve dist/ và proxy /api tới server
 docker compose --profile dev up --build
 ```
 
-Stack gồm postgres, server-dev và client-dev. Client truy cập tại http://localhost:5173; đường `/api` được Vite proxy tới http://localhost:8080/api.
+Stack gồm postgres, server-dev và client-dev. Client truy cập tại http://localhost:5173; request API dùng `VITE_API_URL` (mặc định http://localhost:8080/api), không có Vite proxy trong cấu hình hiện tại.
 
 - **server-dev**: mount `./server:/app`, hot reload qua `spring-boot-devtools` (restart khi file `.class` đổi). Trong container chỉ mount mã nguồn nên cần tự biên dịch: chạy `docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"` ở terminal riêng (hoặc để IDE biên dịch vào `server/target/classes`).
-- **client-dev**: mount `./client:/app` (volume ngăn chặn `node_modules`), Vite HMR với `usePolling` — cập nhật ngay khi lưu file. Chỉ cần build lại image khi đổi `package.json` hoặc `Dockerfile`.
+- **client-dev**: mount `./client:/app` (volume ngăn chặn `node_modules`), Vite HMR với `usePolling` - cập nhật ngay khi lưu file. Chỉ cần build lại image khi đổi `package.json` hoặc `Dockerfile`.
 - Cache Maven dùng volume `maven_cache` chung.
 
 ## Môi trường và cấu hình
 
-Mọi bí mật nằm trong một file `.env` duy nhất ở root (được docker-compose.yml và server đọc). Server đọc env với fallback mặc định dev (`${VAR:default}` trong application.yml). Lưu ý `mvn spring-boot:run` **không tự nạp `.env`** — phải export vars hoặc chạy qua compose.
+Mọi bí mật nằm trong một file `.env` duy nhất ở root (được docker-compose.yml và server đọc). Server đọc env với fallback mặc định dev (`${VAR:default}` trong application.yml). Lưu ý `mvn spring-boot:run` **không tự nạp `.env`** - phải export vars hoặc chạy qua compose.
 
 | Var                 | Ý nghĩa                                      |
 | ------------------- | -------------------------------------------- |
@@ -139,13 +368,17 @@ Mọi bí mật nằm trong một file `.env` duy nhất ở root (được dock
 | DB_URL              | JDBC URL kết nối (fallback `jdbc:postgresql://localhost:5432/food_ordering`) |
 | JWT_SECRET          | chuỗi bí mật ký token (≥32 ký tự)            |
 | JWT_EXPIRATION_MS   | thời gian sống token (mặc định 86400000)     |
-| AI_API_KEY          | Gemini API key (Google AI Studio)            |
-| AI_MODEL            | model Gemini (mặc định gemini-2.0-flash)     |
+| AI_API_KEY          | API key dịch vụ AI (Gemini hoặc OpenAI)     |
+| AI_PROVIDER         | nhà cung cấp mặc định (gemini)              |
+| AI_MODEL            | model mặc định (gemini-2.0-flash)           |
+| UPLOAD_DIR          | thư mục lưu ảnh admin tải lên (compose đặt `/app/uploads`) |
 
 Biến chỉ dùng trong docker-compose.yml:
 
 | Var              | Ý nghĩa                                                            |
 | ---------------- | ------------------------------------------------------------------ |
-| VITE_API_URL     | base URL API cho client build (mặc định http://localhost:8080/api) |
+| VITE_API_URL     | base URL API cho client (mặc định http://localhost:8080/api)          |
+
+`VITE_API_URL` không phải secret. Ở profile `dev`, biến này được truyền vào container client; ở profile `prod`, nó được đưa vào lúc build Docker nên thay đổi cần rebuild image client.
 
 Chạy toàn bộ stack: `docker compose --profile prod up --build` (production, client ở cổng 80) hoặc `docker compose --profile dev up --build` (hot reload, client ở cổng 5173). `docker compose up` (không kèm profile) chỉ khởi động Postgres.
