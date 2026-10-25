@@ -123,9 +123,8 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
 
 - Lượt AI đầu tiên trích xuất tiêu chí dưới dạng JSON; server lọc `Food` bằng code và chỉ
   dùng các entity đang phục vụ.
-- Lượt AI thứ hai viết câu trả lời từ danh sách món đã lọc và tối đa 3 đoạn tài liệu liên quan.
-  Danh sách gửi vào prompt bị giới hạn 15 món; số thẻ trả về mặc định là 5 và có thể đổi
-  trong cấu hình chatbot.
+- Lượt AI thứ hai viết câu trả lời từ danh sách món đã lọc. Danh sách gửi vào prompt bị
+  giới hạn 15 món; số thẻ trả về mặc định là 5 và có thể đổi trong cấu hình chatbot.
 - Thẻ món phía client được tạo từ entity đã lọc (`FoodCard.from`), nên ID và giá không lấy
   từ câu trả lời AI. Thẻ mang thêm `portions` và `totalPrice` do server tính, nên giá hiển thị
   khớp với tổng tiền khách sẽ phải trả.
@@ -143,17 +142,14 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service
   tên danh mục, rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải
   sản, ngân sách, số người). Câu trả lời chỉ tóm tắt một dòng ("Mình tìm được 5 món chay, không
   cay, giá từ 35.000đ.") rồi mời khách bấm thẻ món, **không** liệt kê lại danh sách món vì
-  thẻ món đã hiện ngay dưới. Khi không có món nào để gợi ý, câu trả lời lấy các dòng tài liệu
-  có từ khoá của câu hỏi (tối đa 3 dòng, bỏ số thứ tự và dòng bị cắt dở); câu hỏi ngoài lề thì
-  không gợi ý môn nào. Thẻ món vẫn lấy ID/giá từ CSDL nên không có chuyện AI bịa món.
+  thẻ món đã hiện ngay dưới. Câu hỏi ngoài lề thì không gợi ý món nào. Thẻ món vẫn lấy
+  ID/giá từ CSDL nên không có chuyện AI bịa món.
 - Prompt của lượt ghi câu trả lời có luật số 9: AI cũng không được liệt kê lại danh sách món,
   để câu trả lời của hai nhánh (AI và dự phòng) nhìn giống nhau.
 - **Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại.** Khách vãng lai vẫn chat được nhưng
   tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
-- RAG cơ bản (`KnowledgeService`) tách tài liệu thành đoạn 500 ký tự, chấm điểm theo từ khóa,
-  hỗ trợ PDF/DOCX/TXT/MD, không cần vector DB. Admin upload tài liệu qua
-  `POST /api/admin/chatbot/documents` (giới hạn request 10 MB). Tài liệu không trích được
-  chữ (file rỗng, PDF scan) bị từ chối thay vì lưu một bản ghi vô dụng.
+- Không còn RAG/tài liệu tham khảo: chatbot chỉ dùng dữ liệu món trong DB và cấu hình AI
+  (provider/model), nên không có tài liệu nào để nạp hay trích dẫn.
 
 #### Bốn kiểu tư vấn và cách server lọc
 
@@ -304,7 +300,7 @@ entity/        JPA entities
 repository/    Spring Data JPA repositories
 dto/           request/response payloads (đồng bộ thủ công với types client)
 service/       nghiệp vụ chính (FoodService, OrderService, AuthService, ChatbotService,
-               AiClient, KnowledgeService)
+               AiClient)
 controller/    mapping và điều phối request dưới /api/...
 ```
 

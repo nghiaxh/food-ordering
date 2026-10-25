@@ -36,10 +36,8 @@ AI **không bao giờ** được tự nghĩ ra món/giá. Prompt truy vấn món
 có sẵn từ `FoodRepository`; nếu lỗi AI/JSON sai thì `extractCriteria` trả `null` để hệ
 thống vẫn chạy, và `chat()` **không gợi ý món** cho lượt đó. Đừng đổi `null` thành tiêu
 chí rỗng: tiêu chí rỗng khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan
-gì tới câu hỏi, khách hỏi món chay lại nhận cà phê đá. RAG cơ bản (`KnowledgeService`)
-tách tài liệu thành đoạn 500 ký tự,
-chấm điểm theo từ khóa, hỗ trợ PDF/DOCX/TXT/MD, không cần vector DB. Chỉ khách **đã đăng
-nhập** mới ghi lịch sử hội thoại; khách vãng lai chat được nhưng để dấu vết rỗng.
+gì tới câu hỏi, khách hỏi món chay lại nhận cà phê đá. Chỉ khách **đã đăng nhập**
+mới ghi lịch sử hội thoại; khách vãng lai chat được nhưng để dấu vết rỗng.
 
 **Cách áp tiêu chí** (`ChatbotService.selectFoods`): lọc thuộc tính món trước (còn phục
 vụ, độ cay, thành phần loại trừ, nhãn chế độ ăn, từ khóa), rồi mới chọn món theo ngân
