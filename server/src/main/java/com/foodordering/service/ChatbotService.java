@@ -65,7 +65,6 @@ public class ChatbotService {
     private final CategoryRepository categoryRepo;
     private final ChatMessageRepository chatRepo;
     private final UserRepository userRepo;
-    private final KnowledgeService knowledgeService;
     private final AiSettingRepository settingRepo;
     private final ObjectMapper mapper = new ObjectMapper()
             // AI có thể trả về thêm trường không có trong Criteria; bỏ qua chúng thay vì
@@ -74,13 +73,12 @@ public class ChatbotService {
 
     public ChatbotService(AiClient ai, FoodRepository foodRepo, CategoryRepository categoryRepo,
                           ChatMessageRepository chatRepo, UserRepository userRepo,
-                          KnowledgeService knowledgeService, AiSettingRepository settingRepo) {
+                          AiSettingRepository settingRepo) {
         this.ai = ai;
         this.foodRepo = foodRepo;
         this.categoryRepo = categoryRepo;
         this.chatRepo = chatRepo;
         this.userRepo = userRepo;
-        this.knowledgeService = knowledgeService;
         this.settingRepo = settingRepo;
     }
 
@@ -94,17 +92,16 @@ public class ChatbotService {
         if (user != null) save(user, sessionId, ChatMessage.Sender.USER, req.message());
 
         Criteria criteria = extractCriteria(req.message());
-        List<String> docs = knowledgeService.findRelevant(req.message(), 3);
         // Câu hỏi tiếp theo về món vừa gợi ý cần nhớ lượt trước, nên đưa lịch sử phiên vào ngữ cảnh.
         List<String> history = user != null ? recentTurns(sessionId) : List.of();
 
         // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
         // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
         List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria);
-        String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, docs, history);
+        String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
 
         // Không gọi được AI (thiếu khóa, khóa hỏng, JSON sai, hết thời gian chờ) thì trả lời
-        // bằng nhánh dự phòng: RAG tra tài liệu và code lọc món, vẫn ra thẻ món thật từ DB.
+        // bằng nhánh dự phòng: code chấm điểm và lọc món, vẫn ra thẻ món thật từ DB.
         List<Picked> picked;
         String reply;
         if (aiReply != null) {
@@ -113,7 +110,7 @@ public class ChatbotService {
         } else {
             Filters filters = readFilters(req.message());
             picked = aiPicked.isEmpty() ? selectFoodsByCode(req.message(), filters) : aiPicked;
-            reply = fallbackReply(req.message(), picked, filters, docs);
+            reply = fallbackReply(req.message(), picked, filters);
         }
         if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
 
@@ -323,9 +320,9 @@ public class ChatbotService {
         return keywords.stream().anyMatch(k -> text.contains(k.toLowerCase()));
     }
 
-    private String generateReply(String question, Criteria c, List<Picked> foods, List<String> docs,
-                                     List<String> history) {
-        // Chỉ đưa dữ liệu đã lọc và tài liệu tham khảo vào prompt; AI không tự tạo danh sách món.
+    private String generateReply(String question, Criteria c, List<Picked> foods,
+                                 List<String> history) {
+        // Chỉ đưa dữ liệu món đã lọc vào prompt; AI không tự tạo danh sách món.
         StringBuilder data = new StringBuilder();
         if (!history.isEmpty()) {
             data.append("CÁC CÂU HỎI TRƯỚC CỦA KHÁCH:\n");
@@ -346,10 +343,6 @@ public class ChatbotService {
                     f.getPrice().toPlainString(), f.getServingSize(), p.portions(), p.totalPrice(),
                     f.getSpicyLevel(), nz(f.getIngredients()), nz(f.getAllergens()),
                     nz(f.getDietaryTags()), nz(f.getDescription())));
-        }
-        if (!docs.isEmpty()) {
-            data.append("\nTÀI LIỆU THAM KHẢO:\n");
-            docs.forEach(d -> data.append("- ").append(d.replace("\n", " ")).append("\n"));
         }
         data.append("\nCÂU HỎI CỦA KHÁCH: ").append(question);
 
@@ -458,14 +451,9 @@ public class ChatbotService {
      * Câu trả lời dựng bằng code khi không gọi được AI. Chỉ tóm tắt ngắn gọn vì thẻ món ngay
      * dưới đã hiện tên, giá và số phần của từng món, không cần liệt kê lại trong chữ.
      */
-    private String fallbackReply(String question, List<Picked> dishes, Filters filters, List<String> docs) {
+    private String fallbackReply(String question, List<Picked> dishes, Filters filters) {
         if (dishes.isEmpty()) {
-            // Không có món nào để gợi ý thì tài liệu của quán là câu trả lời duy nhất.
-            List<String> lines = relevantLines(question, docs);
-            if (lines.isEmpty()) {
-                return "Mình chỉ tư vấn được về món ăn của quán. Bạn xem thực đơn bên dưới nhé!";
-            }
-            return "Theo thông tin của quán:\n" + String.join("\n", lines.stream().map(l -> "- " + l).toList());
+            return "Mình chỉ tư vấn được về món ăn của quán. Bạn xem thực đơn bên dưới nhé!";
         }
 
         long minPrice = dishes.stream().mapToLong(p -> p.food().getPrice().longValue()).min().orElse(0);
@@ -477,29 +465,6 @@ public class ChatbotService {
         sb.append(", giá từ ").append(vnd(minPrice)).append(".");
         sb.append("\n\nBấm vào thẻ món bên dưới để xem chi tiết và đặt món nhé!");
         return sb.toString();
-    }
-
-    /**
-     * Các dòng tài liệu chứa từ khoá của câu hỏi. Bỏ số thứ tự và bỏ dòng bị cắt dở ở mép
-     * đoạn 500 ký tự để câu trả lời đọc được như tài liệu, không như đoạn text thô.
-     */
-    private List<String> relevantLines(String question, List<String> docs) {
-        List<String> words = significantWords(question);
-        if (words.isEmpty()) return List.of();
-        List<String> lines = new ArrayList<>();
-        for (String doc : docs) {
-            for (String raw : doc.split("\\r?\\n")) {
-                String line = raw.trim();
-                // Dòng phải là câu trọn vẹn, nếu không dòng cắt dở ở mép đoạn sẽ lọt vào.
-                if (line.length() < 8 || !line.matches(".*[.!?]$")) continue;
-                String lower = line.toLowerCase();
-                if (words.stream().noneMatch(lower::contains)) continue;
-                String cleaned = line.replaceFirst("^\\d+[.)]\\s*", "");
-                if (!lines.contains(cleaned)) lines.add(cleaned);
-                if (lines.size() >= 3) return lines;
-            }
-        }
-        return lines;
     }
 
     /** Từ khoá của câu hỏi sau khi bỏ từ dừng và từ quá ngắn. */

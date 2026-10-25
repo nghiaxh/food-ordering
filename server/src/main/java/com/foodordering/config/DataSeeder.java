@@ -18,21 +18,18 @@ public class DataSeeder implements CommandLineRunner {
     private final OrdersRepository orderRepo;
     private final PaymentTransactionRepository paymentTxRepo;
     private final ReviewRepository reviewRepo;
-    private final KnowledgeDocumentRepository docRepo;
     private final AiSettingRepository settingRepo;
     private final PasswordEncoder encoder;
 
     public DataSeeder(UserRepository userRepo, CategoryRepository categoryRepo, FoodRepository foodRepo,
                       OrdersRepository orderRepo, PaymentTransactionRepository paymentTxRepo,
-                      ReviewRepository reviewRepo, KnowledgeDocumentRepository docRepo,
-                      AiSettingRepository settingRepo, PasswordEncoder encoder) {
+                      ReviewRepository reviewRepo, AiSettingRepository settingRepo, PasswordEncoder encoder) {
         this.userRepo = userRepo;
         this.categoryRepo = categoryRepo;
         this.foodRepo = foodRepo;
         this.orderRepo = orderRepo;
         this.paymentTxRepo = paymentTxRepo;
         this.reviewRepo = reviewRepo;
-        this.docRepo = docRepo;
         this.settingRepo = settingRepo;
         this.encoder = encoder;
     }
@@ -101,18 +98,6 @@ public class DataSeeder implements CommandLineRunner {
         review(khach, pho, 5, "Nước dùng ngon, phở đúng vị Hà Nội.");
         review(khach, bunCha, 4, "Nướng than rất thơm, chấm nước mắm vừa ăn.");
 
-        KnowledgeDocument doc = new KnowledgeDocument();
-        doc.setTitle("quy-dinh-phuc-vu.txt");
-        doc.setContent("""
-                QUY ĐỊNH PHỤC VỤ
-
-                1. Giờ mở cửa: 10:00 đến 22:00 tất cả các ngày trong tuần.
-                2. Giao hàng trong nội thành Hà Nội tối thiểu 30 phút.
-                3. Khu vực không phục vụ: quận Hà Đông và Hoài Đức.
-                4. Món cay vui lòng báo lại khi đặt nếu khách không ăn cay.
-                5. Thành phần gây dị ứng phổ biến trong thực đơn: hải sản, đậu nành, sữa, trứng, gluten.
-                """);
-        docRepo.save(doc);
 
         setting("max_suggestions", "5");
         setting("provider", AiClient.PROVIDER_GEMINI);

@@ -22,7 +22,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -36,7 +35,6 @@ class ChatbotServiceTest {
     private AiClient ai;
     private FoodRepository foodRepo;
     private CategoryRepository categoryRepo;
-    private KnowledgeService knowledgeService;
     private ChatbotService service;
 
     private Category monChinh;
@@ -49,9 +47,7 @@ class ChatbotServiceTest {
         categoryRepo = mock(CategoryRepository.class);
         ChatMessageRepository chatRepo = mock(ChatMessageRepository.class);
         UserRepository userRepo = mock(UserRepository.class);
-        KnowledgeService knowledgeService = mock(KnowledgeService.class);
         AiSettingRepository settingRepo = mock(AiSettingRepository.class);
-        this.knowledgeService = knowledgeService;
 
         monChinh = new Category();
         monChinh.setId(1L);
@@ -62,12 +58,10 @@ class ChatbotServiceTest {
 
         when(categoryRepo.findAll()).thenReturn(List.of(monChinh, doUong));
         when(foodRepo.findAll()).thenAnswer(inv -> thucDong());
-        when(knowledgeService.findRelevant(anyString(), anyInt()))
-                .thenReturn(List.of());
         when(settingRepo.findById(anyString())).thenReturn(Optional.empty());
 
         service = new ChatbotService(ai, foodRepo, categoryRepo, chatRepo, userRepo,
-                knowledgeService, settingRepo);
+                settingRepo);
     }
 
     @Test
@@ -161,23 +155,6 @@ class ChatbotServiceTest {
 
         assertThat(res.foods()).isEmpty();
         assertThat(res.reply()).contains("Mình chỉ tư vấn được về món ăn của quán");
-    }
-
-    @Test
-    @DisplayName("AI lỗi và câu hỏi có đáp án trong tài liệu thì trích đúng dòng tài liệu")
-    void aiLoiCauHoiTrongTaiLieu() {
-        when(ai.generate(anyString(), anyString(), anyBoolean())).thenThrow(new RuntimeException("AI lỗi"));
-        when(knowledgeService.findRelevant(anyString(), anyInt())).thenReturn(List.of(
-                "QUY ĐỊNH PHỤC VỤ\n\n1. Giờ mở cửa: 10:00 đến 22:00 tất cả các ngày trong tuần.\n"
-                        + "2. Giao hàng trong nội thành Hà Nội tối thiểu 30 phút."));
-
-        ChatResponse res = service.chat(null, new ChatRequest("Giờ mở cửa mấy giờ?", "s7"));
-
-        assertThat(res.foods()).isEmpty();
-        assertThat(res.reply()).contains("Theo thông tin của quán:");
-        assertThat(res.reply()).contains("- Giờ mở cửa: 10:00 đến 22:00 tất cả các ngày trong tuần.");
-        // Tiêu đề tài liệu không phải nội dung trả lời nên không được lọt vào.
-        assertThat(res.reply()).doesNotContain("QUY ĐỊNH PHỤC VỤ");
     }
 
     @Test

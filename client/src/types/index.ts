@@ -135,13 +135,6 @@ export interface ChatHistoryMessage {
   createdAt: string
 }
 
-export interface KnowledgeDocument {
-  id: number
-  title: string
-  content: string
-  createdAt: string
-}
-
 export interface AiSetting {
   settingKey: string
   settingValue: string

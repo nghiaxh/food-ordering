@@ -1,5 +1,5 @@
 import http from './http'
-import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, KnowledgeDocument, NotificationItem, Order, OrderStatus, Review, SavedAddress, User } from '../types'
+import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, NotificationItem, Order, OrderStatus, Review, SavedAddress, User } from '../types'
 
 /** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
 export interface AdminOrderPayload {
@@ -167,16 +167,6 @@ export const adminSetUserActive = (id: number, active: boolean) =>
   http.patch(`/admin/users/${id}/active`, null, { params: { active } })
 
 export const adminGetChatHistory = () => http.get<ChatHistoryMessage[]>('/admin/chatbot/history').then((r) => r.data)
-
-export const adminGetDocuments = () => http.get<KnowledgeDocument[]>('/admin/chatbot/documents').then((r) => r.data)
-
-export const adminUploadDocument = (file: File) => {
-  const form = new FormData()
-  form.append('file', file)
-  return http.post('/admin/chatbot/documents', form)
-}
-
-export const adminDeleteDocument = (id: number) => http.delete(`/admin/chatbot/documents/${id}`)
 
 export const adminGetSettings = () => http.get<{ settingKey: string; settingValue: string }[]>('/admin/chatbot/settings').then((r) => r.data)
 

@@ -35,15 +35,12 @@ public class AdminController {
     private final CategoryRepository categoryRepo;
     private final UserRepository userRepo;
     private final ChatMessageRepository chatRepo;
-    private final KnowledgeDocumentRepository docRepo;
-    private final KnowledgeService knowledgeService;
     private final AiSettingRepository settingRepo;
     private final Path uploadDir;
 
     public AdminController(FoodService foodService, OrderService orderService, AuthService authService,
                            CategoryRepository categoryRepo, UserRepository userRepo,
-                           ChatMessageRepository chatRepo, KnowledgeDocumentRepository docRepo,
-                           KnowledgeService knowledgeService, AiSettingRepository settingRepo,
+                           ChatMessageRepository chatRepo, AiSettingRepository settingRepo,
                            @Value("${app.upload.dir:uploads}") String uploadDir) {
         this.foodService = foodService;
         this.orderService = orderService;
@@ -51,8 +48,6 @@ public class AdminController {
         this.categoryRepo = categoryRepo;
         this.userRepo = userRepo;
         this.chatRepo = chatRepo;
-        this.docRepo = docRepo;
-        this.knowledgeService = knowledgeService;
         this.settingRepo = settingRepo;
         this.uploadDir = Path.of(uploadDir);
     }
@@ -137,18 +132,6 @@ public class AdminController {
     // ----- Chatbot: lịch sử hội thoại -----
     @GetMapping("/chatbot/history")
     public List<ChatMessage> history() { return chatRepo.findAllByOrderByCreatedAtDesc(); }
-
-    // ----- Chatbot: tài liệu tham khảo (RAG cơ bản) -----
-    @GetMapping("/chatbot/documents")
-    public List<KnowledgeDocument> documents() { return docRepo.findAll(); }
-
-    @PostMapping("/chatbot/documents")
-    public KnowledgeDocument upload(@RequestParam("file") MultipartFile file) throws Exception {
-        return knowledgeService.upload(file);
-    }
-
-    @DeleteMapping("/chatbot/documents/{id}")
-    public void deleteDocument(@PathVariable Long id) { docRepo.deleteById(id); }
 
     // ----- Chatbot: cấu hình -----
     @GetMapping("/chatbot/settings")
