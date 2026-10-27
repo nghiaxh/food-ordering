@@ -70,8 +70,8 @@ class OrderDtosValidationTest {
     @DisplayName("Ghi chú quá 255 ký tự bị chặn")
     void ghiChuQuaDoDai() {
         CreateOrderRequest req = new CreateOrderRequest(
-                List.of(new OrderItemRequest(1L, 1)), "Nguyễn Văn A", "0900000001", "Địa chỉ",
-                "COD", "x".repeat(256));
+                List.of(new OrderItemRequest(1L, null, 1)), "Nguyễn Văn A", "0900000001", "Địa chỉ",
+                "COD", "x".repeat(256), null);
         assertThat(validator.validate(req))
                 .anySatisfy(v -> assertThat(v.getPropertyPath().toString()).isEqualTo("note"));
     }
@@ -80,14 +80,14 @@ class OrderDtosValidationTest {
     @DisplayName("Đơn không có món nào bị chặn")
     void donKhongCoMon() {
         CreateOrderRequest req = new CreateOrderRequest(
-                List.of(), "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null);
+                List.of(), "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null);
         assertThat(validator.validate(req))
                 .anySatisfy(v -> assertThat(v.getPropertyPath().toString()).isEqualTo("items"));
     }
 
     private CreateOrderRequest datDon(String paymentMethod) {
         return new CreateOrderRequest(
-                List.of(new OrderItemRequest(1L, 1)), "Nguyễn Văn A", "0900000001", "Địa chỉ",
-                paymentMethod, null);
+                List.of(new OrderItemRequest(1L, null, 1)), "Nguyễn Văn A", "0900000001", "Địa chỉ",
+                paymentMethod, null, null);
     }
 }
