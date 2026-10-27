@@ -219,7 +219,7 @@ cd ../server && mvn test
 | TC-DM-12 | UC13 | Có đơn `PENDING` của chính mình | Mở `/orders`, bấm "Thanh toán", xác nhận | — | HTTP 200; `paymentStatus = PAID`; giao dịch thanh toán chuyển sang `PAID` và có `paidAt`; khách nhận thông báo | | |
 | TC-DM-13 | UC14 | Có đơn `PENDING` | Mở `/orders` | — | Danh sách đơn của chính mình hiển thị đúng trạng thái, tổng tiền, phương thức thanh toán (nhãn "Tiền mặt khi nhận" / "Thanh toán bằng mã QR", không lộ mã thôi) | | |
 | TC-DM-14 | UC14 | Có đơn của khách khác | Dùng token của khách này gọi `GET /api/orders/my` | — | Chỉ thấy đơn của chính mình, không thấy đơn của người khác | | |
-| TC-DM-15 | UC15 | Có đơn `PENDING` | Bấm "Hủy đơn" | — | HTTP 200; `status = CANCELLED`; có thông báo xác nhận hủy | | |
+| TC-DM-15 | UC15 | Có đơn `PENDING` **và** `UNPAID` | Bấm "Hủy đơn" | — | HTTP 200; `status = CANCELLED`; có thông báo xác nhận hủy | | |
 | TC-DM-16 | UC15 | Đơn đã `CANCELLED` | Bấm "Hủy đơn" lần nữa | — | HTTP 400, message "Chỉ đơn đang chờ xác nhận mới hủy được..." | | |
 | TC-DM-17 | UC15 | Có đơn `PREPARING` | Gọi `PATCH /api/orders/{id}/cancel` | — | HTTP 400 — đơn đã vào chế biến không tự hủy được | | |
 | TC-DM-18 | UC13 | Đơn `PENDING` chọn `paymentMethod = "QR"` | Mở modal thanh toán | — | Hiện mã QR quét được (mã hoá `FOOD-{id}-{tổng tiền}`) kèm cảnh báo "Thanh toán mô phỏng"; mã QR **không** hiện với phương thức COD | | |
@@ -231,6 +231,26 @@ cd ../server && mvn test
 | TC-DM-24 | UC32 | Đã đăng nhập khách | Gọi `GET /api/admin/orders` bằng token khách | Bearer token của khách | HTTP 403 — quyền quản trị được kiểm soát ở server, không chỉ ẩn menu | | |
 | TC-DM-25 | UC16 | Có đơn cũ `COMPLETED` chứa Phở bò và Bún chả | Bấm "Đặt lại" | — | Cả 2 món còn phục vụ được đưa về giỏ; món ngừng phục vụ bị bỏ qua kèm cảnh báo; **ghi chú cũ không** được mang theo | | |
 | TC-DM-26 | UC14 | Có đơn của chính mình | Xem `/orders`, sau đó mở `/admin/orders` | — | Mã đơn hiển thị giống nhau ở cả hai trang, dạng `FO-xxxx` (tiền tố `FO` + id đệm 4 chữ số) | | |
+| TC-DM-27 | UC15 | Đơn `PENDING` đã `PAID` (khách đã bấm Thanh toán) | Gọi `PATCH /api/orders/{id}/cancel` | — | HTTP 400 — đơn đã thu tiền thì khách không tự hủy được; nút Hủy trên `/orders` cũng không còn | | |
+| TC-DM-28 | UC15 | Đơn `CONFIRMED`, `UNPAID` | Gọi `PATCH /api/orders/{id}/cancel` | — | HTTP 400 — quán đã xác nhận thì không hủy từ phía khách | | |
+| TC-DM-29 | UC12 | Đã đăng nhập, giỏ có Phở bò × 2 | Gọi `POST /api/cart/quote` (không mã) | `{}` | `subtotal = 130000`, `discountTotal = 0`, `total = 130000`; mỗi `line.lineDiscount` là tiền giảm của **cả dòng** | | |
+| TC-DM-30 | UC12 | Trang chủ có mục "Combo tiết kiệm" | Thêm combo "Combo Phở bò + Trà đào" rồi báo giá | `POST /api/cart/items` với `comboId` | Dòng combo xuất hiện với `unitPrice` = giá combo trong DB (95.000đ), không phải tổng giá lẻ; đặt được đơn có `OrderItem.combo` | | |
+| TC-DM-31 | UC12 | Chương trình "Cuối tuần mát lạnh" đang chạy, hôm nay là thứ Bảy | Báo giá một món uống | `POST /api/cart/quote` | Dòng đồ uống có `lineDiscount = 20%` giá món và `discountLabel = "Cuối tuần"`; món chính trong cùng giỏ không bị giảm | | |
+| TC-DM-32 | UC12 | Chương trình "Món may mắn hôm nay" (`randomCount = 2`) | Báo giá toàn bộ thực đơn trong cùng ngày, rồi kiểm lại vào ngày khác | `GET /api/foods` | Đúng 2 món có `discountPercent = 15`; danh sách 2 món giữ nguyên trong ngày (băm theo `foodId`, `promotionId`, ngày) và đổi khi sang ngày mới | | |
+| TC-DM-33 | UC12 | Voucher `WELCOME` (giảm 20.000đ, đơn từ 100.000đ) đã có trong ví | Báo giá giỏ 130.000đ kèm mã | `{"voucherCode":"WELCOME"}` | `discountTotal ≥ 20000`, `total = subtotal - discountTotal`, `voucherCode = "WELCOME"`; đơn tạo ra có `discountTotal`, `promotionCode`, và `OrderItem.discountAmount` cộng lại đúng bằng `discountTotal` | | |
+| TC-DM-34 | UC12 | Voucher `WELCOME` chưa nhận vào ví | Báo giá kèm mã | `{"voucherCode":"WELCOME"}` | HTTP 400, message "Bạn chưa nhận voucher này"; giỏ không đổi | | |
+| TC-DM-35 | UC12 | Voucher `WELCOME` đã dùng cho một đơn trước đó | Báo giá lại kèm mã | `{"voucherCode":"WELCOME"}` | HTTP 400, message "Voucher này đã được dùng" | | |
+| TC-DM-36 | UC12 | Giỏ 50.000đ, voucher yêu cầu đơn từ 100.000đ | Báo giá kèm mã | `{"voucherCode":"WELCOME"}` | HTTP 400, message nêu đơn chưa đạt giá trị tối thiểu; tổng tiền không đổi | | |
+| TC-DM-37 | UC12 | Voucher giảm 30.000đ cố định, giỏ có 2 dòng 20.000đ và 10.001đ | Báo giá kèm mã | — | Tổng giảm đúng 30.000đ (dòng đầu 19.999đ, dòng cuối 10.001đ), `total = 1`; không lệch đồng nào so với mệnh giá voucher | | |
+| TC-DM-38 | UC12 | Đơn 10.001đ, voucher cố định 30.000đ | Báo giá kèm mã | — | Giảm tối đa bằng tổng đơn, `total = 0`, không bao giờ âm | | |
+| TC-DM-39 | UC30 | Đơn `PENDING` + `UNPAID` | Admin sửa danh sách món | `PUT /api/admin/orders/{id}` kèm `items` | HTTP 200; dòng đơn và tổng tiền được tính lại, giao dịch thanh toán cập nhật số tiền | | |
+| TC-DM-40 | UC30 | Đơn `PENDING` + `PAID` | Admin sửa danh sách món | `PUT /api/admin/orders/{id}` kèm `items` | HTTP 400, message "Chỉ sửa được món khi đơn đang chờ xác nhận và chưa thanh toán" | | |
+| TC-DM-41 | UC30 | Đơn `PENDING` + `PAID` | Admin chỉ sửa người nhận, SĐT, địa chỉ, ghi chú (không gửi `items`) | `PUT /api/admin/orders/{id}` không có `items` | HTTP 200; thông tin giao hàng đổi, danh sách món và tổng tiền giữ nguyên | | |
+| TC-DM-42 | UC30 | Đơn `COMPLETED` hoặc `CANCELLED` | Admin bấm Sửa hoặc gọi `PUT /api/admin/orders/{id}` | Bất kỳ | Nút Sửa bị vô hiệu hoá trên giao diện; gọi thẳng API trả HTTP 400 "Đơn đã ... nên không sửa được nữa" | | |
+| TC-DM-43 | UC30 | Đã đăng nhập admin | Mở `/admin` | — | Chuyển tới `/admin/dashboard`; hàng chỉ số 30 ngày, danh sách đơn chờ có nút Xác nhận, món bán chạy dạng thanh một màu | | |
+| TC-DM-44 | UC30 | Dashboard có đơn chờ | Bấm "Xác nhận" trên một đơn | — | HTTP 200; đơn chuyển `CONFIRMED`, biến khỏi danh sách chờ, số liệu tải lại | | |
+| TC-DM-45 | UC12 | Tài khoản vừa đăng ký (đã có `WELCOME` trong ví) | Gọi `POST /api/promotions/lucky` (hiện chưa có nút trên giao diện sau khi bỏ khối ưu đãi ở trang chủ) | `POST /api/promotions/lucky` | HTTP 200, nhận thêm `LUCKY15` hoặc `HOLIDAY10`; gọi lần hai trong ngày trả 409 "Hôm nay bạn đã nhận quà rồi" — voucher chào mừng không bị tính là lượt bốc quà | | |
+| TC-DM-46 | UC12 | Combo còn phục vụ | Bấm chip "Combo tiết kiệm" rồi bấm một thẻ combo | Mở `/combos/{id}` | Lưới đổi sang thẻ combo cùng khung thẻ món, hai hàng chip vẫn hiện đủ; dải giá lọc đúng combo (50–100k còn 6 combo, "Trên 150k" hiện thông báo trống); Drawer mở với bố cục giống chi tiết món (ảnh `2/1` trên desktop), giá, mô tả, số món, giá gọi riêng, tiết kiệm, danh sách món kèm giá, hàng số lượng + tổng tiền + "Thêm vào giỏ"; đóng panel quay về bảng món | | |
 
 ## 2.3. Quản lý món và danh mục (UC26–UC28, UC27)
 
@@ -295,9 +315,10 @@ cd ../server && mvn test
 |----|----|------|-------------------|------------------|----------|
 | TC-AU-01 | UC23 | `cd server && mvn test -Dtest=ChatbotServiceTest` | 7 test Pass: số phần theo khẩu phần, kết hợp món, lọc theo khẩu vị, AI lỗi rơi sang nhánh dự phòng, AI lỗi + câu hỏi ngoài lề không gợi ý món, AI lỗi + câu hỏi trong tài liệu trích đúng dòng, AI trả thêm trường lạ | | |
 | TC-AU-02 | UC12 | `cd server && mvn test -Dtest=OrderDtosValidationTest` | 11 test Pass: whitelist `COD`/`QR`, chặn giá trị lạ, chặn ghi chú > 255 ký tự, chặn đơn không có món | | |
-| TC-AU-03 | — | `cd server && mvn test` | `Tests run: 18, Failures: 0, Errors: 0`, `BUILD SUCCESS` | | |
+| TC-AU-03 | — | `cd server && mvn test` | `Tests run: 24, Failures: 0, Errors: 0`, `BUILD SUCCESS` | | |
 | TC-AU-04 | — | `cd client && npm run typecheck` | Không có lỗi kiểu dữ liệu (exit code 0) | | |
 | TC-AU-05 | — | `cd client && npm run build` | Build thành công, sinh `client/dist/` (exit code 0) | | |
+| TC-AU-06 | UC12 | `cd server && mvn test -Dtest=PricingServiceTest` | 7 test Pass: giảm % theo từng dòng, chỉ chọn chương trình tốt nhất, voucher cố định chia đúng tổng tiền, voucher lớn hơn đơn không làm tổng âm, chặn đơn dưới mức tối thiểu, chặn voucher chưa nhận, khuyến mãi theo danh mục bỏ qua món ngoài phạm vi | | |
 
 ## 2.6. Đánh giá kiểm thử (mục 3.9)
 
@@ -306,11 +327,11 @@ cd ../server && mvn test
 | Nhóm chức năng | Số test case | Đạt | Không đạt | Bị chặn | Tỉ lệ đạt |
 |-----------------|---------------|-----|-----------|----------|-----------|
 | Đăng nhập và hồ sơ | 14 | | | | |
-| Đặt món và thanh toán | 25 | | | | |
+| Đặt món và thanh toán | 45 | | | | |
 | Quản lý món và danh mục | 16 | | | | |
 | Chatbot tư vấn | 20 | | | | |
-| Kiểm thử tự động | 5 | | | | |
-| **Tổng** | **80** | | | | |
+| Kiểm thử tự động | 6 | | | | |
+| **Tổng** | **102** | | | | |
 
 ### 2.6.2. Phân tích các lỗi phát hiện
 
@@ -580,9 +601,15 @@ mvn test -Dtest=ChatbotServiceTest
 | Món chay | Rau muống xào tỏi | 35.000 | 2 | 0 | chay, ít dầu mỡ | – |
 | Món chay | Đậu hũ sốt cà chua | 40.000 | 2 | 0 | chay | đậu nành |
 
-Ngoài ra hệ thống còn có: 2 tài khoản demo, 3 đơn mẫu (một đơn `COMPLETED` đã thanh toán, một
-đơn `PREPARING`, một đơn `PENDING`), 2 đánh giá, 1 tài liệu tham khảo
-(`quy-dinh-phuc-vu.txt`) và 3 khoá cấu hình chatbot (`max_suggestions`, `provider`, `model`).
+Ngoài ra hệ thống còn có: 7 combo ("Combo Phở bò + Trà đào" 95.000đ, "Combo Cơm gà + Nước cam"
+80.000đ, "Combo Bún chả + Cà phê sữa" 79.000đ, "Combo Bún bò Huế + Trà đào" 97.000đ,
+"Combo Mỳ Ý + Nước cam" 105.000đ, "Combo Cơm gà + Trà đào" 84.000đ, "Combo chay thanh đạm"
+99.000đ), 3 voucher nhận vào ví (`WELCOME` giảm 20.000đ cho đơn từ 100.000đ, `LUCKY15` giảm 15%
+tối đa 40.000đ, `HOLIDAY10` giảm 10% tối đa 50.000đ), 2 chương trình tự động ("Cuối tuần mát
+lạnh" giảm 20% đồ uống thứ Bảy/Chủ Nhật và "Món may mắn hôm nay" giảm 15% cho 2 món ngẫu nhiên
+mỗi ngày), 2 tài khoản demo (khách demo đã có sẵn `WELCOME` trong ví), 3 đơn mẫu (một đơn
+`COMPLETED` đã thanh toán, một đơn `PREPARING`, một đơn `PENDING`), 2 đánh giá và 3 khoá cấu hình
+chatbot (`max_suggestions`, `provider`, `model`).
 
 ## 4.2. Ràng buộc nghiệp vụ đã kiểm chứng
 
@@ -604,6 +631,11 @@ Ngoài ra hệ thống còn có: 2 tài khoản demo, 3 đơn mẫu (một đơn
 | Sửa/xoá đánh giá chỉ của chính mình | `PUT`/`DELETE /api/reviews/{id}` trả 403 với đánh giá người khác | — |
 | Phương thức thanh toán thuộc whitelist | `POST /api/orders` với `paymentMethod` lạ trả 400 | TC-DM-10 |
 | Mã QR chỉ hiện với phương thức `QR` | mở modal thanh toán của đơn `COD` không thấy mã QR | TC-DM-18 |
+| Đơn đã thanh toán hoặc đã xác nhận thì khách không hủy được | `PATCH /api/orders/{id}/cancel` trả 400 | TC-DM-27, TC-DM-28 |
+| Admin chỉ sửa món khi đơn `PENDING` + `UNPAID` | `PUT /api/admin/orders/{id}` kèm `items` trả 400 sau khi thu tiền | TC-DM-39, TC-DM-40 |
+| Đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn | `PUT /api/admin/orders/{id}` trả 400 | TC-DM-42 |
+| Voucher phải có trong ví và chưa dùng | `POST /api/cart/quote` với mã chưa nhận/đã dùng trả 400 | TC-DM-34, TC-DM-35 |
+| Giảm giá không làm tổng đơn âm và không lệch đồng nào | ca test `PricingServiceTest`, báo giá với voucher lớn hơn đơn | TC-AU-06, TC-DM-37, TC-DM-38 |
 
 ---
 
@@ -628,5 +660,5 @@ Ngoài ra hệ thống còn có: 2 tài khoản demo, 3 đơn mẫu (một đơn
   Đây là hành vi dự kiến, không phải lỗi; luồng lọc món vẫn chạy bằng code xác định.
 - **Không có script nạp dữ liệu mẫu bằng tay**: toàn bộ dữ liệu mẫu do `DataSeeder` tạo, nhằm
   tránh tình trạng dữ liệu trong CSDL lệch với dữ liệu mẫu mô tả trong tài liệu.
-- `mvn test` hiện chạy **16 test** và không cần Docker; đây là bằng chứng tự động duy nhất,
+- `mvn test` hiện chạy **24 test** và không cần Docker; đây là bằng chứng tự động duy nhất,
   không thay thế cho kiểm thử thủ công theo các bảng ở Phần 2.
