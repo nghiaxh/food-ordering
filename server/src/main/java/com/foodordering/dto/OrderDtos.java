@@ -16,7 +16,7 @@ public class OrderDtos {
      */
     public static final String PAYMENT_METHOD_PATTERN = "COD|QR";
 
-    public record OrderItemRequest(@NotNull Long foodId, @Min(1) int quantity) {}
+    public record OrderItemRequest(Long foodId, Long comboId, @Min(1) int quantity) {}
 
     public record CreateOrderRequest(
             @NotEmpty List<OrderItemRequest> items,
@@ -24,19 +24,22 @@ public class OrderDtos {
             @NotBlank String phone,
             @NotBlank String address,
             @NotBlank @Pattern(regexp = PAYMENT_METHOD_PATTERN, message = "Phương thức thanh toán không hợp lệ") String paymentMethod,
-            @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note) {}
-
+            @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note,
+            String voucherCode) {}
     public record UpdateStatusRequest(@NotBlank String status) {}
 
-    /** Biểu mẫu quản trị: tạo/sửa đơn thay khách. Mọi trường đều bắt buộc trừ trạng thái và cờ thanh toán. */
+    /**
+     * Biểu mẫu quản trị: tạo/sửa đơn thay khách. `items` được phép null khi chỉ sửa thông tin
+     * giao hàng của đơn đã xác nhận; lúc tạo đơn thì service kiểm danh sách món không rỗng.
+     */
     public record AdminOrderRequest(
             @NotBlank String customerEmail,
-            @NotEmpty List<OrderItemRequest> items,
+            List<OrderItemRequest> items,
             @NotBlank String receiverName,
             @NotBlank String phone,
             @NotBlank String address,
             @NotBlank @Pattern(regexp = PAYMENT_METHOD_PATTERN, message = "Phương thức thanh toán không hợp lệ") String paymentMethod,
             @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note,
             String status,
-            Boolean paid) {}
-}
+            Boolean paid,
+            String voucherCode) {}}

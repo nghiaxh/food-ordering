@@ -1,12 +1,14 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Empty, Form, Input, Modal, Radio, Select, Skeleton, message } from 'antd'
 import { DeleteOutlined, EditOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
-import { createOrder, getAddresses, saveAddress } from '../api/api'
+import { createOrder, getAddresses, getActiveVouchers, quoteCart, saveAddress } from '../api/api'
 import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
-import type { SavedAddress } from '../types'
+import type { CartQuote, Promotion, SavedAddress } from '../types'
+import { Tag } from 'antd'
+import { TagOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { formatVND } from '../utils/format'
 import UiButton from '../components/UiButton'
 import UiImg from '../components/UiImg'
@@ -15,7 +17,7 @@ const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255
 
 export default function CartPage() {
-  const { items, loaded, setQuantity, remove, clear, count, total } = useCartStore()
+  const { items, loaded, setQuantity, setComboQuantity, remove, removeCombo, clear, count, total } = useCartStore()
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const [ordering, setOrdering] = useState(false)
@@ -26,15 +28,24 @@ export default function CartPage() {
   const [addressModal, setAddressModal] = useState(false)
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null)
   const [savingAddress, setSavingAddress] = useState(false)
+  const [vouchers, setVouchers] = useState<Promotion[]>([])
+  const [voucherModal, setVoucherModal] = useState(false)
+  // Mã đang chọn; báo giá thật do server trả về trong `quote`, client không tự tính giảm giá.
+  const [appliedCode, setAppliedCode] = useState<string | null>(null)
+  const [quote, setQuote] = useState<CartQuote | null>(null)
+  const [manualCode, setManualCode] = useState('')
+  const [validatingVoucher, setValidatingVoucher] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState('COD')
 
   const { run: submitOrder, pending: submitting } = useAsyncAction(
     (payload: {
-      items: { foodId: number; quantity: number }[]
+      items: { foodId?: number; comboId?: number; quantity: number }[]
       receiverName: string
       phone: string
       address: string
       paymentMethod: string
       note?: string
+      voucherCode?: string
     }) => createOrder(payload),
   )
 
@@ -43,6 +54,9 @@ export default function CartPage() {
     getAddresses()
       .then(setAddresses)
       .catch(() => setAddresses([]))
+    getActiveVouchers()
+      .then(setVouchers)
+      .catch(() => setVouchers([]))
   }, [user])
 
   useEffect(() => {
@@ -50,7 +64,39 @@ export default function CartPage() {
     if (address) applyAddress(address)
   }, [addresses])
 
+  /**
+   * Báo giá lại mỗi khi giỏ hoặc mã đổi. Khách vãng lai chưa có tài khoản nên chưa xem
+   * được giảm giá; các con số còn lại vẫn là tạm tính từ giá niêm yết.
+   */
+  useEffect(() => {
+    if (!user || items.length === 0) {
+      setQuote(null)
+      return
+    }
+    let alive = true
+    quoteCart(appliedCode ?? undefined)
+      .then((next) => {
+        if (alive) setQuote(next)
+      })
+      .catch((err: unknown) => {
+        if (!alive) return
+        const msg =
+          typeof err === 'object' && err !== null && 'response' in err
+            ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+            : undefined
+        message.error(msg ?? 'Không tính được giá giỏ hàng')
+        if (appliedCode) setAppliedCode(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [user, items, appliedCode])
+
   const selectedAddress = addresses.find((a) => a.id === selectedId) ?? null
+
+  const subtotal = quote?.subtotal ?? total()
+  const discountTotal = quote?.discountTotal ?? 0
+  const grandTotal = quote?.total ?? total()
 
   const applyAddress = (address: SavedAddress) => {
     setSelectedId(address.id)
@@ -103,6 +149,30 @@ export default function CartPage() {
     }
   }
 
+  /**
+   * Máy chủ là nơi duy nhất xác nhận mã: nó vừa kiểm hạn dùng, đơn tối thiểu, ví voucher
+   * vừa trả về số tiền giảm thật. Client chỉ hiện lại kết quả.
+   */
+  const applyVoucherCode = async (code: string) => {
+    const trimmed = code.trim()
+    if (!trimmed) return
+    setValidatingVoucher(true)
+    try {
+      const next = await quoteCart(trimmed)
+      setQuote(next)
+      setAppliedCode(next.voucherCode)
+      message.success(`Áp dụng mã ${next.voucherCode} thành công!`)
+      setVoucherModal(false)
+    } catch (err: unknown) {
+      const msg = typeof err === 'object' && err !== null && 'response' in err
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+        : 'Mã khuyến mãi không hợp lệ'
+      message.error(msg ?? 'Mã khuyến mãi không hợp lệ')
+    } finally {
+      setValidatingVoucher(false)
+    }
+  }
+
   const checkout = async (
     v: {
       receiverName: string
@@ -121,7 +191,8 @@ export default function CartPage() {
     setOrdering(true)
     const res = await submitOrder({
       ...v,
-      items: items.map((i) => ({ foodId: i.food.id, quantity: i.quantity })),
+      items: items.map((i) => i.food ? { foodId: i.food.id, quantity: i.quantity } : { comboId: i.combo!.id, quantity: i.quantity }),
+      voucherCode: appliedCode ?? undefined,
     })
     setOrdering(false)
     if (res.ok) {
@@ -173,70 +244,121 @@ export default function CartPage() {
           <div className="border-b border-stone-100 px-5 py-3 text-sm font-medium text-stone-500">
             {count()} món trong giỏ
           </div>
-          {items.map((i) => (
+          {items.map((i, idx) => {
+            const isCombo = !i.food && !!i.combo
+            const id = i.food?.id ?? i.combo?.id ?? idx
+            const name = i.food?.name ?? i.combo?.name ?? ''
+            const image = i.food?.imageUrl ?? i.combo?.imageUrl ?? ''
+            const line = quote?.lines.find((l) => (isCombo ? l.comboId === id : l.foodId === id))
+            const price = line?.unitPrice ?? i.food?.price ?? i.combo?.price ?? 0
+            const lineTotal = line?.lineTotal ?? price * i.quantity
+            const available = i.food ? i.food.available : true
+            const dec = () => isCombo ? setComboQuantity(id, i.quantity - 1) : setQuantity(id, i.quantity - 1)
+            const inc = () => isCombo ? setComboQuantity(id, i.quantity + 1) : setQuantity(id, i.quantity + 1)
+            const del = () => isCombo ? removeCombo(id) : remove(id)
+            return (
             <div
-              key={i.food.id}
+              key={`${isCombo ? 'c' : 'f'}-${id}`}
               className="border-b border-stone-100 px-5 py-4 last:border-b-0 sm:flex sm:items-center sm:gap-4"
             >
               <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
-                <Link to={`/foods/${i.food.id}`} className="shrink-0">
-                  <UiImg src={i.food.imageUrl} alt={i.food.name} className="h-20 w-20 rounded-xl" />
-                </Link>
+                {i.food ? (
+                  <Link to={`/foods/${i.food.id}`} className="shrink-0">
+                    <UiImg src={image} alt={name} className="h-20 w-20 rounded-xl" />
+                  </Link>
+                ) : (
+                  <div className="shrink-0"><UiImg src={image} alt={name} className="h-20 w-20 rounded-xl" /></div>
+                )}
 
                 <div className="min-w-0 flex-1">
-                  <Link
-                    to={`/foods/${i.food.id}`}
-                    className="block truncate font-medium text-stone-800 hover:text-amber-700"
-                  >
-                    {i.food.name}
-                  </Link>
-                  <div className="mt-0.5 text-sm text-stone-500">{formatVND(i.food.price)} / phần</div>
-                  {!i.food.available && (
-                    <div className="mt-1 text-xs font-medium text-red-600">Hết món</div>
+                  {i.food ? (
+                    <Link to={`/foods/${i.food.id}`} className="block truncate font-medium text-stone-800 hover:text-amber-700">{name}</Link>
+                  ) : (
+                    <div className="block truncate font-medium text-stone-800">{name} (Combo)</div>
                   )}
+                  <div className="mt-0.5 text-sm text-stone-500">{formatVND(price)} / phần</div>
+                  {line && line.lineDiscount > 0 && (
+                    <div className="mt-0.5 text-xs font-medium text-emerald-600">
+                      {line.discountLabel ? `${line.discountLabel} · ` : ''}-{formatVND(line.lineDiscount)}
+                    </div>
+                  )}
+                  {!available && <div className="mt-1 text-xs font-medium text-red-600">Hết món</div>}
                 </div>
               </div>
 
               <div className="mt-3 flex items-center justify-between gap-4 sm:mt-0 sm:shrink-0 sm:justify-end">
                 <div className="flex items-center rounded-full ring-1 ring-stone-200">
-                  <button
-                    type="button"
-                    aria-label="Giảm số lượng"
-                    disabled={i.quantity <= 1}
-                    onClick={() => setQuantity(i.food.id, i.quantity - 1)}
-                    className="flex h-11 w-11 items-center justify-center rounded-l-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
+                  <button type="button" aria-label="Giảm số lượng" disabled={i.quantity <= 1} onClick={dec}
+                    className="flex h-11 w-11 items-center justify-center rounded-l-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40">
                     <MinusOutlined style={{ fontSize: 12 }} />
                   </button>
                   <span className="w-10 text-center text-sm font-semibold tabular-nums">{i.quantity}</span>
-                  <button
-                    type="button"
-                    aria-label="Tăng số lượng"
-                    onClick={() => setQuantity(i.food.id, i.quantity + 1)}
-                    className="flex h-11 w-11 items-center justify-center rounded-r-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
-                  >
+                  <button type="button" aria-label="Tăng số lượng" onClick={inc}
+                    className="flex h-11 w-11 items-center justify-center rounded-r-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900">
                     <PlusOutlined style={{ fontSize: 12 }} />
                   </button>
                 </div>
 
                 <div className="w-24 text-right font-semibold tabular-nums text-stone-900">
-                  {formatVND(i.food.price * i.quantity)}
+                  {formatVND(lineTotal)}
                 </div>
 
-                <UiButton
-                  kind="icon"
-                  danger
-                  aria-label="Xóa món"
-                  icon={<DeleteOutlined />}
-                  onClick={() => remove(i.food.id)}
-                />
+                <UiButton kind="icon" danger aria-label="Xóa món" icon={<DeleteOutlined />} onClick={del} />
               </div>
             </div>
-          ))}
+            )
+          })}
 
-          <div className="flex items-center justify-between border-t border-stone-100 bg-stone-50/60 px-5 py-4">
-            <span className="text-sm text-stone-500">Tạm tính</span>
-            <span className="text-lg font-bold tabular-nums text-amber-700">{formatVND(total())}</span>
+          {/* Khuyến mãi & Giảm giá */}
+          <div className="border-t border-stone-100 bg-stone-50/60 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <TagOutlined className="text-amber-600" />
+                <span className="text-sm font-semibold text-stone-800">Mã khuyến mãi / Voucher</span>
+              </div>
+              <UiButton kind="default" size="small" onClick={() => setVoucherModal(true)}>
+                {appliedCode ? 'Đổi mã khác' : 'Chọn hoặc nhập mã'}
+              </UiButton>
+            </div>
+
+            {appliedCode ? (
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5">
+                <div className="flex items-center gap-2">
+                  <CheckCircleFilled className="text-emerald-500" />
+                  <div>
+                    <span className="font-bold text-amber-900">{appliedCode}</span>
+                    <p className="text-xs text-amber-700">{quote?.voucherName ?? ''}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-emerald-600">-{formatVND(discountTotal)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAppliedCode(null)}
+                    className="text-xs text-stone-400 hover:text-rose-600"
+                  >
+                    Bỏ mã
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 space-y-1.5 border-t border-dashed border-stone-200 pt-3 text-sm">
+              <div className="flex justify-between text-stone-600">
+                <span>Tạm tính</span>
+                <span className="tabular-nums">{formatVND(subtotal)}</span>
+              </div>
+              {discountTotal > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Giảm giá{appliedCode ? ` (${appliedCode})` : ''}</span>
+                  <span className="tabular-nums">-{formatVND(discountTotal)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1 text-base font-bold text-stone-900">
+                <span>Tổng thanh toán</span>
+                <span className="text-lg tabular-nums text-amber-700">{formatVND(grandTotal)}</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -313,11 +435,28 @@ export default function CartPage() {
               <Form.Item name="address" label="Địa chỉ nhận món" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
                 <Input />
               </Form.Item>
-              {/* Nhóm nút chọn phương thức thanh toán, luôn hiển thị theo Bảng 2.22 */}
-              <Form.Item name="paymentMethod" label="Phương thức thanh toán (giả lập)">
-                <Radio.Group className="flex flex-col gap-1">
-                  <Radio value="COD">Tiền mặt khi nhận</Radio>
-                  <Radio value="QR">Thanh toán bằng mã QR</Radio>
+              {/* Nhóm nút chọn phương thức thanh toán */}
+              <Form.Item name="paymentMethod" label="Phương thức thanh toán">
+                <Radio.Group
+                  className="flex flex-col gap-2"
+                  value={paymentMethod}
+                  onChange={(e) => {
+                    setPaymentMethod(e.target.value)
+                    form.setFieldValue('paymentMethod', e.target.value)
+                  }}
+                >
+                  <Radio value="COD" className="rounded-xl border border-stone-200 p-3 hover:border-amber-400">
+                    <div>
+                      <div className="font-medium text-stone-800">Tiền mặt khi nhận hàng (COD)</div>
+                      <div className="text-xs text-stone-400">Thanh toán trực tiếp cho shipper khi nhận món</div>
+                    </div>
+                  </Radio>
+                  <Radio value="QR" className="rounded-xl border border-stone-200 p-3 hover:border-amber-400">
+                    <div>
+                      <div className="font-medium text-stone-800">Chuyển khoản VietQR / Ngân hàng</div>
+                      <div className="text-xs text-stone-400">Quét mã QR tự điền số tiền và nội dung chuyển khoản</div>
+                    </div>
+                  </Radio>
                 </Radio.Group>
               </Form.Item>
               <Form.Item
@@ -332,6 +471,93 @@ export default function CartPage() {
           </div>
         </aside>
       </div>
+
+      {/* Modal chọn hoặc nhập mã Voucher */}
+      <Modal
+        title="Chọn mã khuyến mãi / Voucher"
+        open={voucherModal}
+        onCancel={() => setVoucherModal(false)}
+        footer={null}
+        centered
+      >
+        <div className="py-2">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Nhập mã giảm giá..."
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+              onPressEnter={() => void applyVoucherCode(manualCode)}
+            />
+            <UiButton
+              kind="primary"
+              loading={validatingVoucher}
+              onClick={() => void applyVoucherCode(manualCode)}
+            >
+              Áp dụng
+            </UiButton>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
+              Mã khuyến mãi có sẵn
+            </h4>
+            {vouchers.length === 0 ? (
+              <p className="py-6 text-center text-xs text-stone-400">Hiện chưa có mã khuyến mãi công khai nào.</p>
+            ) : (
+              <div className="max-h-80 space-y-2.5 overflow-y-auto pr-1">
+                {vouchers.map((v) => {
+                  const eligible = !v.minOrderTotal || subtotal >= v.minOrderTotal
+                  const isCurrent = appliedCode === v.code
+                  return (
+                    <div
+                      key={v.id}
+                      className={`flex items-center justify-between rounded-xl border p-3 transition ${
+                        isCurrent
+                          ? 'border-amber-500 bg-amber-50/60'
+                          : eligible
+                            ? 'border-stone-200 bg-white hover:border-amber-300'
+                            : 'border-stone-200 bg-stone-50 opacity-60'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <Tag color="orange" className="font-bold">
+                            {v.code}
+                          </Tag>
+                          <span className="font-semibold text-stone-800">{v.name}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-stone-500">
+                          {v.discountType === 'PERCENT'
+                            ? `Giảm ${v.discountValue}% ${v.maxDiscount ? `(tối đa ${formatVND(v.maxDiscount)})` : ''}`
+                            : `Giảm ${formatVND(v.discountValue)}`}
+                          {v.minOrderTotal ? ` · Đơn tối thiểu ${formatVND(v.minOrderTotal)}` : ''}
+                        </p>
+                      </div>
+
+                      <div className="ml-3 shrink-0">
+                        {isCurrent ? (
+                          <Tag color="green">Đang chọn</Tag>
+                        ) : (
+                          <UiButton
+                            kind="default"
+                            size="small"
+                            disabled={!eligible}
+                            onClick={() => {
+                              if (v.code) void applyVoucherCode(v.code)
+                            }}
+                          >
+                            {eligible ? 'Áp dụng' : 'Chưa đủ điều kiện'}
+                          </UiButton>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         title={editingAddress ? 'Sửa địa chỉ' : 'Thêm địa chỉ'}
@@ -376,10 +602,13 @@ export default function CartPage() {
       {/* Thanh cố định đáy: tổng tiền và nút xác nhận duy nhất của trang */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <p className="text-sm text-stone-600">
-            <b className="font-semibold text-stone-900">Tổng cộng</b>
-            <span className="ml-2 font-bold tabular-nums text-amber-700">{formatVND(total())}</span>
-          </p>
+          <div className="text-sm text-stone-600">
+            <span className="font-semibold text-stone-900">Tổng cộng: </span>
+            <span className="ml-1 text-lg font-bold tabular-nums text-amber-700">{formatVND(grandTotal)}</span>
+            {discountTotal > 0 && (
+              <span className="ml-2 text-xs text-stone-400 line-through tabular-nums">{formatVND(subtotal)}</span>
+            )}
+          </div>
           <UiButton
             kind="primary-lg"
             htmlType="submit"

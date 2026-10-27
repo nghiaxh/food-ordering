@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { Avatar, Button, Drawer, Dropdown, type MenuProps } from 'antd'
+import { useEffect, useState } from 'react'
+import { Avatar, Badge, Button, Drawer, Dropdown, type MenuProps } from 'antd'
 import { MenuOutlined } from '@ant-design/icons'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { adminGetOrders } from '../api/api'
 import UiIcon from '../components/UiIcon'
 import UiButton from '../components/UiButton'
 import { useAuthStore } from '../store/authStore'
@@ -12,13 +13,40 @@ interface NavItem {
   icon: string
 }
 
-// Menu bên trái theo Bảng 2.22 tài liệu đặc tả, tách riêng khỏi giao diện khách hàng.
-const NAV: NavItem[] = [
-  { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
-  { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
-  { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
-  { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
-  { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
+interface NavGroup {
+  title: string
+  items: NavItem[]
+}
+
+// Nhóm theo việc quán làm hằng ngày, không theo thứ tự bảng trong tài liệu.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'Bán hàng',
+    items: [
+      { label: 'Tổng quan', to: '/admin/dashboard', icon: 'home' },
+      { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
+      { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
+    ],
+  },
+  {
+    title: 'Thực đơn',
+    items: [
+      { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
+      { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
+      { label: 'Combo', to: '/admin/combos', icon: 'shopping-cart' },
+    ],
+  },
+  {
+    title: 'Marketing',
+    items: [{ label: 'Khuyến mãi', to: '/admin/promotions', icon: 'fire' }],
+  },
+  {
+    title: 'Hệ thống',
+    items: [
+      { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
+      { label: 'Báo cáo', to: '/admin/reports', icon: 'file' },
+    ],
+  },
 ]
 
 export default function AdminLayout() {
@@ -27,8 +55,13 @@ export default function AdminLayout() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0)
 
-  const isActive = (item: NavItem) => location.pathname === item.to
+  useEffect(() => {
+    adminGetOrders()
+      .then((orders) => setPendingOrdersCount(orders.filter((o) => o.status === 'PENDING').length))
+      .catch(() => {})
+  }, [location.pathname])
 
   const close = () => setDrawerOpen(false)
 
@@ -48,29 +81,48 @@ export default function AdminLayout() {
     },
   }
 
+  const current = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.to === location.pathname)
+
   const nav = (
-    <nav className="flex flex-col gap-1">
-      {NAV.map((item) => (
-        <Link
-          key={item.to}
-          to={item.to}
-          onClick={close}
-          aria-current={isActive(item) ? 'page' : undefined}
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-            isActive(item) ? 'bg-amber-600 text-white' : 'text-stone-600 hover:bg-amber-50 hover:text-amber-700'
-          }`}
-        >
-          <UiIcon name={item.icon} size={16} />
-          {item.label}
-        </Link>
+    <nav className="space-y-4">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.title}>
+          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+            {group.title}
+          </p>
+          <div className="space-y-0.5">
+            {group.items.map((item) => {
+              const active = location.pathname === item.to
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={close}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
+                    active
+                      ? 'bg-amber-50 font-semibold text-amber-800'
+                      : 'font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                  }`}
+                >
+                  <UiIcon name={item.icon} size={16} />
+                  <span className="flex-1">{item.label}</span>
+                  {item.to === '/admin/orders' && pendingOrdersCount > 0 && (
+                    <Badge count={pendingOrdersCount} size="small" color="#d97706" />
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
       ))}
     </nav>
   )
 
   return (
     <div className="flex min-h-dvh flex-col bg-stone-50">
-      <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+      <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
           <Button
             type="text"
             aria-label="Mở menu quản trị"
@@ -79,18 +131,18 @@ export default function AdminLayout() {
             onClick={() => setDrawerOpen(true)}
           />
 
-          <div className="ml-auto flex items-center gap-2">
-            {NAV.map((item) => (
-              <UiButton
-                key={item.to}
-                kind="icon"
-                size="small"
-                aria-label={item.label}
-                icon={<UiIcon name={item.icon} size={18} />}
-                onClick={() => navigate(item.to)}
-                className={location.pathname === item.to ? 'text-amber-700' : ''}
-              />
-            ))}
+          <Link to="/admin/dashboard" className="flex items-center gap-2 text-sm font-semibold text-stone-900">
+            <span className="grid h-7 w-7 place-items-center rounded-md bg-amber-600 text-xs text-white">FO</span>
+            <span>Quản trị</span>
+          </Link>
+          {current && (
+            <>
+              <span className="text-stone-300">/</span>
+              <span className="text-sm text-stone-500">{current.label}</span>
+            </>
+          )}
+
+          <div className="ml-auto flex items-center gap-1.5">
             <UiButton
               kind="icon"
               size="small"
@@ -102,9 +154,9 @@ export default function AdminLayout() {
               <button
                 type="button"
                 aria-label="Menu tài khoản"
-                className="flex cursor-pointer items-center gap-2 rounded-lg p-1 hover:bg-amber-50"
+                className="flex cursor-pointer items-center gap-2 rounded-lg p-1 hover:bg-stone-50"
               >
-                <Avatar style={{ backgroundColor: '#d97706' }}>
+                <Avatar size={30} style={{ backgroundColor: '#d97706' }}>
                   {user?.fullName.charAt(0).toUpperCase()}
                 </Avatar>
                 <span className="hidden text-sm font-medium text-stone-700 sm:inline">{user?.fullName}</span>
@@ -116,7 +168,7 @@ export default function AdminLayout() {
 
       <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6 sm:px-6">
         <aside className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-24 min-h-[calc(100dvh-6rem)] rounded-2xl border border-stone-200/70 bg-white p-3">{nav}</div>
+          <div className="sticky top-20 rounded-xl border border-stone-200/70 bg-white p-2.5">{nav}</div>
         </aside>
         <main className="min-w-0 flex-1">
           <Outlet />

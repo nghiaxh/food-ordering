@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -16,17 +15,25 @@ import java.util.List;
 public class OrderService {
     private final OrdersRepository orderRepo;
     private final FoodRepository foodRepo;
+    private final ComboRepository comboRepo;
     private final UserRepository userRepo;
     private final PaymentTransactionRepository paymentTxRepo;
     private final NotificationRepository notificationRepo;
+    private final PricingService pricing;
+    private final PromotionService promotionService;
 
-    public OrderService(OrdersRepository orderRepo, FoodRepository foodRepo, UserRepository userRepo,
-                        PaymentTransactionRepository paymentTxRepo, NotificationRepository notificationRepo) {
+    public OrderService(OrdersRepository orderRepo, FoodRepository foodRepo, ComboRepository comboRepo,
+                        UserRepository userRepo, PaymentTransactionRepository paymentTxRepo,
+                        NotificationRepository notificationRepo, PricingService pricing,
+                        PromotionService promotionService) {
         this.orderRepo = orderRepo;
         this.foodRepo = foodRepo;
+        this.comboRepo = comboRepo;
         this.userRepo = userRepo;
         this.paymentTxRepo = paymentTxRepo;
         this.notificationRepo = notificationRepo;
+        this.pricing = pricing;
+        this.promotionService = promotionService;
     }
 
     // Đơn, giao dịch thanh toán và thông báo được ghi trong cùng một transaction.
@@ -36,9 +43,11 @@ public class OrderService {
         Orders order = new Orders();
         order.setUser(user);
         applyDelivery(order, req.receiverName(), req.phone(), req.address(), req.paymentMethod(), req.note());
-        fillItems(order, req.items());
+        PricingService.PricedCart priced = fillItems(order, req.items(), req.voucherCode(), user);
 
         Orders saved = orderRepo.save(order);
+        // Voucher chỉ bị trừ lượt sau khi đơn đã ghi thành công, trong cùng transaction.
+        promotionService.markUsed(user, priced.voucher());
         savePaymentTx(saved);
         notify(saved, "Đơn hàng #" + saved.getId() + " đã được tạo. Chúng tôi sẽ sớm xác nhận đơn của bạn.");
         return saved;
@@ -48,31 +57,48 @@ public class OrderService {
 
     @Transactional
     public Orders adminCreate(AdminOrderRequest req) {
+        if (req.items() == null || req.items().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn phải có ít nhất một món");
+        }
         User user = userRepo.findByEmail(req.customerEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khách hàng không tồn tại"));
         Orders order = new Orders();
         order.setUser(user);
         applyDelivery(order, req.receiverName(), req.phone(), req.address(), req.paymentMethod(), req.note());
-        fillItems(order, req.items());
+        PricingService.PricedCart priced = fillItems(order, req.items(), req.voucherCode(), user);
         if (req.status() != null && !req.status().isBlank()) {
             order.setStatus(parseStatus(req.status()));
         }
 
         Orders saved = orderRepo.save(order);
+        promotionService.markUsed(user, priced.voucher());
         savePaymentTx(saved);
         if (Boolean.TRUE.equals(req.paid())) applyPayment(saved, true);
         return saved;
     }
 
+    /**
+     * Quán chỉ sửa được món khi đơn còn chờ xác nhận và chưa thu tiền; sau đó chỉ còn
+     * địa chỉ, số điện thoại và ghi chú. Đơn đã hoàn thành hoặc đã hủy thì khoá hoàn toàn
+     * để số liệu báo cáo và lịch sử của khách không bị sửa ngược.
+     */
     @Transactional
     public Orders adminUpdate(Long id, AdminOrderRequest req) {
         Orders order = findOrder(id);
-        if (req.receiverName() != null) applyDelivery(order, req.receiverName(), req.phone(), req.address(),
+        requireEditable(order);
+        applyDelivery(order, req.receiverName(), req.phone(), req.address(),
                 req.paymentMethod() == null ? order.getPaymentMethod() : req.paymentMethod(), req.note());
-        // orphanRemoval giải phóng các dòng cũ khi thay cả danh sách món của đơn.
+
+        Promotion usedVoucher = null;
         if (req.items() != null && !req.items().isEmpty()) {
-            order.getItems().clear();
-            fillItems(order, req.items());
+            if (order.getStatus() != Orders.Status.PENDING
+                    || order.getPaymentStatus() != Orders.PaymentStatus.UNPAID) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Chỉ sửa được món khi đơn đang chờ xác nhận và chưa thanh toán");
+            }
+            // orphanRemoval giải phóng các dòng cũ khi thay cả danh sách món của đơn.
+            PricingService.PricedCart priced = fillItems(order, req.items(), req.voucherCode(), order.getUser());
+            usedVoucher = priced.voucher();
             paymentTxRepo.findByOrderId(id).ifPresent(tx -> tx.setAmount(order.getTotal()));
         }
         if (req.status() != null && !req.status().isBlank()) {
@@ -86,8 +112,17 @@ public class OrderService {
             }
         }
         Orders saved = orderRepo.save(order);
+        promotionService.markUsed(order.getUser(), usedVoucher);
         if (req.paid() != null) applyPayment(saved, req.paid());
         return saved;
+    }
+
+    private void requireEditable(Orders order) {
+        if (order.getStatus() == Orders.Status.COMPLETED || order.getStatus() == Orders.Status.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Đơn đã " + (order.getStatus() == Orders.Status.COMPLETED ? "hoàn thành" : "hủy")
+                            + " nên không sửa được nữa");
+        }
     }
 
     @Transactional
@@ -114,24 +149,53 @@ public class OrderService {
         order.setNote(note == null || note.isBlank() ? null : note.trim());
     }
 
-    /** Giá không lấy từ request; mỗi món được đọc lại từ Food trong database rồi chụp lại vào dòng đơn. */
-    private void fillItems(Orders order, List<OrderItemRequest> items) {
-        BigDecimal total = BigDecimal.ZERO;
+    /**
+     * Chụp lại đơn từ dữ liệu database. Giá gốc và số tiền giảm của từng dòng do
+     * {@link PricingService} tính, nên tổng đơn luôn khớp đúng báo giá khách đã thấy.
+     */
+    private PricingService.PricedCart fillItems(Orders order, List<OrderItemRequest> items,
+                                                String voucherCode, User user) {
         for (OrderItemRequest it : items) {
+            requireSellable(it);
+        }
+        PricingService.PricedCart priced = pricing.priceOrder(items, user, voucherCode);
+
+        order.getItems().clear();
+        for (PricingService.Line line : priced.lines()) {
+            OrderItem oi = new OrderItem();
+            oi.setOrder(order);
+            oi.setFood(line.food());
+            oi.setCombo(line.combo());
+            oi.setQuantity(line.quantity());
+            oi.setPrice(line.unitPrice());
+            oi.setDiscountAmount(line.lineDiscount());
+            order.getItems().add(oi);
+        }
+        order.setTotal(priced.total());
+        order.setDiscountTotal(priced.discountTotal());
+        order.setPromotionCode(priced.voucher() == null ? null : priced.voucher().getCode());
+        return priced;
+    }
+
+    /** Món hoặc combo đã ngừng phục vụ không được vào đơn, kể cả khi giỏ đã giữ từ trước. */
+    private void requireSellable(OrderItemRequest it) {
+        if (it.foodId() != null) {
             Food food = foodRepo.findById(it.foodId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Món không tồn tại"));
             if (!food.isAvailable()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Món \"" + food.getName() + "\" đã ngừng phục vụ");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Món \"" + food.getName() + "\" đã ngừng phục vụ");
             }
-            OrderItem oi = new OrderItem();
-            oi.setOrder(order);
-            oi.setFood(food);
-            oi.setQuantity(it.quantity());
-            oi.setPrice(food.getPrice());
-            order.getItems().add(oi);
-            total = total.add(food.getPrice().multiply(BigDecimal.valueOf(it.quantity())));
+        } else if (it.comboId() != null) {
+            Combo combo = comboRepo.findById(it.comboId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Combo không tồn tại"));
+            if (!combo.isAvailable()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Combo \"" + combo.getName() + "\" đã ngừng phục vụ");
+            }
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dòng hàng phải có món hoặc combo");
         }
-        order.setTotal(total);
     }
 
     /** Thanh toán hiện là bản ghi mô phỏng; trạng thái được cập nhật riêng. */
@@ -214,6 +278,10 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Chỉ đơn đang chờ xác nhận mới hủy được. Vui lòng liên hệ hotline.");
         }
+        if (o.getPaymentStatus() == Orders.PaymentStatus.PAID) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Đơn hàng đã thanh toán không thể tự hủy trên hệ thống. Vui lòng liên hệ hotline quán để được hỗ trợ hoàn tiền.");
+        }
         o.setStatus(Orders.Status.CANCELLED);
         Orders saved = orderRepo.save(o);
         notify(saved, "Đơn hàng #" + id + " đã được hủy theo yêu cầu của bạn.");
@@ -223,7 +291,10 @@ public class OrderService {
     /** Thanh toán giả lập: khách tự xác nhận đã trả, hệ thống chỉ ghi nhận trạng thái. */
     @Transactional
     public Orders pay(String email, Long id) {
-        ownOrder(email, id);
+        Orders order = ownOrder(email, id);
+        if (order.getStatus() == Orders.Status.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn đã hủy thì không thanh toán được");
+        }
         return updatePayment(id, true);
     }
 

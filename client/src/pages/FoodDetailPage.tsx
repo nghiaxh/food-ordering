@@ -31,10 +31,12 @@ export default function FoodDetailPage() {
   const foodId = Number(id)
   const navigate = useNavigate()
   const [qty, setQty] = useState(1)
+  // Đóng bằng state để Drawer chạy animation đóng rồi mới rời route; unmount ngay sẽ mất hiệu ứng.
+  const [open, setOpen] = useState(true)
   const user = useAuthStore((s) => s.user)
   const add = useCartStore((s) => s.add)
 
-  const close = () => navigate('/')
+  const close = () => setOpen(false)
 
   const {
     data: food,
@@ -118,8 +120,12 @@ export default function FoodDetailPage() {
 
   return (
     <Drawer
-      open
+      open={open}
       onClose={close}
+      afterOpenChange={(visible) => {
+        // Chỉ điều hướng khi đã đóng xong; lúc mở thì giữ nguyên URL chi tiết.
+        if (!visible) navigate('/')
+      }}
       // Không dùng `size` của Drawer: giá trị đó đè lên `width` và làm panel tràn hết
       // màn hình. Chỉ cần `width`, Drawer tự co về 100% khi cửa sổ hẹp hơn.
       width={720}
@@ -144,7 +150,12 @@ export default function FoodDetailPage() {
       ) : (
         <>
           <div className="overflow-hidden rounded-2xl bg-stone-100">
-            <UiImg src={food.imageUrl} alt={food.name} preview className="aspect-[4/3] w-full" />
+            <UiImg
+              src={food.imageUrl}
+              alt={food.name}
+              preview
+              className="aspect-[4/3] w-full sm:aspect-[2/1]"
+            />
           </div>
 
           <div className="mt-4 flex flex-wrap items-start justify-between gap-3">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
+import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Segmented, Select, Table, message } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import { adminDeleteOrder, adminGetOrders, adminGetUsers, adminSaveOrder, adminUpdateOrderPayment, adminUpdateOrderStatus, getFoods, type AdminOrderPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
@@ -115,15 +115,25 @@ export default function AdminOrdersPage() {
       note: o.note ?? '',
       status: o.status,
       paid: o.paymentStatus === 'PAID',
-      items: o.items.map((i) => ({ foodId: i.food.id, quantity: i.quantity })),
+      items: o.items.map((i) => i.food ? { foodId: i.food.id, quantity: i.quantity } : { comboId: i.combo!.id, quantity: i.quantity }),
     })
     setModal(true)
   }
 
+  // Đơn đã giao hoặc đã hủy thì khoá hoàn toàn; đơn đã thu tiền hoặc đã xác nhận chỉ sửa
+  // được thông tin giao hàng, không đổi món. Server kiểm lại đúng luật này.
+  const finalState = (o: Order) => o.status === 'COMPLETED' || o.status === 'CANCELLED'
+  const itemsLocked =
+    !!editing && !(editing.status === 'PENDING' && editing.paymentStatus === 'UNPAID')
+
   const submit = async (v: AdminOrderPayload) => {
+    // Khi đơn đã qua bước đặt món, không gửi danh sách món lên để server không hiểu là
+    // đang thay món (server chặn thao tác đó sau khi đơn đã xác nhận hoặc đã thu tiền).
+    const { items, ...rest } = v
+    const data = { ...rest, note: v.note?.trim() || undefined, ...(itemsLocked ? {} : { items }) }
     const res = await saveOrder({
       id: editing?.id ?? null,
-      data: { ...v, note: v.note?.trim() || undefined },
+      data,
     })
     if (!res.ok) {
       message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
@@ -160,13 +170,30 @@ export default function AdminOrdersPage() {
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Select
-          className="w-full sm:w-56"
+        <Segmented
           value={statusFilter}
-          onChange={setStatusFilter}
+          onChange={(val) => setStatusFilter(val as OrderStatus | 'ALL')}
           options={[
-            { label: 'Tất cả trạng thái', value: 'ALL' },
-            ...ORDER_STATUSES.map((s) => ({ label: ORDER_STATUS_LABEL[s], value: s })),
+            {
+              label: (
+                <span className="flex items-center gap-1 px-1 py-0.5">
+                  Tất cả ({orders?.length ?? 0})
+                </span>
+              ),
+              value: 'ALL',
+            },
+            ...ORDER_STATUSES.map((s) => {
+              const count = (orders ?? []).filter((o) => o.status === s).length
+              return {
+                label: (
+                  <span className="flex items-center gap-1 px-1 py-0.5">
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: STATUS_HEX[s] }} />
+                    {ORDER_STATUS_LABEL[s]} {count > 0 ? `(${count})` : ""}
+                  </span>
+                ),
+                value: s,
+              }
+            }),
           ]}
         />
       </div>
@@ -234,34 +261,58 @@ export default function AdminOrdersPage() {
                 ),
               },
               {
-                title: 'Thao tác',
-                width: 240,
-                render: (_, o) => (
-                  <div className="flex items-center gap-2">
-                    <Button size="small" icon={<EyeOutlined />} onClick={() => setDetailId(o.id)}>
-                      Chi tiết
-                    </Button>
-                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(o)}>
-                      Sửa
-                    </Button>
-                    <Button
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      loading={busyIds.has(o.id)}
-                      onClick={() =>
-                        Modal.confirm({
-                          title: 'Xóa đơn này?',
-                          centered: true,
-                          okText: 'Xóa',
-                          okButtonProps: { danger: true },
-                          cancelText: 'Hủy',
-                          onOk: () => remove(o.id),
-                        })
-                      }
-                    />
-                  </div>
-                ),
+                title: 'Thao tác nhanh',
+                width: 320,
+                render: (_, o) => {
+                  const nexts = allowedNextStatuses(o.status)
+                  const primaryNext = nexts.find((s) => s !== 'CANCELLED')
+                  return (
+                    <div className="flex items-center gap-1.5">
+                      {primaryNext && (
+                        <Button
+                          size="small"
+                          type="primary"
+                          className="!h-7 !bg-amber-600 text-xs font-medium"
+                          loading={busyIds.has(o.id)}
+                          onClick={() => void changeStatus(o.id, primaryNext)}
+                        >
+                          {primaryNext === 'CONFIRMED' && 'Duyệt đơn'}
+                          {primaryNext === 'PREPARING' && 'Bắt đầu nấu'}
+                          {primaryNext === 'COMPLETED' && 'Hoàn thành'}
+                        </Button>
+                      )}
+                      <Button size="small" className="!h-7 text-xs" icon={<EyeOutlined />} onClick={() => setDetailId(o.id)}>
+                        Chi tiết
+                      </Button>
+                      <Button
+                        size="small"
+                        className="!h-7 text-xs"
+                        icon={<EditOutlined />}
+                        disabled={finalState(o)}
+                        title={finalState(o) ? 'Đơn đã chốt nên không sửa được' : undefined}
+                        onClick={() => openEdit(o)}
+                      >
+                        Sửa
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        loading={busyIds.has(o.id)}
+                        onClick={() =>
+                          Modal.confirm({
+                            title: 'Xóa đơn này?',
+                            centered: true,
+                            okText: 'Xóa',
+                            okButtonProps: { danger: true },
+                            cancelText: 'Hủy',
+                            onOk: () => remove(o.id),
+                          })
+                        }
+                      />
+                    </div>
+                  )
+                },
               },
             ]}
           />
@@ -295,7 +346,13 @@ export default function AdminOrdersPage() {
                   value: s,
                 }))}
               />
-              <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(detail)}>
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                disabled={finalState(detail)}
+                title={finalState(detail) ? 'Đơn đã chốt nên không sửa được' : undefined}
+                onClick={() => openEdit(detail)}
+              >
                 Sửa
               </Button>
             </div>
@@ -376,14 +433,19 @@ export default function AdminOrdersPage() {
               <div className="space-y-2.5">
                 {detail.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 rounded-xl border border-stone-100 p-2.5">
-                    <UiImg src={item.food.imageUrl} alt={item.food.name} className="h-12 w-12 rounded-lg" />
+                    <UiImg src={item.food?.imageUrl ?? item.combo?.imageUrl ?? ''} alt={item.food?.name ?? item.combo?.name ?? ''} className="h-12 w-12 rounded-lg" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-stone-800">{item.food.name}</p>
+                      <p className="truncate text-sm font-medium text-stone-800">{item.food?.name ?? item.combo?.name}</p>
                       <p className="text-xs text-stone-400">
                         {formatVND(item.price)} × {item.quantity}
+                        {!!item.discountAmount && (
+                          <span className="ml-1 text-emerald-600">· giảm {formatVND(item.discountAmount)}</span>
+                        )}
                       </p>
                     </div>
-                    <b className="text-sm tabular-nums text-stone-800">{formatVND(item.price * item.quantity)}</b>
+                    <b className="text-sm tabular-nums text-stone-800">
+                      {formatVND(item.price * item.quantity - (item.discountAmount ?? 0))}
+                    </b>
                   </div>
                 ))}
               </div>
@@ -463,6 +525,12 @@ export default function AdminOrdersPage() {
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
                   Món đặt
                 </p>
+                {itemsLocked && (
+                  <p className="mb-2 rounded-lg bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500">
+                    Đơn đã xác nhận hoặc đã thu tiền nên chỉ sửa được người nhận, số điện thoại,
+                    địa chỉ và ghi chú. Muốn đổi món, hãy hủy đơn và tạo đơn mới.
+                  </p>
+                )}
                 {fields.map((field) => (
                   <div key={field.key} className="mb-2 flex items-start gap-2">
                     <Form.Item
@@ -473,6 +541,7 @@ export default function AdminOrdersPage() {
                     >
                       <Select
                         showSearch
+                        disabled={itemsLocked}
                         optionFilterProp="label"
                         placeholder="Chọn món"
                         options={(foods ?? []).map((f) => ({
@@ -488,12 +557,18 @@ export default function AdminOrdersPage() {
                       className="mb-0"
                       rules={[{ required: true, message: 'SL' }]}
                     >
-                      <InputNumber min={1} max={99} style={{ width: 80 }} />
+                      <InputNumber min={1} max={99} disabled={itemsLocked} style={{ width: 80 }} />
                     </Form.Item>
-                    <Button danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      disabled={itemsLocked}
+                      aria-label="Bỏ món khỏi đơn"
+                      onClick={() => remove(field.name)}
+                    />
                   </div>
                 ))}
-                <Button type="dashed" block onClick={() => add({ quantity: 1 })}>
+                <Button type="dashed" block disabled={itemsLocked} onClick={() => add({ quantity: 1 })}>
                   Thêm món
                 </Button>
               </>

@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,23 +29,29 @@ public class AuthService {
     private final ReviewRepository reviewRepo;
     private final ChatMessageRepository chatRepo;
     private final NotificationRepository notificationRepo;
+    private final PromotionService promotionService;
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
+    private final Clock clock;
 
     public AuthService(UserRepository userRepo, CartItemRepository cartItemRepo,
                        OrdersRepository ordersRepo, ReviewRepository reviewRepo,
                        ChatMessageRepository chatRepo, NotificationRepository notificationRepo,
-                       PasswordEncoder encoder, JwtUtil jwtUtil) {
+                       PromotionService promotionService, PasswordEncoder encoder, JwtUtil jwtUtil,
+                       Clock clock) {
         this.userRepo = userRepo;
         this.cartItemRepo = cartItemRepo;
         this.ordersRepo = ordersRepo;
         this.reviewRepo = reviewRepo;
         this.chatRepo = chatRepo;
         this.notificationRepo = notificationRepo;
+        this.promotionService = promotionService;
         this.encoder = encoder;
         this.jwtUtil = jwtUtil;
+        this.clock = clock;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest req) {
         if (userRepo.existsByEmail(req.email())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email đã tồn tại");
@@ -55,6 +63,8 @@ public class AuthService {
         u.setPhone(req.phone());
         u.setAddress(req.address());
         userRepo.save(u);
+        // Khách mới có sẵn voucher chào mừng trong ví; thiếu cấu hình thì bỏ qua, không chặn đăng ký.
+        promotionService.claimWelcome(u, LocalDateTime.now(clock));
         return toResponse(u);
     }
 

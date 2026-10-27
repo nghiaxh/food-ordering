@@ -8,6 +8,7 @@ import java.util.Optional;
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     List<CartItem> findByUserIdOrderByIdAsc(Long userId);
     Optional<CartItem> findByUserIdAndFoodId(Long userId, Long foodId);
+    Optional<CartItem> findByUserIdAndComboId(Long userId, Long comboId);
     void deleteByUserId(Long userId);
 
     /** Món còn nằm trong giỏ của khách thì chưa xoá được, phải chuyển sang ngừng phục vụ. */

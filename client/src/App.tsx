@@ -8,15 +8,20 @@ import DefaultLayout from './layouts/DefaultLayout'
 import AdminLayout from './layouts/AdminLayout'
 import FoodsPage from './pages/FoodsPage'
 import FoodDetailPage from './pages/FoodDetailPage'
+import ComboDetailPage from './pages/ComboDetailPage'
 import CartPage from './pages/CartPage'
 import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage, { RegisterPage } from './pages/AuthPages'
 import AdminFoodsPage from './pages/admin/AdminFoodsPage'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage'
 import AdminOrdersPage from './pages/admin/AdminOrdersPage'
 import AdminCustomersPage from './pages/admin/AdminCustomersPage'
 import AdminChatbotPage from './pages/admin/AdminChatbotPage'
+import AdminPromotionsPage from './pages/admin/AdminPromotionsPage'
+import AdminCombosPage from './pages/admin/AdminCombosPage'
+import AdminReportsPage from './pages/admin/AdminReportsPage'
 import ScrollManager from './components/ScrollManager'
 
 /**
@@ -64,6 +69,7 @@ function AppRoutes() {
             mà vẫn giữ URL thật để thẻ món trong chatbot liên kết được. */}
         <Route path="/" element={<FoodsPage />}>
           <Route path="foods/:id" element={<FoodDetailPage />} />
+          <Route path="combos/:id" element={<ComboDetailPage />} />
         </Route>
         <Route path="/foods" element={<Navigate to="/" replace />} />
         <Route path="/cart" element={<CartPage />} />
@@ -94,12 +100,16 @@ function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="/admin/foods" replace />} />
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="foods" element={<AdminFoodsPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="customers" element={<AdminCustomersPage />} />
         <Route path="chatbot" element={<AdminChatbotPage />} />
+        <Route path="promotions" element={<AdminPromotionsPage />} />
+        <Route path="combos" element={<AdminCombosPage />} />
+        <Route path="reports" element={<AdminReportsPage />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />

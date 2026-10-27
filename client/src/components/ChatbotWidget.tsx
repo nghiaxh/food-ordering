@@ -6,6 +6,9 @@ import { chat } from '../api/api'
 import type { ChatMessage } from '../types'
 import { formatVND } from '../utils/format'
 import { useHasCartBar } from '../hooks/useCartBar'
+import { useCartStore } from '../store/cartStore'
+import { ShoppingCartOutlined } from '@ant-design/icons'
+import { message } from 'antd'
 import UiButton from './UiButton'
 import UiImg from './UiImg'
 
@@ -51,6 +54,15 @@ export default function ChatbotWidget() {
   }, [messages, loading])
 
   const isAdmin = location.pathname.startsWith('/admin')
+  const addToCart = useCartStore((s) => s.add)
+
+  const handleAddToCart = async (e: React.MouseEvent, f: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const portions = f.portions && f.portions > 0 ? f.portions : 1
+    await addToCart(f, portions)
+    message.success(`Đã thêm ${portions}x ${f.name} vào giỏ!`)
+  }
 
   const handleSend = async (raw?: string) => {
     const text = (raw ?? input).trim()
@@ -113,14 +125,14 @@ export default function ChatbotWidget() {
     >
       {open && (
         <div className="pointer-events-auto flex min-h-0 w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 max-h-[600px] max-sm:max-h-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
-          <div className="flex shrink-0 items-center gap-2.5 bg-amber-600 px-4 py-3">
+          <div className="flex shrink-0 items-center gap-2 bg-amber-600 px-3 py-2">
             <p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
               Trợ lý gợi ý món ăn
             </p>
             <button
               type="button"
               aria-label="Đóng trợ lý"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
               onClick={handleClose}
             >
               <CloseOutlined />
@@ -174,6 +186,14 @@ export default function ChatbotWidget() {
                                 ? formatVND(Number(f.totalPrice))
                                 : formatVND(Number(f.price))}
                             </span>
+                            <button
+                              type="button"
+                              onClick={(e) => void handleAddToCart(e, f)}
+                              title="Thêm vào giỏ"
+                              className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 transition hover:bg-amber-600 hover:text-white"
+                            >
+                              <ShoppingCartOutlined className="text-xs" />
+                            </button>
                           </Link>
                         ))}
                       </div>

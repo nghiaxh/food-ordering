@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Empty, Modal, QRCode, Select, Skeleton, Steps, Tag, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -14,6 +14,7 @@ export default function OrdersPage() {
   const navigate = useNavigate()
   const { data: orders, loading, error, refresh } = useAsyncData((signal) => getMyOrders(signal), [])
   const addToCart = useCartStore((s) => s.add)
+  const addComboToCart = useCartStore((s) => s.addCombo)
   const [reorderingId, setReorderingId] = useState<number | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL')
   const [paying, setPaying] = useState<Order | null>(null)
@@ -25,11 +26,12 @@ export default function OrdersPage() {
   const reorder = async (order: Order) => {
     if (reorderingId !== null) return
     setReorderingId(order.id)
-    const available = order.items.filter((i) => i.food.available)
-    const skipped = order.items.filter((i) => !i.food.available).map((i) => i.food.name)
+    const available = order.items.filter((i) => i.food ? i.food.available : true)
+    const skipped = order.items.filter((i) => i.food && !i.food.available).map((i) => i.food!.name)
     try {
       for (const item of available) {
-        await addToCart(item.food, item.quantity)
+        if (item.food) await addToCart(item.food, item.quantity)
+        else if (item.combo) await addComboToCart(item.combo, item.quantity)
       }
     } finally {
       setReorderingId(null)
@@ -145,14 +147,32 @@ export default function OrdersPage() {
                     )}
 
                     <div className="mt-4 space-y-1.5">
-                      {o.items.map((it) => (
-                        <div key={it.id} className="flex items-center justify-between text-sm">
-                          <span className="text-stone-600">
-                            {it.quantity}x {it.food.name}
-                          </span>
-                          <span className="text-stone-500">{formatVND(it.price)}</span>
+                      {o.items.map((it) => {
+                        const gross = it.price * it.quantity
+                        const discount = it.discountAmount ?? 0
+                        return (
+                          <div key={it.id} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="min-w-0 truncate text-stone-600">
+                              {it.quantity}x {it.food?.name ?? it.combo?.name}
+                              {it.combo && <span className="ml-1 text-xs text-stone-400">(combo)</span>}
+                            </span>
+                            <span className="shrink-0 text-right text-stone-500">
+                              {discount > 0 && (
+                                <span className="mr-2 text-xs text-stone-400 line-through">{formatVND(gross)}</span>
+                              )}
+                              <span className={discount > 0 ? 'font-medium text-emerald-700' : undefined}>
+                                {formatVND(gross - discount)}
+                              </span>
+                            </span>
+                          </div>
+                        )
+                      })}
+                      {!!o.discountTotal && o.discountTotal > 0 && (
+                        <div className="flex items-center justify-between text-sm text-emerald-700">
+                          <span>Giảm giá{o.promotionCode ? ` (${o.promotionCode})` : ''}</span>
+                          <span className="tabular-nums">-{formatVND(o.discountTotal)}</span>
                         </div>
-                      ))}
+                      )}
                       <div className="flex items-center justify-between border-t border-dashed border-stone-200 pt-2 text-sm">
                         <span className="text-stone-500">
                           {PAYMENT_METHOD_LABEL[o.paymentMethod] ?? o.paymentMethod}
@@ -175,13 +195,13 @@ export default function OrdersPage() {
                           Thanh toán
                         </UiButton>
                       )}
-                      {o.status === 'PENDING' && (
+                      {o.status === 'PENDING' && o.paymentStatus !== 'PAID' && (
                         <UiButton
                           kind="danger"
                           onClick={() =>
                             Modal.confirm({
                               title: 'Hủy đơn này?',
-                              content: 'Chỉ hủy được khi đơn còn chờ xác nhận.',
+                              content: 'Bạn chỉ có thể tự hủy đơn khi đơn chưa thanh toán và còn chờ xác nhận.',
                               centered: true,
                               okText: 'Hủy đơn',
                               okButtonProps: { danger: true },
@@ -192,6 +212,11 @@ export default function OrdersPage() {
                         >
                           Hủy đơn
                         </UiButton>
+                      )}
+                      {o.status === 'PENDING' && o.paymentStatus === 'PAID' && (
+                        <span className="self-center text-xs text-stone-500 italic">
+                          Đơn đã thanh toán, vui lòng gọi hotline 0246.888.9999 để hủy/hoàn tiền.
+                        </span>
                       )}
                     </div>
                   </div>
