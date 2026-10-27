@@ -80,14 +80,20 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
    trong `OrderService.isValidTransition`. Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
    thái được. `CANCELLED` được phép từ mọi trạng thái chưa chốt. Client cũng lọc danh sách trạng
    thái hợp lệ bằng `allowedNextStatuses`, nhưng server mới là nơi quyết định.
-6. Khách tự hủy được đơn của mình qua `PATCH /api/orders/{id}/cancel`, chỉ khi còn `PENDING`.
+6. Khách tự hủy được đơn của mình qua `PATCH /api/orders/{id}/cancel`, chỉ khi đơn còn `PENDING`
+   **và** chưa thanh toán. Đơn đã `PAID` hoặc đã `CONFIRMED` thì quán đã bắt tay làm, hủy lúc đó
+   là mất món, nên server trả 400 chứ không chỉ ẩn nút trên giao diện.
 7. Thanh toán giả lập (COD / QR) - không tích hợp cổng thanh toán thật.
    Khách tự xác nhận đã trả qua `PATCH /api/orders/{id}/pay`; admin vẫn ghi nhận hoặc hoàn tác
    thủ công bằng `PATCH /api/admin/orders/{id}/payment?paid=...`. Mã QR trên `/orders` do component
    `QRCode` của antd sinh, mã hoá mã đơn (`FOOD-{id}-{tổng tiền}`) nên quét ra chỉ có thông tin
    nhận dạng đơn, không phải payload chuyển khoản; chỉ hiện với phương thức `QR`.
-8. Admin có thể tạo, sửa và xoá đơn thay khách qua `/api/admin/orders` (UC12), trong đó sửa sẽ
-   thay cả danh sách món và đồng bộ lại số tiền của giao dịch thanh toán.
+8. Admin có thể tạo, sửa và xoá đơn thay khách qua `/api/admin/orders` (UC12). **Sửa món chỉ
+   khi đơn còn `PENDING` và chưa thu tiền**; sau đó chỉ còn người nhận, số điện thoại, địa chỉ,
+   ghi chú và trạng thái. Đơn `COMPLETED` hoặc `CANCELLED` bị khoá hoàn toàn (`requireEditable`)
+   để số liệu báo cáo và lịch sử của khách không bị sửa ngược. Giao diện khoá đúng như vậy:
+   nút Sửa bị vô hiệu hoá ở hai trạng thái cuối, danh sách món trong form bị disable và kèm
+   dòng giải thích khi đơn đã xác nhận hoặc đã thu tiền.
 9. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
    trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
    Nút "Đặt lại" chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
@@ -109,6 +115,50 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 - Món đã có trong đơn không xoá được (`FoodService.delete` trả 409 kèm gợi ý chuyển sang
   ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
 - Admin không khoá hay xoá được tài khoản quản trị (`AuthService.requireCustomer`).
+
+### 4c. Combo, khuyến mãi và ví voucher
+
+Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `service/PricingService`.
+Client không tự nhân phần trăm, không tự trừ voucher; nó gọi `POST /api/cart/quote` và hiện
+lại đúng những gì server trả. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
+lệch nhau.
+
+- **Một dòng, một khoản giảm.** `QuoteLine.lineDiscount` và `OrderItem.discountAmount` là số
+  tiền giảm của **cả dòng** (đã nhân số lượng), không phải của một phần.
+- **Khuyến mãi tự động** (chương trình không có mã): mỗi dòng chọn **một** chương trình tốt
+  nhất theo số tiền giảm, hoà thì xét `priority`. Không cộng dồn hai chương trình tự động trên
+  cùng một dòng, nên hoá đơn đọc một lần là hiểu.
+- **Phạm vi** `GLOBAL`, `CATEGORY`, `FOOD`, `COMBO` quyết định chương trình có áp cho dòng đó
+  không (`matches`). Chương trình theo danh mục chỉ khớp món, không khớp combo.
+- **Voucher có mã** áp tiếp trên phần còn lại của những dòng khớp phạm vi. Voucher phần trăm
+  tính trên tổng các dòng khớp (có `maxDiscount`); voucher số tiền cố định được **chia theo tỉ
+  lệ giá từng dòng, dòng cuối nhận phần dư**, nên tổng giảm đúng bằng giá trị voucher mà không
+  lệch đồng nào. Nếu tổng đơn nhỏ hơn mệnh giá voucher thì giảm tối đa bằng tổng đơn, tổng
+  không bao giờ âm.
+- **Điều kiện dùng mã**: đang trong thời gian hiệu lực, còn lượt, đạt `minOrderTotal` tính trên
+  phần còn lại sau khuyến mãi tự động.
+- **Ví voucher** (`user_vouchers`): khách nhận voucher vào ví qua
+  `POST /api/promotions/{id}/claim`; voucher `claimable` chỉ dùng được khi đã có trong ví và
+  chưa dùng (`usedAt`). Mã admin phát ngoài hệ thống (không `claimable`) thì nhập là dùng, không
+  cần bước nhận. Khi tạo đơn thành công, `PromotionService.markUsed` ghi `usedAt` và tăng
+  `usedCount` trong cùng transaction với đơn.
+- **Quà ngẫu nhiên mỗi ngày**: `POST /api/promotions/lucky` bốc một voucher còn nhận trong pool,
+  giới hạn một lần/ngày. `user_vouchers.source` ghi nguồn nhận (`WELCOME`, `CLAIM`, `LUCKY`) và
+  giới hạn này chỉ đếm voucher `LUCKY`, nên tài khoản vừa đăng ký (đã có voucher chào mừng) vẫn
+  bốc được quà ngay trong ngày.
+- **Voucher chào mừng**: `AuthService.register` gọi `claimWelcome`, tự thả voucher mã `WELCOME`
+  vào ví ngay sau khi đăng ký; thiếu cấu hình thì bỏ qua, không chặn đăng ký.
+- **Khuyến mãi theo dịp** dùng `daysOfWeek` (ví dụ `SAT,SUN`) và `startTime/endTime`; khung giờ
+  qua nửa đêm được hiểu là `start > end`.
+- **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
+  `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
+  cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
+- **Combo** (`combos`, `combo_items`) là một dòng hàng có giá riêng thấp hơn tổng giá lẻ; giá
+  combo vẫn lấy từ DB và đi qua đúng luật giảm giá trên. Báo cáo doanh thu tính combo theo tên
+  combo và trừ `discountAmount` của dòng (`ReportService.netLine`).
+- **Giá trên thẻ món**: `GET /api/foods` và `/api/combos` được `decorateFoods`/`decorateCombos`
+  điền `discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel`; client chỉ hiện.
+  Đây là giá tham khảo cùng luật với giỏ, còn con số chốt vẫn là báo giá.
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
@@ -198,23 +248,42 @@ Hai nhóm dùng hai layout riêng, đúng yêu cầu "tách riêng trang quản 
 
 - `DefaultLayout` bọc route khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân
   trang. Trang bảng món tự khoá chiều cao `100dvh - 4rem` và cuộn trong vùng riêng.
-- `AdminLayout` bọc `/admin/*`: menu bên trái 5 mục Món ăn, Danh mục, Đơn hàng, Khách hàng,
-  Chatbot; thu gọn thành drawer ở màn hình nhỏ. Route admin không nằm trong `DefaultLayout`,
-  nên không có khung chatbot hay thanh điều hướng của khách.
+- `AdminLayout` bọc `/admin/*`: menu trái chia nhóm Bán hàng (Tổng quan, Đơn hàng, Khách hàng),
+  Thực đơn (Món ăn, Danh mục, Combo), Marketing (Khuyến mãi), Hệ thống (Chatbot, Báo cáo);
+  thu gọn thành drawer ở màn hình nhỏ. Vào `/admin` mặc định mở `/admin/dashboard`. Route admin
+  không nằm trong `DefaultLayout`, nên không có khung chatbot hay thanh điều hướng của khách.
+
+### Trang tổng quan quản trị
+
+`/admin/dashboard` là trang mở đầu của khu quản trị và cố ý **không** dùng thẻ màu mè hay biểu
+đồ cầu kỳ: một hàng chỉ số ngăn bằng đường kẻ mảnh, danh sách đơn chờ xác nhận kèm nút duyệt
+ngay tại chỗ, và món bán chạy với thanh một màu. Việc cần làm nằm trên đầu trang, số liệu lấy
+từ `/api/admin/reports/*` tính trong 30 ngày gần nhất. Doanh thu trên trang này là doanh thu
+**sau giảm giá**, khớp với trang Báo cáo, nên hai nơi không bao giờ lệch nhau.
 
 ### Bảng món kiểu kiosk
 
 Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang chủ / Thực đơn" làm một
 màn hình:
 
-- Rail danh mục cố định bên trái ở màn hình rộng, đổi thành dải chip cuộn ngang ở màn hình nhỏ.
-- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Dải này **dính đầu vùng
-  lưới** (`sticky top-0`) thay vì nằm ở một hàng riêng phía trên, tiết kiệm nguyên chiều cao
-  hàng đó mà vẫn luôn trong tầm mắt. Mục đầu ghi "Mọi giá" chứ không phải "Tất cả" vì dải
-  danh mục ngay dưới đã có "Tất cả", hai chữ giống nhau cạnh nhau dễ bị hiểu là một bộ lọc.
+- **Không còn khối combo/danh mục riêng**: cả hai gộp vào bảng món. Chip **Combo tiết kiệm** nằm
+  ngay sau "Tất cả" trong hàng chip; bấm vào thì lưới đổi sang thẻ combo cùng khung với thẻ món
+  (ảnh `16/10`, giá đã giảm, nhãn `-N%`, nút "Thêm combo", cả thẻ mở `/combos/:id`). Dải lọc giá
+  áp cho cả combo (so trên `combo.price`, hai đầu tính là thuộc dải, giống `greaterThanOrEqualTo`
+  và `lessThanOrEqualTo` của server); không có combo nào trong dải thì hiện thông báo trống.
+- Panel chi tiết (món và combo) dùng ảnh `4/3` trên mobile, `2/1` từ `sm` để không chiếm gần hết
+  chiều cao Drawer trên desktop.
+- **Không còn khối voucher trên trang chủ**: voucher chào mừng tự vào ví, mã đã nhận chọn ở bước
+  thanh toán trong giỏ. API nhận voucher và quà may mắn vẫn còn ở server nhưng hiện không có nút
+  trên giao diện khách.
+- Thẻ món gắn nhãn ưu đãi tự động (`Hôm nay`, `Cuối tuần`, `Dịp lễ`) cạnh nhãn `-N%`, lấy từ
+  `discountLabel` do server điền theo `Promotion.occasion`.
+- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Dải giá nằm **hàng riêng
+  bên dưới** dải danh mục, cả hai cùng dính đầu vùng lưới (`sticky top-0`), nên mỗi hàng vẫn
+  cuộn ngang được trên màn hẹp thay vì cắt mất nút. Mục đầu ghi "Mọi giá" chứ không phải "Tất cả"
+  vì hàng trên đã có "Tất cả", hai chữ giống nhau cạnh nhau dễ bị hiểu là một bộ lọc.
 - Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang. Số cột đổi theo bề rộng
-  (`grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4`); `lg` phải bớt
-  cột lại vì mức đó mới xuất hiện rail.
+  (`grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`).
 - Thanh giỏ ghim đáy hiện khi giỏ có món, chứa tổng tiền và nút "Xem giỏ và đặt món".
 - Toàn bộ bộ lọc nằm trên URL (`category`, `keyword`, `min`, `max`) nên người dùng chia sẻ
   được đường dẫn đã lọc và ô tìm kiếm trên thanh điều hướng điều khiển được trang này.
@@ -224,10 +293,12 @@ Thẻ món được nén để nhìn thấy được nhiều món hơn trên m�
 sẽ xuống dòng thay vì tràn. Đo ở cửa sổ 848×670: chiều cao thẻ 444px xuống 285px, vùng lưới
 tăng từ 546px lên 614px.
 
-`/foods/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`) chứ không phải
-trang riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật để thẻ món
-trong chatbot liên kết được, và nút quay lại của trình duyệt đóng được panel. URL cũ
-`/foods` chuyển hướng về `/`.
+`/foods/:id` và `/combos/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`)
+chứ không phải trang riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật
+để thẻ món trong chatbot liên kết được, và nút quay lại của trình duyệt đóng được panel. Hai panel
+dùng chung bố cục: ảnh 4/3, giá và trạng thái, mô tả, lưới thông số, hàng số lượng + tổng tiền +
+nút thêm; combo thay phần đánh giá bằng danh sách món trong combo và dòng tiết kiệm so với gọi lẻ.
+URL cũ `/foods` chuyển hướng về `/`.
 
 ### Thanh điều hướng và hệ nút
 
@@ -299,8 +370,8 @@ security/      JwtUtil, JwtFilter
 entity/        JPA entities
 repository/    Spring Data JPA repositories
 dto/           request/response payloads (đồng bộ thủ công với types client)
-service/       nghiệp vụ chính (FoodService, OrderService, AuthService, ChatbotService,
-               AiClient)
+service/       nghiệp vụ chính (FoodService, OrderService, CartService, PromotionService,
+               PricingService, ComboService, ReportService, AuthService, ChatbotService, AiClient)
 controller/    mapping và điều phối request dưới /api/...
 ```
 
@@ -329,6 +400,9 @@ nginx.conf         prod: serve dist/ và fallback về index.html
 
 - **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); **seed chỉ chạy khi bảng `users` còn trống** (`if (userRepo.count() > 0) return;`), nên lần khởi động sau sẽ bỏ qua toàn bộ seed và không nhân đôi dữ liệu demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
+- **Tiền chỉ tính ở `PricingService`**: giỏ gọi `POST /api/cart/quote`, đơn gọi cùng service đó
+  lúc tạo. Client không nhân phần trăm hay trừ voucher; thêm quy tắc giảm giá thì sửa
+  `PricingService` và bổ sung ca trong `PricingServiceTest`, đừng tính lại ở React.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
 - **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép JSON). Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không bao giờ gửi xuống client.
 - **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin), toàn bộ là `.webp` đã resize theo ô hiển thị. Admin tải ảnh lên qua `POST /api/admin/uploads/image` hoặc dán URL ngoài trong form quản lý; ảnh tải lên có URL tuyệt đối trỏ vào `/api/uploads/**`.
