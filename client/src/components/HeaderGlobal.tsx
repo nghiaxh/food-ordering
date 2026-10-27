@@ -1,224 +1,252 @@
 import { useEffect, useState } from 'react'
-import { Avatar, Badge, Button, Drawer, Dropdown, type MenuProps } from 'antd'
-import { MenuOutlined } from '@ant-design/icons'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Avatar, Badge, Dropdown, Input, Popover, type MenuProps } from 'antd'
+import { SearchOutlined } from '@ant-design/icons'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import UiIcon from './UiIcon'
+import UiButton from './UiButton'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import { deleteNotification, deleteReadNotifications, getNotifications, markNotificationsRead } from '../api/api'
+import { DeleteOutlined } from '@ant-design/icons'
+import type { NotificationItem } from '../types'
 
-interface NavLink {
-  label: string
-  to: string
-}
-
-const links: NavLink[] = [
-  { label: 'Trang chủ', to: '/' },
-  { label: 'Thực đơn', to: '/foods' },
-  { label: 'Đơn hàng', to: '/orders' },
-  { label: 'Về chúng tôi', to: '/#about' },
-  { label: 'Liên hệ', to: '/#contact' },
+const NAV = [
+  { to: '/', label: 'Trang chủ' },
+  { to: '/foods', label: 'Thực đơn' },
+  { to: '/orders', label: 'Đơn hàng' },
 ]
 
 export default function HeaderGlobal() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
+  const { user, logout } = useAuthStore()
   const count = useCartStore((s) => s.count())
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+
+  // Ô tìm kiếm ghi thẳng vào URL để trang thực đơn đọc được và người dùng chia sẻ
+  // được đường dẫn đã lọc. `replace` tránh mỗi ký tự lại thêm một mục lịch sử.
+  const keyword = params.get('keyword') ?? ''
+  const [draft, setDraft] = useState(keyword)
+
+  useEffect(() => setDraft(keyword), [keyword])
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+    if (draft === keyword) return
+    const timer = window.setTimeout(() => {
+      const next = new URLSearchParams(params)
+      if (draft.trim()) next.set('keyword', draft.trim())
+      else next.delete('keyword')
+      setParams(next, { replace: true })
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [draft, keyword, params, setParams])
 
-  const navLinks = user?.role === 'ADMIN' ? [...links, { label: 'Quản trị', to: '/admin' }] : links
-
-  const isActive = (link: NavLink): boolean => {
-    if (link.to.startsWith('/#')) {
-      return location.pathname === '/' && location.hash === link.to.slice(1)
+  useEffect(() => {
+    if (!user) {
+      setNotifications([])
+      return
     }
-    if (link.to === '/') return location.pathname === '/'
-    return location.pathname === link.to || location.pathname.startsWith(`${link.to}/`)
+    getNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]))
+  }, [user, location.pathname])
+
+  const unread = notifications.filter((n) => !n.read).length
+
+  const markAllRead = async () => {
+    try {
+      await markNotificationsRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    } catch {
+      // Không cần báo lỗi cho thao tác phụ; lần tải sau sẽ phản ánh đúng trạng thái.
+    }
   }
 
-  const scrollHome = () => {
-    if (location.pathname === '/' && !location.hash) {
-      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-      window.scrollTo({ top: 0, behavior })
+  const clearRead = async () => {
+    try {
+      await deleteReadNotifications()
+      setNotifications((prev) => prev.filter((n) => !n.read))
+    } catch {
+      // Bỏ qua lỗi phụ
+    }
+  }
+
+  const removeOne = async (id: number) => {
+    try {
+      await deleteNotification(id)
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+    } catch {
+      // Bỏ qua lỗi phụ
     }
   }
 
   const accountMenu: MenuProps = {
     items: [
+      { key: 'orders', label: 'Đơn hàng của tôi', icon: <UiIcon name="inbox" size={16} /> },
       { key: 'account', label: 'Tài khoản', icon: <UiIcon name="user" size={16} /> },
+      ...(user?.role === 'ADMIN'
+        ? [{ key: 'admin', label: 'Trang quản trị', icon: <UiIcon name="th-large" size={16} /> }]
+        : []),
+      { type: 'divider' as const },
       { key: 'logout', label: 'Đăng xuất', icon: <UiIcon name="sign-out" size={16} /> },
     ],
     onClick: ({ key }) => {
-      if (key === 'account') {
-        navigate('/profile')
-      } else {
+      if (key === 'logout') {
         logout()
         navigate('/')
+        return
       }
+      navigate({ pathname: key === 'admin' ? '/admin/foods' : `/${key === 'orders' ? 'orders' : 'profile'}` })
     },
   }
 
-  const closeDrawer = () => setDrawerOpen(false)
-
-  const drawerContent = (
-    <nav className="flex flex-col gap-1">
-      {navLinks.map((link) => (
-        <Link
-          key={link.to}
-          to={link.to}
-          onClick={closeDrawer}
-          className={`rounded-lg px-3 py-2 text-sm font-medium ${
-            isActive(link) ? 'bg-amber-50 text-amber-700' : 'text-stone-600 hover:bg-amber-50 hover:text-amber-700'
-          }`}
-        >
-          {link.label}
-        </Link>
-      ))}
-      <div className="mt-3 border-t border-stone-200 pt-4">
-        {user ? (
-          <>
-            <Link
-              to="/profile"
-              onClick={closeDrawer}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-amber-50 hover:text-amber-700"
-            >
-              <UiIcon name="user" size={16} /> Tài khoản
-            </Link>
-            <button
-              type="button"
-              onClick={() => {
-                logout()
-                closeDrawer()
-                navigate('/')
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-amber-50 hover:text-red-600"
-            >
-              <UiIcon name="sign-out" size={16} /> Đăng xuất
-            </button>
-          </>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <Button
-              block
-              onClick={() => {
-                closeDrawer()
-                navigate('/login')
-              }}
-            >
-              Đăng nhập
-            </Button>
-            <Button
-              type="primary"
-              block
-              onClick={() => {
-                closeDrawer()
-                navigate('/register')
-              }}
-            >
-              Đăng ký
-            </Button>
-          </div>
-        )}
-      </div>
-    </nav>
-  )
-
   return (
-    <>
-      <header
-        className={`sticky top-0 z-50 bg-white/90 backdrop-blur-xl transition-shadow duration-200 ${
-          scrolled ? 'shadow-sm' : 'border-b border-stone-200/70'
-        }`}
-      >
-        <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 sm:px-6">
-          <div className="flex items-center justify-self-start">
-            <Button
-              type="text"
-              aria-label="Mở menu"
-              className="mr-1 md:hidden"
-              icon={<MenuOutlined />}
-              onClick={() => setDrawerOpen(true)}
-            />
-            <Link to="/" className="flex items-center gap-2 text-lg font-bold text-stone-900">
-              <img src="/favicon.svg" alt="FoodOrdering" className="h-8 w-8 rounded-xl" />
-              <span className="text-lg font-bold text-stone-900">
-                Food<span className="text-amber-600">Ordering</span>
-              </span>
-            </Link>
-          </div>
-
-          <nav className="hidden items-center gap-6 md:flex lg:gap-7 justify-self-center">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                onClick={scrollHome}
-                className={`relative text-sm font-medium transition-colors hover:text-amber-600 after:absolute after:-bottom-1.5 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-amber-600 after:content-[''] ${
-                  isActive(link) ? 'text-amber-600 after:opacity-100' : 'text-stone-600 after:opacity-0'
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-1.5 justify-self-end">
-            <Badge count={count} size="small" color="#d97706">
-              <Button
-                shape="circle"
-                aria-label="Giỏ hàng"
-                icon={<UiIcon name="shopping-cart" size={20} />}
-                onClick={() => navigate('/cart')}
-              />
-            </Badge>
-
-            {user ? (
-              <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
-                <button
-                  type="button"
-                  aria-label="Menu tài khoản"
-                  className="flex items-center gap-2 rounded-lg p-1 hover:bg-amber-50"
-                >
-                  <Avatar style={{ backgroundColor: '#d97706' }}>{user.fullName.charAt(0).toUpperCase()}</Avatar>
-                  <span className="hidden text-sm font-medium text-stone-700 sm:inline">{user.fullName}</span>
-                </button>
-              </Dropdown>
-            ) : (
-              <>
-                <Button onClick={() => navigate('/login')} className="hidden sm:inline-flex">
-                  Đăng nhập
-                </Button>
-                <Button type="primary" onClick={() => navigate('/register')}>
-                  Đăng ký
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={closeDrawer}
-        placement="right"
-        title={
-          <span className="flex items-center gap-2 font-bold text-stone-900">
-            <img src="/favicon.svg" alt="FoodOrdering" className="h-7 w-7 rounded-lg" />
-            Food<span className="text-amber-600">Ordering</span>
+    <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/85 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
+        <Link to="/" className="flex items-center gap-2 text-lg font-bold text-stone-900">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-600 text-lg text-white">
+            🍜
           </span>
-        }
-      >
-        {drawerContent}
-      </Drawer>
-    </>
+          Food<span className="text-amber-600">Ordering</span>
+        </Link>
+
+        {user?.role === 'ADMIN' && (
+          <UiButton
+            kind="icon"
+            size="small"
+            aria-label="Trang quản trị"
+            icon={<UiIcon name="th-large" size={18} />}
+            onClick={() => navigate('/admin/foods')}
+          />
+        )}
+
+        {/* Chặn bề rộng: không có `max-w` thì trên màn hình rộng ô tìm kiếm giãng hết
+            chiều ngang còn lại, nhóm nút bên phải bị đẩy lệch ra rìa. */}
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onPressEnter={() => navigate('/')}
+          prefix={<SearchOutlined style={{ color: '#a8a29e' }} />}
+          placeholder="Tìm món theo tên..."
+          allowClear
+          aria-label="Tìm món"
+          className="min-w-0 flex-1 md:max-w-xl"
+        />
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {user && (
+            <Popover
+              trigger="click"
+              placement="bottomRight"
+              arrow={false}
+              onOpenChange={(open) => {
+                if (open) getNotifications().then(setNotifications).catch(() => setNotifications([]))
+              }}
+              content={
+                <div style={{ width: 'min(320px, calc(100vw - 2rem))' }}>
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                    <span className="text-sm font-semibold text-stone-800">Thông báo</span>
+                    <div className="flex items-center gap-2">
+                      {unread > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-amber-700 hover:underline"
+                          onClick={() => void markAllRead()}
+                        >
+                          Đã đọc
+                        </button>
+                      )}
+                      {notifications.some((n) => n.read) && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-stone-400 hover:text-rose-600 hover:underline"
+                          onClick={() => void clearRead()}
+                          title="Xóa các thông báo đã đọc"
+                        >
+                          Xóa đã đọc
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-stone-400">Chưa có thông báo nào.</p>
+                    ) : (
+                      notifications.slice(0, 10).map((n) => (
+                        <div
+                          key={n.id}
+                          className={`group relative rounded-lg px-3 py-2 text-sm ${
+                            n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-amber-50/70 font-medium text-stone-800'
+                          }}`}
+                        >
+                          <div className="pr-6">
+                            <span
+                              className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+                                n.read ? 'bg-stone-200' : 'bg-amber-500'
+                              }}`}
+                            />
+                            {n.content}
+                            <span className="mt-0.5 block text-xs font-normal text-stone-400">
+                              {new Date(n.createdAt).toLocaleString('vi-VN')}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void removeOne(n.id)}
+                            className="absolute right-2 top-2 hidden text-stone-400 hover:text-rose-600 group-hover:block"
+                            title="Xóa thông báo này"
+                          >
+                            <DeleteOutlined className="text-xs" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+          {user?.role === 'ADMIN' && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `text-sm font-medium transition ${
+                  isActive ? 'text-amber-600' : 'text-stone-600 hover:text-stone-900'
+                }`
+              }
+            >
+              Quản trị
+            </NavLink>
+          )}
+        </nav>
+
+        <Space size="small">
+          <Badge count={count} size="small">
+            <Button
+              shape="circle"
+              icon={<ShoppingCartOutlined />}
+              onClick={() => navigate('/cart')}
+              aria-label="Giỏ hàng"
+            />
+          </Badge>
+          {user ? (
+            <>
+              <Link
+                to="/profile"
+                className="hidden text-sm font-medium text-stone-700 hover:text-amber-600 sm:inline"
+              >
+                {user.fullName}
+              </Link>
+              <Button onClick={() => { logout(); navigate('/') }}>Đăng xuất</Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => navigate('/login')}>Đăng nhập</Button>
+              <Button type="primary" onClick={() => navigate('/register')}>Đăng ký</Button>
+            </>
+          )}
+        </Space>
+      </div>
+    </header>
   )
 }

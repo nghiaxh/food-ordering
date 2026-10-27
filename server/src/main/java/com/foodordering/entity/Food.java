@@ -36,4 +36,21 @@ public class Food {
     private String allergens;
 
     private boolean available = true;
+
+    /*
+     * Bốn trường dưới đây không lưu vào database. Chúng được PricingService điền lúc đọc
+     * để client hiện giá đã giảm và nhãn ưu đãi mà không phải tự tính phần trăm.
+     * `price` vẫn là giá gốc, cũng là giá chụp vào dòng đơn.
+     */
+    @Transient
+    private java.math.BigDecimal discountedPrice;
+
+    @Transient
+    private java.math.BigDecimal discountAmount;
+
+    @Transient
+    private Integer discountPercent;
+
+    @Transient
+    private String discountLabel;
 }

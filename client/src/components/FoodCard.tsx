@@ -1,34 +1,53 @@
-import { Button, Tag, message } from 'antd'
-import { ShoppingCartOutlined } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+﻿import { message } from 'antd'
+import { Link, useNavigate } from 'react-router-dom'
 import type { Food } from '../types'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
-import UiImg from './UiImg'
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
 export default function FoodCard({ food }: { food: Food }) {
   const add = useCartStore((s) => s.add)
+  const navigate = useNavigate()
 
   return (
-    <div className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:-translate-y-1 hover:shadow-lg">
-      <Link to={`/foods/${food.id}`} className="relative block aspect-[4/3] overflow-hidden">
+    <div
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:shadow-lg"
+      // Cả thẻ là vùng bấm mở chi tiết; bỏ qua khi cú bấm rơi vào liên kết hoặc nút bên trong
+      // để không mở panel hai lần hay thêm món nhầm.
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('a, button')) return
+        navigate(`/foods/${food.id}`)
+      }}
+    >
+      <Link
+        to={`/foods/${food.id}`}
+        className="relative block aspect-[16/10] overflow-hidden"
+        aria-label={`Xem chi tiết ${food.name}`}
+      >
         <UiImg
           src={food.imageUrl}
           alt={food.name}
-          className={`transition duration-300 group-hover:scale-105 ${food.available ? '' : 'grayscale'}`}
+          loading="lazy"
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
         />
-        {food.category && (
-          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-medium text-stone-700 backdrop-blur">
-            {food.category.name}
-          </span>
-        )}
-        {!food.available && (
-          <span className="absolute right-3 top-3 rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-medium text-white">
-            Tạm hết
-          </span>
-        )}
+        <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1">
+          {!food.available && (
+            <span className="rounded-full bg-stone-900/75 px-2 py-0.5 text-[11px] font-semibold text-white">
+              Hết món
+            </span>
+          )}
+          {food.available && !!food.discountPercent && (
+            <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+              -{food.discountPercent}%
+            </span>
+          )}
+          {food.available && !!food.discountLabel && (
+            <span className="rounded-full bg-amber-50/95 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200 backdrop-blur">
+              {food.discountLabel}
+            </span>
+          )}
+        </div>
       </Link>
 
       <div className="p-4">
@@ -37,23 +56,32 @@ export default function FoodCard({ food }: { food: Food }) {
             {food.name}
           </h3>
         </Link>
-        <p className="mt-1 line-clamp-2 text-sm text-stone-500">{food.description}</p>
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="text-lg font-bold text-amber-700">{formatVND(food.price)}</div>
-            <div className="mt-1 text-xs text-stone-400">
-              {SPICY[food.spicyLevel]} · Phục vụ {food.servingSize} người
-              {food.spicyLevel > 0 && (
-                <Tag className="ml-1" color="red" style={{ marginInlineEnd: 0 }}>
-                  ớt {food.spicyLevel}/3
-                </Tag>
-              )}
+
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {foodChips(food)
+            .slice(0, MAX_CHIPS)
+            .map((chip) => (
+              <span
+                key={chip.label}
+                className={`whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-medium ${chip.className}`}
+              >
+                {chip.label}
+              </span>
+            ))}
+        </div>
+
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-2 pt-2.5">
+          {food.discountedPrice != null && food.discountedPrice < food.price ? (
+            <div className="min-w-0">
+              <div className="text-lg font-bold tabular-nums text-amber-700">{formatVND(food.discountedPrice)}</div>
+              <div className="text-xs tabular-nums text-stone-400 line-through">{formatVND(food.price)}</div>
             </div>
-          </div>
-          <Button
-            type="primary"
-            shape="circle"
-            icon={<ShoppingCartOutlined />}
+          ) : (
+            <div className="text-lg font-bold tabular-nums text-amber-700">{formatVND(food.price)}</div>
+          )}
+          <UiButton
+            kind="primary"
+            className="!px-3 !text-sm"
             disabled={!food.available}
             onClick={() => {
               add(food)

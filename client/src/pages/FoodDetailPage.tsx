@@ -19,21 +19,26 @@ export default function FoodDetailPage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [related, setRelated] = useState<Food[]>([])
   const [qty, setQty] = useState(1)
+  // Đóng bằng state để Drawer chạy animation đóng rồi mới rời route; unmount ngay sẽ mất hiệu ứng.
+  const [open, setOpen] = useState(true)
   const user = useAuthStore((s) => s.user)
   const add = useCartStore((s) => s.add)
 
-  const { data: food, error: foodError } = useAsyncData(
-    (signal) => getFood(foodId, signal),
-    [foodId],
-  )
-  const { data: reviews, refresh: refreshReviews } = useAsyncData(
-    (signal) => getReviews(foodId, signal),
-    [foodId],
-  )
-  const { data: related } = useAsyncData(
-    (signal) => (food?.category ? getFoods({ categoryId: food.category.id }, signal) : Promise.resolve([])),
-    [foodId, food?.category?.id],
-  )
+  const close = () => setOpen(false)
+
+  const {
+    data: food,
+    loading: foodLoading,
+    error: foodError,
+    refresh: reloadFood,
+  } = useAsyncData((signal) => getFood(foodId, signal), [foodId])
+  const {
+    data: reviews,
+    loading: reviewsLoading,
+    error: reviewsError,
+    refresh: refreshReviews,
+  } = useAsyncData((signal) => getReviews(foodId, signal), [foodId])
+
   const { run: submitReview, pending: reviewPending } = useAsyncAction(
     (payload: { foodId: number; rating: number; comment: string }) => createReview(payload),
   )
@@ -70,10 +75,44 @@ export default function FoodDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
-      <Link to="/foods" className="mb-6 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-amber-700">
-        <ArrowLeftOutlined /> Quay lại thực đơn
-      </Link>
+    <Drawer
+      open={open}
+      onClose={close}
+      afterOpenChange={(visible) => {
+        // Chỉ điều hướng khi đã đóng xong; lúc mở thì giữ nguyên URL chi tiết.
+        if (!visible) navigate('/')
+      }}
+      // Không dùng `size` của Drawer: giá trị đó đè lên `width` và làm panel tràn hết
+      // màn hình. Chỉ cần `width`, Drawer tự co về 100% khi cửa sổ hẹp hơn.
+      width={720}
+      title={food ? food.name : 'Chi tiết món'}
+      styles={{ body: { paddingTop: 16 } }}
+    >
+      {foodLoading ? (
+        <div className="space-y-4">
+          <div className="aspect-[4/3] animate-pulse rounded-2xl bg-stone-200/70" />
+          <div className="h-8 w-2/3 animate-pulse rounded-xl bg-stone-200/70" />
+          <div className="h-5 w-1/3 animate-pulse rounded-xl bg-stone-200/70" />
+        </div>
+      ) : foodError || !food ? (
+        <div className="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 px-6 py-14 text-center">
+          <UiIcon name="exclamation-circle" size={28} className="text-stone-300" />
+          <p className="mt-3 font-medium text-stone-900">Không tải được món ăn</p>
+          <p className="mt-1 text-sm text-stone-500">Vui lòng thử lại.</p>
+          <UiButton kind="default" className="mt-5" onClick={() => void reloadFood()}>
+            Thử lại
+          </UiButton>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-2xl bg-stone-100">
+            <UiImg
+              src={food.imageUrl}
+              alt={food.name}
+              preview
+              className="aspect-[4/3] w-full sm:aspect-[2/1]"
+            />
+          </div>
 
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-stone-200/60">
         <div className="grid gap-8 p-6 md:p-10 lg:grid-cols-2">

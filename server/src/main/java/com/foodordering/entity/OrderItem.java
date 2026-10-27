@@ -15,9 +15,14 @@ public class OrderItem {
     @ManyToOne(optional = false)
     private Orders order;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = true)
     private Food food;
+
+    @ManyToOne(optional = true)
+    private Combo combo;
 
     private int quantity;
     private BigDecimal price;
+    /** Số tiền giảm giá cho dòng này (khuyến mãi tự động). */
+    private BigDecimal discountAmount = BigDecimal.ZERO;
 }
