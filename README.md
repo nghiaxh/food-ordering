@@ -20,16 +20,22 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 - Duyệt danh mục, tìm kiếm và lọc món theo tên, loại, khoảng giá
 - Chi tiết món: thành phần, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, đánh giá
 - Giỏ hàng lưu theo tài khoản (đăng nhập mọi nơi vẫn còn giỏ) và đặt món
-  (thanh toán giả lập: COD / chuyển khoản / ví điện tử)
+  (thanh toán giả lập: COD / QR VietQR)
+- Mã khuyến mãi ở giỏ hàng, ví voucher, quà bốc ngẫu nhiên hằng ngày
 - Theo dõi trạng thái đơn hàng, trạng thái thanh toán và nhận thông báo xác nhận
-- Lịch sử đặt món với nút đặt lại chỉ một chạm
+- Lịch sử đặt món với nút đặt lại chỉ một chạm và tự hủy đơn khi còn chờ xác nhận
+- Đánh giá sao + nhận xét cho món đã ăn (chỉ món trong đơn hoàn thành)
 - Chatbot tư vấn món ăn (widget góc phải màn hình): hỏi bằng tự nhiên, nhận gợi ý
   kèm thẻ món có link đặt món. Tư vấn được theo nhu cầu, theo khẩu vị, theo số người ăn
   (tính số phần theo khẩu phần món) và theo tổ hợp món trong một ngân sách chung.
 
 ### Quản trị
-- Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
-- Upload tài liệu tham khảo cho chatbot (PDF/DOCX/text thuần, RAG cơ bản) và chỉnh cấu hình chatbot
+- Tổng quan nhanh (doanh thu, đơn chờ, món bán chạy), duyệt đơn ngay trên dashboard
+- Quản lý món ăn, danh mục, combo, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
+- Quản lý khuyến mãi / voucher (giảm theo toàn thực đơn, danh mục, món hoặc combo)
+- Cấu hình chatbot (nhà cung cấp AI, mô hình, số món gợi ý, quy tắc bổ sung) và xem lịch sử hội thoại
+- Báo cáo doanh thu có biểu đồ, top món và xuất Excel
+- Tải ảnh món / danh mục lên server (JPG/PNG/WEBP ≤ 2 MB)
 
 ## Bắt đầu nhanh
 
@@ -103,7 +109,7 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 
 ## Kiểm tra nhanh
 
-Dự án hiện chưa có test tự động. Các lệnh dưới đây là kiểm tra có sẵn:
+Server có vài test tự động cho logic pricing, chatbot và validation DTO (`server/src/test/java`). Lệnh kiểm tra có sẵn:
 
 ```bash
 # Client
@@ -117,11 +123,10 @@ mvn test
 mvn package
 ```
 
-`mvn test` hiện build thành công nhưng báo không có test source. `npm test`, thư mục `e2e/` và framework Vitest/JUnit/Playwright là phạm vi kế hoạch trong [TEST.md](TEST.md).
+`npm test`, thư mục `e2e/` và framework Vitest/JUnit nâng cao/Playwright là phạm vi kế hoạch trong [TEST.md](TEST.md).
 
 ## Tài liệu
 
-- [SPEC.md](SPEC.md) - đặc tả phần mềm: actor, use case, mô hình lớp, thiết kế CSDL, REST API và bảng truy vết
 - [ARCHITECTURE.md](ARCHITECTURE.md) - kiến trúc, luồng dữ liệu và cấu hình
 - [TEST.md](TEST.md) - hướng dẫn chạy test
 - [BRANCHING.md](BRANCHING.md) - quy ước phân nhánh và commit
