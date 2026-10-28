@@ -13,40 +13,17 @@ interface NavItem {
   icon: string
 }
 
-interface NavGroup {
-  title: string
-  items: NavItem[]
-}
-
-// Nhóm theo việc quán làm hằng ngày, không theo thứ tự bảng trong tài liệu.
-const NAV_GROUPS: NavGroup[] = [
-  {
-    title: 'Bán hàng',
-    items: [
-      { label: 'Tổng quan', to: '/admin/dashboard', icon: 'home' },
-      { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
-      { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
-    ],
-  },
-  {
-    title: 'Thực đơn',
-    items: [
-      { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
-      { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
-      { label: 'Combo', to: '/admin/combos', icon: 'shopping-cart' },
-    ],
-  },
-  {
-    title: 'Marketing',
-    items: [{ label: 'Khuyến mãi', to: '/admin/promotions', icon: 'fire' }],
-  },
-  {
-    title: 'Hệ thống',
-    items: [
-      { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
-      { label: 'Báo cáo', to: '/admin/reports', icon: 'file' },
-    ],
-  },
+// Thứ tự theo việc quán làm hằng ngày, không theo thứ tự bảng trong tài liệu.
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Tổng quan', to: '/admin/dashboard', icon: 'home' },
+  { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
+  { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
+  { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
+  { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
+  { label: 'Combo', to: '/admin/combos', icon: 'shopping-cart' },
+  { label: 'Khuyến mãi', to: '/admin/promotions', icon: 'fire' },
+  { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
+  { label: 'Báo cáo', to: '/admin/reports', icon: 'file' },
 ]
 
 export default function AdminLayout() {
@@ -81,41 +58,32 @@ export default function AdminLayout() {
     },
   }
 
-  const current = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.to === location.pathname)
+  const current = NAV_ITEMS.find((i) => i.to === location.pathname)
 
   const nav = (
-    <nav className="space-y-4">
-      {NAV_GROUPS.map((group) => (
-        <div key={group.title}>
-          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-            {group.title}
-          </p>
-          <div className="space-y-0.5">
-            {group.items.map((item) => {
-              const active = location.pathname === item.to
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={close}
-                  aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
-                    active
-                      ? 'bg-amber-50 font-semibold text-amber-800'
-                      : 'font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900'
-                  }`}
-                >
-                  <UiIcon name={item.icon} size={16} />
-                  <span className="flex-1">{item.label}</span>
-                  {item.to === '/admin/orders' && pendingOrdersCount > 0 && (
-                    <Badge count={pendingOrdersCount} size="small" color="#d97706" />
-                  )}
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      ))}
+    <nav className="space-y-0.5">
+      {NAV_ITEMS.map((item) => {
+        const active = location.pathname === item.to
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            onClick={close}
+            aria-current={active ? 'page' : undefined}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
+              active
+                ? 'bg-amber-50 font-semibold text-amber-800'
+                : 'font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+            }`}
+          >
+            <UiIcon name={item.icon} size={16} />
+            <span className="flex-1">{item.label}</span>
+            {item.to === '/admin/orders' && pendingOrdersCount > 0 && (
+              <Badge count={pendingOrdersCount} size="small" color="#d97706" />
+            )}
+          </Link>
+        )
+      })}
     </nav>
   )
 
@@ -131,16 +99,7 @@ export default function AdminLayout() {
             onClick={() => setDrawerOpen(true)}
           />
 
-          <Link to="/admin/dashboard" className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-amber-600 text-xs text-white">FO</span>
-            <span>Quản trị</span>
-          </Link>
-          {current && (
-            <>
-              <span className="text-stone-300">/</span>
-              <span className="text-sm text-stone-500">{current.label}</span>
-            </>
-          )}
+          {current && <span className="text-sm font-medium text-stone-700">{current.label}</span>}
 
           <div className="ml-auto flex items-center gap-1.5">
             <UiButton

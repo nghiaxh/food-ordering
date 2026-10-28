@@ -71,9 +71,13 @@ export default function AdminReportsPage() {
     <div>
       <PageHeader
         title="Báo cáo"
-        subtitle="Doanh thu tính sau giảm giá và không gồm đơn đã hủy."
         extra={
-          <UiButton kind="default" icon={<DownloadOutlined />} onClick={() => void exportExcel()}>
+          <UiButton
+            kind="default"
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={() => void exportExcel()}
+          >
             Xuất Excel
           </UiButton>
         }
@@ -85,12 +89,13 @@ export default function AdminReportsPage() {
           onChange={(value) => setRange(value as Range)}
           className="min-w-[280px]"
         />
-        <UiButton kind="primary" onClick={() => setApplied(range)}>
+        <UiButton kind="primary" size="small" onClick={() => setApplied(range)}>
           Lọc dữ liệu
         </UiButton>
         {applied && (
           <UiButton
             kind="default"
+            size="small"
             onClick={() => {
               setRange(null)
               setApplied(null)
