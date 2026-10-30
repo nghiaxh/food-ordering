@@ -261,45 +261,61 @@ public class ChatbotService {
      * hợp lệ thì lấy tổng tiền cao nhất để khách dùng được ngân sách mà vẫn nằm trong hạn mức.
      */
     private List<Picked> combine(List<List<Picked>> byGroup, List<CategoryNeed> groups, Long maxBudget) {
-        long limit = maxBudget == null ? Long.MAX_VALUE : maxBudget;
-        List<Picked> best = new ArrayList<>();
-        long[] bestTotal = { -1 };
-        searchCombination(byGroup, groups, 0, 0, new ArrayList<>(), 0L, limit, best, bestTotal);
-        return best;
+        return new BudgetCombiner(byGroup, groups, maxBudget).find();
     }
 
-    private void searchCombination(List<List<Picked>> byGroup, List<CategoryNeed> groups,
-                                   int groupIndex, int from, List<Picked> acc, long total,
-                                   long limit, List<Picked> best, long[] bestTotal) {
-        if (total > limit) return;
-        if (groupIndex == groups.size()) {
-            if (total > bestTotal[0]) {
-                bestTotal[0] = total;
-                best.clear();
-                best.addAll(acc);
+    /**
+     * Dò tổ hợp vì ngân sách dùng backtracking. Toàn bộ trạng thái tìm kiếm (ứng viên theo
+     * loại, ngân sách, tổ hợp tốt nhất) gói trong một đối tượng thay vì chuyền qua từng
+     * lượt gọi đệ quy như trước, nên tầng gọi ngoài không cần biết chuyện bên trong.
+     */
+    private static final class BudgetCombiner {
+        private final List<List<Picked>> byGroup;
+        private final List<CategoryNeed> groups;
+        private final long limit;
+        private final List<Picked> best = new ArrayList<>();
+        private long bestTotal = -1;
+
+        BudgetCombiner(List<List<Picked>> byGroup, List<CategoryNeed> groups, Long maxBudget) {
+            this.byGroup = byGroup;
+            this.groups = groups;
+            this.limit = maxBudget == null ? Long.MAX_VALUE : maxBudget;
+        }
+
+        List<Picked> find() {
+            search(0, 0, new ArrayList<>(), 0L);
+            return best;
+        }
+
+        private void search(int groupIndex, int from, List<Picked> acc, long total) {
+            if (total > limit) return;
+            if (groupIndex == groups.size()) {
+                if (total > bestTotal) {
+                    bestTotal = total;
+                    best.clear();
+                    best.addAll(acc);
+                }
+                return;
             }
-            return;
+            List<Picked> candidates = byGroup.get(groupIndex);
+            int needed = groups.get(groupIndex).count();
+            pickFrom(candidates, groupIndex, from, needed, acc, total);
         }
-        List<Picked> candidates = byGroup.get(groupIndex);
-        int needed = groups.get(groupIndex).count();
-        pickFromGroup(candidates, groupIndex, from, needed, acc, total, byGroup, groups,
-                limit, best, bestTotal);
-    }
 
-    /** Chọn `needed` món từ một loại; chỉ dùng chỉ số tăng dần nên không chọn trùng món. */
-    private void pickFromGroup(List<Picked> candidates, int groupIndex, int from, int needed,
-                               List<Picked> acc, long total, List<List<Picked>> byGroup,
-                               List<CategoryNeed> groups, long limit, List<Picked> best, long[] bestTotal) {
-        if (total > limit) return;
-        if (needed == 0) {
-            searchCombination(byGroup, groups, groupIndex + 1, 0, acc, total, limit, best, bestTotal);
-            return;
-        }
-        for (int i = from; i < candidates.size(); i++) {
-            acc.add(candidates.get(i));
-            pickFromGroup(candidates, groupIndex, i + 1, needed - 1, acc,
-                    total + candidates.get(i).totalPrice(), byGroup, groups, limit, best, bestTotal);
-            acc.remove(acc.size() - 1);
+        /** Chọn `needed` món từ một loại; chỉ dùng chỉ số tăng dần nên không chọn trùng món. */
+        private void pickFrom(List<Picked> candidates, int groupIndex, int from, int needed,
+                              List<Picked> acc, long total) {
+            if (total > limit) return;
+            if (needed == 0) {
+                search(groupIndex + 1, 0, acc, total);
+                return;
+            }
+            for (int i = from; i < candidates.size(); i++) {
+                acc.add(candidates.get(i));
+                pickFrom(candidates, groupIndex, i + 1, needed - 1, acc,
+                        total + candidates.get(i).totalPrice());
+                acc.remove(acc.size() - 1);
+            }
         }
     }
 

@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Segmented, Select, Table, message } from 'antd'
+import { Button, Checkbox, Drawer, Form, Input, InputNumber, Segmented, Select, Table, message } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import { adminDeleteOrder, adminGetOrders, adminGetUsers, adminSaveOrder, adminUpdateOrderPayment, adminUpdateOrderStatus, getFoods, type AdminOrderPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
+import useBusySet from '../../hooks/useBusySet'
 import type { Order, OrderStatus } from '../../types'
 import { formatVND } from '../../utils/format'
 import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, allowedNextStatuses, orderCode } from '../../utils/orders'
-import { apiErrorMessage } from '../../utils/api-error'
+import { PHONE_RULE } from '../../utils/validators'
 import UiImg from '../../components/UiImg'
 import UiButton from '../../components/UiButton'
-import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
+import FormModal from '../../components/FormModal'
+import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton, confirmRemove, runAndMessage } from './shared'
 
 const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED', 'CANCELLED']
 
@@ -39,7 +41,7 @@ export default function AdminOrdersPage() {
     (payload: { id: number | null; data: AdminOrderPayload }) => adminSaveOrder(payload.id, payload.data),
   )
   const { run: deleteOrder } = useAsyncAction((id: number) => adminDeleteOrder(id))
-  const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
+  const { busyIds, mark } = useBusySet()
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL')
   const [detailId, setDetailId] = useState<number | null>(null)
   const [modal, setModal] = useState(false)
@@ -58,44 +60,28 @@ export default function AdminOrdersPage() {
   }, [orders, statusFilter])
 
   const changeStatus = async (id: number, status: OrderStatus) => {
-    setBusyIds((prev) => new Set(prev).add(id))
+    mark(id, true)
     const res = await updateStatus({ id, status })
-    setBusyIds((prev) => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
+    mark(id, false)
+    await runAndMessage(res, {
+      success: 'Đã cập nhật trạng thái',
+      fallback: 'Cập nhật thất bại',
+      onSuccess: () => void refreshOrders(),
     })
-    if (res.ok) {
-      message.success('Đã cập nhật trạng thái')
-      void refreshOrders()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Cập nhật thất bại')
-    }
   }
 
   const changePayment = async (id: number, paid: boolean) => {
-    setBusyIds((prev) => new Set(prev).add(id))
+    mark(id, true)
     const res = await updatePayment({ id, paid })
-    setBusyIds((prev) => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
+    mark(id, false)
+    await runAndMessage(res, {
+      success: 'Đã cập nhật trạng thái thanh toán',
+      fallback: 'Cập nhật thanh toán thất bại',
+      onSuccess: () => void refreshOrders(),
     })
-    if (res.ok) {
-      message.success('Đã cập nhật trạng thái thanh toán')
-      void refreshOrders()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Cập nhật thanh toán thất bại')
-    }
   }
 
-  const markBusy = (id: number, on: boolean) =>
-    setBusyIds((prev) => {
-      const next = new Set(prev)
-      if (on) next.add(id)
-      else next.delete(id)
-      return next
-    })
+  const markBusy = mark
 
   const openCreate = () => {
     setEditing(null)
@@ -135,27 +121,29 @@ export default function AdminOrdersPage() {
       id: editing?.id ?? null,
       data,
     })
-    if (!res.ok) {
-      message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
-      return
-    }
-    message.success(editing ? 'Đã cập nhật đơn hàng' : 'Đã tạo đơn hàng')
-    setModal(false)
-    setEditing(null)
-    void refreshOrders()
+    await runAndMessage(res, {
+      success: editing ? 'Đã cập nhật đơn hàng' : 'Đã tạo đơn hàng',
+      fallback: 'Lưu thất bại',
+      onSuccess: () => {
+        setModal(false)
+        setEditing(null)
+        void refreshOrders()
+      },
+    })
   }
 
   const remove = async (id: number) => {
     markBusy(id, true)
     const res = await deleteOrder(id)
     markBusy(id, false)
-    if (res.ok) {
-      message.success('Đã xóa đơn hàng')
-      if (detailId === id) setDetailId(null)
-      void refreshOrders()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Xóa thất bại')
-    }
+    await runAndMessage(res, {
+      success: 'Đã xóa đơn hàng',
+      fallback: 'Xóa thất bại',
+      onSuccess: () => {
+        if (detailId === id) setDetailId(null)
+        void refreshOrders()
+      },
+    })
   }
 
   return (
@@ -300,12 +288,8 @@ export default function AdminOrdersPage() {
                         icon={<DeleteOutlined />}
                         loading={busyIds.has(o.id)}
                         onClick={() =>
-                          Modal.confirm({
+                          confirmRemove({
                             title: 'Xóa đơn này?',
-                            centered: true,
-                            okText: 'Xóa',
-                            okButtonProps: { danger: true },
-                            cancelText: 'Hủy',
                             onOk: () => remove(o.id),
                           })
                         }
@@ -461,14 +445,12 @@ export default function AdminOrdersPage() {
         )}
       </Drawer>
 
-      <Modal
+      <FormModal
         title={editing ? `Sửa đơn #${editing.id}` : 'Thêm đơn hàng'}
         open={modal}
-        onCancel={() => setModal(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okButtonProps={{ children: 'Lưu' }}
-        cancelButtonProps={{ children: 'Hủy' }}
+        onClose={() => setModal(false)}
+        onSubmit={() => form.submit()}
+        saving={saving}
         width={640}
       >
         <Form form={form} layout="vertical" onFinish={submit} style={{ marginTop: 16 }}>
@@ -496,7 +478,7 @@ export default function AdminOrdersPage() {
               label="Số điện thoại"
               rules={[
                 { required: true, message: 'Nhập số điện thoại' },
-                { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' },
+                PHONE_RULE,
               ]}
             >
               <Input placeholder="0900000000" />
@@ -579,7 +561,7 @@ export default function AdminOrdersPage() {
             <Input.TextArea rows={2} maxLength={255} showCount />
           </Form.Item>
         </Form>
-      </Modal>
+      </FormModal>
     </div>
   )
 }

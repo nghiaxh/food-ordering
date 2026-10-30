@@ -91,8 +91,7 @@ public class OrderService {
 
         Promotion usedVoucher = null;
         if (req.items() != null && !req.items().isEmpty()) {
-            if (order.getStatus() != Orders.Status.PENDING
-                    || order.getPaymentStatus() != Orders.PaymentStatus.UNPAID) {
+            if (!canEditItems(order)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Chỉ sửa được món khi đơn đang chờ xác nhận và chưa thanh toán");
             }
@@ -104,11 +103,7 @@ public class OrderService {
         if (req.status() != null && !req.status().isBlank()) {
             Orders.Status next = parseStatus(req.status());
             if (next != order.getStatus()) {
-                if (!isValidTransition(order.getStatus(), next)) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Không thể chuyển đơn từ \"" + label(order.getStatus()) + "\" sang \"" + label(next) + "\"");
-                }
-                order.setStatus(next);
+                transition(order, next);
             }
         }
         Orders saved = orderRepo.save(order);
@@ -226,15 +221,10 @@ public class OrderService {
 
     @Transactional
     public Orders updateStatus(Long id, String status) {
-        Orders o = orderRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
+        Orders o = findOrder(id);
         Orders.Status next = parseStatus(status);
         // Quy trình chỉ đi theo một chiều; đơn đã chốt (Hoàn thành/Hủy) không đổi trạng thái nữa.
-        if (!isValidTransition(o.getStatus(), next)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Không thể chuyển đơn từ \"" + label(o.getStatus()) + "\" sang \"" + label(next) + "\"");
-        }
-        o.setStatus(next);
+        transition(o, next);
         Orders saved = orderRepo.save(o);
 
         // Mỗi trạng thái nghiệp vụ có nội dung thông báo tương ứng; PENDING không gửi thông báo lặp.
@@ -258,6 +248,21 @@ public class OrderService {
             case PREPARING -> to == Orders.Status.COMPLETED;
             default -> false;
         };
+    }
+
+    /** Một quy tắc chuyển trạng thái dùng chung cho mọi lối vào (admin, khách, tạo nhanh). */
+    private void transition(Orders order, Orders.Status next) {
+        if (!isValidTransition(order.getStatus(), next)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không thể chuyển đơn từ \"" + label(order.getStatus()) + "\" sang \"" + label(next) + "\"");
+        }
+        order.setStatus(next);
+    }
+
+    /** Món chỉ thay được khi đơn còn chờ xác nhận và chưa thu tiền; server kiểm thật, client chỉ ẩn nút. */
+    private boolean canEditItems(Orders order) {
+        return order.getStatus() == Orders.Status.PENDING
+                && order.getPaymentStatus() == Orders.PaymentStatus.UNPAID;
     }
 
     private String label(Orders.Status s) {
@@ -301,8 +306,7 @@ public class OrderService {
     /** Chặn việc khách đọc hoặc thao tác lên đơn của người khác. */
     private Orders ownOrder(String email, Long id) {
         User user = userRepo.findByEmail(email).orElseThrow();
-        Orders o = orderRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
+        Orders o = findOrder(id);
         if (!o.getUser().getId().equals(user.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền với đơn hàng này");
         }

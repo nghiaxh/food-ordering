@@ -10,8 +10,11 @@ import type { CartQuote, Promotion, SavedAddress } from '../types'
 import { Tag } from 'antd'
 import { TagOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { formatVND } from '../utils/format'
+import { PHONE_RULE } from '../utils/validators'
+import { apiErrorMessage } from '../utils/api-error'
 import UiButton from '../components/UiButton'
 import UiImg from '../components/UiImg'
+import FormModal from '../components/FormModal'
 
 const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255
@@ -80,11 +83,7 @@ export default function CartPage() {
       })
       .catch((err: unknown) => {
         if (!alive) return
-        const msg =
-          typeof err === 'object' && err !== null && 'response' in err
-            ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-            : undefined
-        message.error(msg ?? 'Không tính được giá giỏ hàng')
+        message.error(apiErrorMessage(err) ?? 'Không tính được giá giỏ hàng')
         if (appliedCode) setAppliedCode(null)
       })
     return () => {
@@ -164,10 +163,7 @@ export default function CartPage() {
       message.success(`Áp dụng mã ${next.voucherCode} thành công!`)
       setVoucherModal(false)
     } catch (err: unknown) {
-      const msg = typeof err === 'object' && err !== null && 'response' in err
-        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-        : 'Mã khuyến mãi không hợp lệ'
-      message.error(msg ?? 'Mã khuyến mãi không hợp lệ')
+      message.error(apiErrorMessage(err) ?? 'Mã khuyến mãi không hợp lệ')
     } finally {
       setValidatingVoucher(false)
     }
@@ -201,16 +197,7 @@ export default function CartPage() {
       message.success('Đặt món thành công')
       navigate('/orders')
     } else {
-      message.error(
-        typeof res.error === 'object' &&
-          res.error !== null &&
-          'response' in res.error
-          ? String(
-              (res.error as { response?: { data?: { message?: string } } }).response?.data?.message ??
-                'Đặt món thất bại',
-            )
-          : 'Đặt món thất bại',
-      )
+      message.error(apiErrorMessage(res.error) ?? 'Đặt món thất bại')
     }
   }
 
@@ -427,7 +414,7 @@ export default function CartPage() {
                 label="Số điện thoại"
                 rules={[
                   { required: true, message: 'Nhập số điện thoại' },
-                  { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' },
+                  PHONE_RULE,
                 ]}
               >
                 <Input placeholder="0900000000" />
@@ -559,18 +546,16 @@ export default function CartPage() {
         </div>
       </Modal>
 
-      <Modal
+      <FormModal
         title={editingAddress ? 'Sửa địa chỉ' : 'Thêm địa chỉ'}
         open={addressModal}
-        onCancel={() => {
+        onClose={() => {
           setEditingAddress(null)
           addrForm.resetFields()
           setAddressModal(false)
         }}
-        onOk={() => addrForm.submit()}
-        confirmLoading={savingAddress}
-        okText="Lưu"
-        cancelText="Hủy"
+        onSubmit={() => addrForm.submit()}
+        saving={savingAddress}
       >
         <Form form={addrForm} layout="vertical" className="mt-4" onFinish={submitAddress}>
           <Form.Item
@@ -588,7 +573,7 @@ export default function CartPage() {
             label="Số điện thoại"
             rules={[
               { required: true, message: 'Nhập số điện thoại' },
-              { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' },
+              PHONE_RULE,
             ]}
           >
             <Input placeholder="0900000000" />
@@ -597,7 +582,7 @@ export default function CartPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
-      </Modal>
+      </FormModal>
 
       {/* Thanh cố định đáy: tổng tiền và nút xác nhận duy nhất của trang */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur">

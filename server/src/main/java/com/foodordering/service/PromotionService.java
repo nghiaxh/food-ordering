@@ -81,10 +81,19 @@ public class PromotionService {
         if (p.getCode() == null || p.getCode().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã khuyến mãi không hợp lệ");
         }
-        if (p.getMinOrderTotal() != null && subtotal.compareTo(p.getMinOrderTotal()) < 0) {
+        requireMinOrderTotal(p, subtotal);
+        return p;
+    }
+
+    /**
+     * Ngưỡng đơn tối thiểu của mã, dùng chung cho hai lối kiểm tra: lúc validate mã (tính
+     * trên subtotal) và lúc chia khoản giảm vào từng dòng (tính trên phần còn lại sau
+     * khuyến mãi tự động). Hai chỗ này cố ý giữ riêng vì so trên hai mức tiền khác nhau.
+     */
+    public void requireMinOrderTotal(Promotion p, BigDecimal amount) {
+        if (p.getMinOrderTotal() != null && amount.compareTo(p.getMinOrderTotal()) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn hàng chưa đạt giá trị tối thiểu để dùng mã");
         }
-        return p;
     }
 
     public void incrementUsage(Promotion p) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
+import { Form, Input, InputNumber, Select, Table } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { adminDeleteCombo, adminGetCombos, adminSaveCombo, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
@@ -7,7 +7,8 @@ import useAsyncAction from '../../hooks/useAsyncAction'
 import type { Combo } from '../../types'
 import { formatVND } from '../../utils/format'
 import UiButton from '../../components/UiButton'
-import { EmptyState, PageCard, PageHeader, TableSkeleton } from './shared'
+import FormModal from '../../components/FormModal'
+import { EmptyState, PageCard, PageHeader, TableSkeleton, confirmRemove, runAndMessage } from './shared'
 
 interface ComboFormValues {
   name: string
@@ -65,14 +66,25 @@ export default function AdminCombosPage() {
         items: values.items,
       },
     })
-    if (!res.ok) {
-      message.error('Lưu combo thất bại')
-      return
-    }
-    message.success('Đã lưu combo')
-    setModal(false)
-    setEditing(null)
-    void refresh()
+    await runAndMessage(res, {
+      success: 'Đã lưu combo',
+      fallback: 'Lưu combo thất bại',
+      onSuccess: () => {
+        setModal(false)
+        setEditing(null)
+        void refresh()
+      },
+    })
+  }
+
+  // Xóa combo trong onOk để modal đợi promise xong mới đóng, giữ đúng hành vi cũ.
+  const doRemove = async (combo: Combo) => {
+    const res = await remove(combo.id)
+    await runAndMessage(res, {
+      success: 'Đã xóa combo',
+      fallback: 'Không xóa được combo này',
+      onSuccess: () => void refresh(),
+    })
   }
 
   return (
@@ -112,22 +124,11 @@ export default function AdminCombosPage() {
                       aria-label={`Xóa ${c.name}`}
                       icon={<DeleteOutlined />}
                       onClick={() =>
-                        Modal.confirm({
+                        confirmRemove({
                           title: `Xóa combo "${c.name}"?`,
                           content: 'Combo đã nằm trong đơn hàng cũ sẽ không xóa được.',
-                          okText: 'Xóa',
-                          okButtonProps: { danger: true },
                           cancelText: 'Giữ lại',
-                          centered: true,
-                          onOk: async () => {
-                            const res = await remove(c.id)
-                            if (!res.ok) {
-                              message.error('Không xóa được combo này')
-                              return
-                            }
-                            message.success('Đã xóa combo')
-                            void refresh()
-                          },
+                          onOk: () => doRemove(c),
                         })
                       }
                     />
@@ -139,14 +140,12 @@ export default function AdminCombosPage() {
         )}
       </PageCard>
 
-      <Modal
+      <FormModal
         title={editing ? 'Sửa combo' : 'Thêm combo'}
         open={modal}
-        onCancel={() => setModal(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okText="Lưu"
-        cancelText="Hủy"
+        onClose={() => setModal(false)}
+        onSubmit={() => form.submit()}
+        saving={saving}
         width={640}
       >
         <Form form={form} layout="vertical" onFinish={submit} className="mt-4">
@@ -225,7 +224,7 @@ export default function AdminCombosPage() {
             )}
           </Form.List>
         </Form>
-      </Modal>
+      </FormModal>
     </div>
   )
 }

@@ -1,21 +1,21 @@
 import { useMemo, useState } from 'react'
 import {
-  Button, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Table, message,
+  Button, Checkbox, Form, Input, InputNumber, Select, Space, Table,
 } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { adminDeleteFood, adminSaveFood, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
+import useBusySet from '../../hooks/useBusySet'
 import type { Food } from '../../types'
 import { formatVND } from '../../utils/format'
-import { apiErrorMessage } from '../../utils/api-error'
+import { SPICY_LEVELS } from '../../utils/food-tags'
 import UiImg from '../../components/UiImg'
 import UiButton from '../../components/UiButton'
 import UiIcon from '../../components/UiIcon'
 import ImageField from '../../components/ImageField'
-import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
-
-const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
+import FormModal from '../../components/FormModal'
+import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton, confirmRemove, runAndMessage } from './shared'
 
 export default function AdminFoodsPage() {
   const [modal, setModal] = useState(false)
@@ -23,7 +23,7 @@ export default function AdminFoodsPage() {
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<number | undefined>()
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'hidden'>('all')
-  const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
+  const { busyIds, mark } = useBusySet()
   const [form] = Form.useForm()
 
   const { data, loading, refresh: refreshData } = useAsyncData((signal) => getFoods(undefined, signal), [])
@@ -67,29 +67,25 @@ export default function AdminFoodsPage() {
       spicyLevel: Number(v.spicyLevel),
       servingSize: Number(v.servingSize),
     })
-    if (!res.ok) {
-      message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
-      return
-    }
-    message.success(editing ? 'Đã cập nhật món ăn!' : 'Đã tạo món ăn!')
-    setModal(false)
-    void refreshData()
+    await runAndMessage(res, {
+      success: editing ? 'Đã cập nhật món ăn!' : 'Đã tạo món ăn!',
+      fallback: 'Lưu thất bại',
+      onSuccess: () => {
+        setModal(false)
+        void refreshData()
+      },
+    })
   }
 
   const remove = async (id: number) => {
-    setBusyIds((prev) => new Set(prev).add(id))
+    mark(id, true)
     const res = await deleteFood(id)
-    setBusyIds((prev) => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
+    mark(id, false)
+    await runAndMessage(res, {
+      success: 'Đã xóa món ăn',
+      fallback: 'Xóa thất bại',
+      onSuccess: () => void refreshData(),
     })
-    if (res.ok) {
-      message.success('Đã xóa món ăn')
-      void refreshData()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Xóa thất bại')
-    }
   }
 
   return (
@@ -205,12 +201,8 @@ export default function AdminFoodsPage() {
                       icon={<DeleteOutlined />}
                       loading={busyIds.has(f.id)}
                       onClick={() =>
-                        Modal.confirm({
+                        confirmRemove({
                           title: 'Xóa món này?',
-                          centered: true,
-                          okText: 'Xóa',
-                          okButtonProps: { danger: true },
-                          cancelText: 'Hủy',
                           onOk: () => remove(f.id),
                         })
                       }
@@ -225,14 +217,12 @@ export default function AdminFoodsPage() {
         )}
       </PageCard>
 
-      <Modal
+      <FormModal
         title={editing ? `Sửa món: ${editing.name}` : 'Tạo món mới'}
         open={modal}
-        onCancel={() => setModal(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okButtonProps={{ children: 'Lưu' }}
-        cancelButtonProps={{ children: 'Hủy' }}
+        onClose={() => setModal(false)}
+        onSubmit={() => form.submit()}
+        saving={saving}
         width={720}
       >
         <Form form={form} layout="vertical" onFinish={submit} style={{ marginTop: 16 }}>
@@ -259,7 +249,7 @@ export default function AdminFoodsPage() {
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="spicyLevel" label="Độ cay">
-              <Select options={SPICY.map((s, i) => ({ label: s, value: i }))} />
+              <Select options={SPICY_LEVELS.map((s, i) => ({ label: s, value: i }))} />
             </Form.Item>
             <Form.Item name="description" label="Mô tả" className="md:col-span-2">
               <Input.TextArea rows={2} />
@@ -287,7 +277,7 @@ export default function AdminFoodsPage() {
             </Form.Item>
           </div>
         </Form>
-      </Modal>
+      </FormModal>
     </div>
   )
 }

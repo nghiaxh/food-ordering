@@ -3,7 +3,9 @@ export interface FoodChip {
   className: string
 }
 
-const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
+export const SPICY_LEVELS = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
+
+const SPICY = SPICY_LEVELS
 
 export function spicyLabel(level: number): string {
   return SPICY[Math.min(Math.max(level, 0), SPICY.length - 1)]

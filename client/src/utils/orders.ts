@@ -8,14 +8,6 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: 'Đã hủy',
 }
 
-export const ORDER_STATUS_COLOR: Record<OrderStatus, string> = {
-  PENDING: 'gold',
-  CONFIRMED: 'blue',
-  PREPARING: 'purple',
-  COMPLETED: 'green',
-  CANCELLED: 'red',
-}
-
 /**
  * Nhãn phương thức thanh toán. Hệ thống chỉ hỗ trợ hai cách trả tiền: tiền mặt khi nhận
  * (`COD`) và quét mã QR (`QR`). Nhãn nằm ở một chỗ để trang khách và trang quản trị hiện

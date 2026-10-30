@@ -1,5 +1,46 @@
 import type { ReactNode } from 'react'
+import { Modal, message } from 'antd'
 import UiIcon from '../../components/UiIcon'
+import type { AsyncActionResult } from '../../hooks/useAsyncAction'
+import { apiErrorMessage } from '../../utils/api-error'
+
+/**
+ * Thiết lập Modal.confirm dùng chung cho các thao tác xóa của trang quản trị.
+ * Viết một chỗ thay cho sáu bản copy-paste để mọi hộp thoại xóa luôn đồng bộ.
+ */
+export function confirmRemove(opts: {
+  title: string
+  content?: string
+  cancelText?: string
+  onOk: () => Promise<unknown>
+}) {
+  Modal.confirm({
+    title: opts.title,
+    ...(opts.content !== undefined ? { content: opts.content } : {}),
+    centered: true,
+    okText: 'Xóa',
+    okButtonProps: { danger: true },
+    cancelText: opts.cancelText ?? 'Hủy',
+    onOk: () => opts.onOk(),
+  })
+}
+
+/**
+ * Dàn bài chung cho một thao tác quản trị: thông báo thành công rồi chạy phần dọn dẹp
+ * (đóng modal, tải lại bảng), lỗi thì hiện thông điệp từ server hoặc dòng dự phòng.
+ * Chuỗi thông báo truyền vào phải giữ nguyên chữ như trước khi gom.
+ */
+export async function runAndMessage<T>(
+  res: AsyncActionResult<T>,
+  opts: { success: string; fallback: string; onSuccess?: () => void },
+): Promise<void> {
+  if (res.ok) {
+    message.success(opts.success)
+    opts.onSuccess?.()
+  } else {
+    message.error(apiErrorMessage(res.error) ?? opts.fallback)
+  }
+}
 
 /**
  * Card nền trắng dùng chung cho admin. Giữ tên PageCard để đúng import hiện có.

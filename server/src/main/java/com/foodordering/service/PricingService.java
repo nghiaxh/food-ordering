@@ -192,12 +192,8 @@ public class PricingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Mã khuyến mãi không áp dụng cho món nào trong giỏ");
         }
-        if (voucher.getMinOrderTotal() != null
-                && lines.stream().map(Line::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add)
-                        .compareTo(voucher.getMinOrderTotal()) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Đơn hàng chưa đạt giá trị tối thiểu để dùng mã");
-        }
+        promotionService.requireMinOrderTotal(voucher,
+                lines.stream().map(Line::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add));
 
         BigDecimal budget;
         if (voucher.getDiscountType() == Promotion.DiscountType.PERCENT) {
@@ -326,24 +322,30 @@ public class PricingService {
         if (combos.isEmpty()) return;
         RuleSet rules = rules(LocalDateTime.now(clock));
         for (Combo c : combos) {
-            Optional<Promotion> best = bestFor(c.getPrice(), null, c, rules);
-            BigDecimal discount = best.map(p -> promotionService.discountAmount(c.getPrice(), p))
-                    .orElse(BigDecimal.ZERO);
-            c.setDiscountedPrice(c.getPrice().subtract(discount));
-            c.setDiscountAmount(discount);
-            c.setDiscountPercent(percent(best));
-            c.setDiscountLabel(best.map(PricingService::label).orElse(null));
+            Discount d = bestDiscount(c.getPrice(), null, c, rules);
+            c.setDiscountedPrice(c.getPrice().subtract(d.amount()));
+            c.setDiscountAmount(d.amount());
+            c.setDiscountPercent(d.percent());
+            c.setDiscountLabel(d.label());
         }
     }
 
     private void decorateOne(Food f, RuleSet rules) {
-        Optional<Promotion> best = bestFor(f.getPrice(), f, null, rules);
-        BigDecimal discount = best.map(p -> promotionService.discountAmount(f.getPrice(), p))
+        Discount d = bestDiscount(f.getPrice(), f, null, rules);
+        f.setDiscountedPrice(f.getPrice().subtract(d.amount()));
+        f.setDiscountAmount(d.amount());
+        f.setDiscountPercent(d.percent());
+        f.setDiscountLabel(d.label());
+    }
+
+    /** Kết quả định giá một món/combo; `amount` là số tiền giảm trên một phần. */
+    private record Discount(BigDecimal amount, Integer percent, String label) {}
+
+    private Discount bestDiscount(BigDecimal price, Food food, Combo combo, RuleSet rules) {
+        Optional<Promotion> best = bestFor(price, food, combo, rules);
+        BigDecimal amount = best.map(p -> promotionService.discountAmount(price, p))
                 .orElse(BigDecimal.ZERO);
-        f.setDiscountedPrice(f.getPrice().subtract(discount));
-        f.setDiscountAmount(discount);
-        f.setDiscountPercent(percent(best));
-        f.setDiscountLabel(best.map(PricingService::label).orElse(null));
+        return new Discount(amount, percent(best), best.map(PricingService::label).orElse(null));
     }
 
     private static Integer percent(Optional<Promotion> promotion) {
