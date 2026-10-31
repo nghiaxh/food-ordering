@@ -4,7 +4,7 @@ export const HERO = {
   titleHighlight: 'Việt',
   titleB: ', chuẩn vị từng món',
   subtitle:
-    'Món Việt truyền thống đến món Âu tinh tế, chế biến bởi đầu bếp giàu kinh nghiệm. Đặt món online nhanh gọn, có chatbot AI tư vấn.',
+    'Từ món Việt truyền thống đến món Âu tinh tế, mỗi món đều được chế biến bởi đầu bếp giàu kinh nghiệm. Đặt món chỉ vài phút, chatbot AI tư vấn theo khẩu vị của bạn.',
 }
 
 export interface Banner {
@@ -64,13 +64,8 @@ export const STEPS: Step[] = [
   {
     no: '04',
     title: 'Nhận món & thưởng thức',
-<<<<<<< HEAD
-    desc: 'Thanh toán linh hoạt khi nhận hàng — món nóng hổi giao tận nơi.',
-    image: '/images/steps/step-4.jpg',
-=======
     desc: 'Thanh toán linh hoạt khi nhận hàng, món nóng hổi giao tận nơi.',
     image: '/images/steps/step-4.webp',
->>>>>>> d21bfc2 (perf: serve local images as webp)
   },
 ]
 
