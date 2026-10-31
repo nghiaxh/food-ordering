@@ -116,7 +116,7 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
   ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
 - Admin không khoá hay xoá được tài khoản quản trị (`AuthService.requireCustomer`).
 
-### 4c. Combo, khuyến mãi và ví voucher
+### 4c. Khuyến mãi tự động
 
 Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `service/PricingService`.
 Client không tự nhân phần trăm, không tự trừ voucher; nó gọi `POST /api/cart/quote` và hiện
@@ -128,35 +128,14 @@ lệch nhau.
 - **Khuyến mãi tự động** (chương trình không có mã): mỗi dòng chọn **một** chương trình tốt
   nhất theo số tiền giảm, hoà thì xét `priority`. Không cộng dồn hai chương trình tự động trên
   cùng một dòng, nên hoá đơn đọc một lần là hiểu.
-- **Phạm vi** `GLOBAL`, `CATEGORY`, `FOOD`, `COMBO` quyết định chương trình có áp cho dòng đó
+- **Phạm vi** `GLOBAL`, `CATEGORY`, `FOOD` quyết định chương trình có áp cho dòng đó
   không (`matches`). Chương trình theo danh mục chỉ khớp món, không khớp combo.
-- **Voucher có mã** áp tiếp trên phần còn lại của những dòng khớp phạm vi. Voucher phần trăm
-  tính trên tổng các dòng khớp (có `maxDiscount`); voucher số tiền cố định được **chia theo tỉ
-  lệ giá từng dòng, dòng cuối nhận phần dư**, nên tổng giảm đúng bằng giá trị voucher mà không
-  lệch đồng nào. Nếu tổng đơn nhỏ hơn mệnh giá voucher thì giảm tối đa bằng tổng đơn, tổng
-  không bao giờ âm.
-- **Điều kiện dùng mã**: đang trong thời gian hiệu lực, còn lượt, đạt `minOrderTotal` tính trên
-  phần còn lại sau khuyến mãi tự động.
-- **Ví voucher** (`user_vouchers`): khách nhận voucher vào ví qua
-  `POST /api/promotions/{id}/claim`; voucher `claimable` chỉ dùng được khi đã có trong ví và
-  chưa dùng (`usedAt`). Mã admin phát ngoài hệ thống (không `claimable`) thì nhập là dùng, không
-  cần bước nhận. Khi tạo đơn thành công, `PromotionService.markUsed` ghi `usedAt` và tăng
-  `usedCount` trong cùng transaction với đơn.
-- **Quà ngẫu nhiên mỗi ngày**: `POST /api/promotions/lucky` bốc một voucher còn nhận trong pool,
-  giới hạn một lần/ngày. `user_vouchers.source` ghi nguồn nhận (`WELCOME`, `CLAIM`, `LUCKY`) và
-  giới hạn này chỉ đếm voucher `LUCKY`, nên tài khoản vừa đăng ký (đã có voucher chào mừng) vẫn
-  bốc được quà ngay trong ngày.
-- **Voucher chào mừng**: `AuthService.register` gọi `claimWelcome`, tự thả voucher mã `WELCOME`
-  vào ví ngay sau khi đăng ký; thiếu cấu hình thì bỏ qua, không chặn đăng ký.
 - **Khuyến mãi theo dịp** dùng `daysOfWeek` (ví dụ `SAT,SUN`) và `startTime/endTime`; khung giờ
   qua nửa đêm được hiểu là `start > end`.
 - **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
   `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
   cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
-- **Combo** (`combos`, `combo_items`) là một dòng hàng có giá riêng thấp hơn tổng giá lẻ; giá
-  combo vẫn lấy từ DB và đi qua đúng luật giảm giá trên. Báo cáo doanh thu tính combo theo tên
-  combo và trừ `discountAmount` của dòng (`ReportService.netLine`).
-- **Giá trên thẻ món**: `GET /api/foods` và `/api/combos` được `decorateFoods`/`decorateCombos`
+- **Giá trên thẻ món**: `GET /api/foods` và `/api/foods` được `decorateFoods`
   điền `discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel`; client chỉ hiện.
   Đây là giá tham khảo cùng luật với giỏ, còn con số chốt vẫn là báo giá.
 
@@ -371,7 +350,7 @@ entity/        JPA entities
 repository/    Spring Data JPA repositories
 dto/           request/response payloads (đồng bộ thủ công với types client)
 service/       nghiệp vụ chính (FoodService, OrderService, CartService, PromotionService,
-               PricingService, ComboService, ReportService, AuthService, ChatbotService, AiClient)
+               PricingService, ReportService, AuthService, ChatbotService, AiClient)
 controller/    mapping và điều phối request dưới /api/...
 ```
 

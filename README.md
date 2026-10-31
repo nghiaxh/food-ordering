@@ -21,7 +21,6 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 - Chi tiết món: thành phần, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, đánh giá
 - Giỏ hàng lưu theo tài khoản (đăng nhập mọi nơi vẫn còn giỏ) và đặt món
   (thanh toán giả lập: COD / QR VietQR)
-- Mã khuyến mãi ở giỏ hàng, ví voucher, quà bốc ngẫu nhiên hằng ngày
 - Theo dõi trạng thái đơn hàng, trạng thái thanh toán và nhận thông báo xác nhận
 - Lịch sử đặt món với nút đặt lại chỉ một chạm và tự hủy đơn khi còn chờ xác nhận
 - Đánh giá sao + nhận xét cho món đã ăn (chỉ món trong đơn hoàn thành)
@@ -31,7 +30,7 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 
 ### Quản trị
 - Tổng quan nhanh (doanh thu, đơn chờ, món bán chạy), duyệt đơn ngay trên dashboard
-- Quản lý món ăn, danh mục, combo, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
+- Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
 - Quản lý khuyến mãi / voucher (giảm theo toàn thực đơn, danh mục, món hoặc combo)
 - Cấu hình chatbot (nhà cung cấp AI, mô hình, số món gợi ý, quy tắc bổ sung) và xem lịch sử hội thoại
 - Báo cáo doanh thu có biểu đồ, top món và xuất Excel
