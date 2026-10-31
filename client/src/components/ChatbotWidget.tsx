@@ -1,16 +1,17 @@
 import { useRef, useState, useEffect } from 'react'
 import { Button, Card, Input, List, Space, Typography, FloatButton } from 'antd'
 import { MessageOutlined, SendOutlined, CloseOutlined } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { chat } from '../api/api'
 import type { ChatMessage } from '../types'
 import { formatVND } from '../utils/format'
 import { useHasCartBar } from '../hooks/useCartBar'
 
 const SUGGESTIONS = [
-  'Phí giao hàng là bao nhiêu?',
   'Gợi ý món chay không cay',
   'Món ngon dưới 200k cho 2 người',
+  'Món nào không chứa hải sản?',
+  '1 món chính và 1 món uống khoảng 150k',
 ]
 
 interface ChatbotWidgetProps {
@@ -18,6 +19,10 @@ interface ChatbotWidgetProps {
   onOpenChange: (open: boolean) => void
 }
 
+/**
+ * Cửa sổ chatbot cố định ở mọi trang như yêu cầu mục 2.4.1: chạm vào màn hình đang xem
+ * vẫn hỏi được mà không phải rời trang.
+ */
 export default function ChatbotWidget({ open, onOpenChange }: ChatbotWidgetProps) {
   const location = useLocation()
   const hasCartBar = useHasCartBar()
@@ -27,7 +32,7 @@ export default function ChatbotWidget({ open, onOpenChange }: ChatbotWidgetProps
     {
       sender: 'BOT',
       content:
-        'Xin chào! Mình là chatbot tư vấn món ăn của FoodOrdering. Hãy cho mình biết khẩu vị, ngân sách hoặc số người nhé!',
+        'Chào bạn! Mình gợi ý món theo khẩu vị, ngân sách và số người ăn. Bạn đang muốn ăn gì?',
     },
   ])
   const sessionId = useRef(crypto.randomUUID())
@@ -60,33 +65,29 @@ export default function ChatbotWidget({ open, onOpenChange }: ChatbotWidgetProps
       <FloatButton
         type="primary"
         icon={<MessageOutlined />}
-        onClick={() => setOpen(true)}
-        style={{ right: 24, bottom: 24 }}
+        onClick={() => onOpenChange(true)}
+        style={{ right: 24, bottom: hasCartBar ? 88 : 24 }}
         tooltip="Hỏi chatbot tư vấn món"
       />
     )
   }
 
-  const handleClose = () => {
-    activeRef.current = false
-    onOpenChange(false)
-    setLoading(false)
-  }
-
-  const handleOpen = () => {
-    activeRef.current = true
-    onOpenChange(true)
-  }
-
-  // Chatbot không hiển thị trong khu vực quản trị để tránh che lấp giao diện admin.
   if (isAdmin) return null
 
   return (
-    <div
-      className={`fixed right-5 z-40 flex flex-col items-end gap-3 ${
-        // Thanh giỏ cố định đáy chiếm ~4rem, launcher phải nằm cao hơn để không bị che.
-        hasCartBar ? 'bottom-[7.25rem]' : 'bottom-5'
-      }`}
+    <Card
+      title="Chatbot tư vấn món ăn"
+      extra={<Button type="text" icon={<CloseOutlined />} onClick={() => onOpenChange(false)} aria-label="Đóng" />}
+      style={{
+        position: 'fixed',
+        right: 16,
+        bottom: hasCartBar ? 80 : 16,
+        width: 380,
+        maxWidth: 'calc(100vw - 32px)',
+        zIndex: 1000,
+        boxShadow: '0 8px 30px rgba(0,0,0,.18)',
+      }}
+      styles={{ body: { padding: 12 } }}
     >
       <div className="max-h-[380px] overflow-y-auto pb-2" style={{ height: 380 }}>
         {messages.map((m, idx) => (
@@ -119,9 +120,14 @@ export default function ChatbotWidget({ open, onOpenChange }: ChatbotWidgetProps
                       <div>
                         <Link to={`/foods/${f.id}`} className="text-amber-700 hover:underline">
                           {f.name}
+                          {f.portions && f.portions > 1 ? (
+                            <span className="ml-1.5 text-xs text-stone-500">x{f.portions} phần</span>
+                          ) : null}
                         </Link>
                         <div>
-                          <Typography.Text type="danger">{formatVND(f.price)}</Typography.Text>
+                          <Typography.Text type="danger">
+                            {formatVND(f.portions && f.portions > 1 && f.totalPrice ? f.totalPrice : f.price)}
+                          </Typography.Text>
                         </div>
                       </div>
                     </Space>
@@ -135,14 +141,28 @@ export default function ChatbotWidget({ open, onOpenChange }: ChatbotWidgetProps
         <div ref={bottomRef} />
       </div>
 
+      <div className="mb-2 flex flex-wrap gap-1">
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s}
+            type="button"
+            className="rounded-full bg-stone-100 px-2.5 py-1 text-xs text-stone-700 hover:bg-amber-100"
+            onClick={() => handleSend(s)}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
       <Space.Compact style={{ width: '100%' }}>
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onPressEnter={send}
+          onPressEnter={() => handleSend()}
           placeholder="VD: món Việt, không cay, 150k cho 2 người"
+          disabled={loading}
         />
-        <Button type="primary" icon={<SendOutlined />} onClick={send} loading={loading} />
+        <Button type="primary" icon={<SendOutlined />} onClick={() => handleSend()} loading={loading} />
       </Space.Compact>
     </Card>
   )

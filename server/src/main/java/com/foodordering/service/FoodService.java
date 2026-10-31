@@ -3,6 +3,7 @@ package com.foodordering.service;
 import com.foodordering.dto.FoodDtos.FoodRequest;
 import com.foodordering.entity.Food;
 import com.foodordering.repository.CartItemRepository;
+import com.foodordering.repository.OrdersRepository;
 import com.foodordering.repository.CategoryRepository;
 import com.foodordering.repository.FoodRepository;
 import jakarta.persistence.criteria.Predicate;
