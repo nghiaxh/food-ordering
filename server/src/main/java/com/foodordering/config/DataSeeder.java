@@ -32,12 +32,11 @@ public class DataSeeder implements CommandLineRunner {
         createUser("admin@demo.com", "admin123", "Quản trị viên", User.Role.ADMIN);
         createUser("user@demo.com", "user123", "Khách hàng Demo", User.Role.CUSTOMER);
 
-<<<<<<< HEAD
-        Category viet = cat("Món Việt", "mon-viet", "/images/categories/mon-viet.jpg");
-        Category au = cat("Món Âu", "mon-au", "/images/categories/mon-au.jpg");
-        Category uong = cat("Đồ uống", "do-uong", "/images/categories/do-uong.jpg");
-        Category trangMieng = cat("Tráng miệng", "trang-mieng", "/images/categories/trang-mieng.jpg");
-        Category chay = cat("Món chay", "mon-chay", "/images/categories/mon-chay.jpg");
+        Category viet = cat("Món Việt", "mon-viet", "/images/categories/mon-viet.webp");
+        Category au = cat("Món Âu", "mon-au", "/images/categories/mon-au.webp");
+        Category uong = cat("Đồ uống", "do-uong", "/images/categories/do-uong.webp");
+        Category trangMieng = cat("Tráng miệng", "trang-mieng", "/images/categories/trang-mieng.webp");
+        Category chay = cat("Món chay", "mon-chay", "/images/categories/mon-chay.webp");
 
         food("Phở bò", viet, "Phở bò truyền thống, nước dùng hầm xương 12 giờ", "bánh phở, thịt bò, hành, quế, hồi",
                 65000, 1, 0, "", "gluten", "pho-bo");
@@ -51,9 +50,9 @@ public class DataSeeder implements CommandLineRunner {
                 45000, 2, 0, "", "hải sản,đậu phộng", "goi-cuon");
         food("Canh chua cá lóc", viet, "Canh chua miền Tây với cá lóc, thơm, cà chua", "cá lóc, thơm, cà chua, đậu bắp",
                 90000, 3, 1, "ít dầu mỡ", "hải sản", "canh-chua-ca-loc");
-        food("Rau muống xào tỏi", chay, "Rau muống xào tỏi giòn xanh", "rau muống, tỏi",
+        food("Rau muống xào tỏi", viet, "Rau muống xào tỏi giòn xanh", "rau muống, tỏi",
                 35000, 2, 0, "chay,ít dầu mỡ", "", "rau-muong-xao-toi");
-        food("Đậu hũ sốt cà chua", chay, "Đậu hũ non sốt cà chua thanh đạm", "đậu hũ, cà chua, hành",
+        food("Đậu hũ sốt cà chua", viet, "Đậu hũ non sốt cà chua thanh đạm", "đậu hũ, cà chua, hành",
                 40000, 2, 0, "chay", "đậu nành", "dau-hu-sot-ca-chua");
         food("Lẩu thái hải sản", viet, "Lẩu chua cay với tôm, mực, nghêu", "tôm, mực, nghêu, sả, ớt, nấm",
                 250000, 4, 3, "", "hải sản", "lau-thai-hai-san");
@@ -72,35 +71,10 @@ public class DataSeeder implements CommandLineRunner {
         food("Chè khúc bạch", trangMieng, "Chè khúc bạch hạnh nhân", "sữa, hạnh nhân, vải",
                 45000, 1, 0, "chay", "sữa,hạt", "che-khuc-bach");
 
-        // Đơn mẫu để màn hình quản trị và luồng đánh giá (chỉ món từ đơn Hoàn thành) có dữ liệu ngay.
-        order(khach, Orders.Status.COMPLETED, "QR", Orders.PaymentStatus.PAID,
-                khach.getAddress(), null, LocalDateTime.now().minusDays(6), new Line(pho, 2), new Line(bunCha, 1));
-        order(khach, Orders.Status.PREPARING, "COD", Orders.PaymentStatus.UNPAID,
-                khach.getAddress(), "Ít cay, gọi trước 10 phút", LocalDateTime.now().minusHours(2),
-                new Line(bunBoHue, 1), new Line(dauHu, 2));
-        order(khach, Orders.Status.PENDING, "QR", Orders.PaymentStatus.UNPAID,
-                khach.getAddress(), null, LocalDateTime.now().minusMinutes(20),
-                new Line(rau, 1), new Line(myY, 1));
-
-        review(khach, pho, 5, "Nước dùng ngon, phở đúng vị Hà Nội.");
-        review(khach, bunCha, 4, "Nướng than rất thơm, chấm nước mắm vừa ăn.");
-
-        KnowledgeDocument doc = new KnowledgeDocument();
-        doc.setTitle("quy-dinh-phuc-vu.txt");
-        doc.setContent("""
-                QUY ĐỊNH PHỤC VỤ
-
-                1. Giờ mở cửa: 10:00 đến 22:00 tất cả các ngày trong tuần.
-                2. Giao hàng trong nội thành Hà Nội tối thiểu 30 phút.
-                3. Khu vực không phục vụ: quận Hà Đông và Hoài Đức.
-                4. Món cay vui lòng báo lại khi đặt nếu khách không ăn cay.
-                5. Thành phần gây dị ứng phổ biến trong thực đơn: hải sản, đậu nành, sữa, trứng, gluten.
-                """);
-        docRepo.save(doc);
-
-        setting("max_suggestions", "5");
-        setting("provider", AiClient.PROVIDER_GEMINI);
-        setting("model", "gemini-2.0-flash");
+        AiSetting max = new AiSetting();
+        max.setSettingKey("max_suggestions");
+        max.setSettingValue("5");
+        settingRepo.save(max);
     }
 
     private void createUser(String email, String pass, String name, User.Role role) {
