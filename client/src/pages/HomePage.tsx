@@ -302,7 +302,6 @@ export default function HomePage() {
               </div>
               <Form.Item name="message" label="Lời nhắn">
                 <Input.TextArea rows={3} placeholder="Bạn muốn đặt bàn hay có câu hỏi gì?" />
-=======
               <div className="grid gap-x-3 sm:grid-cols-2">
                 <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
                   <Input placeholder="Nguyễn Văn A" />
