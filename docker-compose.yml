@@ -1,7 +1,7 @@
 services:
-  # ---------- Database (dùng chung dev + prod) ----------
-  db:
+  database:
     image: postgres:18-alpine
+    container_name: food-ordering-database
     profiles: ["dev", "prod"]
     environment:
       POSTGRES_DB: ${DB_NAME}
@@ -10,42 +10,56 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # ---------- DEV: server hot reload ----------
   server-dev:
     build:
       context: ./server
       target: dev
+    container_name: food-ordering-server-dev
     profiles: ["dev"]
     depends_on:
-      db:
+      database:
         condition: service_healthy
     environment: &server_env
-      DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      DB_URL: jdbc:postgresql://database:5432/${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
       AI_API_KEY: ${AI_API_KEY}
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
       AI_MODEL: ${AI_MODEL}
+      UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
+    # `wget` có sẵn trong image alpine. Healthcheck chỉ báo healthy khi Tomcat thật sự lắng nghe,
+    # tránh client gọi vào cổng đã publish nhưng chưa có backend (net::ERR_EMPTY_RESPONSE).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
     volumes:
       - ./server:/app
       - maven_cache:/root/.m2
+      - uploads:/app/uploads
 
-  # ---------- DEV: client hot reload ----------
   client-dev:
     build:
       context: ./client
       target: dev
+    container_name: food-ordering-client-dev
     profiles: ["dev"]
+    depends_on:
+      server-dev:
+        condition: service_healthy
     environment:
       VITE_API_URL: http://localhost:8080/api
     ports:
@@ -54,32 +68,43 @@ services:
       - ./client:/app
       - /app/node_modules
 
-  # ---------- PROD: server ----------
   server-prod:
     build:
       context: ./server
       target: prod
+    container_name: food-ordering-server-prod
     profiles: ["prod"]
     depends_on:
-      db:
+      database:
         condition: service_healthy
     environment: *server_env
     ports:
       - "8080:8080"
+    volumes:
+      - uploads:/app/uploads
+    # Cùng lý do như server-dev: chỉ coi là sẵn sàng khi API thật sự trả lời.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
 
-  # ---------- PROD: client (nginx) ----------
   client-prod:
     build:
       context: ./client
       target: prod
       args:
         VITE_API_URL: http://localhost:8080/api
+    container_name: food-ordering-client-prod
     profiles: ["prod"]
     depends_on:
-      - server-prod
+      server-prod:
+        condition: service_healthy
     ports:
       - "80:80"
 
 volumes:
   db_data:
   maven_cache:
+  uploads:
