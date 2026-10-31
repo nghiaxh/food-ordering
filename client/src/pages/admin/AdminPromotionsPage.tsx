@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Checkbox, DatePicker, Form, Input, InputNumber, Select, Switch, Table } from 'antd'
+import { DatePicker, Form, Input, InputNumber, Select, Switch, Table } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
@@ -16,7 +16,6 @@ const SCOPES: { value: Promotion['scope']; label: string }[] = [
   { value: 'GLOBAL', label: 'Toàn thực đơn' },
   { value: 'CATEGORY', label: 'Theo danh mục' },
   { value: 'FOOD', label: 'Theo món' },
-  { value: 'COMBO', label: 'Theo combo' },
 ]
 
 const TYPES: { value: Promotion['discountType']; label: string }[] = [
@@ -30,20 +29,15 @@ interface PromotionFormValues {
   discountType: Promotion['discountType']
   discountValue: number
   maxDiscount?: number | null
-  minOrderTotal?: number | null
   scope: Promotion['scope']
   targetIds?: string
-  code?: string
   startsAt: Dayjs
   endsAt: Dayjs
   daysOfWeek?: string
   active: boolean
   priority: number
-  stackable: boolean
   usageLimit?: number | null
   randomCount?: number
-  claimable?: boolean
-  occasion?: string
 }
 
 function discountLabel(p: Promotion): string {
@@ -62,7 +56,6 @@ export default function AdminPromotionsPage() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Promotion | null>(null)
   const [form] = Form.useForm<PromotionFormValues>()
-  const claimable = Form.useWatch('claimable', form)
 
   useEffect(() => {
     if (!promotions && !loading) void refresh()
@@ -76,9 +69,7 @@ export default function AdminPromotionsPage() {
       discountType: 'PERCENT',
       scope: 'GLOBAL',
       priority: 0,
-      stackable: false,
       randomCount: 0,
-      claimable: false,
     })
     setModal(true)
   }
@@ -91,20 +82,15 @@ export default function AdminPromotionsPage() {
       discountType: p.discountType,
       discountValue: p.discountValue,
       maxDiscount: p.maxDiscount,
-      minOrderTotal: p.minOrderTotal,
       scope: p.scope,
       targetIds: p.targetIds?.join(', '),
-      code: p.code ?? undefined,
       startsAt: dayjs(p.startsAt),
       endsAt: dayjs(p.endsAt),
       daysOfWeek: p.daysOfWeek ?? undefined,
       active: p.active,
       priority: p.priority,
-      stackable: p.stackable,
       usageLimit: p.usageLimit,
       randomCount: p.randomCount ?? 0,
-      claimable: p.claimable ?? false,
-      occasion: p.occasion ?? undefined,
     })
     setModal(true)
   }
@@ -116,23 +102,18 @@ export default function AdminPromotionsPage() {
       discountType: values.discountType,
       discountValue: values.discountValue,
       maxDiscount: values.maxDiscount ?? null,
-      minOrderTotal: values.minOrderTotal ?? null,
       scope: values.scope,
       targetIds: (values.targetIds ?? '')
         .split(',')
         .map((x) => Number(x.trim()))
         .filter((n) => Number.isFinite(n) && n > 0),
-      code: values.code?.trim() || null,
       startsAt: values.startsAt.format('YYYY-MM-DDTHH:mm:ss'),
       endsAt: values.endsAt.format('YYYY-MM-DDTHH:mm:ss'),
       daysOfWeek: values.daysOfWeek?.trim() || null,
       active: values.active,
       priority: values.priority,
-      stackable: values.stackable,
       usageLimit: values.usageLimit ?? null,
       randomCount: values.randomCount ?? 0,
-      claimable: values.claimable ?? false,
-      occasion: values.occasion?.trim() || null,
     }
     const res = await save({ id: editing?.id ?? null, data })
     await runAndMessage(res, {
@@ -160,7 +141,7 @@ export default function AdminPromotionsPage() {
     <div>
       <PageHeader
         title="Khuyến mãi"
-        subtitle="Chương trình không có mã tự áp vào từng dòng; chương trình có mã dùng ở bước thanh toán."
+        subtitle="Chương trình khuyến mãi tự động áp vào từng dòng món phù hợp."
         extra={
           <UiButton kind="primary" icon={<PlusOutlined />} onClick={openCreate}>
             Thêm khuyến mãi
@@ -188,12 +169,6 @@ export default function AdminPromotionsPage() {
                 title: 'Phạm vi',
                 dataIndex: 'scope',
                 render: (v: Promotion['scope']) => SCOPES.find((s) => s.value === v)?.label ?? v,
-              },
-              { title: 'Mã', dataIndex: 'code', render: (v: string | null) => v || 'Tự động' },
-              {
-                title: 'Cách nhận',
-                render: (_, p: Promotion) =>
-                  p.claimable ? 'Khách nhận vào ví' : p.code ? 'Nhập mã' : 'Tự động',
               },
               {
                 title: 'Hiệu lực',
@@ -262,9 +237,6 @@ export default function AdminPromotionsPage() {
             <Form.Item name="maxDiscount" label="Giảm tối đa (theo %)">
               <InputNumber<number> min={0} className="w-full" placeholder="Bỏ trống nếu không giới hạn" />
             </Form.Item>
-            <Form.Item name="minOrderTotal" label="Đơn tối thiểu">
-              <InputNumber<number> min={0} step={1000} className="w-full" />
-            </Form.Item>
           </div>
 
           <div className="grid gap-x-3 sm:grid-cols-2">
@@ -274,22 +246,9 @@ export default function AdminPromotionsPage() {
             <Form.Item
               name="targetIds"
               label="ID mục tiêu"
-              extra="Chỉ dùng cho phạm vi danh mục, món hoặc combo; phân tách bằng dấu phẩy."
+              extra="Chỉ dùng cho phạm vi danh mục, món; phân tách bằng dấu phẩy."
             >
               <Input placeholder="Ví dụ: 1, 3" />
-            </Form.Item>
-          </div>
-
-          <div className="grid gap-x-3 sm:grid-cols-2">
-            <Form.Item
-              name="code"
-              label="Mã giảm giá"
-              extra="Bỏ trống nếu chương trình tự động áp cho mọi đơn phù hợp."
-            >
-              <Input placeholder="WELCOME" />
-            </Form.Item>
-            <Form.Item name="occasion" label="Nhãn dịp" extra="Hiện trên thẻ ưu đãi, ví dụ Khách mới, Dịp lễ.">
-              <Input placeholder="Khách mới" />
             </Form.Item>
           </div>
 
@@ -326,20 +285,9 @@ export default function AdminPromotionsPage() {
             </Form.Item>
           </div>
 
-          <div className="grid gap-x-3 sm:grid-cols-3">
+          <div className="grid gap-x-3 sm:grid-cols-1">
             <Form.Item name="active" label="Đang chạy" valuePropName="checked">
               <Switch />
-            </Form.Item>
-            <Form.Item name="stackable" label="Cộng dồn" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <Form.Item
-              name="claimable"
-              label="Cho khách nhận vào ví"
-              valuePropName="checked"
-              extra={claimable ? 'Cần có mã giảm giá để khách áp được.' : undefined}
-            >
-              <Checkbox />
             </Form.Item>
           </div>
         </Form>

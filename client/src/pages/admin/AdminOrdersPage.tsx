@@ -101,7 +101,7 @@ export default function AdminOrdersPage() {
       note: o.note ?? '',
       status: o.status,
       paid: o.paymentStatus === 'PAID',
-      items: o.items.map((i) => i.food ? { foodId: i.food.id, quantity: i.quantity } : { comboId: i.combo!.id, quantity: i.quantity }),
+      items: o.items.map((i) => ({ foodId: i.food!.id, quantity: i.quantity })),
     })
     setModal(true)
   }
@@ -417,9 +417,9 @@ export default function AdminOrdersPage() {
               <div className="space-y-2.5">
                 {detail.items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 rounded-xl border border-stone-100 p-2.5">
-                    <UiImg src={item.food?.imageUrl ?? item.combo?.imageUrl ?? ''} alt={item.food?.name ?? item.combo?.name ?? ''} className="h-12 w-12 rounded-lg" />
+                    <UiImg src={item.food?.imageUrl ?? ''} alt={item.food?.name ?? ''} className="h-12 w-12 rounded-lg" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-stone-800">{item.food?.name ?? item.combo?.name}</p>
+                      <p className="truncate text-sm font-medium text-stone-800">{item.food?.name}</p>
                       <p className="text-xs text-stone-400">
                         {formatVND(item.price)} × {item.quantity}
                         {!!item.discountAmount && (

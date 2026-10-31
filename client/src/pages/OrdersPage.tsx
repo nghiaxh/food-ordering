@@ -14,7 +14,6 @@ export default function OrdersPage() {
   const navigate = useNavigate()
   const { data: orders, loading, error, refresh } = useAsyncData((signal) => getMyOrders(signal), [])
   const addToCart = useCartStore((s) => s.add)
-  const addComboToCart = useCartStore((s) => s.addCombo)
   const [reorderingId, setReorderingId] = useState<number | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL')
   const [paying, setPaying] = useState<Order | null>(null)
@@ -31,7 +30,6 @@ export default function OrdersPage() {
     try {
       for (const item of available) {
         if (item.food) await addToCart(item.food, item.quantity)
-        else if (item.combo) await addComboToCart(item.combo, item.quantity)
       }
     } finally {
       setReorderingId(null)
@@ -153,8 +151,7 @@ export default function OrdersPage() {
                         return (
                           <div key={it.id} className="flex items-center justify-between gap-3 text-sm">
                             <span className="min-w-0 truncate text-stone-600">
-                              {it.quantity}x {it.food?.name ?? it.combo?.name}
-                              {it.combo && <span className="ml-1 text-xs text-stone-400">(combo)</span>}
+                              {it.quantity}x {it.food?.name}
                             </span>
                             <span className="shrink-0 text-right text-stone-500">
                               {discount > 0 && (
@@ -169,7 +166,7 @@ export default function OrdersPage() {
                       })}
                       {!!o.discountTotal && o.discountTotal > 0 && (
                         <div className="flex items-center justify-between text-sm text-emerald-700">
-                          <span>Giảm giá{o.promotionCode ? ` (${o.promotionCode})` : ''}</span>
+                          <span>Giảm giá</span>
                           <span className="tabular-nums">-{formatVND(o.discountTotal)}</span>
                         </div>
                       )}

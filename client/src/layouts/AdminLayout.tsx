@@ -20,7 +20,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
   { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
   { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
-  { label: 'Combo', to: '/admin/combos', icon: 'shopping-cart' },
   { label: 'Khuyến mãi', to: '/admin/promotions', icon: 'fire' },
   { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
   { label: 'Báo cáo', to: '/admin/reports', icon: 'file' },

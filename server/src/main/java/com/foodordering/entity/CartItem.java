@@ -6,8 +6,7 @@ import lombok.*;
 
 @Entity
 @Table(name = "cart_items", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id", "food_id"}),
-        @UniqueConstraint(columnNames = {"user_id", "combo_id"})
+        @UniqueConstraint(columnNames = {"user_id", "food_id"})
 })
 @Getter @Setter @NoArgsConstructor
 public class CartItem {
@@ -18,11 +17,8 @@ public class CartItem {
     @ManyToOne(optional = false)
     private User user;
 
-    @ManyToOne(optional = true)
+    @ManyToOne(optional = false)
     private Food food;
-
-    @ManyToOne(optional = true)
-    private Combo combo;
 
     private int quantity = 1;
 }

@@ -46,18 +46,6 @@ public class ReportController {
         return service.topFoods(from(from), to(to), limit);
     }
 
-    @GetMapping("/promotions")
-    public java.util.List<ReportDtos.PromotionUsage> promotions(@RequestParam(required = false) String from,
-                                                               @RequestParam(required = false) String to) {
-        return service.promotions(from(from), to(to));
-    }
-
-    @GetMapping("/combos")
-    public java.util.List<ReportDtos.ComboSales> combos(@RequestParam(required = false) String from,
-                                                       @RequestParam(required = false) String to) {
-        return service.combos(from(from), to(to));
-    }
-
     @GetMapping("/export")
     public ResponseEntity<byte[]> export(@RequestParam(required = false) String from,
                                         @RequestParam(required = false) String to) throws Exception {

@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotNull;
 
 public class CartDtos {
     public record AddItemRequest(@NotNull Long foodId, @Min(1) int quantity) {}
-    public record AddComboRequest(@NotNull Long comboId, @Min(1) int quantity) {}
 
     public record UpdateQuantityRequest(@Min(1) int quantity) {}
 }

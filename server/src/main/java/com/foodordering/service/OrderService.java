@@ -15,20 +15,18 @@ import java.util.List;
 public class OrderService {
     private final OrdersRepository orderRepo;
     private final FoodRepository foodRepo;
-    private final ComboRepository comboRepo;
     private final UserRepository userRepo;
     private final PaymentTransactionRepository paymentTxRepo;
     private final NotificationRepository notificationRepo;
     private final PricingService pricing;
     private final PromotionService promotionService;
 
-    public OrderService(OrdersRepository orderRepo, FoodRepository foodRepo, ComboRepository comboRepo,
+    public OrderService(OrdersRepository orderRepo, FoodRepository foodRepo,
                         UserRepository userRepo, PaymentTransactionRepository paymentTxRepo,
                         NotificationRepository notificationRepo, PricingService pricing,
                         PromotionService promotionService) {
         this.orderRepo = orderRepo;
         this.foodRepo = foodRepo;
-        this.comboRepo = comboRepo;
         this.userRepo = userRepo;
         this.paymentTxRepo = paymentTxRepo;
         this.notificationRepo = notificationRepo;
@@ -43,11 +41,11 @@ public class OrderService {
         Orders order = new Orders();
         order.setUser(user);
         applyDelivery(order, req.receiverName(), req.phone(), req.address(), req.paymentMethod(), req.note());
-        PricingService.PricedCart priced = fillItems(order, req.items(), req.voucherCode(), user);
+        PricingService.PricedCart priced = fillItems(order, req.items());
 
         Orders saved = orderRepo.save(order);
-        // Voucher chỉ bị trừ lượt sau khi đơn đã ghi thành công, trong cùng transaction.
-        promotionService.markUsed(user, priced.voucher());
+        // Lượt dùng khuyến mãi chỉ bị trừ sau khi đơn đã ghi thành công, trong cùng transaction.
+        promotionService.markUsed(priced.appliedPromotions());
         savePaymentTx(saved);
         notify(saved, "Đơn hàng #" + saved.getId() + " đã được tạo. Chúng tôi sẽ sớm xác nhận đơn của bạn.");
         return saved;
@@ -65,13 +63,13 @@ public class OrderService {
         Orders order = new Orders();
         order.setUser(user);
         applyDelivery(order, req.receiverName(), req.phone(), req.address(), req.paymentMethod(), req.note());
-        PricingService.PricedCart priced = fillItems(order, req.items(), req.voucherCode(), user);
+        PricingService.PricedCart priced = fillItems(order, req.items());
         if (req.status() != null && !req.status().isBlank()) {
             order.setStatus(parseStatus(req.status()));
         }
 
         Orders saved = orderRepo.save(order);
-        promotionService.markUsed(user, priced.voucher());
+        promotionService.markUsed(priced.appliedPromotions());
         savePaymentTx(saved);
         if (Boolean.TRUE.equals(req.paid())) applyPayment(saved, true);
         return saved;
@@ -89,15 +87,14 @@ public class OrderService {
         applyDelivery(order, req.receiverName(), req.phone(), req.address(),
                 req.paymentMethod() == null ? order.getPaymentMethod() : req.paymentMethod(), req.note());
 
-        Promotion usedVoucher = null;
         if (req.items() != null && !req.items().isEmpty()) {
             if (!canEditItems(order)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Chỉ sửa được món khi đơn đang chờ xác nhận và chưa thanh toán");
             }
             // orphanRemoval giải phóng các dòng cũ khi thay cả danh sách món của đơn.
-            PricingService.PricedCart priced = fillItems(order, req.items(), req.voucherCode(), order.getUser());
-            usedVoucher = priced.voucher();
+            PricingService.PricedCart priced = fillItems(order, req.items());
+            promotionService.markUsed(priced.appliedPromotions());
             paymentTxRepo.findByOrderId(id).ifPresent(tx -> tx.setAmount(order.getTotal()));
         }
         if (req.status() != null && !req.status().isBlank()) {
@@ -107,7 +104,6 @@ public class OrderService {
             }
         }
         Orders saved = orderRepo.save(order);
-        promotionService.markUsed(order.getUser(), usedVoucher);
         if (req.paid() != null) applyPayment(saved, req.paid());
         return saved;
     }
@@ -146,21 +142,20 @@ public class OrderService {
 
     /**
      * Chụp lại đơn từ dữ liệu database. Giá gốc và số tiền giảm của từng dòng do
-     * {@link PricingService} tính, nên tổng đơn luôn khớp đúng báo giá khách đã thấy.
+     * {@link PricingService} tính theo khuyến mãi tự động, nên tổng đơn luôn khớp
+     * đúng báo giá khách đã thấy.
      */
-    private PricingService.PricedCart fillItems(Orders order, List<OrderItemRequest> items,
-                                                String voucherCode, User user) {
+    private PricingService.PricedCart fillItems(Orders order, List<OrderItemRequest> items) {
         for (OrderItemRequest it : items) {
             requireSellable(it);
         }
-        PricingService.PricedCart priced = pricing.priceOrder(items, user, voucherCode);
+        PricingService.PricedCart priced = pricing.priceOrder(items);
 
         order.getItems().clear();
         for (PricingService.Line line : priced.lines()) {
             OrderItem oi = new OrderItem();
             oi.setOrder(order);
             oi.setFood(line.food());
-            oi.setCombo(line.combo());
             oi.setQuantity(line.quantity());
             oi.setPrice(line.unitPrice());
             oi.setDiscountAmount(line.lineDiscount());
@@ -168,11 +163,10 @@ public class OrderService {
         }
         order.setTotal(priced.total());
         order.setDiscountTotal(priced.discountTotal());
-        order.setPromotionCode(priced.voucher() == null ? null : priced.voucher().getCode());
         return priced;
     }
 
-    /** Món hoặc combo đã ngừng phục vụ không được vào đơn, kể cả khi giỏ đã giữ từ trước. */
+    /** Món đã ngừng phục vụ không được vào đơn, kể cả khi giỏ đã giữ từ trước. */
     private void requireSellable(OrderItemRequest it) {
         if (it.foodId() != null) {
             Food food = foodRepo.findById(it.foodId())
@@ -181,15 +175,8 @@ public class OrderService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Món \"" + food.getName() + "\" đã ngừng phục vụ");
             }
-        } else if (it.comboId() != null) {
-            Combo combo = comboRepo.findById(it.comboId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Combo không tồn tại"));
-            if (!combo.isAvailable()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Combo \"" + combo.getName() + "\" đã ngừng phục vụ");
-            }
         } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dòng hàng phải có món hoặc combo");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dòng hàng phải có món");
         }
     }
 

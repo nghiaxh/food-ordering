@@ -16,7 +16,7 @@ public class OrderDtos {
      */
     public static final String PAYMENT_METHOD_PATTERN = "COD|QR";
 
-    public record OrderItemRequest(Long foodId, Long comboId, @Min(1) int quantity) {}
+    public record OrderItemRequest(Long foodId, @Min(1) int quantity) {}
 
     public record CreateOrderRequest(
             @NotEmpty List<OrderItemRequest> items,
@@ -24,8 +24,7 @@ public class OrderDtos {
             @NotBlank String phone,
             @NotBlank String address,
             @NotBlank @Pattern(regexp = PAYMENT_METHOD_PATTERN, message = "Phương thức thanh toán không hợp lệ") String paymentMethod,
-            @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note,
-            String voucherCode) {}
+            @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note) {}
     public record UpdateStatusRequest(@NotBlank String status) {}
 
     /**
@@ -41,5 +40,4 @@ public class OrderDtos {
             @NotBlank @Pattern(regexp = PAYMENT_METHOD_PATTERN, message = "Phương thức thanh toán không hợp lệ") String paymentMethod,
             @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note,
             String status,
-            Boolean paid,
-            String voucherCode) {}}
+            Boolean paid) {}}

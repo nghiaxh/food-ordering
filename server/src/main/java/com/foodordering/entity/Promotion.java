@@ -42,9 +42,6 @@ public class Promotion {
     @Column(name = "target_id")
     private List<Long> targetIds = new ArrayList<>();
 
-    @Column(unique = true)
-    private String code;
-
     @Column(nullable = false)
     private LocalDateTime startsAt;
 
@@ -61,27 +58,19 @@ public class Promotion {
 
     private int priority = 0;
 
-    private boolean stackable = false;
-
     private Integer usageLimit;
     private int usedCount = 0;
 
     /**
-     * Số món ngẫu nhiên được giảm mỗi ngày. Chỉ dùng cho khuyến mãi toàn thực đơn
-     * (scope GLOBAL, không có mã). 0 nghĩa là áp cho mọi món khớp phạm vi.
-     * Món được chọn bằng băm ổn định theo (món, khuyến mãi, ngày) nên trong cùng một ngày
-     * mọi request ra cùng kết quả, sang ngày mới tự đổi mà không cần scheduler.
+     * Số món ngẫu nhiên được giảm mỗi ngày. Chỉ dùng cho khuyến mãi toàn thực đơn (scope GLOBAL).
+     * 0 nghĩa là áp cho mọi món khớp phạm vi. Món được chọn bằng băm ổn định theo
+     * (món, khuyến mãi, ngày) nên trong cùng một ngày mọi request ra cùng kết quả,
+     * sang ngày mới tự đổi mà không cần scheduler.
      */
     private int randomCount = 0;
-
-    /** Voucher khách tự nhận trong ví hoặc nhận ngẫu nhiên mỗi ngày. */
-    private boolean claimable = false;
-
-    /** Nhãn hiển thị cho khách, ví dụ "Lễ 2/9", "Cuối tuần", "Khách mới". */
-    private String occasion;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum DiscountType { PERCENT, FIXED }
-    public enum Scope { GLOBAL, CATEGORY, FOOD, COMBO }
+    public enum Scope { GLOBAL, CATEGORY, FOOD }
 }

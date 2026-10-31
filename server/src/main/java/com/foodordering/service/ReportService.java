@@ -54,10 +54,9 @@ public class ReportService {
         long completed = orders.stream().filter(o -> o.getStatus() == Orders.Status.COMPLETED).count();
         BigDecimal avg = count == 0 ? BigDecimal.ZERO : revenue.divide(BigDecimal.valueOf(count), 2, java.math.RoundingMode.HALF_UP);
         long customers = active.stream().map(o -> o.getUser().getId()).distinct().count();
-        long promoUsage = active.stream().filter(o -> o.getPromotionCode() != null && !o.getPromotionCode().isBlank()).count();
         BigDecimal promoDiscount = active.stream().map(o -> o.getDiscountTotal() == null ? BigDecimal.ZERO : o.getDiscountTotal())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new ReportDtos.SummaryResponse(revenue, count, completed, avg, customers, promoUsage, promoDiscount);
+        return new ReportDtos.SummaryResponse(revenue, count, completed, avg, customers, promoDiscount);
     }
 
     public List<ReportDtos.RevenuePoint> revenue(LocalDateTime from, LocalDateTime to) {
@@ -94,43 +93,6 @@ public class ReportService {
         return out;
     }
 
-    public List<ReportDtos.PromotionUsage> promotions(LocalDateTime from, LocalDateTime to) {
-        Map<String, Long> usage = new HashMap<>();
-        Map<String, BigDecimal> discount = new HashMap<>();
-        for (Orders o : inRange(from, to)) {
-            if (o.getStatus() == Orders.Status.CANCELLED) continue;
-            if (o.getPromotionCode() == null || o.getPromotionCode().isBlank()) continue;
-            usage.merge(o.getPromotionCode(), 1L, Long::sum);
-            BigDecimal d = o.getDiscountTotal() == null ? BigDecimal.ZERO : o.getDiscountTotal();
-            discount.merge(o.getPromotionCode(), d, BigDecimal::add);
-        }
-        List<ReportDtos.PromotionUsage> out = new ArrayList<>();
-        usage.forEach((code, u) -> {
-            String name = promotionRepo.findByCodeIgnoreCase(code).map(Promotion::getName).orElse(code);
-            out.add(new ReportDtos.PromotionUsage(code, name, u, discount.getOrDefault(code, BigDecimal.ZERO)));
-        });
-        out.sort((a, b) -> Long.compare(b.usage(), a.usage()));
-        return out;
-    }
-
-    public List<ReportDtos.ComboSales> combos(LocalDateTime from, LocalDateTime to) {
-        Map<String, Long> qty = new HashMap<>();
-        Map<String, BigDecimal> rev = new HashMap<>();
-        for (Orders o : inRange(from, to)) {
-            if (o.getStatus() == Orders.Status.CANCELLED) continue;
-            for (var item : o.getItems()) {
-                if (item.getCombo() == null) continue;
-                String name = item.getCombo().getName();
-                qty.merge(name, (long) item.getQuantity(), Long::sum);
-                rev.merge(name, netLine(item), BigDecimal::add);
-            }
-        }
-        List<ReportDtos.ComboSales> out = new ArrayList<>();
-        qty.forEach((name, q) -> out.add(new ReportDtos.ComboSales(name, q, rev.getOrDefault(name, BigDecimal.ZERO))));
-        out.sort((a, b) -> Long.compare(b.quantity(), a.quantity()));
-        return out;
-    }
-
     public byte[] exportExcel(LocalDateTime from, LocalDateTime to) throws Exception {
         Workbook wb = new XSSFWorkbook();
         // Tổng quan
@@ -145,7 +107,6 @@ public class ReportService {
         addRow(s0, r++, "Don hoan thanh", String.valueOf(sm.completedCount()));
         addRow(s0, r++, "Gia tri don TB", sm.avgOrder().toPlainString());
         addRow(s0, r++, "Khach hang", String.valueOf(sm.customerCount()));
-        addRow(s0, r++, "Luot dung KM", String.valueOf(sm.promotionUsage()));
         addRow(s0, r++, "Tong giam KM", sm.promotionDiscount().toPlainString());
 
         // Doanh thu theo ngay
@@ -176,51 +137,20 @@ public class ReportService {
             rr.createCell(2).setCellValue(t.revenue().doubleValue());
         }
 
-        // Khuyen mai
-        Sheet s3 = wb.createSheet("Khuyen mai");
-        Row h3 = s3.createRow(0);
-        h3.createCell(0).setCellValue("Ma");
-        h3.createCell(1).setCellValue("Ten");
-        h3.createCell(2).setCellValue("Luot dung");
-        h3.createCell(3).setCellValue("Tong giam");
-        i = 1;
-        for (ReportDtos.PromotionUsage p : promotions(from, to)) {
-            Row rr = s3.createRow(i++);
-            rr.createCell(0).setCellValue(p.code());
-            rr.createCell(1).setCellValue(p.name());
-            rr.createCell(2).setCellValue(p.usage());
-            rr.createCell(3).setCellValue(p.discount().doubleValue());
-        }
-
-        // Combo
-        Sheet s4 = wb.createSheet("Combo");
-        Row h4 = s4.createRow(0);
-        h4.createCell(0).setCellValue("Combo");
-        h4.createCell(1).setCellValue("So luong");
-        h4.createCell(2).setCellValue("Doanh thu");
-        i = 1;
-        for (ReportDtos.ComboSales c : combos(from, to)) {
-            Row rr = s4.createRow(i++);
-            rr.createCell(0).setCellValue(c.name());
-            rr.createCell(1).setCellValue(c.quantity());
-            rr.createCell(2).setCellValue(c.revenue().doubleValue());
-        }
-
         // Don hang
-        Sheet s5 = wb.createSheet("Don hang");
-        Row h5 = s5.createRow(0);
-        String[] headers = {"Ma don", "Ngay", "Trang thai", "Tong tien", "Giam gia", "Ma KM", "Khach"};
-        for (int k = 0; k < headers.length; k++) h5.createCell(k).setCellValue(headers[k]);
+        Sheet s4 = wb.createSheet("Don hang");
+        Row h4 = s4.createRow(0);
+        String[] headers = {"Ma don", "Ngay", "Trang thai", "Tong tien", "Giam gia", "Khach"};
+        for (int k = 0; k < headers.length; k++) h4.createCell(k).setCellValue(headers[k]);
         i = 1;
         for (Orders o : inRange(from, to)) {
-            Row rr = s5.createRow(i++);
+            Row rr = s4.createRow(i++);
             rr.createCell(0).setCellValue(o.getId());
             rr.createCell(1).setCellValue(o.getCreatedAt().toString());
             rr.createCell(2).setCellValue(o.getStatus().name());
             rr.createCell(3).setCellValue(o.getTotal().doubleValue());
             rr.createCell(4).setCellValue((o.getDiscountTotal() == null ? BigDecimal.ZERO : o.getDiscountTotal()).doubleValue());
-            rr.createCell(5).setCellValue(o.getPromotionCode() == null ? "" : o.getPromotionCode());
-            rr.createCell(6).setCellValue(o.getUser() == null ? "" : o.getUser().getEmail());
+            rr.createCell(5).setCellValue(o.getUser() == null ? "" : o.getUser().getEmail());
         }
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();

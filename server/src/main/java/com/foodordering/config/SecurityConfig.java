@@ -48,10 +48,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/foods/**", "/api/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/reviews/**", "/api/uploads/**").permitAll()
-                // Combo và danh sách voucher công khai phải xem được khi chưa đăng nhập (kiosk).
-                .requestMatchers(HttpMethod.GET, "/api/combos/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/promotions/active", "/api/promotions/claimable").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/promotions/validate").permitAll()
                 .requestMatchers("/api/chatbot/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated())

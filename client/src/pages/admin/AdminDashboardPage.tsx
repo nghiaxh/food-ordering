@@ -156,7 +156,7 @@ export default function AdminDashboardPage() {
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {[
           { to: '/admin/foods', label: 'Quản lý món ăn', hint: 'Giá, ảnh, trạng thái phục vụ' },
-          { to: '/admin/promotions', label: 'Chương trình khuyến mãi', hint: 'Voucher, giảm giá theo dịp' },
+          { to: '/admin/promotions', label: 'Chương trình khuyến mãi', hint: 'Giảm giá tự động theo dòng món' },
           { to: '/admin/chatbot', label: 'Cấu hình chatbot', hint: 'Nhà cung cấp AI và mô hình' },
         ].map((shortcut) => (
           <Link

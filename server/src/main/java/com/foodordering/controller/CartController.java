@@ -2,7 +2,6 @@ package com.foodordering.controller;
 
 import com.foodordering.dto.CartDtos.*;
 import com.foodordering.dto.QuoteDtos.CartQuote;
-import com.foodordering.dto.QuoteDtos.QuoteRequest;
 import com.foodordering.entity.CartItem;
 import com.foodordering.service.CartService;
 import jakarta.validation.Valid;
@@ -41,30 +40,14 @@ public class CartController {
         cartService.remove(auth.getName(), foodId);
     }
 
-    @PostMapping("/combos")
-    public CartItem addCombo(Authentication auth, @Valid @RequestBody AddComboRequest req) {
-        return cartService.addCombo(auth.getName(), req.comboId(), req.quantity());
-    }
-
-    @PatchMapping("/combos/{comboId}")
-    public CartItem updateComboQuantity(Authentication auth, @PathVariable Long comboId,
-                                       @Valid @RequestBody UpdateQuantityRequest req) {
-        return cartService.updateComboQuantity(auth.getName(), comboId, req.quantity());
-    }
-
-    @DeleteMapping("/combos/{comboId}")
-    public void removeCombo(Authentication auth, @PathVariable Long comboId) {
-        cartService.removeCombo(auth.getName(), comboId);
-    }
-
     @DeleteMapping
     public void clear(Authentication auth) {
         cartService.clear(auth.getName());
     }
 
-    /** Trả báo giá kèm giảm giá từng dòng; mã voucher sai thì trả lỗi 400 kèm lý do. */
+    /** Trả báo giá kèm khuyến mãi tự động đã áp cho từng dòng. */
     @PostMapping("/quote")
-    public CartQuote quote(Authentication auth, @RequestBody(required = false) QuoteRequest req) {
-        return cartService.quote(auth.getName(), req == null ? null : req.voucherCode());
+    public CartQuote quote(Authentication auth) {
+        return cartService.quote(auth.getName());
     }
 }
