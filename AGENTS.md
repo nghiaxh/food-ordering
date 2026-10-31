@@ -65,6 +65,13 @@ AI bịa món.
   (khách vãng lai vẫn chat được); `/api/admin/**` yêu cầu `ROLE_ADMIN`; phần còn lại
   `authenticated()`. Token sinh bằng `JwtUtil`, lọc bằng `JwtFilter`. CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
+- **Tiền chỉ tính ở `PricingService`**: `POST /api/cart/quote` và lúc tạo đơn dùng chung một
+  service. Client không nhân phần trăm hay trừ khuyến mãi, chỉ hiện lại `QuoteLine.lineDiscount`
+  (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một khuyến mãi tự động tốt nhất.
+- **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID`; đơn
+  `COMPLETED`/`CANCELLED` khoá hoàn toàn (`OrderService.requireEditable`). `AdminOrderRequest.items`
+  được phép null để sửa thông tin giao hàng, còn `adminCreate` tự kiểm danh sách món không rỗng.
+  Khách cũng chỉ hủy được đơn `PENDING` + chưa thanh toán.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
   trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
   từng mục nằm trong `TEST.md`.
@@ -75,9 +82,9 @@ AI bịa món.
   chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `app.upload.dir`
   (volume `uploads`) và phục vụ tại `/api/uploads/**`; endpoint trả URL **tuyệt đối** nên
   không cần sửa nginx.
-- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, chi tiết món là **route con** `/foods/:id`
-  hiện thành Drawer phủ (không phải trang riêng) để không rời bảng món. Bộ lọc của trang này
-  nằm trên URL (`category`, `keyword`, `min`, `max`), đọc bằng `useSearchParams`.
+- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, chi tiết món là **route con** `/foods/:id`,
+  hiện thành Drawer phủ (không phải trang riêng) để không rời bảng món và dùng chung bố cục. Bộ lọc của trang này nằm trên URL (`category`, `keyword`,
+  `min`, `max`), đọc bằng `useSearchParams`.
 - **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
   `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
   viết class nút mới. **Đừng ghi đè kích thước bằng class.** Hai class `!h-*` có cùng độ ưu

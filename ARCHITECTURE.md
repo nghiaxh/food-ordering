@@ -104,6 +104,29 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
   ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
 - Admin không khoá hay xoá được tài khoản quản trị (`AuthService.requireCustomer`).
 
+### 4c. Khuyến mãi tự động
+
+Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `service/PricingService`.
+Client không tự nhân phần trăm, không tự trừ voucher; nó gọi `POST /api/cart/quote` và hiện
+lại đúng những gì server trả. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
+lệch nhau.
+
+- **Một dòng, một khoản giảm.** `QuoteLine.lineDiscount` và `OrderItem.discountAmount` là số
+  tiền giảm của **cả dòng** (đã nhân số lượng), không phải của một phần.
+- **Khuyến mãi tự động** (chương trình không có mã): mỗi dòng chọn **một** chương trình tốt
+  nhất theo số tiền giảm, hoà thì xét `priority`. Không cộng dồn hai chương trình tự động trên
+  cùng một dòng, nên hoá đơn đọc một lần là hiểu.
+- **Phạm vi** `GLOBAL`, `CATEGORY`, `FOOD` quyết định chương trình có áp cho dòng đó
+  không (`matches`). Chương trình theo danh mục chỉ khớp món, không khớp combo.
+- **Khuyến mãi theo dịp** dùng `daysOfWeek` (ví dụ `SAT,SUN`) và `startTime/endTime`; khung giờ
+  qua nửa đêm được hiểu là `start > end`.
+- **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
+  `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
+  cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
+- **Giá trên thẻ món**: `GET /api/foods` và `/api/foods` được `decorateFoods`
+  điền `discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel`; client chỉ hiện.
+  Đây là giá tham khảo cùng luật với giỏ, còn con số chốt vẫn là báo giá.
+
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
 Trợ lý AI dùng **hai lượt gọi AI, bốn bước xử lý** để AI không bao giờ tự nghĩ ra món hoặc giá:
@@ -290,8 +313,8 @@ security/      JwtUtil, JwtFilter
 entity/        JPA entities
 repository/    Spring Data JPA repositories
 dto/           request/response payloads (đồng bộ thủ công với types client)
-service/       nghiệp vụ chính (FoodService, OrderService, AuthService, ChatbotService,
-               AiClient)
+service/       nghiệp vụ chính (FoodService, OrderService, CartService, PromotionService,
+               PricingService, ReportService, AuthService, ChatbotService, AiClient)
 controller/    mapping và điều phối request dưới /api/...
 ```
 
