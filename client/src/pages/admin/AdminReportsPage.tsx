@@ -63,7 +63,6 @@ export default function AdminReportsPage() {
     { label: 'Số đơn', value: `${summary?.orderCount ?? 0}` },
     { label: 'Đơn hoàn thành', value: `${summary?.completedCount ?? 0}` },
     { label: 'Giá trị đơn trung bình', value: formatVND(summary?.avgOrder ?? 0) },
-    { label: 'Lượt dùng khuyến mãi', value: `${summary?.promotionUsage ?? 0}` },
     { label: 'Tiền đã giảm', value: formatVND(summary?.promotionDiscount ?? 0) },
   ]
 

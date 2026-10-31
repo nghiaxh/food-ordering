@@ -15,9 +15,7 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepo;
     private final CategoryRepository categoryRepo;
     private final FoodRepository foodRepo;
-    private final ComboRepository comboRepo;
     private final PromotionRepository promotionRepo;
-    private final UserVoucherRepository userVoucherRepo;
     private final OrdersRepository orderRepo;
     private final PaymentTransactionRepository paymentTxRepo;
     private final ReviewRepository reviewRepo;
@@ -25,16 +23,13 @@ public class DataSeeder implements CommandLineRunner {
     private final PasswordEncoder encoder;
 
     public DataSeeder(UserRepository userRepo, CategoryRepository categoryRepo, FoodRepository foodRepo,
-                      ComboRepository comboRepo, PromotionRepository promotionRepo,
-                      UserVoucherRepository userVoucherRepo,
+                      PromotionRepository promotionRepo,
                       OrdersRepository orderRepo, PaymentTransactionRepository paymentTxRepo,
                       ReviewRepository reviewRepo, AiSettingRepository settingRepo, PasswordEncoder encoder) {
         this.userRepo = userRepo;
         this.categoryRepo = categoryRepo;
         this.foodRepo = foodRepo;
-        this.comboRepo = comboRepo;
         this.promotionRepo = promotionRepo;
-        this.userVoucherRepo = userVoucherRepo;
         this.orderRepo = orderRepo;
         this.paymentTxRepo = paymentTxRepo;
         this.reviewRepo = reviewRepo;
@@ -92,53 +87,19 @@ public class DataSeeder implements CommandLineRunner {
         food("Chè khúc bạch", trangMieng, "Chè khúc bạch hạnh nhân", "sữa, hạnh nhân, vải",
                 45000, 1, 0, "chay", "sữa,hạt", "che-khuc-bach");
 
-        // Combo lưu sẵn món con để một dòng đơn gọn, giá combo thấp hơn tổng giá lẻ.
-        combo("Combo Phở bò + Trà đào", "Phở bò nóng và trà đào mát, tiết kiệm 10.000đ",
-                "/images/foods/pho-bo.webp", 95000, new ComboLine(pho, 1), new ComboLine(traDao, 1));
-        combo("Combo Cơm gà + Nước cam", "Cơm gà xối mỡ ăn kèm nước cam ép",
-                "/images/foods/com-ga-xoi-mo.webp", 80000, new ComboLine(comGa, 1), new ComboLine(nuocCam, 1));
-        combo("Combo Bún chả + Cà phê sữa", "Bún chả nướng than hoa kèm cà phê sữa đá",
-                "/images/foods/bun-cha.webp", 79000, new ComboLine(bunCha, 1), new ComboLine(caPhe, 1));
-        combo("Combo Bún bò Huế + Trà đào", "Bún bò cay miền Trung làm dịu bằng trà đào cam sả",
-                "/images/foods/bun-bo-hue.webp", 97000, new ComboLine(bunBoHue, 1), new ComboLine(traDao, 1));
-        combo("Combo Mỳ Ý + Nước cam", "Mỳ Ý sốt bò bằm kèm nước cam ép",
-                "/images/foods/my-y-bo-bam.webp", 105000, new ComboLine(myY, 1), new ComboLine(nuocCam, 1));
-        combo("Combo Cơm gà + Trà đào", "Cơm gà xối mỡ và trà đào mát",
-                "/images/foods/com-ga-xoi-mo.webp", 84000, new ComboLine(comGa, 1), new ComboLine(traDao, 1));
-        combo("Combo chay thanh đạm", "Rau muống xào tỏi, đậu hũ sốt cà và trà đào",
-                "/images/foods/rau-muong-xao-toi.webp", 99000,
-                new ComboLine(rau, 1), new ComboLine(dauHu, 1), new ComboLine(traDao, 1));
-
-        // ----- Khuyến mãi mẫu -----
+        // ----- Khuyến mãi mẫu (chỉ khuyến mãi tự động, không cần mã) -----
         LocalDateTime now = LocalDateTime.now();
-        // Khách mới: tự có trong ví ngay sau khi đăng ký.
-        Promotion welcome = voucher("Khách mới", "Giảm 20.000đ cho đơn từ 100.000đ",
-                Promotion.DiscountType.FIXED, 20000, 100000, "WELCOME", "Khách mới", now);
-        // Quà bốc ngẫu nhiên mỗi ngày trong pool voucher còn nhận.
-        voucher("Quà may mắn", "Giảm 15% tối đa 40.000đ cho đơn từ 80.000đ",
-                Promotion.DiscountType.PERCENT, 15, 80000, "LUCKY15", "Quà may mắn", now);
-        // Dịp lễ: khách tự nhận trong ví, dùng một lần.
-        voucher("Ưu đãi lễ", "Giảm 10% tối đa 50.000đ nhân dịp lễ",
-                Promotion.DiscountType.PERCENT, 10, 0, "HOLIDAY10", "Dịp lễ", now);
         // Cuối tuần: tự áp cho đồ uống, không cần mã.
         Promotion weekend = promo("Cuối tuần mát lạnh", "Giảm 20% đồ uống thứ Bảy và Chủ Nhật",
                 Promotion.DiscountType.PERCENT, 20, Promotion.Scope.CATEGORY, now);
         weekend.setDaysOfWeek("SAT,SUN");
         weekend.setTargetIds(List.of(uong.getId()));
-        weekend.setOccasion("Cuối tuần");
         promotionRepo.save(weekend);
         // Món may mắn mỗi ngày: hai món ngẫu nhiên giảm 15%, tự đổi khi sang ngày mới.
         Promotion daily = promo("Món may mắn hôm nay", "Hai món ngẫu nhiên giảm 15% mỗi ngày",
                 Promotion.DiscountType.PERCENT, 15, Promotion.Scope.GLOBAL, now);
         daily.setRandomCount(2);
-        daily.setOccasion("Hôm nay");
         promotionRepo.save(daily);
-
-        // Khách demo đã có sẵn voucher chào mừng để thử luồng áp mã ngay.
-        UserVoucher owned = new UserVoucher();
-        owned.setUser(khach);
-        owned.setPromotion(welcome);
-        userVoucherRepo.save(owned);
 
         // Đơn mẫu để màn hình quản trị và luồng đánh giá (chỉ món từ đơn Hoàn thành) có dữ liệu ngay.
         order(khach, Orders.Status.COMPLETED, "QR", Orders.PaymentStatus.PAID,
@@ -195,25 +156,6 @@ public class DataSeeder implements CommandLineRunner {
     /** Một dòng của đơn mẫu: món kèm số lượng. */
     private record Line(Food food, int qty) {}
 
-    /** Một món trong combo mẫu. */
-    private record ComboLine(Food food, int qty) {}
-
-    private void combo(String name, String desc, String image, long price, ComboLine... lines) {
-        Combo c = new Combo();
-        c.setName(name);
-        c.setDescription(desc);
-        c.setImageUrl(image);
-        c.setPrice(BigDecimal.valueOf(price));
-        for (ComboLine line : lines) {
-            ComboItem ci = new ComboItem();
-            ci.setCombo(c);
-            ci.setFood(line.food());
-            ci.setQuantity(line.qty());
-            c.getItems().add(ci);
-        }
-        comboRepo.save(c);
-    }
-
     /** Khuyến mãi tự động: không có mã, áp theo phạm vi và thời gian. */
     private Promotion promo(String name, String desc, Promotion.DiscountType type, int value,
                             Promotion.Scope scope, LocalDateTime now) {
@@ -227,17 +169,6 @@ public class DataSeeder implements CommandLineRunner {
         p.setEndsAt(now.plusMonths(6));
         p.setActive(true);
         return p;
-    }
-
-    /** Voucher khách tự nhận vào ví; occasion là nhãn hiển thị trên thẻ quà. */
-    private Promotion voucher(String name, String desc, Promotion.DiscountType type, int value,
-                              long minOrder, String code, String occasion, LocalDateTime now) {
-        Promotion p = promo(name, desc, type, value, Promotion.Scope.GLOBAL, now);
-        p.setCode(code);
-        p.setOccasion(occasion);
-        p.setClaimable(true);
-        if (minOrder > 0) p.setMinOrderTotal(BigDecimal.valueOf(minOrder));
-        return promotionRepo.save(p);
     }
 
     /** Đơn mẫu ghi kèm giao dịch thanh toán đúng như đơn thật do khách đặt. */

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { message } from 'antd'
-import type { CartItem, Combo, Food } from '../types'
-import { addCartItem, addCartCombo, clearCart, getCart, removeCartItem, removeCartCombo, setCartComboQuantity, setCartItemQuantity } from '../api/api'
+import type { CartItem, Food } from '../types'
+import { addCartItem, clearCart, getCart, removeCartItem, setCartItemQuantity } from '../api/api'
 import { useAuthStore } from './authStore'
 
 interface CartState {
@@ -9,9 +9,6 @@ interface CartState {
   loaded: boolean
   load: () => Promise<void>
   add: (food: Food, quantity?: number) => Promise<void>
-  addCombo: (combo: Combo, quantity?: number) => Promise<void>
-  setComboQuantity: (comboId: number, quantity: number) => Promise<void>
-  removeCombo: (comboId: number) => Promise<void>
   setQuantity: (foodId: number, quantity: number) => Promise<void>
   remove: (foodId: number) => Promise<void>
   clear: () => Promise<void>
@@ -34,7 +31,6 @@ export const useCartStore = create<CartState>((set, get) => ({
     for (const item of local) {
       try {
         if (item.food) await addCartItem(item.food.id, item.quantity)
-        else if (item.combo) await addCartCombo(item.combo.id, item.quantity)
       } catch {
         /* giỏ local chỉ là bản nháp; server là nguồn chính thức */
       }
@@ -53,7 +49,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       set({
         items: existing
           ? get().items.map((i) => (i.food?.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
-          : [...get().items, { food, combo: null, quantity }],
+          : [...get().items, { food, quantity }],
       })
       return
     }
@@ -62,7 +58,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({
       items: existing
         ? before.map((i) => (i.food?.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
-        : [...before, { food, combo: null, quantity }],
+        : [...before, { food, quantity }],
     })
     try {
       await addCartItem(food.id, quantity)
@@ -72,49 +68,12 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addCombo: async (combo, quantity = 1) => {
-    if (!loggedIn()) {
-      const existing = get().items.find((i) => i.combo?.id === combo.id)
-      set({
-        items: existing
-          ? get().items.map((i) => (i.combo?.id === combo.id ? { ...i, quantity: i.quantity + quantity } : i))
-          : [...get().items, { food: null, combo, quantity }],
-      })
-      return
-    }
-    const before = get().items
-    const existing = before.find((i) => i.combo?.id === combo.id)
-    set({
-      items: existing
-        ? before.map((i) => (i.combo?.id === combo.id ? { ...i, quantity: i.quantity + quantity } : i))
-        : [...before, { food: null, combo, quantity }],
-    })
-    try {
-      await addCartCombo(combo.id, quantity)
-    } catch {
-      set({ items: before })
-      message.error('Không thêm được combo vào giỏ. Vui lòng thử lại.')
-    }
-  },
-
   setQuantity: async (foodId, quantity) => {
     const before = get().items
     set({ items: before.map((i) => (i.food?.id === foodId ? { ...i, quantity } : i)) })
     if (!loggedIn()) return
     try {
       await setCartItemQuantity(foodId, quantity)
-    } catch {
-      set({ items: before })
-      message.error('Không cập nhật được giỏ hàng. Vui lòng thử lại.')
-    }
-  },
-
-  setComboQuantity: async (comboId, quantity) => {
-    const before = get().items
-    set({ items: before.map((i) => (i.combo?.id === comboId ? { ...i, quantity } : i)) })
-    if (!loggedIn()) return
-    try {
-      await setCartComboQuantity(comboId, quantity)
     } catch {
       set({ items: before })
       message.error('Không cập nhật được giỏ hàng. Vui lòng thử lại.')
@@ -133,18 +92,6 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  removeCombo: async (comboId) => {
-    const before = get().items
-    set({ items: before.filter((i) => i.combo?.id !== comboId) })
-    if (!loggedIn()) return
-    try {
-      await removeCartCombo(comboId)
-    } catch {
-      set({ items: before })
-      message.error('Không xóa được combo khỏi giỏ. Vui lòng thử lại.')
-    }
-  },
-
   clear: async () => {
     const before = get().items
     set({ items: [] })
@@ -159,5 +106,5 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   resetLocal: () => set({ items: [], loaded: true }),
   count: () => get().items.reduce((n, i) => n + i.quantity, 0),
-  total: () => get().items.reduce((sum, i) => sum + (i.food?.price ?? i.combo?.price ?? 0) * i.quantity, 0),
+  total: () => get().items.reduce((sum, i) => sum + (i.food?.price ?? 0) * i.quantity, 0),
 }))

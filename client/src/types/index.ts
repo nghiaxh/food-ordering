@@ -45,30 +45,9 @@ export interface User {
   createdAt: string
 }
 
-export interface ComboItem {
-  id: number
-  food: Food
-  quantity: number
-}
-
-export interface Combo {
-  id: number
-  name: string
-  description: string
-  imageUrl: string
-  price: number
-  available: boolean
-  items: ComboItem[]
-  discountedPrice?: number | null
-  discountAmount?: number | null
-  discountPercent?: number | null
-  discountLabel?: string | null
-}
-
 export interface OrderItem {
   id: number
   food: Food | null
-  combo: Combo | null
   quantity: number
   /** Giá được chụp lại lúc đặt món, không phải giá hiện tại của món. */
   price: number
@@ -83,7 +62,6 @@ export interface Order {
   paymentMethod: string
   total: number
   discountTotal?: number
-  promotionCode?: string | null
   receiverName: string
   phone: string
   address: string
@@ -94,7 +72,6 @@ export interface Order {
 
 export interface CartItem {
   food: Food | null
-  combo: Combo | null
   quantity: number
 }
 
@@ -166,27 +143,21 @@ export interface Promotion {
   discountType: 'PERCENT' | 'FIXED'
   discountValue: number
   maxDiscount?: number | null
-  minOrderTotal?: number | null
-  scope: 'GLOBAL' | 'CATEGORY' | 'FOOD' | 'COMBO'
+  scope: 'GLOBAL' | 'CATEGORY' | 'FOOD'
   targetIds?: number[]
-  code?: string | null
   startsAt: string
   endsAt: string
   daysOfWeek?: string | null
   active: boolean
   priority: number
-  stackable: boolean
   usageLimit?: number | null
   usedCount: number
   randomCount?: number
-  claimable?: boolean
-  occasion?: string | null
 }
 
 /** Một dòng trong báo giá giỏ hàng; số tiền giảm do server tính. */
 export interface QuoteLine {
   foodId: number | null
-  comboId: number | null
   name: string
   imageUrl: string | null
   unitPrice: number
@@ -201,22 +172,4 @@ export interface CartQuote {
   subtotal: number
   discountTotal: number
   total: number
-  voucherCode: string | null
-  voucherName: string | null
-}
-
-/** Voucher trong ví khách; `used` là đã dùng cho một đơn trước đó. */
-export interface VoucherView {
-  id: number
-  code: string
-  name: string
-  description: string | null
-  occasion: string | null
-  discountType: 'PERCENT' | 'FIXED'
-  discountValue: number
-  maxDiscount: number | null
-  minOrderTotal: number | null
-  endsAt: string
-  claimed: boolean
-  used: boolean
 }

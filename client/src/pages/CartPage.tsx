@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Empty, Form, Input, Modal, Radio, Select, Skeleton, message } from 'antd'
+import { Empty, Form, Input, Radio, Select, Skeleton, message } from 'antd'
 import { DeleteOutlined, EditOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
-import { createOrder, getAddresses, getActiveVouchers, quoteCart, saveAddress } from '../api/api'
+import { createOrder, getAddresses, quoteCart, saveAddress } from '../api/api'
 import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
-import type { CartQuote, Promotion, SavedAddress } from '../types'
-import { Tag } from 'antd'
-import { TagOutlined, CheckCircleFilled } from '@ant-design/icons'
+import type { CartQuote, SavedAddress } from '../types'
+
 import { formatVND } from '../utils/format'
 
 export default function CartPage() {
-  const { items, loaded, setQuantity, setComboQuantity, remove, removeCombo, clear, count, total } = useCartStore()
+  const { items, loaded, setQuantity, remove, clear, count, total } = useCartStore()
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const [ordering, setOrdering] = useState(false)
@@ -23,24 +22,17 @@ export default function CartPage() {
   const [addressModal, setAddressModal] = useState(false)
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null)
   const [savingAddress, setSavingAddress] = useState(false)
-  const [vouchers, setVouchers] = useState<Promotion[]>([])
-  const [voucherModal, setVoucherModal] = useState(false)
-  // Mã đang chọn; báo giá thật do server trả về trong `quote`, client không tự tính giảm giá.
-  const [appliedCode, setAppliedCode] = useState<string | null>(null)
   const [quote, setQuote] = useState<CartQuote | null>(null)
-  const [manualCode, setManualCode] = useState('')
-  const [validatingVoucher, setValidatingVoucher] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('COD')
 
   const { run: submitOrder, pending: submitting } = useAsyncAction(
     (payload: {
-      items: { foodId?: number; comboId?: number; quantity: number }[]
+      items: { foodId?: number; quantity: number }[]
       receiverName: string
       phone: string
       address: string
       paymentMethod: string
       note?: string
-      voucherCode?: string
     }) => createOrder(payload),
   )
 
@@ -49,9 +41,6 @@ export default function CartPage() {
     getAddresses()
       .then(setAddresses)
       .catch(() => setAddresses([]))
-    getActiveVouchers()
-      .then(setVouchers)
-      .catch(() => setVouchers([]))
   }, [user])
 
   useEffect(() => {
@@ -69,23 +58,18 @@ export default function CartPage() {
       return
     }
     let alive = true
-    quoteCart(appliedCode ?? undefined)
+    quoteCart()
       .then((next) => {
         if (alive) setQuote(next)
       })
       .catch((err: unknown) => {
         if (!alive) return
-        const msg =
-          typeof err === 'object' && err !== null && 'response' in err
-            ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-            : undefined
-        message.error(msg ?? 'Không tính được giá giỏ hàng')
-        if (appliedCode) setAppliedCode(null)
+        message.error(apiErrorMessage(err) ?? 'Không tính được giá giỏ hàng')
       })
     return () => {
       alive = false
     }
-  }, [user, items, appliedCode])
+  }, [user, items])
 
   const selectedAddress = addresses.find((a) => a.id === selectedId) ?? null
 
@@ -144,30 +128,6 @@ export default function CartPage() {
     }
   }
 
-  /**
-   * Máy chủ là nơi duy nhất xác nhận mã: nó vừa kiểm hạn dùng, đơn tối thiểu, ví voucher
-   * vừa trả về số tiền giảm thật. Client chỉ hiện lại kết quả.
-   */
-  const applyVoucherCode = async (code: string) => {
-    const trimmed = code.trim()
-    if (!trimmed) return
-    setValidatingVoucher(true)
-    try {
-      const next = await quoteCart(trimmed)
-      setQuote(next)
-      setAppliedCode(next.voucherCode)
-      message.success(`Áp dụng mã ${next.voucherCode} thành công!`)
-      setVoucherModal(false)
-    } catch (err: unknown) {
-      const msg = typeof err === 'object' && err !== null && 'response' in err
-        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-        : 'Mã khuyến mãi không hợp lệ'
-      message.error(msg ?? 'Mã khuyến mãi không hợp lệ')
-    } finally {
-      setValidatingVoucher(false)
-    }
-  }
-
   const checkout = async (
     v: {
       receiverName: string
@@ -185,8 +145,7 @@ export default function CartPage() {
     if (submitting) return
     const res = await submitOrder({
       ...v,
-      items: items.map((i) => i.food ? { foodId: i.food.id, quantity: i.quantity } : { comboId: i.combo!.id, quantity: i.quantity }),
-      voucherCode: appliedCode ?? undefined,
+      items: items.map((i) => ({ foodId: i.food!.id, quantity: i.quantity })),
     })
     if (res.ok) {
       message.success('Đặt món thành công!')
@@ -225,38 +184,29 @@ export default function CartPage() {
           <div className="border-b border-stone-100 px-5 py-3 text-sm font-medium text-stone-500">
             {count()} món trong giỏ
           </div>
-          {items.map((i, idx) => {
-            const isCombo = !i.food && !!i.combo
-            const id = i.food?.id ?? i.combo?.id ?? idx
-            const name = i.food?.name ?? i.combo?.name ?? ''
-            const image = i.food?.imageUrl ?? i.combo?.imageUrl ?? ''
-            const line = quote?.lines.find((l) => (isCombo ? l.comboId === id : l.foodId === id))
-            const price = line?.unitPrice ?? i.food?.price ?? i.combo?.price ?? 0
+          {items.map((i) => {
+            const id = i.food!.id
+            const name = i.food!.name
+            const image = i.food!.imageUrl
+            const line = quote?.lines.find((l) => l.foodId === id)
+            const price = line?.unitPrice ?? i.food!.price
             const lineTotal = line?.lineTotal ?? price * i.quantity
-            const available = i.food ? i.food.available : true
-            const dec = () => isCombo ? setComboQuantity(id, i.quantity - 1) : setQuantity(id, i.quantity - 1)
-            const inc = () => isCombo ? setComboQuantity(id, i.quantity + 1) : setQuantity(id, i.quantity + 1)
-            const del = () => isCombo ? removeCombo(id) : remove(id)
+            const available = i.food!.available
+            const dec = () => setQuantity(id, i.quantity - 1)
+            const inc = () => setQuantity(id, i.quantity + 1)
+            const del = () => remove(id)
             return (
             <div
-              key={`${isCombo ? 'c' : 'f'}-${id}`}
+              key={`f-${id}`}
               className="border-b border-stone-100 px-5 py-4 last:border-b-0 sm:flex sm:items-center sm:gap-4"
             >
               <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
-                {i.food ? (
-                  <Link to={`/foods/${i.food.id}`} className="shrink-0">
-                    <UiImg src={image} alt={name} className="h-20 w-20 rounded-xl" />
-                  </Link>
-                ) : (
-                  <div className="shrink-0"><UiImg src={image} alt={name} className="h-20 w-20 rounded-xl" /></div>
-                )}
+                <Link to={`/foods/${i.food!.id}`} className="shrink-0">
+                  <UiImg src={image} alt={name} className="h-20 w-20 rounded-xl" />
+                </Link>
 
                 <div className="min-w-0 flex-1">
-                  {i.food ? (
-                    <Link to={`/foods/${i.food.id}`} className="block truncate font-medium text-stone-800 hover:text-amber-700">{name}</Link>
-                  ) : (
-                    <div className="block truncate font-medium text-stone-800">{name} (Combo)</div>
-                  )}
+                  <Link to={`/foods/${i.food!.id}`} className="block truncate font-medium text-stone-800 hover:text-amber-700">{name}</Link>
                   <div className="mt-0.5 text-sm text-stone-500">{formatVND(price)} / phần</div>
                   {line && line.lineDiscount > 0 && (
                     <div className="mt-0.5 text-xs font-medium text-emerald-600">
@@ -290,48 +240,16 @@ export default function CartPage() {
             )
           })}
 
-          {/* Khuyến mãi & Giảm giá */}
+          {/* Tổng tiền và giảm giá tự động */}
           <div className="border-t border-stone-100 bg-stone-50/60 p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <TagOutlined className="text-amber-600" />
-                <span className="text-sm font-semibold text-stone-800">Mã khuyến mãi / Voucher</span>
-              </div>
-              <UiButton kind="default" size="small" onClick={() => setVoucherModal(true)}>
-                {appliedCode ? 'Đổi mã khác' : 'Chọn hoặc nhập mã'}
-              </UiButton>
-            </div>
-
-            {appliedCode ? (
-              <div className="mt-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5">
-                <div className="flex items-center gap-2">
-                  <CheckCircleFilled className="text-emerald-500" />
-                  <div>
-                    <span className="font-bold text-amber-900">{appliedCode}</span>
-                    <p className="text-xs text-amber-700">{quote?.voucherName ?? ''}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-emerald-600">-{formatVND(discountTotal)}</span>
-                  <button
-                    type="button"
-                    onClick={() => setAppliedCode(null)}
-                    className="text-xs text-stone-400 hover:text-rose-600"
-                  >
-                    Bỏ mã
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-4 space-y-1.5 border-t border-dashed border-stone-200 pt-3 text-sm">
+            <div className="mt-1.5 space-y-1.5 border-t border-dashed border-stone-200 pt-3 text-sm">
               <div className="flex justify-between text-stone-600">
                 <span>Tạm tính</span>
                 <span className="tabular-nums">{formatVND(subtotal)}</span>
               </div>
               {discountTotal > 0 && (
                 <div className="flex justify-between text-emerald-600">
-                  <span>Giảm giá{appliedCode ? ` (${appliedCode})` : ''}</span>
+                  <span>Giảm giá</span>
                   <span className="tabular-nums">-{formatVND(discountTotal)}</span>
                 </div>
               )}
@@ -453,94 +371,7 @@ export default function CartPage() {
         </aside>
       </div>
 
-      {/* Modal chọn hoặc nhập mã Voucher */}
-      <Modal
-        title="Chọn mã khuyến mãi / Voucher"
-        open={voucherModal}
-        onCancel={() => setVoucherModal(false)}
-        footer={null}
-        centered
-      >
-        <div className="py-2">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Nhập mã giảm giá..."
-              value={manualCode}
-              onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-              onPressEnter={() => void applyVoucherCode(manualCode)}
-            />
-            <UiButton
-              kind="primary"
-              loading={validatingVoucher}
-              onClick={() => void applyVoucherCode(manualCode)}
-            >
-              Áp dụng
-            </UiButton>
-          </div>
-
-          <div className="mt-4">
-            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
-              Mã khuyến mãi có sẵn
-            </h4>
-            {vouchers.length === 0 ? (
-              <p className="py-6 text-center text-xs text-stone-400">Hiện chưa có mã khuyến mãi công khai nào.</p>
-            ) : (
-              <div className="max-h-80 space-y-2.5 overflow-y-auto pr-1">
-                {vouchers.map((v) => {
-                  const eligible = !v.minOrderTotal || subtotal >= v.minOrderTotal
-                  const isCurrent = appliedCode === v.code
-                  return (
-                    <div
-                      key={v.id}
-                      className={`flex items-center justify-between rounded-xl border p-3 transition ${
-                        isCurrent
-                          ? 'border-amber-500 bg-amber-50/60'
-                          : eligible
-                            ? 'border-stone-200 bg-white hover:border-amber-300'
-                            : 'border-stone-200 bg-stone-50 opacity-60'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <Tag color="orange" className="font-bold">
-                            {v.code}
-                          </Tag>
-                          <span className="font-semibold text-stone-800">{v.name}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-stone-500">
-                          {v.discountType === 'PERCENT'
-                            ? `Giảm ${v.discountValue}% ${v.maxDiscount ? `(tối đa ${formatVND(v.maxDiscount)})` : ''}`
-                            : `Giảm ${formatVND(v.discountValue)}`}
-                          {v.minOrderTotal ? ` · Đơn tối thiểu ${formatVND(v.minOrderTotal)}` : ''}
-                        </p>
-                      </div>
-
-                      <div className="ml-3 shrink-0">
-                        {isCurrent ? (
-                          <Tag color="green">Đang chọn</Tag>
-                        ) : (
-                          <UiButton
-                            kind="default"
-                            size="small"
-                            disabled={!eligible}
-                            onClick={() => {
-                              if (v.code) void applyVoucherCode(v.code)
-                            }}
-                          >
-                            {eligible ? 'Áp dụng' : 'Chưa đủ điều kiện'}
-                          </UiButton>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
+      <FormModal
         title={editingAddress ? 'Sửa địa chỉ' : 'Thêm địa chỉ'}
         open={addressModal}
         onCancel={() => {

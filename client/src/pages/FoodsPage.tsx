@@ -1,14 +1,12 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Empty, Pagination, message } from 'antd'
-import { Link, useNavigate, Outlet, useSearchParams } from 'react-router-dom'
-import { getCategories, getCombos, getFoods } from '../api/api'
+import { useNavigate, Outlet, useSearchParams } from 'react-router-dom'
+import { getCategories, getFoods } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import type { Combo } from '../types'
 import { formatVND } from '../utils/format'
 import FoodCard from '../components/FoodCard'
 import UiButton from '../components/UiButton'
-import UiImg from '../components/UiImg'
 
 type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'name-asc'
 
@@ -46,7 +44,6 @@ export default function FoodsPage() {
   const [applyNonce, setApplyNonce] = useState(0)
 
   const { data: categories } = useAsyncData((signal) => getCategories(signal), [])
-  const { data: combos } = useAsyncData((signal) => getCombos(signal), [])
   const { data: foods, loading, error } = useAsyncData(
     (signal) =>
       getFoods(
@@ -83,18 +80,9 @@ export default function FoodsPage() {
   }
 
   const pickCategory = (id?: number) => {
-    patch({ category: id?.toString(), combo: undefined })
+    patch({ category: id?.toString() })
     document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
-
-  const combosView = params.get('combo') === '1'
-
-  // Lọc giá dùng chung một dải cho cả món lẫn combo; combo so trên giá gói, đúng bằng giá
-  // hiển thị trên thẻ khi không có khuyến mãi riêng cho combo.
-  const visibleCombos = (combos ?? []).filter((combo) => {
-    const price = Number(combo.price)
-    return (minPrice === undefined || price >= minPrice) && (maxPrice === undefined || price <= maxPrice)
-  })
 
   const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
 
@@ -112,25 +100,16 @@ export default function FoodsPage() {
               <button
                 type="button"
                 onClick={() => pickCategory()}
-                className={chipBtn(!combosView && categoryId === undefined)}
+                className={chipBtn(categoryId === undefined)}
               >
                 Tất cả
               </button>
-              {(combos?.length ?? 0) > 0 && (
-                <button
-                  type="button"
-                  onClick={() => patch({ combo: '1', category: undefined, min: undefined, max: undefined })}
-                  className={chipBtn(combosView)}
-                >
-                  Combo tiết kiệm
-                </button>
-              )}
               {(categories ?? []).map((c) => (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => pickCategory(c.id)}
-                  className={chipBtn(!combosView && categoryId === c.id)}
+                  className={chipBtn(categoryId === c.id)}
                 >
                   {c.name}
                 </button>
@@ -156,17 +135,7 @@ export default function FoodsPage() {
           </div>
 
           <div className="mt-4">
-            {combosView ? (
-              visibleCombos.length === 0 ? (
-                <Empty description="Không có combo trong khoảng giá này." />
-              ) : (
-                <div className={`grid gap-3 ${GRID_COLS}`}>
-                  {visibleCombos.map((combo) => (
-                    <ComboCard key={combo.id} combo={combo} />
-                  ))}
-                </div>
-              )
-            ) : loading ? (
+            {loading ? (
               <div className={`grid gap-3 ${GRID_COLS}`}>
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/60">
@@ -250,71 +219,3 @@ export default function FoodsPage() {
   )
 }
 
-function ComboCard({ combo }: { combo: Combo }) {
-  const addCombo = useCartStore((s) => s.addCombo)
-  const navigate = useNavigate()
-  const price = combo.discountedPrice ?? combo.price
-
-  return (
-    <div
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:shadow-lg"
-      // Cả thẻ mở chi tiết combo; nút "Thêm combo" và liên kết bên trong tự xử lý riêng.
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('a, button')) return
-        navigate(`/combos/${combo.id}`)
-      }}
-    >
-      <Link
-        to={`/combos/${combo.id}`}
-        aria-label={`Xem chi tiết ${combo.name}`}
-        className="relative block aspect-[16/10] overflow-hidden"
-      >
-        <UiImg
-          src={combo.imageUrl}
-          alt={combo.name}
-          className="h-full w-full transition duration-300 group-hover:scale-105"
-        />
-        {!!combo.discountPercent && (
-          <span className="absolute left-2.5 top-2.5 rounded-full bg-amber-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-            -{combo.discountPercent}%
-          </span>
-        )}
-      </Link>
-
-      <div className="flex flex-1 flex-col p-3">
-        <Link to={`/combos/${combo.id}`} className="min-h-0">
-          <h3 className="truncate text-sm font-semibold text-stone-900 group-hover:text-amber-700">
-            {combo.name}
-          </h3>
-        </Link>
-
-        <ul className="mt-1.5 space-y-0.5 text-xs leading-snug text-stone-500">
-          {combo.items.map((item) => (
-            <li key={item.id} className="truncate">
-              {item.food.name} x{item.quantity}
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-2 pt-2.5">
-          <div className="min-w-0">
-            <div className="text-lg font-bold tabular-nums text-amber-700">{formatVND(price)}</div>
-            {price < combo.price && (
-              <div className="text-xs tabular-nums text-stone-400 line-through">{formatVND(combo.price)}</div>
-            )}
-          </div>
-          <UiButton
-            kind="primary"
-            className="!px-3 !text-sm"
-            onClick={() => {
-              void addCombo(combo)
-              message.success(`Đã thêm ${combo.name} vào giỏ`)
-            }}
-          >
-            Thêm combo
-          </UiButton>
-        </div>
-      </div>
-    </div>
-  )
-}

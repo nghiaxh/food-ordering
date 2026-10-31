@@ -30,11 +30,6 @@ public class PromotionController {
         if (req.endsAt().isBefore(req.startsAt())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc phải sau thời gian bắt đầu");
         }
-        if (req.code() != null && !req.code().isBlank()) {
-            repo.findByCodeIgnoreCase(req.code().trim()).ifPresent(p -> {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã khuyến mãi đã tồn tại");
-            });
-        }
         Promotion p = new Promotion();
         apply(p, req);
         return repo.save(p);
@@ -46,13 +41,6 @@ public class PromotionController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy khuyến mãi"));
         if (req.endsAt().isBefore(req.startsAt())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời gian kết thúc phải sau thời gian bắt đầu");
-        }
-        if (req.code() != null && !req.code().isBlank()) {
-            repo.findByCodeIgnoreCase(req.code().trim()).ifPresent(other -> {
-                if (!other.getId().equals(id)) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã khuyến mãi đã tồn tại");
-                }
-            });
         }
         apply(p, req);
         return repo.save(p);
@@ -72,10 +60,8 @@ public class PromotionController {
         p.setDiscountType(r.discountType());
         p.setDiscountValue(r.discountValue());
         p.setMaxDiscount(r.maxDiscount());
-        p.setMinOrderTotal(r.minOrderTotal());
         p.setScope(r.scope());
         p.setTargetIds(r.targetIds() == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(r.targetIds()));
-        p.setCode((r.code() == null || r.code().isBlank()) ? null : r.code().trim());
         p.setStartsAt(r.startsAt());
         p.setEndsAt(r.endsAt());
         p.setDaysOfWeek((r.daysOfWeek() == null || r.daysOfWeek().isBlank()) ? null : r.daysOfWeek().trim());
@@ -83,10 +69,7 @@ public class PromotionController {
         p.setEndTime(r.endTime());
         p.setActive(r.active());
         p.setPriority(r.priority());
-        p.setStackable(r.stackable());
         p.setUsageLimit(r.usageLimit());
         p.setRandomCount(r.randomCount());
-        p.setClaimable(r.claimable());
-        p.setOccasion((r.occasion() == null || r.occasion().isBlank()) ? null : r.occasion().trim());
     }
 }

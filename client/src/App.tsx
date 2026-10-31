@@ -7,7 +7,6 @@ import DefaultLayout from './layouts/DefaultLayout'
 import HomePage from './pages/HomePage'
 import FoodsPage from './pages/FoodsPage'
 import FoodDetailPage from './pages/FoodDetailPage'
-import ComboDetailPage from './pages/ComboDetailPage'
 import CartPage from './pages/CartPage'
 import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
@@ -19,7 +18,6 @@ import AdminOrdersPage from './pages/admin/AdminOrdersPage'
 import AdminCustomersPage from './pages/admin/AdminCustomersPage'
 import AdminChatbotPage from './pages/admin/AdminChatbotPage'
 import AdminPromotionsPage from './pages/admin/AdminPromotionsPage'
-import AdminCombosPage from './pages/admin/AdminCombosPage'
 import AdminReportsPage from './pages/admin/AdminReportsPage'
 import ScrollManager from './components/ScrollManager'
 
@@ -44,7 +42,6 @@ function AppRoutes() {
             mà vẫn giữ URL thật để thẻ món trong chatbot liên kết được. */}
         <Route path="/" element={<FoodsPage />}>
           <Route path="foods/:id" element={<FoodDetailPage />} />
-          <Route path="combos/:id" element={<ComboDetailPage />} />
         </Route>
         <Route path="/foods" element={<Navigate to="/" replace />} />
         <Route path="/cart" element={<CartPage />} />
@@ -82,7 +79,6 @@ function AppRoutes() {
         <Route path="customers" element={<AdminCustomersPage />} />
         <Route path="chatbot" element={<AdminChatbotPage />} />
         <Route path="promotions" element={<AdminPromotionsPage />} />
-        <Route path="combos" element={<AdminCombosPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
       </Route>
 
