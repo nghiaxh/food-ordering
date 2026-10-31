@@ -1,14 +1,20 @@
-import { useEffect } from 'react'
-import { Alert, Button, Divider, Empty, Skeleton, Tag, Typography, message } from 'antd'
-import { CheckCircleOutlined, InboxOutlined } from '@ant-design/icons'
+﻿import { useEffect, useState } from 'react'
+import { Alert, Empty, Modal, Popconfirm, QRCode, Select, Skeleton, Steps, Tag, message } from 'antd'
+import { QrcodeOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { getMyOrders } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '../utils/orders'
+import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL } from '../utils/orders'
 import { formatVND } from '../utils/format'
+import type { Order, OrderStatus } from '../types'
+import UiButton from '../components/UiButton'
 
 export default function OrdersPage() {
+  const navigate = useNavigate()
   const { data: orders, loading, error, refresh } = useAsyncData((signal) => getMyOrders(signal), [])
+  const addToCart = useCartStore((s) => s.add)
+  const [reorderingId, setReorderingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (error) message.error('Không tải được danh sách đơn hàng')
@@ -36,29 +42,6 @@ export default function OrdersPage() {
         : 'Đã thêm toàn bộ món vào giỏ',
     )
     navigate('/cart')
-  }
-
-  const cancel = async (order: Order) => {
-    try {
-      await cancelOrder(order.id)
-      message.success(`Đã hủy đơn #${orderCode(order.id)}`)
-      await refresh()
-    } catch {
-      message.error('Không hủy được đơn này')
-      await refresh()
-    }
-  }
-
-  const confirmPaid = async () => {
-    if (!paying) return
-    try {
-      await payOrder(paying.id)
-      message.success('Đã ghi nhận thanh toán')
-      setPaying(null)
-      await refresh()
-    } catch {
-      message.error('Không ghi nhận được thanh toán')
-    }
   }
 
   if (loading) {
@@ -108,7 +91,7 @@ export default function OrdersPage() {
                   <div key={o.id} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200/60">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold text-stone-900">
-                        Đơn #{orderCode(o.id)}
+                        Đơn #RH-{String(o.id).padStart(4, '0')}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-stone-400">
@@ -181,7 +164,20 @@ export default function OrdersPage() {
                   <span className="text-stone-500">{o.paymentMethod}</span>
                   <b className="text-base text-amber-700">{formatVND(o.total)}</b>
                 </div>
+                {o.note && (
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
+                    <span className="font-semibold">Lưu ý cho quán:</span> {o.note}
+                  </p>
+                )}
               </div>
+              <Button
+                className="mt-4"
+                icon={<ShoppingCartOutlined />}
+                loading={reorderingId === o.id}
+                onClick={() => void reorder(o)}
+              >
+                Đặt lại
+              </Button>
             </div>
           ))}
         </div>
@@ -193,7 +189,7 @@ export default function OrdersPage() {
       <Modal
         open={paying !== null}
         onCancel={() => setPaying(null)}
-        title={`Thanh toán đơn #${orderCode(paying?.id ?? 0)}`}
+        title={`Thanh toán đơn #RH-${String(paying?.id ?? 0).padStart(4, '0')}`}
         footer={[
           <UiButton key="back" kind="default" onClick={() => setPaying(null)}>
             Quay lại

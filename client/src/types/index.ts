@@ -48,17 +48,45 @@ export interface OrderItem {
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'COMPLETED' | 'CANCELLED'
 
+export type PaymentStatus = 'UNPAID' | 'PAID'
+
 export interface Order {
   id: number
   status: OrderStatus
   paymentMethod: string
+  paymentStatus: PaymentStatus
   total: number
   receiverName: string
   phone: string
   address: string
+  /** Ghi chú của khách cho quán; null hoặc rỗng nghĩa là không có. */
+  note?: string | null
   createdAt: string
   items: OrderItem[]
   user?: User
+}
+
+export interface CartItem {
+  food: Food
+  quantity: number
+}
+
+/** Địa chỉ đã lưu của user; đơn hàng vẫn chụp riêng thông tin giao hàng khi đặt. */
+export interface SavedAddress {
+  id: number
+  label: string
+  receiverName: string
+  phone: string
+  address: string
+  isDefault: boolean
+  createdAt: string
+}
+
+export interface NotificationItem {
+  id: number
+  content: string
+  read: boolean
+  createdAt: string
 }
 
 export interface Review {

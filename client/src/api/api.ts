@@ -1,5 +1,28 @@
 import http from './http'
-import type { AuthUser, Category, ChatHistoryMessage, ChatMessage, Food, FoodCard, KnowledgeDocument, Order, Review, User } from '../types'
+import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, KnowledgeDocument, NotificationItem, Order, OrderStatus, Review, SavedAddress, User } from '../types'
+
+/** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
+export interface AdminOrderPayload {
+  customerEmail: string
+  items: { foodId: number; quantity: number }[]
+  receiverName: string
+  phone: string
+  address: string
+  paymentMethod: string
+  note?: string
+  status?: OrderStatus
+  paid?: boolean
+}
+
+/** Dữ liệu biểu mẫu quản trị tạo/sửa tài khoản khách hàng. */
+export interface UserPayload {
+  email: string
+  fullName: string
+  phone?: string
+  address?: string
+  /** Để trống khi sửa nghĩa là giữ mật khẩu hiện tại. */
+  password?: string
+}
 
 // ----- Auth -----
 export const login = (email: string, password: string) =>
@@ -32,10 +55,54 @@ export const createOrder = (data: {
   phone: string
   address: string
   paymentMethod: string
+  note?: string
 }) => http.post<Order>('/orders', data).then((r) => r.data)
 
 export const getMyOrders = (signal?: AbortSignal) =>
   http.get<Order[]>('/orders/my', { signal }).then((r) => r.data)
+
+/** Chỉ đơn còn chờ xác nhận mới hủy được; server trả lỗi nếu đơn đã vào chế biến. */
+export const cancelOrder = (id: number) => http.patch<Order>(`/orders/${id}/cancel`).then((r) => r.data)
+
+/** Thanh toán giả lập: khách tự xác nhận đã trả. */
+export const payOrder = (id: number) => http.patch<Order>(`/orders/${id}/pay`).then((r) => r.data)
+
+// ----- Địa chỉ -----
+export interface AddressPayload {
+  label?: string
+  receiverName: string
+  phone: string
+  address: string
+  isDefault?: boolean
+}
+
+export const getAddresses = (signal?: AbortSignal) =>
+  http.get<SavedAddress[]>('/addresses', { signal }).then((r) => r.data)
+
+export const saveAddress = (id: number | null, data: AddressPayload) =>
+  id ? http.put<SavedAddress>(`/addresses/${id}`, data).then((r) => r.data) : http.post<SavedAddress>('/addresses', data).then((r) => r.data)
+
+export const deleteAddress = (id: number) => http.delete(`/addresses/${id}`)
+
+// ----- Giỏ hàng -----
+export const getCart = (signal?: AbortSignal) =>
+  http.get<CartItem[]>('/cart', { signal }).then((r) => r.data)
+
+export const addCartItem = (foodId: number, quantity: number) =>
+  http.post<CartItem>('/cart/items', { foodId, quantity }).then((r) => r.data)
+
+export const setCartItemQuantity = (foodId: number, quantity: number) =>
+  http.patch<CartItem>(`/cart/items/${foodId}`, { quantity }).then((r) => r.data)
+
+export const removeCartItem = (foodId: number) => http.delete(`/cart/items/${foodId}`)
+
+export const clearCart = () => http.delete('/cart')
+
+// ----- Thông báo -----
+export const getNotifications = (signal?: AbortSignal) =>
+  http.get<NotificationItem[]>('/notifications', { signal }).then((r) => r.data)
+
+export const markNotificationsRead = () => http.post('/notifications/read-all')
 
 // ----- Đánh giá -----
 export const getReviews = (foodId: number, signal?: AbortSignal) =>
@@ -65,6 +132,9 @@ export const adminGetOrders = () => http.get<Order[]>('/admin/orders').then((r) 
 
 export const adminUpdateOrderStatus = (id: number, status: string) =>
   http.patch(`/admin/orders/${id}/status`, { status })
+
+export const adminUpdateOrderPayment = (id: number, paid: boolean) =>
+  http.patch(`/admin/orders/${id}/payment`, null, { params: { paid } })
 
 export const adminGetUsers = () => http.get<User[]>('/admin/users').then((r) => r.data)
 
