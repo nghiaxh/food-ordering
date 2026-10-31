@@ -19,8 +19,23 @@ import type {
   Category, ChatHistoryMessage, Food, KnowledgeDocument, OrderStatus, User,
 } from '../../types'
 import { formatVND } from '../../utils/format'
-import { ORDER_STATUS_COLOR, ORDER_STATUS_LABEL } from '../../utils/orders'
 import UiImg from '../../components/UiImg'
+
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Chờ xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  PREPARING: 'Đang chế biến',
+  COMPLETED: 'Đã giao',
+  CANCELLED: 'Đã hủy',
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  PENDING: 'gold',
+  CONFIRMED: 'blue',
+  PREPARING: 'purple',
+  COMPLETED: 'green',
+  CANCELLED: 'red',
+}
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 

@@ -38,12 +38,6 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <div className="mb-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
-        Tài khoản
-      </div>
-      <h1 className="text-3xl font-bold text-stone-900">Hồ sơ của tôi</h1>
-      <p className="mt-2 text-stone-500">Cập nhật thông tin cá nhân để giao hàng nhanh hơn.</p>
-
       <div className="mt-6 flex items-center gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200/60">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl text-amber-700">
           <UserOutlined />

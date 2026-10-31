@@ -4,6 +4,7 @@ import com.foodordering.dto.FoodDtos.FoodRequest;
 import com.foodordering.entity.Food;
 import com.foodordering.repository.CategoryRepository;
 import com.foodordering.repository.FoodRepository;
+import com.foodordering.repository.OrdersRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -18,10 +19,12 @@ import java.util.List;
 public class FoodService {
     private final FoodRepository foodRepo;
     private final CategoryRepository categoryRepo;
+    private final OrdersRepository orderRepo;
 
-    public FoodService(FoodRepository foodRepo, CategoryRepository categoryRepo) {
+    public FoodService(FoodRepository foodRepo, CategoryRepository categoryRepo, OrdersRepository orderRepo) {
         this.foodRepo = foodRepo;
         this.categoryRepo = categoryRepo;
+        this.orderRepo = orderRepo;
     }
 
     public List<Food> search(String keyword, Long categoryId, BigDecimal minPrice,
@@ -53,8 +56,17 @@ public class FoodService {
         return foodRepo.save(apply(getById(id), req));
     }
 
-    public void delete(Long id) {
-        foodRepo.deleteById(id);
+    /**
+ * Món đã phát sinh đơn không xoá vật lý được, vì chi tiết đơn còn tham chiếu tới nó; admin phải
+ * chuyển sang trạng thái ngừng phục vụ để giữ nguyên lịch sử đơn hàng.
+ */
+public void delete(Long id) {
+        Food food = getById(id);
+        if (orderRepo.existsByItemsFoodId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Món \"" + food.getName() + "\" đang nằm trong đơn hàng. Hãy chuyển sang trạng thái ngừng phục vụ.");
+        }
+        foodRepo.delete(food);
     }
 
     private Food apply(Food f, FoodRequest r) {

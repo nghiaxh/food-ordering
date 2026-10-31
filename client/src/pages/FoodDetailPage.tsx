@@ -3,8 +3,6 @@ import { Button, Descriptions, Divider, Form, Input, InputNumber, List, Rate, Sp
 import { ArrowLeftOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { Link, useParams } from 'react-router-dom'
 import { createReview, getFood, getFoods, getReviews } from '../api/api'
-import useAsyncData from '../hooks/useAsyncData'
-import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
@@ -17,6 +15,9 @@ const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 export default function FoodDetailPage() {
   const { id } = useParams()
   const foodId = Number(id)
+  const [food, setFood] = useState<Food>()
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [related, setRelated] = useState<Food[]>([])
   const [qty, setQty] = useState(1)
   const user = useAuthStore((s) => s.user)
   const add = useCartStore((s) => s.add)
@@ -38,8 +39,17 @@ export default function FoodDetailPage() {
   )
 
   useEffect(() => {
-    if (foodError) message.error('Không tải được món ăn')
-  }, [foodError])
+    getFood(foodId).then((f) => {
+      setFood(f)
+      if (f.category) {
+        getFoods({ categoryId: f.category.id })
+          .then((list) => setRelated(list.filter((x) => x.id !== foodId).slice(0, 4)))
+          .catch(() => undefined)
+      }
+    })
+    loadReviews()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [foodId])
 
   if (!food) return null
 
@@ -167,11 +177,11 @@ export default function FoodDetailPage() {
         )}
       />
 
-      {relatedFoods.length > 0 && (
+      {related.length > 0 && (
         <div className="mt-14">
           <SectionHeader align="left" title="Món liên quan" subtitle="Cùng loại với món bạn đang xem." />
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {relatedFoods.map((f) => (
+            {related.map((f) => (
               <FoodCard key={f.id} food={f} />
             ))}
           </div>
