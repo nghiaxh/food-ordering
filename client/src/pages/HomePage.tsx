@@ -319,7 +319,6 @@ export default function HomePage() {
               </div>
               <Form.Item name="message" label="Lời nhắn">
                 <Input.TextArea rows={3} placeholder="Bạn muốn đặt món, cần hỗ trợ đơn hay có câu hỏi gì?" />
->>>>>>> d21bfc2 (perf: serve local images as webp)
               </Form.Item>
               <Button type="primary" htmlType="submit" block size="large">
                 Gửi lời nhắn
