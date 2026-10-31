@@ -1,4 +1,4 @@
-package com.foodordering.config;
+﻿package com.foodordering.config;
 
 import com.foodordering.entity.*;
 import com.foodordering.repository.*;
@@ -44,18 +44,11 @@ public class DataSeeder implements CommandLineRunner {
         createUser("admin@demo.com", "admin123", "Quản trị viên", User.Role.ADMIN);
         createUser("user@demo.com", "user123", "Khách hàng Demo", User.Role.CUSTOMER);
 
-<<<<<<< HEAD
-        Category viet = cat("Món Việt", "mon-viet", "/images/categories/mon-viet.jpg");
-        Category au = cat("Món Âu", "mon-au", "/images/categories/mon-au.jpg");
-        Category uong = cat("Đồ uống", "do-uong", "/images/categories/do-uong.jpg");
-        Category trangMieng = cat("Tráng miệng", "trang-mieng", "/images/categories/trang-mieng.jpg");
-=======
         Category viet = cat("Món Việt", "mon-viet", "/images/categories/mon-viet.webp");
         Category au = cat("Món Âu", "mon-au", "/images/categories/mon-au.webp");
         Category uong = cat("Đồ uống", "do-uong", "/images/categories/do-uong.webp");
         Category trangMieng = cat("Tráng miệng", "trang-mieng", "/images/categories/trang-mieng.webp");
         Category chay = cat("Món chay", "mon-chay", "/images/categories/mon-chay.webp");
->>>>>>> d21bfc2 (perf: serve local images as webp)
 
         Food pho = food("Phở bò", viet, "Phở bò truyền thống, nước dùng hầm xương 12 giờ",
                 "bánh phở, thịt bò, hành, quế, hồi", 65000, 1, 0, "", "gluten", "pho-bo");
