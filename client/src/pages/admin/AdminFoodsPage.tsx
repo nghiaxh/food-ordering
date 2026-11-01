@@ -1,21 +1,21 @@
 import { useMemo, useState } from 'react'
 import {
-  Button, Checkbox, Form, Input, InputNumber, Modal, Select, Space, Table, message,
+  Button, Checkbox, Form, Input, InputNumber, Select, Space, Table,
 } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { adminDeleteFood, adminSaveFood, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
+import useBusySet from '../../hooks/useBusySet'
 import type { Food } from '../../types'
 import { formatVND } from '../../utils/format'
-import { apiErrorMessage } from '../../utils/api-error'
+import { SPICY_LEVELS } from '../../utils/food-tags'
 import UiImg from '../../components/UiImg'
 import UiButton from '../../components/UiButton'
 import UiIcon from '../../components/UiIcon'
 import ImageField from '../../components/ImageField'
-import { PageCard, PageHeader, StatusDot } from './shared'
-
-const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
+import FormModal from '../../components/FormModal'
+import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton, confirmRemove, runAndMessage } from './shared'
 
 export default function AdminFoodsPage() {
   const [modal, setModal] = useState(false)
@@ -23,7 +23,7 @@ export default function AdminFoodsPage() {
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<number | undefined>()
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'hidden'>('all')
-  const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
+  const { busyIds, mark } = useBusySet()
   const [form] = Form.useForm()
 
   const { data, loading, refresh: refreshData } = useAsyncData((signal) => getFoods(undefined, signal), [])
@@ -36,11 +36,16 @@ export default function AdminFoodsPage() {
   const rows = useMemo(() => {
     const list = data ?? []
     const kw = search.trim().toLowerCase()
-    if (!kw) return list
-    return list.filter(
-      (f) => f.name.toLowerCase().includes(kw) || (f.category?.name ?? '').toLowerCase().includes(kw),
-    )
-  }, [data, search])
+    return list.filter((f) => {
+      if (kw && !f.name.toLowerCase().includes(kw) && !(f.category?.name ?? '').toLowerCase().includes(kw)) {
+        return false
+      }
+      if (catFilter !== undefined && f.category?.id !== catFilter) return false
+      if (statusFilter === 'available' && !f.available) return false
+      if (statusFilter === 'hidden' && f.available) return false
+      return true
+    })
+  }, [data, search, catFilter, statusFilter])
 
   const openCreate = () => {
     setEditing(null)
@@ -57,34 +62,30 @@ export default function AdminFoodsPage() {
   const submit = async (v: Record<string, unknown>) => {
     const res = await saveFood({
       ...v,
-      imageUrl: (v.imageUrl as string)?.trim() || '/images/hero.jpg',
+      imageUrl: (v.imageUrl as string)?.trim() || '/images/hero.webp',
       price: Number(v.price),
       spicyLevel: Number(v.spicyLevel),
       servingSize: Number(v.servingSize),
     })
-    if (!res.ok) {
-      message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
-      return
-    }
-    message.success(editing ? 'Đã cập nhật món ăn!' : 'Đã tạo món ăn!')
-    setModal(false)
-    void refreshData()
+    await runAndMessage(res, {
+      success: editing ? 'Đã cập nhật món ăn!' : 'Đã tạo món ăn!',
+      fallback: 'Lưu thất bại',
+      onSuccess: () => {
+        setModal(false)
+        void refreshData()
+      },
+    })
   }
 
   const remove = async (id: number) => {
-    setBusyIds((prev) => new Set(prev).add(id))
+    mark(id, true)
     const res = await deleteFood(id)
-    setBusyIds((prev) => {
-      const next = new Set(prev)
-      next.delete(id)
-      return next
+    mark(id, false)
+    await runAndMessage(res, {
+      success: 'Đã xóa món ăn',
+      fallback: 'Xóa thất bại',
+      onSuccess: () => void refreshData(),
     })
-    if (res.ok) {
-      message.success('Đã xóa món ăn')
-      void refreshData()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Xóa thất bại')
-    }
   }
 
   return (
@@ -105,7 +106,25 @@ export default function AdminFoodsPage() {
           placeholder="Tìm theo tên hoặc danh mục..."
           allowClear
           prefix={<UiIcon name="search" size={16} />}
-          className="!w-72"
+          className="w-full sm:w-72"
+        />
+        <Select
+          allowClear
+          placeholder="Tất cả danh mục"
+          className="min-w-0 flex-1 sm:flex-none sm:w-52"
+          value={catFilter}
+          onChange={setCatFilter}
+          options={(cats ?? []).map((c) => ({ label: c.name, value: c.id }))}
+        />
+        <Select
+          className="min-w-0 flex-1 sm:flex-none sm:w-44"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { label: 'Tất cả trạng thái', value: 'all' },
+            { label: 'Đang bán', value: 'available' },
+            { label: 'Đã ẩn', value: 'hidden' },
+          ]}
         />
         {(search.trim() || catFilter !== undefined || statusFilter !== 'all') && (
           <span className="text-sm text-stone-400">
@@ -115,23 +134,28 @@ export default function AdminFoodsPage() {
       </div>
 
       <PageCard>
-        <Table
-          rowKey="id"
-          dataSource={rows}
-          loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
-          scroll={{ x: 800 }}
-          locale={{
-            emptyText: (
-              <div className="flex flex-col items-center py-10 text-stone-400">
-                <UiIcon name="inbox" size={32} className="mb-2 text-stone-300" />
-                <p className="text-sm">Không có món ăn nào.</p>
-              </div>
-            ),
-          }}
+        {loading && !data ? (
+          <TableSkeleton />
+        ) : (
+          <Table
+            rowKey="id"
+            dataSource={rows}
+            loading={loading}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            scroll={{ x: 800 }}
+            locale={{
+              emptyText: (
+                <EmptyState
+                  icon="inbox"
+                  title="Không có món ăn nào."
+                  hint="Điều chỉnh bộ lọc hoặc tạo món mới."
+                />
+              ),
+            }}
             columns={[
               {
                 title: 'Món',
+                fixed: 'left',
                 render: (_, f) => (
                   <div className="flex items-center gap-3">
                     <UiImg src={f.imageUrl} alt={f.name} className="h-16 w-16 rounded-lg" />
@@ -177,12 +201,8 @@ export default function AdminFoodsPage() {
                       icon={<DeleteOutlined />}
                       loading={busyIds.has(f.id)}
                       onClick={() =>
-                        Modal.confirm({
+                        confirmRemove({
                           title: 'Xóa món này?',
-                          centered: true,
-                          okText: 'Xóa',
-                          okButtonProps: { danger: true },
-                          cancelText: 'Hủy',
                           onOk: () => remove(f.id),
                         })
                       }
@@ -194,16 +214,15 @@ export default function AdminFoodsPage() {
               },
             ]}
           />
+        )}
       </PageCard>
 
-      <Modal
+      <FormModal
         title={editing ? `Sửa món: ${editing.name}` : 'Tạo món mới'}
         open={modal}
-        onCancel={() => setModal(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okButtonProps={{ children: 'Lưu' }}
-        cancelButtonProps={{ children: 'Hủy' }}
+        onClose={() => setModal(false)}
+        onSubmit={() => form.submit()}
+        saving={saving}
         width={720}
       >
         <Form form={form} layout="vertical" onFinish={submit} style={{ marginTop: 16 }}>
@@ -223,14 +242,14 @@ export default function AdminFoodsPage() {
             >
               <Select options={(cats ?? []).map((c) => ({ label: c.name, value: c.id }))} />
             </Form.Item>
-            <Form.Item name="price" label="Giá (đ)" rules={[{ required: true, message: 'Nhập giá' }]}>
-              <InputNumber min={0} step={1000} style={{ width: '100%' }} />
+            <Form.Item name="price" label="Giá" rules={[{ required: true, message: 'Nhập giá' }]}>
+              <InputNumber min={0} step={1000} addonAfter="đ" style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="servingSize" label="Khẩu phần (người)">
               <InputNumber min={1} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="spicyLevel" label="Độ cay">
-              <Select options={SPICY.map((s, i) => ({ label: s, value: i }))} />
+              <Select options={SPICY_LEVELS.map((s, i) => ({ label: s, value: i }))} />
             </Form.Item>
             <Form.Item name="description" label="Mô tả" className="md:col-span-2">
               <Input.TextArea rows={2} />
@@ -258,7 +277,7 @@ export default function AdminFoodsPage() {
             </Form.Item>
           </div>
         </Form>
-      </Modal>
+      </FormModal>
     </div>
   )
 }

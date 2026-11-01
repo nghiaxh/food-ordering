@@ -8,6 +8,6 @@ public interface OrdersRepository extends JpaRepository<Orders, Long> {
     long countByUserId(Long userId);
     List<Orders> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Orders> findAllByOrderByCreatedAtDesc();
-    boolean existsByItemsFoodId(Long foodId);
     boolean existsByUserIdAndStatusAndItemsFoodId(Long userId, Orders.Status status, Long foodId);
+    boolean existsByItemsFoodId(Long foodId);
 }

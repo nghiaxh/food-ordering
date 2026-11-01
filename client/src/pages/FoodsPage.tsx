@@ -1,6 +1,6 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Empty, Pagination, message } from 'antd'
-import { Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, Outlet, useSearchParams } from 'react-router-dom'
 import { getCategories, getFoods } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
@@ -11,11 +11,7 @@ import UiButton from '../components/UiButton'
 /** Số món mỗi trang. Thực đơn hiện vài chục món nên phân trang phía client là đủ. */
 const PAGE_SIZE = 12
 
-/**
- * Khoảng giá dạng sẵn dễ chạm hơn hai ô nhập số, vẫn là "lọc khoảng giá" của Bảng 2.22.
- * Mục đầu ghi "Mọi giá" chứ không phải "Tất cả" vì dải danh mục ngay dưới đã có "Tất cả",
- * hai chữ giống nhau cạnh nhau dễ bị hiểu là cùng một bộ lọc.
- */
+/** Khoảng giá dạng sẵn dễ chạm hơn hai ô nhập số, vẫn là "lọc khoảng giá" của Bảng 2.22. */
 const PRICE_BANDS = [
   { label: 'Mọi giá', min: undefined, max: undefined },
   { label: 'Dưới 50k', min: undefined, max: 50000 },
@@ -24,6 +20,8 @@ const PRICE_BANDS = [
   { label: 'Trên 150k', min: 150000, max: undefined },
 ]
 
+const GRID_COLS = 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+
 function num(value: string | null): number | undefined {
   if (value === null) return undefined
   const n = Number(value)
@@ -31,9 +29,9 @@ function num(value: string | null): number | undefined {
 }
 
 /**
- * Bảng món kiểu kiosk: rail danh mục cố định bên trái, lưới thẻ món cuộn trong vùng riêng,
- * thanh giỏ ghim đáy. Toàn bộ bộ lọc nằm trên URL nên người dùng chia sẻ được đường dẫn
- * và nút quay lại của trình duyệt không mất trạng thái đang xem.
+ * Trang chủ kiểu kiosk: combo tiết kiệm, chọn nhanh theo danh mục rồi mới tới thực đơn.
+ * Bộ lọc của thực đơn nằm trên URL nên chia sẻ được đường dẫn và nút quay lại của trình duyệt
+ * không mất trạng thái đang xem.
  */
 export default function FoodsPage() {
   const navigate = useNavigate()
@@ -58,17 +56,12 @@ export default function FoodsPage() {
     if (error) message.error('Không tải được thực đơn')
   }, [error])
 
-  // Lọc mới có thể làm trang đang xem vượt quá giới hạn.
   const totalPages = Math.max(1, Math.ceil((foods?.length ?? 0) / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   useEffect(() => {
     if (page !== currentPage) setPage(currentPage)
   }, [page, currentPage])
-
-  const visible = useMemo(
-    () => (foods ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [foods, currentPage],
-  )
+  const visible = (foods ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const patch = (next: Record<string, string | undefined>) => {
     const merged = new URLSearchParams(params)
@@ -80,80 +73,65 @@ export default function FoodsPage() {
     setPage(1)
   }
 
-  const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
-  const categoryList = [
-    { id: undefined as number | undefined, name: 'Tất cả', slug: 'tat-ca' },
-    ...(categories ?? []).map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
-  ]
+  const pickCategory = (id?: number) => {
+    patch({ category: id?.toString() })
+    document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
-  const railBtn = (active: boolean) =>
-    `block w-full rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition ${
-      active ? 'bg-amber-600 text-white' : 'text-stone-700 hover:bg-amber-50 hover:text-amber-700'
-    }`
+  const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
 
   const chipBtn = (active: boolean) =>
-    `whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition sm:px-4 sm:py-2.5 sm:text-sm ${
+    `cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition sm:px-4 sm:py-2.5 sm:text-sm ${
       active ? 'bg-amber-600 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
     }`
 
-  /** Số cột đổi theo bề rộng; `lg` có rail nên phải bớt cột lại so với mức không có rail. */
-  const gridCols = 'grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
-
   return (
-    <div className="flex h-[calc(100dvh-3.25rem)] flex-col">
-      <div className="flex min-h-0 flex-1">
-        {/* Rail danh mục, chỉ hiện khi đủ rộng. Không nhãn: danh sách đã tự nói là danh mục. */}
-        <aside className="hidden w-52 shrink-0 overflow-y-auto border-r border-stone-200/70 bg-white/60 p-2 lg:block">
-          <nav className="space-y-0.5">
-            {categoryList.map((c) => (
+    <div className="h-[calc(100dvh-3.25rem)] overflow-y-auto">
+      <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-6">
+        <section id="thuc-don" className="py-5">
+          <div className="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+            <div className="flex gap-2 overflow-x-auto">
               <button
-                key={c.slug}
                 type="button"
-                aria-current={categoryId === c.id ? 'true' : undefined}
-                onClick={() => patch({ category: c.id?.toString() })}
-                className={railBtn(categoryId === c.id)}
+                onClick={() => pickCategory()}
+                className={chipBtn(categoryId === undefined)}
               >
-                {c.name}
+                Tất cả
               </button>
-            ))}
-          </nav>
-        </aside>
-
-        <div className="min-w-0 flex-1 overflow-y-auto">
-          {/* Dải khoảng giá dính đầu vùng lưới thay vì nằm ở một hàng riêng phía trên:
-              tiết kiệm nguyên chiều cao hàng đó mà vẫn luôn nằm trong tầm mắt. */}
-          <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:px-4">
-            {PRICE_BANDS.map((band, i) => (
-              <button
-                key={band.label}
-                type="button"
-                onClick={() => patch({ min: band.min?.toString(), max: band.max?.toString() })}
-                className={chipBtn(activePriceBand === i)}
-              >
-                {band.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="px-3 py-3 sm:px-4">
-            {/* Màn hình nhỏ không có rail nên danh mục chuyển thành dải chip cuộn ngang. */}
-            <div className="mb-3 flex gap-2 overflow-x-auto lg:hidden">
-              {categoryList.map((c) => (
+              {(categories ?? []).map((c) => (
                 <button
-                  key={c.slug}
+                  key={c.id}
                   type="button"
-                  aria-current={categoryId === c.id ? 'true' : undefined}
-                  onClick={() => patch({ category: c.id?.toString() })}
+                  onClick={() => pickCategory(c.id)}
                   className={chipBtn(categoryId === c.id)}
                 >
                   {c.name}
                 </button>
               ))}
             </div>
+            <div className="mt-2 flex gap-2 overflow-x-auto">
+              {PRICE_BANDS.map((band, i) => (
+                <button
+                  key={band.label}
+                  type="button"
+                  onClick={() =>
+                    patch({
+                      min: band.min?.toString(),
+                      max: band.max?.toString(),
+                    })
+                  }
+                  className={chipBtn(activePriceBand === i)}
+                >
+                  {band.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
+          <div className="mt-4">
             {loading ? (
-              <div className={`grid gap-3 ${gridCols}`}>
-                {Array.from({ length: 9 }).map((_, i) => (
+              <div className={`grid gap-3 ${GRID_COLS}`}>
+                {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/60">
                     <div className="aspect-[16/10] animate-pulse bg-stone-200/70" />
                     <div className="space-y-2 p-3">
@@ -167,7 +145,7 @@ export default function FoodsPage() {
               <Empty description="Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc hoặc hỏi chatbot nhé!" />
             ) : (
               <>
-                <div className={`grid gap-3 ${gridCols}`}>
+                <div className={`grid gap-3 ${GRID_COLS}`}>
                   {visible.map((f) => (
                     <FoodCard key={f.id} food={f} />
                   ))}
@@ -187,23 +165,19 @@ export default function FoodsPage() {
               </>
             )}
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Thanh giỏ ghim đáy: tổng tiền và bước tiếp theo luôn nhìn thấy. */}
       {count > 0 && (
-        <div className="shrink-0 border-t border-stone-200/70 bg-white px-4 py-3">
+        <div className="sticky bottom-0 z-20 border-t border-stone-200/70 bg-white px-4 py-3">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
             <p className="text-sm text-stone-600">
               <b className="font-semibold tabular-nums text-stone-900">{count} món</b>
               <span className="mx-2 text-stone-300">·</span>
               <b className="font-semibold tabular-nums text-amber-700">{formatVND(total)}</b>
             </p>
-            <UiButton
-              kind="primary-lg"
-              onClick={() => navigate('/cart')}
-              disabled={false}
-            >
+            <UiButton kind="primary-lg" onClick={() => navigate('/cart')}>
               Xem giỏ và đặt món
             </UiButton>
           </div>
@@ -215,3 +189,4 @@ export default function FoodsPage() {
     </div>
   )
 }
+

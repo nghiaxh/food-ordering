@@ -5,7 +5,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "cart_items", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "food_id"}))
+@Table(name = "cart_items", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "food_id"})
+})
 @Getter @Setter @NoArgsConstructor
 public class CartItem {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

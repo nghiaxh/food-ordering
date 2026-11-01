@@ -1,21 +1,14 @@
-﻿import { useEffect, useState } from 'react'
-import { Alert, Empty, Modal, Select, Skeleton, Steps, Tag, message } from 'antd'
+import { useEffect, useState } from 'react'
+import { Alert, Empty, Modal, QRCode, Select, Skeleton, Steps, Tag, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import { ORDER_FLOW, ORDER_STATUS_LABEL } from '../utils/orders'
+import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '../utils/orders'
 import { formatVND } from '../utils/format'
 import type { Order, OrderStatus } from '../types'
-import FakeQr from '../components/FakeQr'
 import UiButton from '../components/UiButton'
-
-const PAYMENT_LABEL: Record<string, string> = {
-  CASH: 'Tiền mặt khi nhận',
-  BANK_TRANSFER: 'Chuyển khoản',
-  E_WALLET: 'Ví điện tử',
-}
 
 export default function OrdersPage() {
   const navigate = useNavigate()
@@ -32,11 +25,11 @@ export default function OrdersPage() {
   const reorder = async (order: Order) => {
     if (reorderingId !== null) return
     setReorderingId(order.id)
-    const available = order.items.filter((i) => i.food.available)
-    const skipped = order.items.filter((i) => !i.food.available).map((i) => i.food.name)
+    const available = order.items.filter((i) => i.food ? i.food.available : true)
+    const skipped = order.items.filter((i) => i.food && !i.food.available).map((i) => i.food!.name)
     try {
       for (const item of available) {
-        await addToCart(item.food, item.quantity)
+        if (item.food) await addToCart(item.food, item.quantity)
       }
     } finally {
       setReorderingId(null)
@@ -56,7 +49,7 @@ export default function OrdersPage() {
   const cancel = async (order: Order) => {
     try {
       await cancelOrder(order.id)
-      message.success(`Đã hủy đơn #RH-${String(order.id).padStart(4, '0')}`)
+      message.success(`Đã hủy đơn #${orderCode(order.id)}`)
       await refresh()
     } catch {
       message.error('Không hủy được đơn này')
@@ -127,7 +120,7 @@ export default function OrdersPage() {
                   <div key={o.id} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200/60">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold text-stone-900">
-                        Đơn #RH-{String(o.id).padStart(4, '0')}
+                        Đơn #{orderCode(o.id)}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-stone-400">
@@ -152,17 +145,34 @@ export default function OrdersPage() {
                     )}
 
                     <div className="mt-4 space-y-1.5">
-                      {o.items.map((it) => (
-                        <div key={it.id} className="flex items-center justify-between text-sm">
-                          <span className="text-stone-600">
-                            {it.quantity}x {it.food.name}
-                          </span>
-                          <span className="text-stone-500">{formatVND(it.price)}</span>
+                      {o.items.map((it) => {
+                        const gross = it.price * it.quantity
+                        const discount = it.discountAmount ?? 0
+                        return (
+                          <div key={it.id} className="flex items-center justify-between gap-3 text-sm">
+                            <span className="min-w-0 truncate text-stone-600">
+                              {it.quantity}x {it.food?.name}
+                            </span>
+                            <span className="shrink-0 text-right text-stone-500">
+                              {discount > 0 && (
+                                <span className="mr-2 text-xs text-stone-400 line-through">{formatVND(gross)}</span>
+                              )}
+                              <span className={discount > 0 ? 'font-medium text-emerald-700' : undefined}>
+                                {formatVND(gross - discount)}
+                              </span>
+                            </span>
+                          </div>
+                        )
+                      })}
+                      {!!o.discountTotal && o.discountTotal > 0 && (
+                        <div className="flex items-center justify-between text-sm text-emerald-700">
+                          <span>Giảm giá</span>
+                          <span className="tabular-nums">-{formatVND(o.discountTotal)}</span>
                         </div>
-                      ))}
+                      )}
                       <div className="flex items-center justify-between border-t border-dashed border-stone-200 pt-2 text-sm">
                         <span className="text-stone-500">
-                          {PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}
+                          {PAYMENT_METHOD_LABEL[o.paymentMethod] ?? o.paymentMethod}
                         </span>
                         <b className="text-base text-amber-700">{formatVND(o.total)}</b>
                       </div>
@@ -182,13 +192,13 @@ export default function OrdersPage() {
                           Thanh toán
                         </UiButton>
                       )}
-                      {o.status === 'PENDING' && (
+                      {o.status === 'PENDING' && o.paymentStatus !== 'PAID' && (
                         <UiButton
                           kind="danger"
                           onClick={() =>
                             Modal.confirm({
                               title: 'Hủy đơn này?',
-                              content: 'Chỉ hủy được khi đơn còn chờ xác nhận.',
+                              content: 'Bạn chỉ có thể tự hủy đơn khi đơn chưa thanh toán và còn chờ xác nhận.',
                               centered: true,
                               okText: 'Hủy đơn',
                               okButtonProps: { danger: true },
@@ -199,6 +209,11 @@ export default function OrdersPage() {
                         >
                           Hủy đơn
                         </UiButton>
+                      )}
+                      {o.status === 'PENDING' && o.paymentStatus === 'PAID' && (
+                        <span className="self-center text-xs text-stone-500 italic">
+                          Đơn đã thanh toán, vui lòng gọi hotline 0246.888.9999 để hủy/hoàn tiền.
+                        </span>
                       )}
                     </div>
                   </div>
@@ -216,7 +231,7 @@ export default function OrdersPage() {
       <Modal
         open={paying !== null}
         onCancel={() => setPaying(null)}
-        title={`Thanh toán đơn #RH-${String(paying?.id ?? 0).padStart(4, '0')}`}
+        title={`Thanh toán đơn #${orderCode(paying?.id ?? 0)}`}
         footer={[
           <UiButton key="back" kind="default" onClick={() => setPaying(null)}>
             Quay lại
@@ -229,15 +244,23 @@ export default function OrdersPage() {
         {paying && (
           <div className="flex flex-col items-center gap-3 py-2 text-center">
             <div className="text-sm text-stone-500">
-              Phương thức: {PAYMENT_LABEL[paying.paymentMethod] ?? paying.paymentMethod}
+              Phương thức: {PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod}
             </div>
-            <FakeQr value={`FOOD-${paying.id}-${paying.total}`} />
+            {/* Chỉ phương thức QR mới có mã để quét; COD trả tiền khi nhận món nên không hiện QR.
+                Mã hoá mã đơn để quét ra thông tin nhận dạng đơn, không phải payload chuyển khoản. */}
+            {paying.paymentMethod === 'QR' && (
+              <QRCode value={`FOOD-${paying.id}-${paying.total}`} size={168} errorLevel="M" />
+            )}
             <div className="text-lg font-bold text-stone-900">{formatVND(paying.total)}</div>
             <Alert
               type="warning"
               showIcon
               message="Thanh toán mô phỏng"
-              description="Mã trên không dùng để chuyển tiền thật. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn."
+              description={
+                paying.paymentMethod === 'QR'
+                  ? 'Mã QR trên chỉ chứa mã đơn, không phải mã chuyển khoản nên không chuyển tiền thật. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
+                  : 'Bạn trả tiền mặt khi nhận món. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
+              }
             />
           </div>
         )}

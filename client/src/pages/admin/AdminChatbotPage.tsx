@@ -1,20 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import {
-  Alert, Input, InputNumber, Select, Table, Tag, message,
-} from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
-import {
-  adminGetChatHistory, adminGetSettings, adminSaveSetting,
-} from '../../api/api'
+﻿import { useEffect, useMemo, useState } from 'react'
+import { Alert, Input, InputNumber, Select, Table, message } from 'antd'
+import { adminGetChatHistory, adminGetSettings, adminSaveSetting } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
 import type { ChatHistoryMessage } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
-import UiIcon from '../../components/UiIcon'
-import { PageCard, PageSection } from './shared'
+import { EmptyState, PageSection } from './shared'
 import UiButton from '../../components/UiButton'
-
-
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
@@ -57,6 +49,16 @@ function Bubble({ message }: { message: ChatHistoryMessage }) {
   )
 }
 
+function Thread({ messages }: { messages: ChatHistoryMessage[] }) {
+  return (
+    <div className="space-y-2">
+      {messages.map((m) => (
+        <Bubble key={m.id} message={m} />
+      ))}
+    </div>
+  )
+}
+
 export default function AdminChatbotPage() {
   const [history, setHistory] = useState<ChatHistoryMessage[]>([])
   const [maxSuggestions, setMaxSuggestions] = useState(5)
@@ -79,6 +81,16 @@ export default function AdminChatbotPage() {
     setModel(settings.model ?? '')
   }, [data])
 
+  const sessions = useMemo(() => {
+    const groups = new Map<string, ChatHistoryMessage[]>()
+    for (const h of history) {
+      const list = groups.get(h.sessionId) ?? []
+      list.push(h)
+      groups.set(h.sessionId, list)
+    }
+    return Array.from(groups.entries()).map(([id, messages]) => ({ id, messages }))
+  }, [history])
+
   const { run: saveSettings, pending: savingSettings } = useAsyncAction(() =>
     Promise.all([
       adminSaveSetting('max_suggestions', String(maxSuggestions)),
@@ -97,9 +109,6 @@ export default function AdminChatbotPage() {
       message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
     }
   }
-
-
-
 
   return (
     <div>
@@ -184,63 +193,95 @@ export default function AdminChatbotPage() {
         </div>
       </PageSection>
 
-      <PageCard>
-        <div className="p-6">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-              <UiIcon name="message" size={16} />
-            </span>
-            <h3 className="font-semibold text-stone-800">Lịch sử chat ({history.length})</h3>
-          </div>
-          <p className="mb-3 mt-2 flex items-center gap-1 text-xs text-stone-500">
-            <InfoCircleOutlined /> Các phiên chat gần đây, kèm email người dùng nếu đã đăng nhập.
-          </p>
-          <Table
-            rowKey="id"
-            dataSource={history}
-            loading={loading}
-            pagination={{ pageSize: 8, showSizeChanger: false }}
-            scroll={{ x: 800 }}
-            locale={{
-              emptyText: (
-                <div className="flex flex-col items-center py-10 text-stone-400">
-                  <UiIcon name="inbox" size={32} className="mb-2 text-stone-300" />
-                  <p className="text-sm">Chưa có phiên chat nào.</p>
-                </div>
+      <PageSection
+        title={`Lịch sử hội thoại (${sessions.length})`}
+        subtitle="Mở một phiên để xem hội thoại đầy đủ. Email hiển thị nếu khách đã đăng nhập."
+      >
+        <Table
+          rowKey={(s) => s.id}
+          dataSource={sessions}
+          loading={loading}
+          size="middle"
+          scroll={{ x: 720 }}
+          pagination={{ pageSize: 8, showSizeChanger: false, hideOnSinglePage: true }}
+          locale={{
+            emptyText: (
+              <EmptyState
+                icon="message"
+                title="Chưa có hội thoại nào."
+                hint="Khách hàng chat sẽ được lưu lại ở đây."
+              />
+            ),
+          }}
+          expandable={{
+            expandedRowRender: (s) => (
+              <div className="rounded-xl bg-stone-50/80 p-3">
+                <Thread messages={s.messages} />
+              </div>
+            ),
+          }}
+          columns={[
+            {
+              title: 'Phiên',
+              width: 130,
+              fixed: 'left',
+              render: (_, s) => (
+                <code className="rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-xs text-stone-500">
+                  {s.id.slice(0, 8)}
+                </code>
               ),
-            }}
-            columns={[
-              { title: 'Phiên', width: 120, render: (_, h) => <code className="text-xs">{h.sessionId}</code> },
-              {
-                title: 'Khách',
-                width: 140,
-                render: (_, h) => (h.user ? h.user.email : <Tag>Ẩn danh</Tag>),
+            },
+            {
+              title: 'Khách',
+              width: 190,
+              fixed: 'left',
+              render: (_, s) => {
+                const lastUser = [...s.messages].reverse().find((m) => m.user)
+                return lastUser?.user?.email ? (
+                  <span className="block truncate text-stone-600">{lastUser.user.email}</span>
+                ) : (
+                  <span className="rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+                    Ẩn danh
+                  </span>
+                )
               },
-              {
-                title: 'Tin nhắn',
-                render: (_, h) => (
-                  <div className="flex flex-col gap-1 text-sm">
-                    {h.sender === 'BOT' ? (
-                      <span className="text-stone-500">
-                        <b className="text-amber-700">Bot:</b> {h.content}
-                      </span>
-                    ) : (
-                      <span className="text-stone-500">
-                        <b className="text-stone-700">User:</b> {h.content}
-                      </span>
-                    )}
-                  </div>
-                ),
+            },
+            {
+              title: 'Tin nhắn',
+              width: 90,
+              render: (_, s) => (
+                <span className="tabular-nums text-stone-600">{s.messages.length}</span>
+              ),
+            },
+            {
+              title: 'Tin cuối',
+              render: (_, s) => {
+                const last = s.messages[s.messages.length - 1]
+                return (
+                  <span className="block max-w-md truncate text-stone-500">
+                    <span className={last.sender === 'BOT' ? 'text-amber-700' : 'text-stone-600'}>
+                      {last.sender === 'BOT' ? 'Bot' : 'User'} ·{' '}
+                    </span>
+                    {last.content}
+                  </span>
+                )
               },
-              {
-                title: 'Thời gian',
-                width: 150,
-                render: (_, h) => new Date(h.createdAt).toLocaleString('vi-VN'),
+            },
+            {
+              title: 'Hoạt động cuối',
+              width: 170,
+              render: (_, s) => {
+                const last = s.messages[s.messages.length - 1]
+                return (
+                  <span className="tabular-nums text-stone-500">
+                    {new Date(last.createdAt).toLocaleString('vi-VN')}
+                  </span>
+                )
               },
-            ]}
-          />
-        </div>
-      </PageCard>
+            },
+          ]}
+        />
+      </PageSection>
     </div>
   )
 }

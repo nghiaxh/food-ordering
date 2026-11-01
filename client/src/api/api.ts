@@ -1,10 +1,11 @@
 import http from './http'
-import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, NotificationItem, Order, OrderStatus, Review, User } from '../types'
+import type { AuthUser, CartItem, CartQuote, Category, ChatHistoryMessage, ChatMessage, Food, FoodCard, NotificationItem, Order, OrderStatus, Promotion, Review, SavedAddress, User } from '../types'
 
 /** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
 export interface AdminOrderPayload {
   customerEmail: string
-  items: { foodId: number; quantity: number }[]
+  /** Bỏ trống khi chỉ sửa thông tin giao hàng của đơn đã xác nhận. */
+  items?: { foodId?: number; quantity: number }[]
   receiverName: string
   phone: string
   address: string
@@ -53,11 +54,12 @@ export const getFood = (id: number, signal?: AbortSignal) =>
 
 // ----- Đơn hàng -----
 export const createOrder = (data: {
-  items: { foodId: number; quantity: number }[]
+  items: { foodId?: number; quantity: number }[]
   receiverName: string
   phone: string
   address: string
   paymentMethod: string
+  note?: string
 }) => http.post<Order>('/orders', data).then((r) => r.data)
 
 export const getMyOrders = (signal?: AbortSignal) =>
@@ -69,7 +71,7 @@ export const cancelOrder = (id: number) => http.patch<Order>(`/orders/${id}/canc
 /** Thanh toán giả lập: khách tự xác nhận đã trả. */
 export const payOrder = (id: number) => http.patch<Order>(`/orders/${id}/pay`).then((r) => r.data)
 
-// ----- Địa chỉ giao hàng -----
+// ----- Địa chỉ -----
 export interface AddressPayload {
   label?: string
   receiverName: string
@@ -100,11 +102,19 @@ export const removeCartItem = (foodId: number) => http.delete(`/cart/items/${foo
 
 export const clearCart = () => http.delete('/cart')
 
+/** Báo giá do server tính; đây là nguồn duy nhất cho mọi con số tiền trong giỏ. */
+export const quoteCart = () =>
+  http.post<CartQuote>('/cart/quote').then((r) => r.data)
+
 // ----- Thông báo -----
 export const getNotifications = (signal?: AbortSignal) =>
   http.get<NotificationItem[]>('/notifications', { signal }).then((r) => r.data)
 
 export const markNotificationsRead = () => http.post('/notifications/read-all')
+
+export const deleteReadNotifications = () => http.delete('/notifications/read')
+
+export const deleteNotification = (id: number) => http.delete(`/notifications/${id}`)
 
 // ----- Đánh giá -----
 export const getReviews = (foodId: number, signal?: AbortSignal) =>
@@ -149,11 +159,11 @@ export const adminSaveOrder = (id: number | null, data: AdminOrderPayload) =>
 
 export const adminDeleteOrder = (id: number) => http.delete(`/admin/orders/${id}`)
 
-export const adminUpdateOrderPayment = (id: number, paid: boolean) =>
-  http.patch(`/admin/orders/${id}/payment`, null, { params: { paid } })
-
 export const adminUpdateOrderStatus = (id: number, status: string) =>
   http.patch(`/admin/orders/${id}/status`, { status })
+
+export const adminUpdateOrderPayment = (id: number, paid: boolean) =>
+  http.patch(`/admin/orders/${id}/payment`, null, { params: { paid } })
 
 export const adminGetUsers = () => http.get<User[]>('/admin/users').then((r) => r.data)
 
@@ -171,8 +181,6 @@ export const adminGetSettings = () => http.get<{ settingKey: string; settingValu
 
 export const adminSaveSetting = (settingKey: string, settingValue: string) =>
   http.put('/admin/chatbot/settings', { settingKey, settingValue })
-export const quoteCart = () =>
-  http.post<CartQuote>('/cart/quote').then((r) => r.data)
 
 // ----- Khuyến mãi -----
 export const adminGetPromotions = () => http.get<Promotion[]>('/admin/promotions').then((r) => r.data)
@@ -183,8 +191,17 @@ export const adminSavePromotion = (id: number | null, data: object) =>
 export const adminDeletePromotion = (id: number) => http.delete(`/admin/promotions/${id}`)
 
 // ----- Báo cáo -----
+export interface ReportSummary {
+  revenue: number
+  orderCount: number
+  completedCount: number
+  avgOrder: number
+  customerCount: number
+  promotionDiscount: number
+}
+
 export const adminGetReportSummary = (from?: string, to?: string) =>
-  http.get<{ revenue: number; orderCount: number; completedCount: number; avgOrder: number; promotionDiscount: number }>('/admin/reports/summary', { params: { from, to } }).then((r) => r.data)
+  http.get<ReportSummary>('/admin/reports/summary', { params: { from, to } }).then((r) => r.data)
 
 export const adminGetReportRevenue = (from?: string, to?: string) =>
   http.get<{ date: string; revenue: number; orders: number }[]>('/admin/reports/revenue', { params: { from, to } }).then((r) => r.data)

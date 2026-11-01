@@ -1,16 +1,16 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { Button, Form, Input, Modal, Table, Tooltip, message } from 'antd'
+import { Button, Form, Input, Modal, Select, Table, Tooltip, message } from 'antd'
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { adminDeleteUser, adminGetUsers, adminSaveUser, adminSetUserActive, type UserPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
+import useBusySet from '../../hooks/useBusySet'
 import type { User } from '../../types'
-import { apiErrorMessage } from '../../utils/api-error'
+import { PHONE_RULE } from '../../utils/validators'
 import UiIcon from '../../components/UiIcon'
-import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
+import FormModal from '../../components/FormModal'
+import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton, confirmRemove, runAndMessage } from './shared'
 import UiButton from '../../components/UiButton'
-
-const PHONE_RULE = { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' }
 
 function initialOf(u: User): string {
   const source = u.fullName?.trim() || u.email?.trim() || '?'
@@ -30,7 +30,9 @@ export default function AdminCustomersPage() {
   )
   const { run: deleteUser } = useAsyncAction((id: number) => adminDeleteUser(id))
   const [search, setSearch] = useState('')
-  const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
+  const [roleFilter, setRoleFilter] = useState<'CUSTOMER' | 'ADMIN'>('CUSTOMER')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'locked'>('all')
+  const { busyIds, mark } = useBusySet()
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
   const [form] = Form.useForm()
@@ -42,33 +44,33 @@ export default function AdminCustomersPage() {
   const rows = useMemo(() => {
     const list = users ?? []
     const kw = search.trim().toLowerCase()
-    if (!kw) return list
-    return list.filter(
-      (u) =>
-        u.fullName?.toLowerCase().includes(kw) ||
-        u.email?.toLowerCase().includes(kw) ||
-        (u.phone ?? '').includes(kw),
-    )
-  }, [users, search])
-
-  const markBusy = (id: number, on: boolean) =>
-    setBusyIds((prev) => {
-      const next = new Set(prev)
-      if (on) next.add(id)
-      else next.delete(id)
-      return next
+    return list.filter((u) => {
+      if (u.role !== roleFilter) return false
+      if (
+        kw &&
+        !u.fullName?.toLowerCase().includes(kw) &&
+        !u.email?.toLowerCase().includes(kw) &&
+        !(u.phone ?? '').includes(kw)
+      ) {
+        return false
+      }
+      if (statusFilter === 'active' && !u.active) return false
+      if (statusFilter === 'locked' && u.active) return false
+      return true
     })
+  }, [users, search, roleFilter, statusFilter])
+
+  const markBusy = mark
 
   const toggle = async (u: User) => {
     markBusy(u.id, true)
     const res = await toggleActive({ id: u.id, active: !u.active })
     markBusy(u.id, false)
-    if (res.ok) {
-      message.success('Đã thay đổi trạng thái')
-      void refreshUsers()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Cập nhật thất bại')
-    }
+    await runAndMessage(res, {
+      success: 'Đã thay đổi trạng thái',
+      fallback: 'Cập nhật thất bại',
+      onSuccess: () => void refreshUsers(),
+    })
   }
 
   const openCreate = () => {
@@ -100,26 +102,26 @@ export default function AdminCustomersPage() {
         password: v.password?.trim() || undefined,
       },
     })
-    if (!res.ok) {
-      message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
-      return
-    }
-    message.success(editing ? 'Đã cập nhật khách hàng' : 'Đã tạo khách hàng')
-    setModal(false)
-    setEditing(null)
-    void refreshUsers()
+    await runAndMessage(res, {
+      success: editing ? 'Đã cập nhật khách hàng' : 'Đã tạo khách hàng',
+      fallback: 'Lưu thất bại',
+      onSuccess: () => {
+        setModal(false)
+        setEditing(null)
+        void refreshUsers()
+      },
+    })
   }
 
   const remove = async (u: User) => {
     markBusy(u.id, true)
     const res = await deleteUser(u.id)
     markBusy(u.id, false)
-    if (res.ok) {
-      message.success('Đã xóa khách hàng')
-      void refreshUsers()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Xóa thất bại')
-    }
+    await runAndMessage(res, {
+      success: 'Đã xóa khách hàng',
+      fallback: 'Xóa thất bại',
+      onSuccess: () => void refreshUsers(),
+    })
   }
 
   return (
@@ -140,11 +142,27 @@ export default function AdminCustomersPage() {
           placeholder="Tìm theo tên, email hoặc số điện thoại..."
           allowClear
           prefix={<UiIcon name="search" size={16} />}
-          className="!w-80"
+          className="w-full sm:w-80"
         />
-        <span className="text-sm text-stone-500">
-          Tổng cộng <b>{rows.length}</b> tài khoản
-        </span>
+        <Select
+          className="min-w-0 flex-1 sm:flex-none sm:w-44"
+          value={roleFilter}
+          onChange={setRoleFilter}
+          options={[
+            { label: 'Khách hàng', value: 'CUSTOMER' },
+            { label: 'Quản trị viên', value: 'ADMIN' },
+          ]}
+        />
+        <Select
+          className="min-w-0 flex-1 sm:flex-none sm:w-48"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { label: 'Tất cả trạng thái', value: 'all' },
+            { label: 'Hoạt động', value: 'active' },
+            { label: 'Bị khóa', value: 'locked' },
+          ]}
+        />
       </div>
 
       <PageCard>
@@ -244,13 +262,9 @@ export default function AdminCustomersPage() {
                           icon={<DeleteOutlined />}
                           loading={busyIds.has(u.id)}
                           onClick={() =>
-                            Modal.confirm({
+                            confirmRemove({
                               title: 'Xóa khách hàng này?',
                               content: 'Giỏ hàng bị xoá kèm. Đơn hàng đã đặt vẫn được giữ lại.',
-                              centered: true,
-                              okText: 'Xóa',
-                              okButtonProps: { danger: true },
-                              cancelText: 'Hủy',
                               onOk: () => remove(u),
                             })
                           }
@@ -269,14 +283,12 @@ export default function AdminCustomersPage() {
         )}
       </PageCard>
 
-      <Modal
+      <FormModal
         title={editing ? `Sửa: ${editing.fullName}` : 'Thêm khách hàng'}
         open={modal}
-        onCancel={() => setModal(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okButtonProps={{ children: 'Lưu' }}
-        cancelButtonProps={{ children: 'Hủy' }}
+        onClose={() => setModal(false)}
+        onSubmit={() => form.submit()}
+        saving={saving}
       >
         <Form form={form} layout="vertical" onFinish={submit} style={{ marginTop: 16 }}>
           <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
@@ -314,7 +326,7 @@ export default function AdminCustomersPage() {
             <Input.Password autoComplete="new-password" />
           </Form.Item>
         </Form>
-      </Modal>
+      </FormModal>
     </div>
   )
 }
