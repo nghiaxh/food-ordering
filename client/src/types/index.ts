@@ -12,13 +12,22 @@ export interface Food {
   category: Category | null
   description: string
   ingredients: string
+  /** Đơn vị tiền tệ là VND. */
   price: number
   imageUrl: string
   servingSize: number
+  /** 0 là không cay, 3 là mức cay cao nhất. */
   spicyLevel: number
+  /** Các nhãn được lưu trong một chuỗi, phân tách bằng dấu phẩy. */
   dietaryTags: string
   allergens: string
   available: boolean
+  /** Giá sau khuyến mãi tự động; server tính, client chỉ hiển thị. */
+  discountedPrice?: number | null
+  discountAmount?: number | null
+  discountPercent?: number | null
+  /** Nhãn ưu đãi, ví dụ "Cuối tuần", "Hôm nay". */
+  discountLabel?: string | null
 }
 
 export interface AuthUser {
@@ -42,9 +51,11 @@ export interface User {
 
 export interface OrderItem {
   id: number
-  food: Food
+  food: Food | null
   quantity: number
+  /** Giá được chụp lại lúc đặt món, không phải giá hiện tại của món. */
   price: number
+  discountAmount?: number
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'COMPLETED' | 'CANCELLED'
@@ -57,6 +68,7 @@ export interface Order {
   paymentMethod: string
   paymentStatus: PaymentStatus
   total: number
+  discountTotal?: number
   receiverName: string
   phone: string
   address: string
@@ -68,7 +80,7 @@ export interface Order {
 }
 
 export interface CartItem {
-  food: Food
+  food: Food | null
   quantity: number
 }
 
@@ -123,6 +135,7 @@ export interface ChatMessage {
 
 export interface ChatHistoryMessage {
   id: number
+  /** Lịch sử của khách vãng lai có thể không gắn với user đã đăng nhập. */
   user: User | null
   sessionId: string
   sender: 'USER' | 'BOT'
@@ -148,8 +161,13 @@ export interface Promotion {
   endsAt: string
   daysOfWeek?: string | null
   active: boolean
+  priority: number
+  usageLimit?: number | null
+  usedCount: number
+  randomCount?: number
 }
 
+/** Một dòng trong báo giá giỏ hàng; số tiền giảm do server tính. */
 export interface QuoteLine {
   foodId: number | null
   name: string

@@ -44,6 +44,7 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest req) {
         if (userRepo.existsByEmail(req.email())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email đã tồn tại");

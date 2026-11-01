@@ -1,8 +1,9 @@
 package com.foodordering.controller;
 
-import com.foodordering.dto.UserDtos.UserRequest;
 import com.foodordering.dto.FoodDtos.FoodRequest;
-import com.foodordering.dto.OrderDtos.*;
+import com.foodordering.dto.OrderDtos.AdminOrderRequest;
+import com.foodordering.dto.OrderDtos.UpdateStatusRequest;
+import com.foodordering.dto.UserDtos.UserRequest;
 import com.foodordering.entity.*;
 import com.foodordering.repository.*;
 import com.foodordering.service.*;
@@ -26,7 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
-    private static final long MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+    private static final long MAX_IMAGE_BYTES = 2L * 1024 * 1024;
 
     private final FoodService foodService;
     private final OrderService orderService;
@@ -60,11 +61,8 @@ public class AdminController {
 
     @DeleteMapping("/foods/{id}")
     public void deleteFood(@PathVariable Long id) {
-        try {
-            foodService.delete(id);
-        } catch (DataIntegrityViolationException e) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mon an dang nam trong don hang, khong the xoa");
-        }
+        // FoodService tự chặn món đã có trong đơn và trả về thông báo 409 rõ ràng.
+        foodService.delete(id);
     }
 
     // ----- Danh mục -----

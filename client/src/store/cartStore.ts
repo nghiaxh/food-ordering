@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { message } from 'antd'
-import type { CartItem } from '../types'
+import type { CartItem, Food } from '../types'
 import { addCartItem, clearCart, getCart, removeCartItem, setCartItemQuantity } from '../api/api'
 import { useAuthStore } from './authStore'
 
@@ -8,7 +8,7 @@ interface CartState {
   items: CartItem[]
   loaded: boolean
   load: () => Promise<void>
-  add: (food: CartItem['food'], quantity?: number) => Promise<void>
+  add: (food: Food, quantity?: number) => Promise<void>
   setQuantity: (foodId: number, quantity: number) => Promise<void>
   remove: (foodId: number) => Promise<void>
   clear: () => Promise<void>
@@ -17,6 +17,7 @@ interface CartState {
   total: () => number
 }
 
+// Khi đã đăng nhập, server là nguồn giỏ hàng chính thức; local chỉ là bản nháp cho khách.
 function loggedIn(): boolean {
   return useAuthStore.getState().user !== null
 }
@@ -30,10 +31,11 @@ export const useCartStore = create<CartState>((set, get) => ({
       set({ items: [], loaded: true })
       return
     }
+    // Hợp nhất bản nháp của khách vào tài khoản trước khi đọc lại giỏ từ server.
     const local = get().items
     for (const item of local) {
       try {
-        await addCartItem(item.food.id, item.quantity)
+        if (item.food) await addCartItem(item.food.id, item.quantity)
       } catch {
         /* giỏ local chỉ là bản nháp; server là nguồn chính thức */
       }
@@ -48,19 +50,19 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   add: async (food, quantity = 1) => {
     if (!loggedIn()) {
-      const existing = get().items.find((i) => i.food.id === food.id)
+      const existing = get().items.find((i) => i.food?.id === food.id)
       set({
         items: existing
-          ? get().items.map((i) => (i.food.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
+          ? get().items.map((i) => (i.food?.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
           : [...get().items, { food, quantity }],
       })
       return
     }
     const before = get().items
-    const existing = before.find((i) => i.food.id === food.id)
+    const existing = before.find((i) => i.food?.id === food.id)
     set({
       items: existing
-        ? before.map((i) => (i.food.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
+        ? before.map((i) => (i.food?.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
         : [...before, { food, quantity }],
     })
     try {
@@ -73,7 +75,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   setQuantity: async (foodId, quantity) => {
     const before = get().items
-    set({ items: before.map((i) => (i.food.id === foodId ? { ...i, quantity } : i)) })
+    set({ items: before.map((i) => (i.food?.id === foodId ? { ...i, quantity } : i)) })
     if (!loggedIn()) return
     try {
       await setCartItemQuantity(foodId, quantity)
@@ -85,7 +87,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   remove: async (foodId) => {
     const before = get().items
-    set({ items: before.filter((i) => i.food.id !== foodId) })
+    set({ items: before.filter((i) => i.food?.id !== foodId) })
     if (!loggedIn()) return
     try {
       await removeCartItem(foodId)
@@ -109,5 +111,5 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   resetLocal: () => set({ items: [], loaded: true }),
   count: () => get().items.reduce((n, i) => n + i.quantity, 0),
-  total: () => get().items.reduce((sum, i) => sum + i.food.price * i.quantity, 0),
+  total: () => get().items.reduce((sum, i) => sum + (i.food?.price ?? 0) * i.quantity, 0),
 }))

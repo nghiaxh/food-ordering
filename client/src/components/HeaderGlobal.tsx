@@ -1,15 +1,20 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Avatar, Badge, Dropdown, Input, Popover, type MenuProps } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import UiIcon from './UiIcon'
 import UiButton from './UiButton'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import { deleteNotification, deleteReadNotifications, getNotifications, markNotificationsRead } from '../api/api'
+import { DeleteOutlined } from '@ant-design/icons'
+import type { NotificationItem } from '../types'
 
 /**
- * Thanh điều hướng dạng kiosk, bám đúng Bảng 2.22: logo, ô tìm kiếm, giỏ hàng, đăng nhập.
- * Không có menu điều hướng tới các trang con; những đích đó nằm trong menu tài khoản.
+ * Thanh điều hướng dạng kiosk: nút trang chủ, ô tìm kiếm, nút đơn hàng, giỏ hàng, đăng nhập.
+ * Logo không nằm ở đây mà ở các trang không có thanh điều hướng (đăng nhập, đăng ký).
+ * Nút đơn hàng chỉ hiện khi đã đăng nhập vì trang `/orders` cần token; các trang con
+ * khác vẫn nằm trong menu tài khoản.
  */
 export default function HeaderGlobal() {
   const navigate = useNavigate()
@@ -59,6 +64,24 @@ export default function HeaderGlobal() {
     }
   }
 
+  const clearRead = async () => {
+    try {
+      await deleteReadNotifications()
+      setNotifications((prev) => prev.filter((n) => !n.read))
+    } catch {
+      // Bỏ qua lỗi phụ
+    }
+  }
+
+  const removeOne = async (id: number) => {
+    try {
+      await deleteNotification(id)
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+    } catch {
+      // Bỏ qua lỗi phụ
+    }
+  }
+
   const accountMenu: MenuProps = {
     items: [
       { key: 'orders', label: 'Đơn hàng của tôi', icon: <UiIcon name="inbox" size={16} /> },
@@ -82,15 +105,16 @@ export default function HeaderGlobal() {
   return (
     <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/95 backdrop-blur-xl">
       <div className="mx-auto flex h-[3.25rem] max-w-[1600px] items-center gap-2 px-4 sm:gap-3 sm:px-5">
-        {/* Chỉ giữ logo, bỏ chữ tên: tên thương hiệu lặp ở favicon tab và tiêu đề trang,
-            ở đây chỉ còn chỗ bấm về bảng món. */}
-        <Link
-          to="/"
-          aria-label="Về bảng món"
-          className="flex shrink-0 items-center rounded-xl p-0.5 transition hover:bg-amber-50"
-        >
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
-        </Link>
+        {/* Không đặt logo ở thanh điều hướng để dành chỗ cho ô tìm kiếm; thương hiệu hiện ở
+            các trang không có thanh này (đăng nhập, đăng ký). Nút trang chủ giữ đường về
+            bảng món cho những trang con như /cart, /orders, /profile. */}
+        <UiButton
+          kind="icon"
+          size="small"
+          aria-label="Trang chủ"
+          icon={<UiIcon name="home" size={18} />}
+          onClick={() => navigate('/')}
+        />
 
         {user?.role === 'ADMIN' && (
           <UiButton
@@ -128,15 +152,27 @@ export default function HeaderGlobal() {
                 <div style={{ width: 'min(320px, calc(100vw - 2rem))' }}>
                   <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                     <span className="text-sm font-semibold text-stone-800">Thông báo</span>
-                    {unread > 0 && (
-                      <button
-                        type="button"
-                        className="text-xs font-medium text-amber-700 hover:underline"
-                        onClick={() => void markAllRead()}
-                      >
-                        Đánh dấu đã đọc
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {unread > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-amber-700 hover:underline"
+                          onClick={() => void markAllRead()}
+                        >
+                          Đã đọc
+                        </button>
+                      )}
+                      {notifications.some((n) => n.read) && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-stone-400 hover:text-rose-600 hover:underline"
+                          onClick={() => void clearRead()}
+                          title="Xóa các thông báo đã đọc"
+                        >
+                          Xóa đã đọc
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
                     {notifications.length === 0 ? (
@@ -145,19 +181,29 @@ export default function HeaderGlobal() {
                       notifications.slice(0, 10).map((n) => (
                         <div
                           key={n.id}
-                          className={`rounded-lg px-3 py-2 text-sm ${
-                            n.read ? 'text-stone-500' : 'bg-amber-50 font-medium text-stone-800'
-                          }`}
+                          className={`group relative rounded-lg px-3 py-2 text-sm ${
+                            n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-amber-50/70 font-medium text-stone-800'
+                          }}`}
                         >
-                          <span
-                            className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
-                              n.read ? 'bg-stone-200' : 'bg-amber-500'
-                            }`}
-                          />
-                          {n.content}
-                          <span className="mt-0.5 block text-xs font-normal text-stone-400">
-                            {new Date(n.createdAt).toLocaleString('vi-VN')}
-                          </span>
+                          <div className="pr-6">
+                            <span
+                              className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+                                n.read ? 'bg-stone-200' : 'bg-amber-500'
+                              }}`}
+                            />
+                            {n.content}
+                            <span className="mt-0.5 block text-xs font-normal text-stone-400">
+                              {new Date(n.createdAt).toLocaleString('vi-VN')}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void removeOne(n.id)}
+                            className="absolute right-2 top-2 hidden text-stone-400 hover:text-rose-600 group-hover:block"
+                            title="Xóa thông báo này"
+                          >
+                            <DeleteOutlined className="text-xs" />
+                          </button>
                         </div>
                       ))
                     )}
@@ -174,6 +220,16 @@ export default function HeaderGlobal() {
                 />
               </Badge>
             </Popover>
+          )}
+
+          {user && (
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label="Đơn hàng"
+              icon={<UiIcon name="inbox" size={18} />}
+              onClick={() => navigate('/orders')}
+            />
           )}
 
           <Badge count={count} size="small" color="#d97706">

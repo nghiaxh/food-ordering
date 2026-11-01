@@ -1,22 +1,21 @@
 ﻿import { useMemo, useState } from 'react'
-import { Button, Form, Input, Modal, Tooltip, message } from 'antd'
+import { Button, Form, Input, Tooltip, message } from 'antd'
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { adminDeleteCategory, adminSaveCategory, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
 import type { Category } from '../../types'
-import { apiErrorMessage } from '../../utils/api-error'
 import { slugify } from '../../utils/slug'
 import UiImg from '../../components/UiImg'
 import UiIcon from '../../components/UiIcon'
 import ImageField from '../../components/ImageField'
-import { EmptyState, PageHeader } from './shared'
+import FormModal from '../../components/FormModal'
+import { EmptyState, PageHeader, confirmRemove, runAndMessage } from './shared'
 import UiButton from '../../components/UiButton'
 
 export default function AdminCategoriesPage() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
-  const [name, setName] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [form] = Form.useForm()
@@ -47,7 +46,7 @@ export default function AdminCategoriesPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setName('')
+    form.resetFields()
     setModal(true)
   }
 
@@ -70,27 +69,26 @@ export default function AdminCategoriesPage() {
       imageUrl: v.imageUrl?.trim() || editing?.imageUrl || '',
       description: v.description?.trim() ?? '',
     })
-    if (!res.ok) {
-      message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
-      return
-    }
-    message.success('Đã lưu danh mục')
-    setModal(false)
-    setName('')
-    setEditing(null)
-    void refreshData()
+    await runAndMessage(res, {
+      success: 'Đã lưu danh mục',
+      fallback: 'Lưu thất bại',
+      onSuccess: () => {
+        setModal(false)
+        setEditing(null)
+        void refreshData()
+      },
+    })
   }
 
   const remove = async (id: number) => {
     setBusyId(id)
     const res = await deleteCategory(id)
     setBusyId(null)
-    if (res.ok) {
-      message.success('Đã xóa')
-      void refreshData()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Xóa thất bại')
-    }
+    await runAndMessage(res, {
+      success: 'Đã xóa',
+      fallback: 'Xóa thất bại',
+      onSuccess: () => void refreshData(),
+    })
   }
 
   const slugPreview = editing?.slug ?? slugify(nameValue?.trim() ?? '')
@@ -174,12 +172,8 @@ export default function AdminCategoriesPage() {
                         loading={busyId === c.id}
                         disabled={count > 0}
                         onClick={() =>
-                          Modal.confirm({
+                          confirmRemove({
                             title: 'Xóa danh mục này?',
-                            centered: true,
-                            okText: 'Xóa',
-                            okButtonProps: { danger: true },
-                            cancelText: 'Hủy',
                             onOk: () => remove(c.id),
                           })
                         }
@@ -214,23 +208,20 @@ export default function AdminCategoriesPage() {
         </div>
       )}
 
-      <Modal
+      <FormModal
         title={editing ? `Sửa: ${editing.name}` : 'Tạo danh mục'}
         open={modal}
-        onCancel={() => setModal(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okButtonProps={{ children: 'Lưu' }}
-        cancelButtonProps={{ children: 'Hủy' }}
+        onClose={() => setModal(false)}
+        onSubmit={() => form.submit()}
+        saving={saving}
       >
-        <Form layout="vertical" onFinish={submit}>
-          <Form.Item label="Tên danh mục" required>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Món Việt"
-              onPressEnter={save}
-            />
+        <Form form={form} layout="vertical" onFinish={submit} style={{ marginTop: 16 }}>
+          <Form.Item
+            name="name"
+            label="Tên danh mục"
+            rules={[{ required: true, message: 'Nhập tên danh mục' }]}
+          >
+            <Input placeholder="Món Việt" onPressEnter={() => form.submit()} />
           </Form.Item>
           <p className="-mt-2 mb-5 text-xs text-stone-400">
             Slug tự động: <span className="font-medium text-stone-500">/{slugPreview}</span>
@@ -242,7 +233,7 @@ export default function AdminCategoriesPage() {
             <ImageField />
           </Form.Item>
         </Form>
-      </Modal>
+      </FormModal>
     </div>
   )
 }

@@ -1,13 +1,13 @@
 # Maven build output
 target/
 
-# IDE — Eclipse
+# IDE - Eclipse
 .classpath
 .factorypath
 .project
 .settings/
 
-# IDE — IntelliJ
+# IDE - IntelliJ
 .idea/
 *.iml
 
