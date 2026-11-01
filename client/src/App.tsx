@@ -16,6 +16,9 @@ import AdminCategoriesPage from './pages/admin/AdminCategoriesPage'
 import AdminOrdersPage from './pages/admin/AdminOrdersPage'
 import AdminCustomersPage from './pages/admin/AdminCustomersPage'
 import AdminChatbotPage from './pages/admin/AdminChatbotPage'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminPromotionsPage from './pages/admin/AdminPromotionsPage'
+import AdminReportsPage from './pages/admin/AdminReportsPage'
 import ScrollManager from './components/ScrollManager'
 
 function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
@@ -69,12 +72,15 @@ function AppRoutes() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="/admin/foods" replace />} />
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="foods" element={<AdminFoodsPage />} />
         <Route path="categories" element={<AdminCategoriesPage />} />
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="customers" element={<AdminCustomersPage />} />
         <Route path="chatbot" element={<AdminChatbotPage />} />
+        <Route path="promotions" element={<AdminPromotionsPage />} />
+        <Route path="reports" element={<AdminReportsPage />} />
       </Route>
 
       <Route path="/login" element={<LoginPage />} />

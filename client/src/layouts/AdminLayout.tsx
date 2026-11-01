@@ -14,10 +14,13 @@ interface NavItem {
 
 // Menu bên trái theo Bảng 2.22 tài liệu đặc tả, tách riêng khỏi giao diện khách hàng.
 const NAV: NavItem[] = [
+  { label: 'Tổng quan', to: '/admin/dashboard', icon: 'home' },
   { label: 'Món ăn', to: '/admin/foods', icon: 'tag' },
   { label: 'Danh mục', to: '/admin/categories', icon: 'th-large' },
   { label: 'Đơn hàng', to: '/admin/orders', icon: 'inbox' },
   { label: 'Khách hàng', to: '/admin/customers', icon: 'users' },
+  { label: 'Khuyến mãi', to: '/admin/promotions', icon: 'tag' },
+  { label: 'Báo cáo', to: '/admin/reports', icon: 'file' },
   { label: 'Chatbot', to: '/admin/chatbot', icon: 'message' },
 ]
 

@@ -171,3 +171,26 @@ export const adminGetSettings = () => http.get<{ settingKey: string; settingValu
 
 export const adminSaveSetting = (settingKey: string, settingValue: string) =>
   http.put('/admin/chatbot/settings', { settingKey, settingValue })
+export const quoteCart = () =>
+  http.post<CartQuote>('/cart/quote').then((r) => r.data)
+
+// ----- Khuyến mãi -----
+export const adminGetPromotions = () => http.get<Promotion[]>('/admin/promotions').then((r) => r.data)
+
+export const adminSavePromotion = (id: number | null, data: object) =>
+  id ? http.put(`/admin/promotions/${id}`, data) : http.post('/admin/promotions', data)
+
+export const adminDeletePromotion = (id: number) => http.delete(`/admin/promotions/${id}`)
+
+// ----- Báo cáo -----
+export const adminGetReportSummary = (from?: string, to?: string) =>
+  http.get<{ revenue: number; orderCount: number; completedCount: number; avgOrder: number; promotionDiscount: number }>('/admin/reports/summary', { params: { from, to } }).then((r) => r.data)
+
+export const adminGetReportRevenue = (from?: string, to?: string) =>
+  http.get<{ date: string; revenue: number; orders: number }[]>('/admin/reports/revenue', { params: { from, to } }).then((r) => r.data)
+
+export const adminGetReportTopFoods = (from?: string, to?: string, limit = 10) =>
+  http.get<{ name: string; quantity: number; revenue: number }[]>('/admin/reports/top-foods', { params: { from, to, limit } }).then((r) => r.data)
+
+export const adminExportReport = (from?: string, to?: string) =>
+  http.get('/admin/reports/export', { params: { from, to }, responseType: 'blob' }).then((r) => r.data)

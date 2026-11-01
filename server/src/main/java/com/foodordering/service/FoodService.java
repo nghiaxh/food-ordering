@@ -22,13 +22,16 @@ public class FoodService {
     private final CategoryRepository categoryRepo;
     private final OrdersRepository orderRepo;
     private final CartItemRepository cartItemRepo;
+    private final PricingService pricing;
 
     public FoodService(FoodRepository foodRepo, CategoryRepository categoryRepo,
-                       OrdersRepository orderRepo, CartItemRepository cartItemRepo) {
+                       OrdersRepository orderRepo, CartItemRepository cartItemRepo,
+                       PricingService pricing) {
         this.foodRepo = foodRepo;
         this.categoryRepo = categoryRepo;
         this.orderRepo = orderRepo;
         this.cartItemRepo = cartItemRepo;
+        this.pricing = pricing;
     }
 
     public List<Food> search(String keyword, Long categoryId, BigDecimal minPrice,
@@ -44,12 +47,16 @@ public class FoodService {
             if (onlyAvailable) ps.add(cb.isTrue(root.get("available")));
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        return foodRepo.findAll(spec);
+        List<Food> foods = foodRepo.findAll(spec);
+        pricing.decorateFoods(foods);
+        return foods;
     }
 
     public Food getById(Long id) {
-        return foodRepo.findById(id)
+        Food food = foodRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy món ăn"));
+        pricing.decorateFoods(List.of(food));
+        return food;
     }
 
     public Food create(FoodRequest req) {

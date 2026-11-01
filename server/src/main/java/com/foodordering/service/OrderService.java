@@ -19,14 +19,17 @@ public class OrderService {
     private final UserRepository userRepo;
     private final PaymentTransactionRepository paymentTxRepo;
     private final NotificationRepository notificationRepo;
+    private final PricingService pricing;
 
     public OrderService(OrdersRepository orderRepo, FoodRepository foodRepo, UserRepository userRepo,
-                        PaymentTransactionRepository paymentTxRepo, NotificationRepository notificationRepo) {
+                        PaymentTransactionRepository paymentTxRepo, NotificationRepository notificationRepo,
+                        PricingService pricing) {
         this.orderRepo = orderRepo;
         this.foodRepo = foodRepo;
         this.userRepo = userRepo;
         this.paymentTxRepo = paymentTxRepo;
         this.notificationRepo = notificationRepo;
+        this.pricing = pricing;
     }
 
     @Transactional
@@ -118,22 +121,32 @@ public class OrderService {
 
     /** Giá không lấy từ request; mỗi món được đọc lại từ Food trong database rồi chụp lại vào dòng đơn. */
     private void fillItems(Orders order, List<OrderItemRequest> items) {
-        BigDecimal total = BigDecimal.ZERO;
+        // Kiểm tra còn phục vụ trước khi tính giá.
         for (OrderItemRequest it : items) {
             Food food = foodRepo.findById(it.foodId())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Món không tồn tại"));
             if (!food.isAvailable()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Món \"" + food.getName() + "\" đã ngừng phục vụ");
             }
+        }
+        var priced = pricing.priceOrder(items);
+        BigDecimal total = BigDecimal.ZERO;
+        BigDecimal discountTotal = BigDecimal.ZERO;
+        for (var line : priced.lines()) {
+            Food food = foodRepo.findById(line.foodId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Món không tồn tại"));
             OrderItem oi = new OrderItem();
             oi.setOrder(order);
             oi.setFood(food);
-            oi.setQuantity(it.quantity());
-            oi.setPrice(food.getPrice());
+            oi.setQuantity(line.quantity());
+            oi.setPrice(line.unitPrice());
+            oi.setDiscountAmount(line.lineDiscount());
             order.getItems().add(oi);
-            total = total.add(food.getPrice().multiply(BigDecimal.valueOf(it.quantity())));
+            total = total.add(line.lineTotal());
+            discountTotal = discountTotal.add(line.lineDiscount());
         }
         order.setTotal(total);
+        order.setDiscountTotal(discountTotal);
     }
 
     private Orders.Status parseStatus(String raw) {
