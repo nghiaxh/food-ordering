@@ -19,14 +19,22 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 - Đăng ký / đăng nhập, phiên dùng JWT
 - Duyệt danh mục, tìm kiếm và lọc món theo tên, loại, khoảng giá
 - Chi tiết món: thành phần, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, đánh giá
-- Giỏ hàng và đặt món (thanh toán giả lập: COD / chuyển khoản / ví điện tử)
-- Theo dõi trạng thái đơn hàng
+- Giỏ hàng lưu theo tài khoản (đăng nhập mọi nơi vẫn còn giỏ) và đặt món
+  (thanh toán giả lập: COD / QR VietQR)
+- Theo dõi trạng thái đơn hàng, trạng thái thanh toán và nhận thông báo xác nhận
+- Lịch sử đặt món với nút đặt lại chỉ một chạm và tự hủy đơn khi còn chờ xác nhận
+- Đánh giá sao + nhận xét cho món đã ăn (chỉ món trong đơn hoàn thành)
 - Chatbot tư vấn món ăn (widget góc phải màn hình): hỏi bằng tự nhiên, nhận gợi ý
-  kèm thẻ món có link đặt món
+  kèm thẻ món có link đặt món. Tư vấn được theo nhu cầu, theo khẩu vị, theo số người ăn
+  (tính số phần theo khẩu phần món) và theo tổ hợp món trong một ngân sách chung.
 
 ### Quản trị
-- Quản lý món ăn, danh mục, đơn hàng, người dùng
-- Upload tài liệu tham khảo cho chatbot (RAG cơ bản) và chỉnh cấu hình chatbot
+- Tổng quan nhanh (doanh thu, đơn chờ, món bán chạy), duyệt đơn ngay trên dashboard
+- Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
+- Quản lý khuyến mãi / voucher (giảm theo toàn thực đơn, danh mục, món hoặc combo)
+- Cấu hình chatbot (nhà cung cấp AI, mô hình, số món gợi ý, quy tắc bổ sung) và xem lịch sử hội thoại
+- Báo cáo doanh thu có biểu đồ, top món và xuất Excel
+- Tải ảnh món / danh mục lên server (JPG/PNG/WEBP ≤ 2 MB)
 
 ## Bắt đầu nhanh
 
@@ -50,11 +58,17 @@ một chuỗi dài bí mật.
 
 ### 2. Chạy bằng Docker Compose (đơn giản nhất)
 
-Chế độ phát triển (hot reload cả client lẫn server):
+Chế độ phát triển (client HMR và server dev):
 
 ```bash
 docker compose --profile dev up --build
 ```
+
+> Với profile `dev`, client có hot reload. Server container cần chạy thêm compiler watcher ở terminal khác để `spring-boot-devtools` restart khi mã Java được biên dịch:
+>
+> ```bash
+> docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"
+> ```
 
 Chế độ demo / production (bản build tối ưu):
 
@@ -73,12 +87,12 @@ docker compose --profile prod up --build -d
 
 ## Tài khoản demo
 
-Server tự tạo dữ liệu mẫu khi khởi động (idempotent, không nhân đôi khi chạy lại).
+Server tự tạo dữ liệu mẫu khi bảng người dùng còn trống. Nếu đã có dữ liệu user, toàn bộ seed được bỏ qua nên không nhân đôi dữ liệu demo khi chạy lại.
 
 | Vai trò | Email | Mật khẩu |
 |---------|-------|----------|
 | ADMIN   | `admin@demo.com` | `admin123` |
-| Customer | `user@demo.com` | `user123` |
+| Customer | `user@demo.com` | `user1234` |
 
 Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 
@@ -92,13 +106,27 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 | AI | Gemini API (gọi qua REST, class `AiClient`) |
 | Hạ tầng | Docker Compose (1 file, 2 profile: `dev` / `prod`) |
 
-## Kiểm thử
+## Kiểm tra nhanh
 
-Xem [TEST.md](TEST.md) cho hướng dẫn chạy test từng tầng (Vitest, JUnit, Playwright).
+Server có vài test tự động cho logic pricing, chatbot và validation DTO (`server/src/test/java`). Lệnh kiểm tra có sẵn:
+
+```bash
+# Client
+cd client
+npm run typecheck
+npm run build
+
+# Server
+cd ../server
+mvn test
+mvn package
+```
+
+`npm test`, thư mục `e2e/` và framework Vitest/JUnit nâng cao/Playwright là phạm vi kế hoạch trong [TEST.md](TEST.md).
 
 ## Tài liệu
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — kiến trúc, luồng dữ liệu và cấu hình
-- [TEST.md](TEST.md) — hướng dẫn chạy test
-- [BRANCHING.md](BRANCHING.md) — quy ước phân nhánh và commit
-- [AGENTS.md](AGENTS.md) — quy ước làm việc cho agent
+- [ARCHITECTURE.md](ARCHITECTURE.md) - kiến trúc, luồng dữ liệu và cấu hình
+- [TEST.md](TEST.md) - hướng dẫn chạy test
+- [BRANCHING.md](BRANCHING.md) - quy ước phân nhánh và commit
+- [AGENTS.md](AGENTS.md) - quy ước làm việc cho agent

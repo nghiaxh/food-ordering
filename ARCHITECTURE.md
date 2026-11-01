@@ -26,26 +26,20 @@ FoodOrdering là ứng dụng **đặt món trực tuyến** theo mô hình mono
 1. Client gọi `POST /api/auth/login` hoặc `POST /api/auth/register` với email và mật khẩu.
 2. Server trả về access token JWT kèm thông tin user và role (ADMIN / CUSTOMER).
 3. `authStore` lưu phiên theo lựa chọn remember: `localStorage` hoặc `sessionStorage`.
-4. `api/http` đọc token từ `localStorage`, chưa có thì lấy từ `sessionStorage`, rồi gắn
-   `Authorization: Bearer <token>` cho request. Khi gặp 401 sẽ xoá token ở cả hai kho và đưa
-   người dùng về trang đăng nhập.
-5. `JwtFilter` trên server đọc và verify token, tra CSDL kiểm tra tài khoản còn `active`
-   rồi mới dựng `SecurityContext`. Token không hợp lệ hoặc tài khoản đã bị khoá bị nuốt,
-   request được coi là chưa đăng nhập. Cần tra CSDL mỗi request vì token vẫn còn hạn sau khi
-   admin khoá tài khoản.
+4. `api/http` gắn `Authorization: Bearer <token>` cho request. Hiện interceptor chỉ đọc
+   `localStorage`, nên phiên dùng `sessionStorage` cần được đồng bộ ở code trước khi dùng đầy đủ.
+5. `JwtFilter` trên server đọc và verify token, dựng `SecurityContext`. Token không hợp lệ bị nuốt, request được coi là chưa đăng nhập.
 6. `SecurityConfig` stateless: yêu cầu `ROLE_ADMIN` cho `/api/admin/**`; phần còn lại dùng
    `authenticated()`, trừ các matcher được khai báo `permitAll()`.
 
 Endpoint và chính sách public hiện tại:
 
-- `permitAll()` áp dụng đúng cho `POST /api/auth/register` và `POST /api/auth/login`.
-  `/api/auth/me` và `/api/auth/password` yêu cầu đăng nhập, gọi vô danh sẽ nhận 401.
-- `GET /api/foods/**`, `/api/categories/**`, `GET /api/reviews/**`, `GET /api/uploads/**`
-  (ảnh admin tải lên được phục vụ công khai vì mọi khách đều cần xem thực đơn).
-- `POST /api/chatbot/chat`: tư vấn món, khách vãng lai vẫn dùng được.
-- `dispatcherTypeMatchers(ERROR).permitAll()`: khi controller ném lỗi, Tomcat dispatch sang
-  `/error`; nếu không cho phép riêng thì mọi lỗi 400/404/500 đều bị đổi thành 401 và mất
-  thông báo gốc. Đây là lý do các lỗi validation trả về đúng mã 400.
+- `SecurityConfig` đang `permitAll()` cho toàn bộ `/api/auth/**`; các endpoint nghiệp vụ
+  dùng cho đăng nhập/đăng ký là `POST /api/auth/login` và `POST /api/auth/register`.
+  `/api/auth/me` cần được bảo vệ khi siết matcher.
+- `GET /api/foods/**`, `/api/categories/**`, `/api/reviews/**`.
+- `POST /api/chatbot/chat`: tư vấn món, khách vãng lai vẫn dùng được. Matcher hiện
+  permitAll cho toàn bộ `/api/chatbot/**`.
 - `POST /api/reviews` yêu cầu đăng nhập vì chỉ có matcher GET được permitAll.
 
 Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm soát ở server**.
@@ -109,6 +103,29 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 - Món đã có trong đơn không xoá được (`FoodService.delete` trả 409 kèm gợi ý chuyển sang
   ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
 - Admin không khoá hay xoá được tài khoản quản trị (`AuthService.requireCustomer`).
+
+### 4c. Khuyến mãi tự động
+
+Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `service/PricingService`.
+Client không tự nhân phần trăm, không tự trừ voucher; nó gọi `POST /api/cart/quote` và hiện
+lại đúng những gì server trả. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
+lệch nhau.
+
+- **Một dòng, một khoản giảm.** `QuoteLine.lineDiscount` và `OrderItem.discountAmount` là số
+  tiền giảm của **cả dòng** (đã nhân số lượng), không phải của một phần.
+- **Khuyến mãi tự động** (chương trình không có mã): mỗi dòng chọn **một** chương trình tốt
+  nhất theo số tiền giảm, hoà thì xét `priority`. Không cộng dồn hai chương trình tự động trên
+  cùng một dòng, nên hoá đơn đọc một lần là hiểu.
+- **Phạm vi** `GLOBAL`, `CATEGORY`, `FOOD` quyết định chương trình có áp cho dòng đó
+  không (`matches`). Chương trình theo danh mục chỉ khớp món, không khớp combo.
+- **Khuyến mãi theo dịp** dùng `daysOfWeek` (ví dụ `SAT,SUN`) và `startTime/endTime`; khung giờ
+  qua nửa đêm được hiểu là `start > end`.
+- **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
+  `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
+  cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
+- **Giá trên thẻ món**: `GET /api/foods` và `/api/foods` được `decorateFoods`
+  điền `discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel`; client chỉ hiện.
+  Đây là giá tham khảo cùng luật với giỏ, còn con số chốt vẫn là báo giá.
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
 
@@ -186,9 +203,6 @@ số người để lượt hỏi đó vẫn gợi ý được món thay vì tr�
 
 - Khách chỉ được đánh giá món có trong **đơn hoàn thành** của chính mình
   (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
-- `GET /api/reviews/food/{foodId}` trả kèm cờ `mine` để client biết đánh giá nào của chính
-  mình và chỉ hiện nút Sửa/Xóa ở đúng đánh giá đó. `PUT` và `DELETE /api/reviews/{id}` đều kiểm
-  tra chủ sở hữu ở server, không tin cờ `mine` từ client.
 - Trang lịch sử đơn có nút **Đặt lại**: đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ,
   món ngừng phục vụ bị bỏ qua kèm cảnh báo.
 
@@ -299,8 +313,8 @@ security/      JwtUtil, JwtFilter
 entity/        JPA entities
 repository/    Spring Data JPA repositories
 dto/           request/response payloads (đồng bộ thủ công với types client)
-service/       nghiệp vụ chính (FoodService, OrderService, AuthService, ChatbotService,
-               AiClient)
+service/       nghiệp vụ chính (FoodService, OrderService, CartService, PromotionService,
+               PricingService, ReportService, AuthService, ChatbotService, AiClient)
 controller/    mapping và điều phối request dưới /api/...
 ```
 
@@ -328,21 +342,15 @@ nginx.conf         prod: serve dist/ và fallback về index.html
 ## Điểm quan trọng khi làm việc
 
 - **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); **seed chỉ chạy khi bảng `users` còn trống** (`if (userRepo.count() > 0) return;`), nên lần khởi động sau sẽ bỏ qua toàn bộ seed và không nhân đôi dữ liệu demo.
+- **Sao lưu database**: service `db-backup` trong compose chạy `pg_dump` lúc 2h sáng vào volume `db_backup`, giữ lại 7 bản gần nhất. Khôi phục bằng `pg_restore -d food_ordering /backups/db-YYYYMMDD.dump`.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
-- **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép JSON). Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không bao giờ gửi xuống client.
-- **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin), toàn bộ là `.webp` đã resize theo ô hiển thị. Admin tải ảnh lên qua `POST /api/admin/uploads/image` hoặc dán URL ngoài trong form quản lý; ảnh tải lên có URL tuyệt đối trỏ vào `/api/uploads/**`.
+- **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi Gemini API (REST bằng `RestClient`, `jsonMode` ép JSON, config qua `app.ai.api-key` / `app.ai.model`). Muốn đổi nhà cung cấp AI chỉ sửa file này.
+- **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin), toàn bộ là `.webp` đã resize theo ô hiển thị. Admin có thể nhập link ảnh ngoài trong form quản lý; không có endpoint upload ảnh món.
 - **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) - đừng log token.
-- **Phân trang `/`**: cắt trang phía client 12 món mỗi trang sau khi đã sắp xếp (`PAGE_SIZE` trong `FoodsPage`). Đổi page size thì nhớ kẹp `page` vào `totalPages`.
-- **Bộ lọc nằm trên URL**: `FoodsPage` đọc `category`, `keyword`, `min`, `max` từ `useSearchParams`, không giữ state lọc cục bộ. Thêm bộ lọc mới thì nhớ thêm khoá vào `patch()`.
-- **`useHasCartBar` tính theo đường dẫn**: bảng món giờ là `/` (không phải `/foods`). Thêm trang mới có thanh giỏ ghim đáy thì cập nhật hook này, nếu không nút mở chatbot sẽ bị thanh giỏ che.
-- **Sửa DTO phải cập nhật cả hai phía**: `client/src/types/index.ts` và hàm gọi trong `client/src/api/api.ts`. Sửa đánh giá dùng DTO riêng `UpdateReviewRequest` không có `foodId` vì sửa đánh giá không đổi món.
 - **Comment và tài liệu**: comment tiếng Việt nên giải thích ràng buộc, nguồn dữ liệu, vòng đời state hoặc fallback; không lặp lại cú pháp. Khi đổi hợp đồng API hoặc quy tắc domain, cập nhật đồng bộ tài liệu kiến trúc và test.
 - **Thanh giỏ cố định đáy**: `/foods` (khi giỏ có món), `/foods/:id` và `/cart` đều có thanh `fixed bottom-0`. Mọi trang đó phải chừa padding đáy, và mọi nút nổi (`ChatbotWidget`, `ScrollTopButton`) phải hỏi `useHasCartBar()` để nhảy lên cao hơn thanh. Thêm trang mới có thanh cố định thì cập nhật hook này.
-- **Trang Thực đơn là trang chủ**: route `/` render `FoodsPage`, `/foods/:id` là route con hiện
-  thành panel phủ, `/foods` chuyển hướng về `/`. Trang bảng món cuộn trong vùng riêng nên
-  `ScrollManager` chỉ còn việc đưa `window.scrollTo(0)` khi đổi trang (dùng cho `/cart`,
-  `/orders`, `/profile` vẫn cuộn theo trang).
+- **Trang Thực đơn có hai chế độ hiển thị**: `FoodsPage` nhóm món theo danh mục (`groupByCategory`) rồi render `FoodRow` hoặc `FoodCard` tuỳ `view`. Mặc định lưới ở `lg` trở lên, hàng dọc ở mọi cỡ nhỏ hơn; lựa chọn không được lưu.
 
 ## Phát triển local (profile dev)
 
