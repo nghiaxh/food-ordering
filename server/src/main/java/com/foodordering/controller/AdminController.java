@@ -1,6 +1,6 @@
 package com.foodordering.controller;
 
-import com.foodordering.dto.AuthDtos.UserRequest;
+import com.foodordering.dto.UserDtos.UserRequest;
 import com.foodordering.dto.FoodDtos.FoodRequest;
 import com.foodordering.dto.OrderDtos.*;
 import com.foodordering.entity.*;
