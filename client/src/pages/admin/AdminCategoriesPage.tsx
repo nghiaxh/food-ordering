@@ -22,7 +22,7 @@ export default function AdminCategoriesPage() {
   const [form] = Form.useForm()
   const nameValue = Form.useWatch('name', form)
 
-  const { data, refresh: refreshData } = useAsyncData((signal) => getCategories(signal), [])
+  const { data, loading, refresh: refreshData } = useAsyncData((signal) => getCategories(signal), [])
   const { data: foods } = useAsyncData((signal) => getFoods(undefined, signal), [])
   const { run: saveCategory, pending: saving } = useAsyncAction(
     (payload: { id: number | null; name: string; slug: string; imageUrl: string; description: string }) =>
@@ -218,12 +218,12 @@ export default function AdminCategoriesPage() {
         title={editing ? `Sửa: ${editing.name}` : 'Tạo danh mục'}
         open={modal}
         onCancel={() => setModal(false)}
-        onOk={save}
+        onOk={() => form.submit()}
         confirmLoading={saving}
         okButtonProps={{ children: 'Lưu' }}
         cancelButtonProps={{ children: 'Hủy' }}
       >
-        <Form layout="vertical">
+        <Form layout="vertical" onFinish={submit}>
           <Form.Item label="Tên danh mục" required>
             <Input
               value={name}

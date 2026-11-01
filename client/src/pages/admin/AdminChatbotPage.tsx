@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Input, InputNumber, Select, Table, message,
+  Alert, Input, InputNumber, Select, Table, Tag, message,
 } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import {
@@ -11,7 +11,7 @@ import useAsyncAction from '../../hooks/useAsyncAction'
 import type { ChatHistoryMessage } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiIcon from '../../components/UiIcon'
-import { PageSection } from './shared'
+import { PageCard, PageSection } from './shared'
 import UiButton from '../../components/UiButton'
 
 
@@ -57,16 +57,6 @@ function Bubble({ message }: { message: ChatHistoryMessage }) {
   )
 }
 
-function Thread({ messages }: { messages: ChatHistoryMessage[] }) {
-  return (
-    <div className="space-y-2">
-      {messages.map((m) => (
-        <Bubble key={m.id} message={m} />
-      ))}
-    </div>
-  )
-}
-
 export default function AdminChatbotPage() {
   const [history, setHistory] = useState<ChatHistoryMessage[]>([])
   const [maxSuggestions, setMaxSuggestions] = useState(5)
@@ -88,16 +78,6 @@ export default function AdminChatbotPage() {
     setProvider(settings.provider ?? 'gemini')
     setModel(settings.model ?? '')
   }, [data])
-
-  const sessions = useMemo(() => {
-    const groups = new Map<string, ChatHistoryMessage[]>()
-    for (const h of history) {
-      const list = groups.get(h.sessionId) ?? []
-      list.push(h)
-      groups.set(h.sessionId, list)
-    }
-    return Array.from(groups.entries()).map(([id, messages]) => ({ id, messages }))
-  }, [history])
 
   const { run: saveSettings, pending: savingSettings } = useAsyncAction(() =>
     Promise.all([

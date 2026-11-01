@@ -13,7 +13,7 @@ import UiImg from '../../components/UiImg'
 import UiButton from '../../components/UiButton'
 import UiIcon from '../../components/UiIcon'
 import ImageField from '../../components/ImageField'
-import { EmptyState, PageCard, PageHeader, StatusDot, TableSkeleton } from './shared'
+import { PageCard, PageHeader, StatusDot } from './shared'
 
 const SPICY = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
@@ -21,6 +21,8 @@ export default function AdminFoodsPage() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Food | null>(null)
   const [search, setSearch] = useState('')
+  const [catFilter, setCatFilter] = useState<number | undefined>()
+  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'hidden'>('all')
   const [busyIds, setBusyIds] = useState<Set<number>>(() => new Set())
   const [form] = Form.useForm()
 

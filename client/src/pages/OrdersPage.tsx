@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { Alert, Empty, Modal, QRCode, Select, Skeleton, Steps, Tag, message } from 'antd'
+import { Alert, Empty, Modal, Select, Skeleton, Steps, Tag, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
@@ -18,6 +18,7 @@ const PAYMENT_LABEL: Record<string, string> = {
 }
 
 export default function OrdersPage() {
+  const navigate = useNavigate()
   const { data: orders, loading, error, refresh } = useAsyncData((signal) => getMyOrders(signal), [])
   const addToCart = useCartStore((s) => s.add)
   const [reorderingId, setReorderingId] = useState<number | null>(null)
