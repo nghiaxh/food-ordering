@@ -11,7 +11,7 @@ export default function AuthShell({ title, maxWidth = 'max-w-[400px]', children 
     <div
       className="auth-shell relative flex min-h-[100dvh] items-center justify-center overflow-hidden p-4"
       style={{
-        backgroundImage: "url('/images/hero.jpg')",
+        backgroundImage: "url('/images/hero.webp')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundColor: '#1c1917',
@@ -23,7 +23,7 @@ export default function AuthShell({ title, maxWidth = 'max-w-[400px]', children 
       />
 
       <div
-        className={`auth-card relative z-10 w-full ${maxWidth} rounded-3xl bg-white p-6 shadow-2xl shadow-stone-950/40 ring-1 ring-stone-950/5 sm:p-8`}
+        className={`relative z-10 w-full ${maxWidth} rounded-3xl bg-white p-6 shadow-2xl shadow-stone-950/40 ring-1 ring-stone-950/5 sm:p-8`}
       >
         <h1 className="text-center text-2xl font-extrabold tracking-tight text-stone-900">{title}</h1>
 

@@ -9,7 +9,8 @@ import useAsyncAction from '../../hooks/useAsyncAction'
 import type { Promotion } from '../../types'
 import { formatVND } from '../../utils/format'
 import UiButton from '../../components/UiButton'
-import { EmptyState, PageCard, PageHeader, TableSkeleton } from './shared'
+import FormModal from '../../components/FormModal'
+import { EmptyState, PageCard, PageHeader, TableSkeleton, confirmRemove, runAndMessage } from './shared'
 
 const SCOPES: { value: Promotion['scope']; label: string }[] = [
   { value: 'GLOBAL', label: 'Toàn thực đơn' },
@@ -115,14 +116,25 @@ export default function AdminPromotionsPage() {
       randomCount: values.randomCount ?? 0,
     }
     const res = await save({ id: editing?.id ?? null, data })
-    if (!res.ok) {
-      message.error('Lưu khuyến mãi thất bại')
-      return
-    }
-    message.success('Đã lưu khuyến mãi')
-    setModal(false)
-    setEditing(null)
-    void refresh()
+    await runAndMessage(res, {
+      success: 'Đã lưu khuyến mãi',
+      fallback: 'Lưu khuyến mãi thất bại',
+      onSuccess: () => {
+        setModal(false)
+        setEditing(null)
+        void refresh()
+      },
+    })
+  }
+
+  // Xóa trong onOk để modal đợi promise xong mới đóng, giữ đúng hành vi cũ.
+  const doRemove = async (p: Promotion) => {
+    const res = await remove(p.id)
+    await runAndMessage(res, {
+      success: 'Đã xóa khuyến mãi',
+      fallback: 'Không xóa được khuyến mãi này',
+      onSuccess: () => void refresh(),
+    })
   }
 
   return (
@@ -184,21 +196,10 @@ export default function AdminPromotionsPage() {
                       aria-label={`Xóa ${p.name}`}
                       icon={<DeleteOutlined />}
                       onClick={() =>
-                        Modal.confirm({
+                        confirmRemove({
                           title: `Xóa khuyến mãi "${p.name}"?`,
-                          okText: 'Xóa',
-                          okButtonProps: { danger: true },
                           cancelText: 'Giữ lại',
-                          centered: true,
-                          onOk: async () => {
-                            const res = await remove(p.id)
-                            if (!res.ok) {
-                              message.error('Không xóa được khuyến mãi này')
-                              return
-                            }
-                            message.success('Đã xóa khuyến mãi')
-                            void refresh()
-                          },
+                          onOk: () => doRemove(p),
                         })
                       }
                     />
@@ -210,14 +211,12 @@ export default function AdminPromotionsPage() {
         )}
       </PageCard>
 
-      <Modal
+      <FormModal
         title={editing ? 'Sửa khuyến mãi' : 'Thêm khuyến mãi'}
         open={modal}
-        onCancel={() => setModal(false)}
-        onOk={() => form.submit()}
-        confirmLoading={saving}
-        okText="Lưu"
-        cancelText="Hủy"
+        onClose={() => setModal(false)}
+        onSubmit={() => form.submit()}
+        saving={saving}
         width={680}
       >
         <Form form={form} layout="vertical" onFinish={submit} className="mt-4">
@@ -292,7 +291,7 @@ export default function AdminPromotionsPage() {
             </Form.Item>
           </div>
         </Form>
-      </Modal>
+      </FormModal>
     </div>
   )
 }

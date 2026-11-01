@@ -1,6 +1,7 @@
 package com.foodordering.controller;
 
 import com.foodordering.dto.CartDtos.*;
+import com.foodordering.dto.QuoteDtos.CartQuote;
 import com.foodordering.entity.CartItem;
 import com.foodordering.service.CartService;
 import jakarta.validation.Valid;
@@ -42,5 +43,11 @@ public class CartController {
     @DeleteMapping
     public void clear(Authentication auth) {
         cartService.clear(auth.getName());
+    }
+
+    /** Trả báo giá kèm khuyến mãi tự động đã áp cho từng dòng. */
+    @PostMapping("/quote")
+    public CartQuote quote(Authentication auth) {
+        return cartService.quote(auth.getName());
     }
 }

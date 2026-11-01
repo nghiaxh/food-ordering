@@ -5,18 +5,12 @@ export const RATING_LABELS = ['', 'Dở tệ', 'Không ngon', 'Bình thường',
 export interface ReviewStats {
   avg: number | null
   count: number
-  perStar: Record<number, number>
 }
 
 export function reviewStats(reviews: Review[]): ReviewStats {
-  const perStar: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-  let total = 0
-  for (const r of reviews) {
-    perStar[r.rating] = (perStar[r.rating] ?? 0) + 1
-    total += r.rating
-  }
-  if (reviews.length === 0) return { avg: null, count: 0, perStar }
-  return { avg: total / reviews.length, count: reviews.length, perStar }
+  const total = reviews.reduce((sum, r) => sum + r.rating, 0)
+  if (reviews.length === 0) return { avg: null, count: 0 }
+  return { avg: total / reviews.length, count: reviews.length }
 }
 
 export function reviewerInitials(name: string): string {

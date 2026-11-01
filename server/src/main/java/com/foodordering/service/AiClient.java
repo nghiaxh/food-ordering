@@ -76,6 +76,7 @@ public class AiClient {
                 ? Map.of("temperature", 0.2, "responseMimeType", "application/json")
                 : Map.of("temperature", 0.4);
 
+        // Payload gom system instruction, nội dung người dùng và cấu hình sinh.
         Map<String, Object> body = Map.of(
                 "systemInstruction", Map.of("parts", List.of(Map.of("text", systemPrompt))),
                 "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", userPrompt)))),
