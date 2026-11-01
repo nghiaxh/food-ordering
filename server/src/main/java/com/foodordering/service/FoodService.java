@@ -2,9 +2,10 @@ package com.foodordering.service;
 
 import com.foodordering.dto.FoodDtos.FoodRequest;
 import com.foodordering.entity.Food;
+import com.foodordering.repository.CartItemRepository;
+import com.foodordering.repository.OrdersRepository;
 import com.foodordering.repository.CategoryRepository;
 import com.foodordering.repository.FoodRepository;
-import com.foodordering.repository.OrdersRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -20,11 +21,17 @@ public class FoodService {
     private final FoodRepository foodRepo;
     private final CategoryRepository categoryRepo;
     private final OrdersRepository orderRepo;
+    private final CartItemRepository cartItemRepo;
+    private final PricingService pricing;
 
-    public FoodService(FoodRepository foodRepo, CategoryRepository categoryRepo, OrdersRepository orderRepo) {
+    public FoodService(FoodRepository foodRepo, CategoryRepository categoryRepo,
+                       OrdersRepository orderRepo, CartItemRepository cartItemRepo,
+                       PricingService pricing) {
         this.foodRepo = foodRepo;
         this.categoryRepo = categoryRepo;
         this.orderRepo = orderRepo;
+        this.cartItemRepo = cartItemRepo;
+        this.pricing = pricing;
     }
 
     public List<Food> search(String keyword, Long categoryId, BigDecimal minPrice,
@@ -40,12 +47,16 @@ public class FoodService {
             if (onlyAvailable) ps.add(cb.isTrue(root.get("available")));
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        return foodRepo.findAll(spec);
+        List<Food> foods = foodRepo.findAll(spec);
+        pricing.decorateFoods(foods);
+        return foods;
     }
 
     public Food getById(Long id) {
-        return foodRepo.findById(id)
+        Food food = foodRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy món ăn"));
+        pricing.decorateFoods(List.of(food));
+        return food;
     }
 
     public Food create(FoodRequest req) {
@@ -57,14 +68,19 @@ public class FoodService {
     }
 
     /**
- * Món đã phát sinh đơn không xoá vật lý được, vì chi tiết đơn còn tham chiếu tới nó; admin phải
- * chuyển sang trạng thái ngừng phục vụ để giữ nguyên lịch sử đơn hàng.
- */
-public void delete(Long id) {
+     * Món đã phát sinh đơn không xoá vật lý được, vì chi tiết đơn còn tham chiếu tới nó; admin phải
+     * chuyển sang trạng thái ngừng phục vụ để giữ nguyên lịch sử đơn hàng. Món còn nằm trong giỏ
+     * của khách cũng vậy, vì dòng giỏ giữ khoá ngoại tới món.
+     */
+    public void delete(Long id) {
         Food food = getById(id);
         if (orderRepo.existsByItemsFoodId(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Món \"" + food.getName() + "\" đang nằm trong đơn hàng. Hãy chuyển sang trạng thái ngừng phục vụ.");
+        }
+        if (cartItemRepo.existsByFoodId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Món \"" + food.getName() + "\" đang nằm trong giỏ hàng của khách. Hãy chuyển sang trạng thái ngừng phục vụ.");
         }
         foodRepo.delete(food);
     }

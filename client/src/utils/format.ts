@@ -1,4 +1,6 @@
-export const formatVND = (value: number | string) => `${Number(value).toLocaleString('vi-VN')}đ`
+// VND không dùng thập phân; làm tròn ở đây để số trung bình (avgOrder) không hiện "153.333,33đ".
+export const formatVND = (value: number | string) =>
+  `${Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE

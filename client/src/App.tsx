@@ -4,14 +4,21 @@ import viVN from 'antd/locale/vi_VN'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import DefaultLayout from './layouts/DefaultLayout'
-import HomePage from './pages/HomePage'
+import AdminLayout from './layouts/AdminLayout'
 import FoodsPage from './pages/FoodsPage'
 import FoodDetailPage from './pages/FoodDetailPage'
 import CartPage from './pages/CartPage'
 import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage, { RegisterPage } from './pages/AuthPages'
-import AdminPage from './pages/admin/AdminPage'
+import AdminFoodsPage from './pages/admin/AdminFoodsPage'
+import AdminCategoriesPage from './pages/admin/AdminCategoriesPage'
+import AdminOrdersPage from './pages/admin/AdminOrdersPage'
+import AdminCustomersPage from './pages/admin/AdminCustomersPage'
+import AdminChatbotPage from './pages/admin/AdminChatbotPage'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminPromotionsPage from './pages/admin/AdminPromotionsPage'
+import AdminReportsPage from './pages/admin/AdminReportsPage'
 import ScrollManager from './components/ScrollManager'
 
 function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
@@ -31,9 +38,12 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<DefaultLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/foods" element={<FoodsPage />} />
-        <Route path="/foods/:id" element={<FoodDetailPage />} />
+        {/* Bảng món là trang chủ; chi tiết món là route con nên hiện thành panel phủ
+            mà vẫn giữ URL thật để thẻ món trong chatbot liên kết được. */}
+        <Route path="/" element={<FoodsPage />}>
+          <Route path="foods/:id" element={<FoodDetailPage />} />
+        </Route>
+        <Route path="/foods" element={<Navigate to="/" replace />} />
         <Route path="/cart" element={<CartPage />} />
         <Route
           path="/orders"
@@ -53,14 +63,25 @@ function AppRoutes() {
         />
       </Route>
 
+      {/* Trang quản trị dùng layout riêng nên tách khỏi DefaultLayout của khách hàng. */}
       <Route
         path="/admin"
         element={
           <RequireAuth admin>
-            <AdminPage />
+            <AdminLayout />
           </RequireAuth>
         }
-      />
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
+        <Route path="foods" element={<AdminFoodsPage />} />
+        <Route path="categories" element={<AdminCategoriesPage />} />
+        <Route path="orders" element={<AdminOrdersPage />} />
+        <Route path="customers" element={<AdminCustomersPage />} />
+        <Route path="chatbot" element={<AdminChatbotPage />} />
+        <Route path="promotions" element={<AdminPromotionsPage />} />
+        <Route path="reports" element={<AdminReportsPage />} />
+      </Route>
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -76,7 +97,6 @@ export default function App() {
       theme={{ token: { colorPrimary: '#d97706', borderRadius: 10, fontFamily: 'Inter Variable, sans-serif' } }}
     >
       <BrowserRouter>
-        <ScrollManager />
         <AppRoutes />
       </BrowserRouter>
     </ConfigProvider>
