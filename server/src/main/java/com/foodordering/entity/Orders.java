@@ -26,6 +26,8 @@ public class Orders {
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
     private BigDecimal total;
+    /** Tổng tiền giảm giá áp dụng cho đơn (khuyến mãi tự động theo dòng). */
+    private BigDecimal discountTotal = BigDecimal.ZERO;
     private String receiverName;
     private String phone;
     private String address;

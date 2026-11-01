@@ -134,3 +134,36 @@ export interface AiSetting {
   settingKey: string
   settingValue: string
 }
+
+export interface Promotion {
+  id: number
+  name: string
+  description?: string
+  discountType: 'PERCENT' | 'FIXED'
+  discountValue: number
+  maxDiscount?: number | null
+  scope: 'GLOBAL' | 'CATEGORY' | 'FOOD'
+  targetIds?: number[]
+  startsAt: string
+  endsAt: string
+  daysOfWeek?: string | null
+  active: boolean
+}
+
+export interface QuoteLine {
+  foodId: number | null
+  name: string
+  imageUrl: string | null
+  unitPrice: number
+  lineDiscount: number
+  quantity: number
+  lineTotal: number
+  discountLabel: string | null
+}
+
+export interface CartQuote {
+  lines: QuoteLine[]
+  subtotal: number
+  discountTotal: number
+  total: number
+}
