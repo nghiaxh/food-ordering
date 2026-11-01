@@ -3,6 +3,7 @@ export interface Category {
   name: string
   slug: string
   imageUrl: string
+  description: string
 }
 
 export interface Food {
@@ -95,6 +96,8 @@ export interface Review {
   rating: number
   comment: string
   createdAt: string
+  /** Đánh giá do chính người đang đăng nhập viết thì mới hiện nút Sửa/Xóa. */
+  mine: boolean
 }
 
 export interface FoodCard {

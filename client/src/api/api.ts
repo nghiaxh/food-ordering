@@ -1,5 +1,5 @@
 import http from './http'
-import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, NotificationItem, Order, OrderStatus, Review, SavedAddress, User } from '../types'
+import type { AuthUser, Category, CartItem, ChatHistoryMessage, ChatMessage, Food, FoodCard, NotificationItem, Order, OrderStatus, Review, User } from '../types'
 
 /** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
 export interface AdminOrderPayload {
@@ -36,6 +36,9 @@ export const getMe = (signal?: AbortSignal) => http.get<User>('/auth/me', { sign
 export const updateMe = (data: { fullName: string; phone: string; address: string }) =>
   http.put('/auth/me', data).then((r) => r.data)
 
+export const changePassword = (data: { currentPassword: string; newPassword: string }) =>
+  http.put('/auth/password', data)
+
 // ----- Món ăn -----
 export const getCategories = (signal?: AbortSignal) =>
   http.get<Category[]>('/categories', { signal }).then((r) => r.data)
@@ -55,7 +58,6 @@ export const createOrder = (data: {
   phone: string
   address: string
   paymentMethod: string
-  note?: string
 }) => http.post<Order>('/orders', data).then((r) => r.data)
 
 export const getMyOrders = (signal?: AbortSignal) =>
@@ -67,7 +69,7 @@ export const cancelOrder = (id: number) => http.patch<Order>(`/orders/${id}/canc
 /** Thanh toán giả lập: khách tự xác nhận đã trả. */
 export const payOrder = (id: number) => http.patch<Order>(`/orders/${id}/pay`).then((r) => r.data)
 
-// ----- Địa chỉ -----
+// ----- Địa chỉ giao hàng -----
 export interface AddressPayload {
   label?: string
   receiverName: string
@@ -111,6 +113,12 @@ export const getReviews = (foodId: number, signal?: AbortSignal) =>
 export const createReview = (data: { foodId: number; rating: number; comment: string }) =>
   http.post<Review>('/reviews', data).then((r) => r.data)
 
+/** Sửa và xóa chỉ áp dụng cho đánh giá của chính người đang đăng nhập. */
+export const updateReview = (id: number, data: { rating: number; comment: string }) =>
+  http.put<Review>(`/reviews/${id}`, data).then((r) => r.data)
+
+export const deleteReview = (id: number) => http.delete(`/reviews/${id}`)
+
 // ----- Chatbot -----
 export const chat = (message: string, sessionId: string) =>
   http.post<{ reply: string; foods: FoodCard[] }>('/chatbot/chat', { message, sessionId }).then((r) => r.data)
@@ -123,20 +131,36 @@ export const adminSaveFood = (id: number | null, data: object) =>
 
 export const adminDeleteFood = (id: number) => http.delete(`/admin/foods/${id}`)
 
-export const adminSaveCategory = (id: number | null, name: string) =>
-  id ? http.put(`/admin/categories/${id}`, { name }) : http.post('/admin/categories', { name })
+export const adminSaveCategory = (id: number | null, data: { name: string; slug: string; imageUrl: string; description: string }) =>
+  id ? http.put(`/admin/categories/${id}`, data) : http.post('/admin/categories', data)
 
 export const adminDeleteCategory = (id: number) => http.delete(`/admin/categories/${id}`)
 
+export const adminUploadImage = (file: File) => {
+  const form = new FormData()
+  form.append('file', file)
+  return http.post<{ url: string }>('/admin/uploads/image', form).then((r) => r.data)
+}
+
 export const adminGetOrders = () => http.get<Order[]>('/admin/orders').then((r) => r.data)
 
-export const adminUpdateOrderStatus = (id: number, status: string) =>
-  http.patch(`/admin/orders/${id}/status`, { status })
+export const adminSaveOrder = (id: number | null, data: AdminOrderPayload) =>
+  id ? http.put(`/admin/orders/${id}`, data) : http.post('/admin/orders', data)
+
+export const adminDeleteOrder = (id: number) => http.delete(`/admin/orders/${id}`)
 
 export const adminUpdateOrderPayment = (id: number, paid: boolean) =>
   http.patch(`/admin/orders/${id}/payment`, null, { params: { paid } })
 
+export const adminUpdateOrderStatus = (id: number, status: string) =>
+  http.patch(`/admin/orders/${id}/status`, { status })
+
 export const adminGetUsers = () => http.get<User[]>('/admin/users').then((r) => r.data)
+
+export const adminSaveUser = (id: number | null, data: UserPayload) =>
+  id ? http.put(`/admin/users/${id}`, data) : http.post('/admin/users', data)
+
+export const adminDeleteUser = (id: number) => http.delete(`/admin/users/${id}`)
 
 export const adminSetUserActive = (id: number, active: boolean) =>
   http.patch(`/admin/users/${id}/active`, null, { params: { active } })

@@ -8,6 +8,7 @@ import com.foodordering.repository.*;
 import com.foodordering.service.*;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -59,8 +60,11 @@ public class AdminController {
 
     @DeleteMapping("/foods/{id}")
     public void deleteFood(@PathVariable Long id) {
-        // FoodService tự chặn món đã có trong đơn và trả về thông báo 409 rõ ràng.
-        foodService.delete(id);
+        try {
+            foodService.delete(id);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mon an dang nam trong don hang, khong the xoa");
+        }
     }
 
     // ----- Danh mục -----
@@ -74,7 +78,13 @@ public class AdminController {
     }
 
     @DeleteMapping("/categories/{id}")
-    public void deleteCategory(@PathVariable Long id) { categoryRepo.deleteById(id); }
+    public void deleteCategory(@PathVariable Long id) {
+        try {
+            categoryRepo.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Danh mục còn chứa món ăn, không thể xóa");
+        }
+    }
 
     // ----- Đơn hàng -----
     @GetMapping("/orders")
