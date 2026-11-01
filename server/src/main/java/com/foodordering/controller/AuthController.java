@@ -35,11 +35,16 @@ public class AuthController {
     }
 
     @PutMapping("/me")
-    public User updateMe(Authentication auth, @RequestBody UpdateProfileRequest req) {
+    public User updateMe(Authentication auth, @Valid @RequestBody UpdateProfileRequest req) {
         User u = userRepo.findByEmail(auth.getName()).orElseThrow();
         u.setFullName(req.fullName());
         u.setPhone(req.phone());
         u.setAddress(req.address());
         return userRepo.save(u);
+    }
+
+    @PutMapping("/password")
+    public void changePassword(Authentication auth, @Valid @RequestBody ChangePasswordRequest req) {
+        authService.changePassword(auth.getName(), req);
     }
 }
