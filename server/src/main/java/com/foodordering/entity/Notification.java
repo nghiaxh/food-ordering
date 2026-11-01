@@ -5,15 +5,19 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "notifications")
 @Getter @Setter @NoArgsConstructor
-public class KnowledgeDocument {
+public class Notification {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;
+    @ManyToOne(optional = false)
+    private User user;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(length = 1000)
     private String content;
+
+    private boolean read = false;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 }

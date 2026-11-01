@@ -1,29 +1,20 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Button, Input, InputNumber, List, Modal, Select, Table, Upload, message,
+  Alert, Input, InputNumber, Select, Table, message,
 } from 'antd'
-import { DeleteOutlined, InfoCircleOutlined, UploadOutlined } from '@ant-design/icons'
+import { InfoCircleOutlined } from '@ant-design/icons'
 import {
-  adminDeleteDocument, adminGetChatHistory, adminGetDocuments, adminGetSettings,
-  adminSaveSetting, adminUploadDocument,
+  adminGetChatHistory, adminGetSettings, adminSaveSetting,
 } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
-import type { ChatHistoryMessage, KnowledgeDocument } from '../../types'
+import type { ChatHistoryMessage } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import UiIcon from '../../components/UiIcon'
-import { EmptyState, PageSection } from './shared'
+import { PageSection } from './shared'
 import UiButton from '../../components/UiButton'
 
-function docExt(title: string): string {
-  return title.includes('.') ? title.split('.').pop()!.toUpperCase() : 'TXT'
-}
 
-function docMeta(d: KnowledgeDocument): string {
-  const size = (d.content.length / 1024).toFixed(1)
-  const date = new Date(d.createdAt).toLocaleDateString('vi-VN')
-  return `${docExt(d.title)} · ${size} KB · ${date}`
-}
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
@@ -78,23 +69,20 @@ function Thread({ messages }: { messages: ChatHistoryMessage[] }) {
 
 export default function AdminChatbotPage() {
   const [history, setHistory] = useState<ChatHistoryMessage[]>([])
-  const [documents, setDocuments] = useState<KnowledgeDocument[]>([])
-  const [uploading, setUploading] = useState(false)
   const [maxSuggestions, setMaxSuggestions] = useState(5)
   const [extraRules, setExtraRules] = useState('')
   const [provider, setProvider] = useState('gemini')
   const [model, setModel] = useState('')
 
   const { data, loading, error, refresh: fetchData } = useAsyncData(
-    () => Promise.all([adminGetChatHistory(), adminGetDocuments(), adminGetSettings()]),
+    () => Promise.all([adminGetChatHistory(), adminGetSettings()]),
     [],
   )
 
   useEffect(() => {
     if (!data) return
     setHistory(data[0])
-    setDocuments(data[1])
-    const settings = Object.fromEntries(data[2].map((item) => [item.settingKey, item.settingValue]))
+    const settings = Object.fromEntries(data[1].map((item) => [item.settingKey, item.settingValue]))
     setMaxSuggestions(Number(settings.max_suggestions ?? 5))
     setExtraRules(settings.extra_rules ?? '')
     setProvider(settings.provider ?? 'gemini')
@@ -120,8 +108,6 @@ export default function AdminChatbotPage() {
     ]),
   )
 
-  const { run: deleteDocument } = useAsyncAction((id: number) => adminDeleteDocument(id))
-
   const onSaveSettings = async () => {
     const res = await saveSettings()
     if (res.ok) {
@@ -132,15 +118,7 @@ export default function AdminChatbotPage() {
     }
   }
 
-  const onRemoveDocument = async (id: number) => {
-    const res = await deleteDocument(id)
-    if (res.ok) {
-      message.success('Đã xóa tài liệu')
-      void fetchData()
-    } else {
-      message.error(apiErrorMessage(res.error) ?? 'Xóa thất bại')
-    }
-  }
+
 
 
   return (
@@ -225,112 +203,6 @@ export default function AdminChatbotPage() {
           </UiButton>
         </div>
       </PageSection>
-
-      <PageSection
-        className="mb-6"
-        title="Tài liệu tri thức (RAG)"
-        subtitle="Tải lên file .pdf, .docx, .txt hoặc .md về món ăn, chính sách... AI sẽ dùng để trả lời chính xác hơn."
-        extra={
-          <Upload
-            accept=".pdf,.docx,.txt,.md"
-            showUploadList={false}
-            customRequest={async (options) => {
-              const file = options.file as unknown as File
-              if (!file) return
-              setUploading(true)
-              try {
-                await adminUploadDocument(file)
-                message.success('Đã upload tài liệu')
-                void fetchData()
-              } catch {
-                message.error('Upload thất bại')
-              } finally {
-                setUploading(false)
-              }
-            }}
-          >
-            <Button loading={uploading} icon={<UploadOutlined />}>
-              Upload tài liệu
-            </Button>
-          </Upload>
-        }
-      >
-        <List
-          dataSource={documents}
-          loading={loading}
-          locale={{
-            emptyText: (
-              <EmptyState
-                icon="file"
-                title="Chưa có tài liệu tri thức nào."
-                hint="Upload file .pdf, .docx, .txt hoặc .md để AI trả lời chính xác hơn."
-              />
-            ),
-          }}
-          renderItem={(d) => (
-            <List.Item
-              className="gap-3"
-              actions={[
-                <Button
-                  key="del"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() =>
-                    Modal.confirm({
-                      title: 'Xóa tài liệu?',
-                      centered: true,
-                      okText: 'Xóa',
-                      okButtonProps: { danger: true },
-                      cancelText: 'Hủy',
-                      onOk: () => onRemoveDocument(d.id),
-                    })
-                  }
-                >
-                  Xóa
-                </Button>,
-              ]}
-            >
-              <List.Item.Meta
-                avatar={
-                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-stone-100 text-stone-500">
-                    <UiIcon name="file" size={16} />
-                  </span>
-                }
-              }}
-            >
-              <Button loading={uploading} icon={<UploadOutlined />}>
-                Upload tài liệu
-              </Button>
-            </Upload>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-stone-500">
-            Tải lên file .txt, .md hoặc .pdf về món ăn, chính sách... AI sẽ dùng để trả lời chính xác hơn.
-          </p>
-          <List
-            className="mt-4 !max-w-xl"
-            dataSource={documents}
-            loading={loading}
-            locale={{ emptyText: 'Chưa có tài liệu nào. Hãy upload tài liệu đầu tiên.' }}
-            renderItem={(d) => (
-              <List.Item
-                actions={[
-                  <Popconfirm key="del" title="Xóa tài liệu?" onConfirm={() => onRemoveDocument(d.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />}>
-                      Xóa
-                    </Button>
-                  </Popconfirm>,
-                ]}
-              >
-                <List.Item.Meta
-                  title={d.title}
-                  description={`${d.content.length.toLocaleString('vi-VN')} ký tự · ${new Date(d.createdAt).toLocaleDateString('vi-VN')}`}
-                />
-              </List.Item>
-            )}
-          />
-        </div>
-      </PageCard>
 
       <PageCard>
         <div className="p-6">

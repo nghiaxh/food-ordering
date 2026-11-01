@@ -1,23 +1,31 @@
-﻿import { useState } from 'react'
-import { Empty, Form, Input, Radio, Skeleton, message } from 'antd'
-import { DeleteOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
+﻿import { useEffect, useState } from 'react'
+import { Button, Empty, Form, Input, Modal, Radio, Select, Skeleton, message } from 'antd'
+import { DeleteOutlined, EditOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
-import { createOrder } from '../api/api'
+import { createOrder, getAddresses, saveAddress } from '../api/api'
 import useAsyncAction from '../hooks/useAsyncAction'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import type { SavedAddress } from '../types'
 import { formatVND } from '../utils/format'
 import UiButton from '../components/UiButton'
-import UiImg from '../components/UiImg'
 
 const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255
+const REDIRECT_SECONDS = 3
 
 export default function CartPage() {
-  const { items, setQuantity, remove, clear, total } = useCartStore()
+  const { items, loaded, setQuantity, remove, clear, count, total } = useCartStore()
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const [ordering, setOrdering] = useState(false)
+  const [form] = Form.useForm()
+  const [addrForm] = Form.useForm()
+  const [addresses, setAddresses] = useState<SavedAddress[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [addressModal, setAddressModal] = useState(false)
+  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null)
+  const [savingAddress, setSavingAddress] = useState(false)
 
   const { run: submitOrder, pending: submitting } = useAsyncAction(
     (payload: {
@@ -26,33 +34,98 @@ export default function CartPage() {
       phone: string
       address: string
       paymentMethod: string
+      note?: string
     }) => createOrder(payload),
   )
 
-  const submit = async (v: {
+  useEffect(() => {
+    if (!user) return
+    getAddresses()
+      .then(setAddresses)
+      .catch(() => setAddresses([]))
+  }, [user])
+
+  useEffect(() => {
+    const address = addresses.find((a) => a.isDefault) ?? addresses[0]
+    if (address) applyAddress(address)
+  }, [addresses])
+
+  const selectedAddress = addresses.find((a) => a.id === selectedId) ?? null
+
+  const applyAddress = (address: SavedAddress) => {
+    setSelectedId(address.id)
+    form.setFieldsValue({
+      receiverName: address.receiverName,
+      phone: address.phone,
+      address: address.address,
+    })
+  }
+
+  const openAddressModal = (address?: SavedAddress) => {
+    setEditingAddress(address ?? null)
+    addrForm.resetFields()
+    if (address) addrForm.setFieldsValue({
+      label: address.label,
+      receiverName: address.receiverName,
+      phone: address.phone,
+      address: address.address,
+    })
+    setAddressModal(true)
+  }
+
+  const submitAddress = async (v: {
+    label?: string
     receiverName: string
     phone: string
     address: string
-    paymentMethod: string
-    note?: string
   }) => {
+    try {
+      setSavingAddress(true)
+      const saved = await saveAddress(editingAddress?.id ?? null, {
+        label: v.label?.trim() || undefined,
+        receiverName: v.receiverName.trim(),
+        phone: v.phone,
+        address: v.address.trim(),
+      })
+      setAddresses((prev) => {
+        const rest = prev.filter((a) => a.id !== saved.id)
+        return [saved, ...rest]
+      })
+      applyAddress(saved)
+      setEditingAddress(null)
+      addrForm.resetFields()
+      setAddressModal(false)
+      message.success('Đã lưu địa chỉ giao hàng')
+    } catch {
+      message.error('Không lưu được địa chỉ. Kiểm tra lại thông tin.')
+    } finally {
+      setSavingAddress(false)
+    }
+  }
+
+  const checkout = async (
+    v: {
+      receiverName: string
+      phone: string
+      address: string
+      paymentMethod: string
+      note?: string
+    },
+  ) => {
     if (!user) {
       message.warning('Vui lòng đăng nhập để đặt món')
       navigate('/login')
       return
     }
-    if (submitting || ordering) return
-    setOrdering(true)
+    if (submitting) return
     const res = await submitOrder({
       ...v,
       items: items.map((i) => ({ foodId: i.food.id, quantity: i.quantity })),
     })
-    setOrdering(false)
     if (res.ok) {
       await clear()
-      // Đặt xong thẳng sang trang đơn hàng để khách theo dõi được ngay, không qua màn hình chờ.
-      message.success('Đặt món thành công')
-      navigate('/orders')
+      setCountdown(REDIRECT_SECONDS)
+      setSuccessOpen(true)
     } else {
       message.error(
         typeof res.error === 'object' &&
@@ -67,6 +140,23 @@ export default function CartPage() {
     }
   }
 
+  // Modal phải nằm ngoài mọi nhánh return sớm: đặt xong giỏ bị xóa ngay nên component
+  // rơi vào nhánh "giỏ trống", đặt modal bên trong nhánh đó là modal không bao giờ hiện.
+  const successModal = (
+    <Modal open={successOpen} footer={null} closable={false} mask={{ closable: false }} keyboard={false} centered>
+      <div className="py-6 text-center">
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+          <CheckCircleOutlined style={{ fontSize: 30 }} />
+        </span>
+        <h2 className="mt-4 text-xl font-bold text-stone-900">Đặt món thành công</h2>
+        <p className="mt-1 text-sm text-stone-500">Quán sẽ sớm xác nhận yêu cầu của bạn.</p>
+        <Button type="primary" size="large" block className="mt-6" onClick={goToFoods}>
+          Về trang Thực đơn{autoRedirect ? ` (${countdown}s)` : ''}
+        </Button>
+      </div>
+    </Modal>
+  )
+
   if (!loaded) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">
@@ -77,138 +167,190 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-20 text-center">
-        <Empty description="Giỏ hàng của bạn đang trống">
-          <Link to="/">
-            <UiButton kind="primary">Khám phá thực đơn</UiButton>
-          </Link>
-        </Empty>
-      </div>
+      <>
+        <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+          <Empty description="Giỏ hàng của bạn đang trống">
+            <Link to="/foods">
+              <Button type="primary">Khám phá thực đơn</Button>
+            </Link>
+          </Empty>
+        </div>
+        {successModal}
+      </>
     )
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 pb-28">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight text-stone-900">Giỏ hàng &amp; Đặt món</h1>
+    <div className="mx-auto max-w-6xl px-4 py-10 pb-32">
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-stone-900">Giỏ hàng</h1>
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {/* Danh sách dòng món: đổi số lượng, xoá món và tổng tiền */}
+      <div className="mt-6 space-y-10 lg:flex lg:gap-8">
         <div className="flex-1 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60">
-          <div className="border-b border-stone-100 px-5 py-3 text-sm font-medium text-stone-500">
-            {count()} món trong giỏ
-          </div>
-          {items.map((i) => (
-            <div
-              key={i.food.id}
-              className="border-b border-stone-100 px-5 py-4 last:border-b-0 sm:flex sm:items-center sm:gap-4"
-            >
-              <div className="flex items-center gap-4 sm:min-w-0 sm:flex-1">
-                <Link to={`/foods/${i.food.id}`} className="shrink-0">
-                  <UiImg src={i.food.imageUrl} alt={i.food.name} className="h-20 w-20 rounded-xl" />
-                </Link>
-
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to={`/foods/${i.food.id}`}
-                    className="block truncate font-medium text-stone-800 hover:text-amber-700"
-                  >
-                    {i.food.name}
-                  </Link>
-                  <div className="mt-0.5 text-sm text-stone-500">{formatVND(i.food.price)} / phần</div>
-                  {!i.food.available && (
-                    <div className="mt-1 text-xs font-medium text-red-600">Hết món</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center justify-between gap-4 sm:mt-0 sm:shrink-0 sm:justify-end">
-                <div className="flex items-center rounded-full ring-1 ring-stone-200">
-                  <button
-                    type="button"
-                    aria-label="Giảm số lượng"
-                    disabled={i.quantity <= 1}
-                    onClick={() => setQuantity(i.food.id, i.quantity - 1)}
-                    className="flex h-11 w-11 items-center justify-center rounded-l-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <MinusOutlined style={{ fontSize: 12 }} />
-                  </button>
-                  <span className="w-10 text-center text-sm font-semibold tabular-nums">{i.quantity}</span>
-                  <button
-                    type="button"
-                    aria-label="Tăng số lượng"
-                    onClick={() => setQuantity(i.food.id, i.quantity + 1)}
-                    className="flex h-11 w-11 items-center justify-center rounded-r-full text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
-                  >
-                    <PlusOutlined style={{ fontSize: 12 }} />
-                  </button>
-                </div>
-
-                <div className="w-24 text-right font-semibold tabular-nums text-stone-900">
-                  {formatVND(i.food.price * i.quantity)}
-                </div>
-
-                <UiButton
-                  kind="icon"
-                  danger
-                  aria-label="Xóa món"
-                  icon={<DeleteOutlined />}
-                  onClick={() => remove(i.food.id)}
-                />
-              </div>
+          <Table
+            rowKey={(r) => r.food.id}
+            dataSource={items}
+            pagination={false}
+            columns={[
+              {
+                title: 'Món',
+                render: (_, r) => (
+                  <div className="flex items-center gap-3">
+                    <img src={r.food.imageUrl} alt={r.food.name} width={44} height={44} className="rounded-lg object-cover" />
+                    <Link to={`/foods/${r.food.id}`} className="font-medium text-stone-800 hover:text-amber-700">
+                      {r.food.name}
+                    </Link>
+                  </div>
+                ),
+              },
+              { title: 'Đơn giá', width: 120, render: (_, r) => formatVND(r.food.price) },
+              {
+                title: 'Số lượng',
+                width: 150,
+                render: (_, r) => (
+                  <InputNumber min={1} value={r.quantity} onChange={(v) => setQuantity(r.food.id, v ?? 1)} />
+                ),
+              },
+              { title: 'Thành tiền', width: 130, render: (_, r) => <b>{formatVND(r.food.price * r.quantity)}</b> },
+              {
+                title: '',
+                width: 60,
+                render: (_, r) => (
+                  <Button danger type="link" icon={<DeleteOutlined />} onClick={() => remove(r.food.id)} aria-label="Xóa" />
+                ),
+              },
+            ]}
+          />
+          <div className="border-t border-stone-100 px-6 py-4 text-right">
+            <div className="text-lg">
+              Tổng cộng: <b className="text-amber-700">{formatVND(total())}</b>
             </div>
           </div>
         </div>
 
-        {/* Biểu mẫu đặt món; nút gửi nằm ở thanh cố định đáy để chỉ có một CTA */}
+        {/* Checkout: nút gửi nằm ở thanh cố định đáy, form chỉ chứa dữ liệu */}
         <aside className="w-full shrink-0 lg:sticky lg:top-6 lg:w-96">
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200/60">
             <h2 className="text-lg font-bold text-stone-900">Thông tin giao hàng</h2>
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-stone-500">Địa chỉ đã lưu</span>
+                <UiButton kind="default" size="small" onClick={() => openAddressModal()}>
+                  Thêm địa chỉ
+                </UiButton>
+              </div>
+              {addresses.length > 0 ? (
+                <>
+                  <div className="mt-2 flex items-start gap-2">
+                    <Select
+                      className="min-w-0 flex-1"
+                      value={selectedId}
+                      placeholder="Chọn địa chỉ đã lưu"
+                      onChange={(id) => {
+                        const address = addresses.find((a) => a.id === id)
+                        if (address) applyAddress(address)
+                      }}
+                      options={addresses.map((a) => ({
+                        label: a.label || a.address,
+                        value: a.id,
+                      }))}
+                    />
+                    {selectedAddress && (
+                      <UiButton
+                        kind="icon"
+                        size="small"
+                        aria-label="Sửa địa chỉ đã chọn"
+                        icon={<EditOutlined />}
+                        onClick={() => openAddressModal(selectedAddress)}
+                      />
+                    )}
+                  </div>
+                  {selectedAddress && (
+                    <p className="mt-1.5 text-xs leading-relaxed text-stone-400">
+                      {selectedAddress.receiverName} · {selectedAddress.phone} · {selectedAddress.address}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="mt-2 rounded-xl border border-dashed border-stone-200 px-3 py-2 text-xs text-stone-400">
+                  Chưa có địa chỉ nào. Thêm để đặt món nhanh hơn.
+                </p>
+              )}
+            </div>
             <Form
+              form={form}
               id={CHECKOUT_FORM_ID}
               layout="vertical"
-              onFinish={submit}
+              onFinish={checkout}
               className="mt-4"
               initialValues={{ receiverName: user?.fullName, paymentMethod: 'COD' }}
             >
               <Form.Item name="receiverName" label="Người nhận" rules={[{ required: true, message: 'Nhập tên người nhận' }]}>
                 <Input />
               </Form.Item>
-              <Form.Item
-                name="phone"
-                label="Số điện thoại"
-                rules={[
-                  { required: true, message: 'Nhập số điện thoại' },
-                  { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' },
-                ]}
-              >
-                <Input placeholder="0900000000" />
-              </Form.Item>
-              <Form.Item name="address" label="Địa chỉ nhận món" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
+              <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true, message: 'Nhập số điện thoại' }]}>
                 <Input />
               </Form.Item>
-              {/* Nhóm nút chọn phương thức thanh toán, luôn hiển thị theo Bảng 2.22 */}
-              <Form.Item name="paymentMethod" label="Phương thức thanh toán (giả lập)">
+              <Form.Item name="address" label="Địa chỉ" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="paymentMethod" label="Thanh toán (giả lập)">
                 <Radio.Group className="flex flex-col gap-1">
                   <Radio value="COD">Tiền mặt khi nhận</Radio>
-                  <Radio value="BANK_TRANSFER">Chuyển khoản</Radio>
-                  <Radio value="E_WALLET">Ví điện tử</Radio>
+                  <Radio value="QR">Thanh toán bằng mã QR</Radio>
                 </Radio.Group>
               </Form.Item>
               <Form.Item
                 name="note"
                 label="Lưu ý cho quán"
-                extra="Ví dụ: ít cay, không hành, gọi trước 10 phút"
+                extra={<span className="block pt-1">Ví dụ: ít cay, không hành, gọi trước 10 phút</span>}
                 rules={[{ max: NOTE_MAX_LENGTH, message: `Lưu ý không được vượt quá ${NOTE_MAX_LENGTH} ký tự` }]}
               >
                 <Input.TextArea rows={3} showCount maxLength={NOTE_MAX_LENGTH} placeholder="Ghi chú thêm cho quán" />
               </Form.Item>
-              <p className="-mt-2 text-xs leading-relaxed text-stone-400">
-                Gọi hotline 0246.888.9999 hoặc email hello@foodordering.vn nếu cần hỗ trợ đơn.
-              </p>
             </Form>
           </div>
         </aside>
       </div>
+
+      <Modal
+        title={editingAddress ? 'Sửa địa chỉ' : 'Thêm địa chỉ'}
+        open={addressModal}
+        onCancel={() => {
+          setEditingAddress(null)
+          addrForm.resetFields()
+          setAddressModal(false)
+        }}
+        onOk={() => addrForm.submit()}
+        confirmLoading={savingAddress}
+        okText="Lưu"
+        cancelText="Hủy"
+      >
+        <Form form={addrForm} layout="vertical" className="mt-4" onFinish={submitAddress}>
+          <Form.Item
+            name="label"
+            label="Nhãn (ví dụ Nhà riêng, Cơ quan)"
+            rules={[{ max: 50, message: 'Nhãn tối đa 50 ký tự' }]}
+          >
+            <Input placeholder="Ví dụ: Nhà riêng" />
+          </Form.Item>
+          <Form.Item name="receiverName" label="Người nhận" rules={[{ required: true, message: 'Nhập tên người nhận' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="phone"
+            label="Số điện thoại"
+            rules={[
+              { required: true, message: 'Nhập số điện thoại' },
+              { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' },
+            ]}
+          >
+            <Input placeholder="0900000000" />
+          </Form.Item>
+          <Form.Item name="address" label="Địa chỉ nhận món" rules={[{ required: true, message: 'Nhập địa chỉ giao hàng' }]}>
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Thanh cố định đáy: tổng tiền và nút xác nhận duy nhất của trang */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur">
@@ -217,17 +359,20 @@ export default function CartPage() {
             <b className="font-semibold text-stone-900">Tổng cộng</b>
             <span className="ml-2 font-bold tabular-nums text-amber-700">{formatVND(total())}</span>
           </p>
-          <UiButton
-            kind="primary-lg"
+          <Button
+            type="primary"
             htmlType="submit"
             form={CHECKOUT_FORM_ID}
-            loading={submitting || ordering}
-            disabled={submitting || ordering}
+            size="large"
+            loading={submitting}
+            disabled={submitting}
           >
             Xác nhận đặt món
-          </UiButton>
+          </Button>
         </div>
       </div>
+
+      {successModal}
     </div>
   )
 }

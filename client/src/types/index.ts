@@ -49,17 +49,45 @@ export interface OrderItem {
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'COMPLETED' | 'CANCELLED'
 
+export type PaymentStatus = 'UNPAID' | 'PAID'
+
 export interface Order {
   id: number
   status: OrderStatus
   paymentMethod: string
+  paymentStatus: PaymentStatus
   total: number
   receiverName: string
   phone: string
   address: string
+  /** Ghi chú của khách cho quán; null hoặc rỗng nghĩa là không có. */
+  note?: string | null
   createdAt: string
   items: OrderItem[]
   user?: User
+}
+
+export interface CartItem {
+  food: Food
+  quantity: number
+}
+
+/** Địa chỉ đã lưu của user; đơn hàng vẫn chụp riêng thông tin giao hàng khi đặt. */
+export interface SavedAddress {
+  id: number
+  label: string
+  receiverName: string
+  phone: string
+  address: string
+  isDefault: boolean
+  createdAt: string
+}
+
+export interface NotificationItem {
+  id: number
+  content: string
+  read: boolean
+  createdAt: string
 }
 
 export interface Review {
@@ -78,6 +106,13 @@ export interface FoodCard {
   price: string
   imageUrl: string
   categoryName: string | null
+  /**
+   * Số phần khách cần để đủ cho số người ăn. Lớn hơn 1 khi khách nói rõ số người và khẩu
+   * phần của món nhỏ hơn số đó; server đã tính sẵn nên client không tự suy luận lại.
+   */
+  portions?: number
+  /** Tổng tiền của `portions` phần, dùng để khách thấy đúng số tiền phải trả. */
+  totalPrice?: string
 }
 
 export interface ChatMessage {
@@ -91,13 +126,6 @@ export interface ChatHistoryMessage {
   user: User | null
   sessionId: string
   sender: 'USER' | 'BOT'
-  content: string
-  createdAt: string
-}
-
-export interface KnowledgeDocument {
-  id: number
-  title: string
   content: string
   createdAt: string
 }

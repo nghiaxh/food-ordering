@@ -127,16 +127,6 @@ export default function AdminFoodsPage() {
               </div>
             ),
           }}
-          columns={[
-            {
-              title: 'Món',
-              render: (_, f) => (
-                <div className="flex items-center gap-3">
-                  <UiImg src={f.imageUrl} alt={f.name} imgClass="h-12 w-12 rounded-lg object-cover" />
-                  <span className="font-medium text-stone-800">{f.name}</span>
-                </div>
-              ),
-            }}
             columns={[
               {
                 title: 'Món',
@@ -202,7 +192,6 @@ export default function AdminFoodsPage() {
               },
             ]}
           />
-        )}
       </PageCard>
 
       <Modal

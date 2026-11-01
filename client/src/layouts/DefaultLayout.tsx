@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import HeaderGlobal from '../components/HeaderGlobal'
 import ChatbotWidget from '../components/ChatbotWidget'
+import ScrollTopButton from '../components/ScrollTopButton'
 
 /**
  * Layout phía khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân trang.
@@ -8,6 +10,9 @@ import ChatbotWidget from '../components/ChatbotWidget'
  * lại vẫn cuộn theo trang như bình thường.
  */
 export default function DefaultLayout() {
+  // Trạng thái mở chatbot nâng lên đây để ScrollTopButton biết mà tránh đè lên khung chat.
+  const [chatOpen, setChatOpen] = useState(false)
+
   return (
     <>
       <div className="flex min-h-screen flex-col bg-stone-50">
@@ -16,7 +21,8 @@ export default function DefaultLayout() {
           <Outlet />
         </main>
       </div>
-      <ChatbotWidget />
+      <ChatbotWidget open={chatOpen} onOpenChange={setChatOpen} />
+      <ScrollTopButton blocked={chatOpen} />
     </>
   )
 }

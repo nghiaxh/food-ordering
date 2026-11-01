@@ -23,4 +23,9 @@ app:
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   ai:
     api-key: ${AI_API_KEY}
+    # Mặc định khi quản trị viên chưa chọn trong trang Chatbot; xem AiClient.
+    provider: ${AI_PROVIDER:gemini}
     model: ${AI_MODEL:gemini-2.0-flash}
+  # Ảnh admin tải lên nằm ngoài classpath, được mount thành volume trong docker-compose.
+  upload:
+    dir: ${UPLOAD_DIR:uploads}
