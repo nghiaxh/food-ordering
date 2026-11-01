@@ -1,22 +1,20 @@
 package com.foodordering.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public class OrderDtos {
-    /**
-     * Hai phương thức thanh toán mà hệ thống hỗ trợ: `COD` (tiền mặt khi nhận) và `QR`
-     * (quét mã QR để chuyển khoản). Chặn theo danh sách này để đơn không mang phương thức lạ
-     * khiến màn hình không dịch được nhãn hiển thị.
-     */
-    public static final String PAYMENT_METHOD_PATTERN = "COD|QR";
+    /** Nhãn và mã phương thức thanh toán hợp lệ; COD (tiền mặt khi nhận) và QR (mã VietQR). */
+    public static final String PAYMENT_METHOD_PATTERN = "^(COD|QR)$";
 
-    public record OrderItemRequest(@NotNull Long foodId, @Min(1) int quantity) {}
+    public record OrderItemRequest(
+            @NotNull Long foodId,
+            @Min(1) int quantity) {}
 
     public record CreateOrderRequest(
             @NotEmpty List<OrderItemRequest> items,
