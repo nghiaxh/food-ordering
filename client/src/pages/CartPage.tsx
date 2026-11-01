@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react'
-import { Empty, Form, Input, Modal, Radio, Select, Skeleton, message } from 'antd'
+import { Button, Empty, Form, Input, Modal, Radio, Select, Skeleton, message } from 'antd'
 import { DeleteOutlined, EditOutlined, MinusOutlined, PlusOutlined } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { createOrder, getAddresses, saveAddress } from '../api/api'
@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import type { SavedAddress } from '../types'
 import { formatVND } from '../utils/format'
+import UiButton from '../components/UiButton'
 
 const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255

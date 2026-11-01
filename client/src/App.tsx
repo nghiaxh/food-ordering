@@ -1,18 +1,22 @@
-import { useEffect, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { ConfigProvider } from 'antd'
 import viVN from 'antd/locale/vi_VN'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
-import { useCartStore } from './store/cartStore'
 import DefaultLayout from './layouts/DefaultLayout'
-import HomePage from './pages/HomePage'
+import AdminLayout from './layouts/AdminLayout'
 import FoodsPage from './pages/FoodsPage'
 import FoodDetailPage from './pages/FoodDetailPage'
 import CartPage from './pages/CartPage'
 import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage, { RegisterPage } from './pages/AuthPages'
-import AdminPage from './pages/admin/AdminPage'
+import AdminFoodsPage from './pages/admin/AdminFoodsPage'
+import AdminCategoriesPage from './pages/admin/AdminCategoriesPage'
+import AdminOrdersPage from './pages/admin/AdminOrdersPage'
+import AdminCustomersPage from './pages/admin/AdminCustomersPage'
+import AdminChatbotPage from './pages/admin/AdminChatbotPage'
+import ScrollManager from './components/ScrollManager'
 
 function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const user = useAuthStore((s) => s.user)
@@ -27,29 +31,16 @@ function RequireAuth({ children, admin = false }: { children: ReactNode; admin?:
   return <>{children}</>
 }
 
-function CartSync() {
-  const user = useAuthStore((s) => s.user)
-  const load = useCartStore((s) => s.load)
-  const resetLocal = useCartStore((s) => s.resetLocal)
-
-  useEffect(() => {
-    if (user) {
-      void load()
-    } else {
-      resetLocal()
-    }
-  }, [user, load, resetLocal])
-
-  return null
-}
-
 function AppRoutes() {
   return (
     <Routes>
       <Route element={<DefaultLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/foods" element={<FoodsPage />} />
-        <Route path="/foods/:id" element={<FoodDetailPage />} />
+        {/* Bảng món là trang chủ; chi tiết món là route con nên hiện thành panel phủ
+            mà vẫn giữ URL thật để thẻ món trong chatbot liên kết được. */}
+        <Route path="/" element={<FoodsPage />}>
+          <Route path="foods/:id" element={<FoodDetailPage />} />
+        </Route>
+        <Route path="/foods" element={<Navigate to="/" replace />} />
         <Route path="/cart" element={<CartPage />} />
         <Route
           path="/orders"
@@ -69,14 +60,22 @@ function AppRoutes() {
         />
       </Route>
 
+      {/* Trang quản trị dùng layout riêng nên tách khỏi DefaultLayout của khách hàng. */}
       <Route
         path="/admin"
         element={
           <RequireAuth admin>
-            <AdminPage />
+            <AdminLayout />
           </RequireAuth>
         }
-      />
+      >
+        <Route index element={<Navigate to="/admin/foods" replace />} />
+        <Route path="foods" element={<AdminFoodsPage />} />
+        <Route path="categories" element={<AdminCategoriesPage />} />
+        <Route path="orders" element={<AdminOrdersPage />} />
+        <Route path="customers" element={<AdminCustomersPage />} />
+        <Route path="chatbot" element={<AdminChatbotPage />} />
+      </Route>
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -92,8 +91,6 @@ export default function App() {
       theme={{ token: { colorPrimary: '#d97706', borderRadius: 10, fontFamily: 'Inter Variable, sans-serif' } }}
     >
       <BrowserRouter>
-        <ScrollManager />
-        <CartSync />
         <AppRoutes />
       </BrowserRouter>
     </ConfigProvider>

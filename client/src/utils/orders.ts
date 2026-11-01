@@ -18,8 +18,8 @@ export const ORDER_STATUS_COLOR: Record<OrderStatus, string> = {
 
 /**
  * Nhãn phương thức thanh toán. Hệ thống chỉ hỗ trợ hai cách trả tiền: tiền mặt khi nhận
- * (`COD`) và quét mã QR (`QR`). Nhãn nằm ở một chỗ để trang khách và trang quản trị hiện
- * giống nhau, không lộ mã thôi ra giao diện.
+ * (`COD`) và quét mã QR (`QR`). Nhãn nằm ở một chỗ để trang khách và trang quản trị hiển
+ * thị giống nhau, không lệch.
  */
 export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   COD: 'Tiền mặt khi nhận',
@@ -33,8 +33,8 @@ export const PAYMENT_METHODS = [
 ]
 
 /**
- * Mã hoá đơn hiển thị cho khách và quản trị viên: tiền tố `FO` kèm id đệm 4 chữ số.
- * Một chỗ sinh mã để hai bên không lệch nhau; id do server cấp nên không cần đổi dữ liệu.
+ * Mã hóa đơn hiển thị cho khách và quản trị viên: tiền tố `FO` kèm id đệm 4 chữ số.
+ * Một chỗ sinh mã để hai bên không lệch nhau; id do server cấp nên không cần dữ liệu thêm.
  */
 export function orderCode(id: number): string {
   return `FO-${String(id).padStart(4, '0')}`

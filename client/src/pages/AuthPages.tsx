@@ -1,20 +1,15 @@
 import { useState } from 'react'
 import { Button, Checkbox, Form, Input, message } from 'antd'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login, register } from '../api/api'
 import { useAuthStore } from '../store/authStore'
-import { apiErrorMessage } from '../utils/api-error'
 import AuthShell from '../components/AuthShell'
+import UiIcon from '../components/UiIcon'
 
-function showAuthValidationError(errorFields: { errors?: string[] }[]): void {
-  const messages = errorFields.map((f) => f.errors?.[0]).filter((m): m is string => Boolean(m))
-  if (messages.length === 0) return
-  if (messages.length > 1) {
-    message.error('Vui lòng nhập đầy đủ thông tin')
-    return
-  }
-  message.error(messages[0])
-}
+const DEMO_ACCOUNTS = [
+  { label: 'admin@demo.com', value: 'admin123' },
+  { label: 'user@demo.com', value: 'user123' },
+]
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -33,27 +28,30 @@ export default function LoginPage() {
       const target = isAdmin ? '/admin' : from && from !== '/login' ? from : '/'
       message.success('Đăng nhập thành công!')
       navigate(target, { replace: true })
-    } catch (error) {
-      message.error(apiErrorMessage(error) ?? 'Đăng nhập thất bại')
+    } catch {
+      message.error('Email hoặc mật khẩu không đúng')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <AuthShell title="Đăng nhập">
-      <Form
-        layout="vertical"
-        onFinish={onFinish}
-        onFinishFailed={({ errorFields }) => showAuthValidationError(errorFields)}
-        requiredMark={false}
-        className="auth-form"
-      >
-        <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Vui lòng nhập email' }]}>
-          <Input size="middle" placeholder="ban@example.com" autoComplete="username" />
+    <AuthShell
+      icon="user"
+      title="Đăng nhập"
+      subtitle="Chào mừng quay lại FoodOrdering — đặt món ngon trong vài phút."
+    >
+      <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
+        <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Nhập email' }]}>
+          <Input size="large" prefix={<UiIconSpan name="envelope" />} placeholder="ban@example.com" autoComplete="username" />
         </Form.Item>
-        <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}>
-          <Input.Password size="middle" placeholder="••••••••" autoComplete="current-password" />
+        <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: 'Nhập mật khẩu' }]}>
+          <Input.Password
+            size="large"
+            prefix={<UiIconSpan name="user-lock" />}
+            placeholder="••••••••"
+            autoComplete="current-password"
+          />
         </Form.Item>
         <Form.Item className="mb-3">
           <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)}>
@@ -65,11 +63,22 @@ export default function LoginPage() {
         </Button>
       </Form>
 
-      <div className="mt-4 text-center text-sm text-stone-500">
+      <div className="mt-5 text-center text-sm text-stone-500">
         Chưa có tài khoản?{' '}
         <Link to="/register" className="font-semibold text-amber-700 hover:underline">
           Đăng ký ngay
         </Link>
+      </div>
+
+      <div className="mt-6 rounded-xl bg-stone-50 p-3 ring-1 ring-stone-100">
+        <p className="text-center text-xs text-stone-400">Tài khoản thử:</p>
+        <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
+          {DEMO_ACCOUNTS.map((a) => (
+            <span key={a.label} className="rounded-full bg-white px-2.5 py-0.5 text-[11px] text-stone-500 ring-1 ring-stone-200">
+              {a.label} / {a.value}
+            </span>
+          ))}
+        </div>
       </div>
     </AuthShell>
   )
@@ -91,42 +100,45 @@ export function RegisterPage() {
       await register(v)
       message.success('Đăng ký thành công! Vui lòng đăng nhập.')
       navigate('/login')
-    } catch (error) {
-      message.error(apiErrorMessage(error) ?? 'Đăng ký không thành công')
+    } catch {
+      message.error('Đăng ký không thành công. Có thể email đã tồn tại.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <AuthShell title="Đăng ký" maxWidth="max-w-[440px]">
-      <Form
-        layout="vertical"
-        onFinish={onFinish}
-        onFinishFailed={({ errorFields }) => showAuthValidationError(errorFields)}
-        requiredMark={false}
-        className="auth-form"
-      >
-        <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>
-          <Input size="middle" placeholder="Nguyễn Văn A" autoComplete="name" />
+    <AuthShell
+      icon="user-add"
+      maxWidth="max-w-[520px]"
+      title="Tạo tài khoản mới"
+      subtitle="Miễn phí · Đặt món nhanh hơn · Theo dõi đơn hàng của bạn."
+    >
+      <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
+        <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
+          <Input size="large" prefix={<UiIconSpan name="user" />} placeholder="Nguyễn Văn A" autoComplete="name" />
         </Form.Item>
         <div className="grid gap-x-3 sm:grid-cols-2">
           <Form.Item
             name="email"
             label="Email"
             rules={[
-              { required: true, message: 'Vui lòng nhập email' },
+              { required: true, message: 'Nhập email' },
               { type: 'email', message: 'Email không hợp lệ' },
             ]}
           >
-            <Input size="middle" placeholder="ban@example.com" autoComplete="email" />
+            <Input size="large" prefix={<UiIconSpan name="envelope" />} placeholder="ban@example.com" autoComplete="email" />
           </Form.Item>
-          <Form.Item name="phone" label="Số điện thoại">
-            <Input size="middle" placeholder="0968.xxx.xxx" autoComplete="tel" />
+          <Form.Item
+            name="phone"
+            label="Số điện thoại"
+            rules={[{ pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' }]}
+          >
+            <Input size="middle" placeholder="0900000000" autoComplete="tel" />
           </Form.Item>
         </div>
         <Form.Item name="address" label="Địa chỉ">
-          <Input size="middle" placeholder="Quận 1, TP. HCM" autoComplete="street-address" />
+          <Input size="large" prefix={<UiIconSpan name="map-marker" />} placeholder="Quận 1, TP. HCM" autoComplete="street-address" />
         </Form.Item>
         <Form.Item
           name="password"
@@ -134,10 +146,15 @@ export function RegisterPage() {
           hasFeedback
           rules={[
             { required: true, message: 'Vui lòng nhập mật khẩu' },
-            { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' },
+            { min: 8, message: 'Mật khẩu phải có ít nhất 8 ký tự' },
           ]}
         >
-          <Input.Password size="middle" placeholder="••••••••" autoComplete="new-password" />
+          <Input.Password
+            size="large"
+            prefix={<UiIconSpan name="user-lock" />}
+            placeholder="••••••••"
+            autoComplete="new-password"
+          />
         </Form.Item>
         <Form.Item
           name="confirm"
@@ -145,7 +162,7 @@ export function RegisterPage() {
           dependencies={['password']}
           hasFeedback
           rules={[
-            { required: true, message: 'Vui lòng nhập lại mật khẩu' },
+            { required: true, message: 'Nhập lại mật khẩu' },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 return !value || getFieldValue('password') === value
@@ -155,14 +172,19 @@ export function RegisterPage() {
             }),
           ]}
         >
-          <Input.Password size="middle" placeholder="••••••••" autoComplete="new-password" />
+          <Input.Password
+            size="large"
+            prefix={<UiIconSpan name="user-lock" />}
+            placeholder="••••••••"
+            autoComplete="new-password"
+          />
         </Form.Item>
         <Button type="primary" size="large" htmlType="submit" block loading={loading}>
           Đăng ký
         </Button>
       </Form>
 
-      <p className="mt-4 text-center text-sm text-stone-500">
+      <p className="mt-5 text-center text-sm text-stone-500">
         Đã có tài khoản?{' '}
         <Link to="/login" className="font-semibold text-amber-700 hover:underline">
           Đăng nhập
@@ -170,4 +192,8 @@ export function RegisterPage() {
       </p>
     </AuthShell>
   )
+}
+
+function UiIconSpan({ name }: { name: string }) {
+  return <UiIcon name={name} className="text-stone-400" />
 }
