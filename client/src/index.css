@@ -1,4 +1,16 @@
 @import "tailwindcss";
+@import "antd/dist/reset.css" layer(base);
+
+/*
+  AntD Image (CSS-in-JS) chèn `.ant-image .ant-image-img { width:100%; height:auto }`
+  ngoài cascade layer nên đè mọi class Tailwind. Ép ảnh luôn lấp đầy wrapper;
+  mọi kích thước đặt ở wrapper (xem UiImg), ảnh chỉ giữ object-fit.
+*/
+.ant-image .ant-image-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
 
 @theme {
   --font-heading: "Be Vietnam Pro", Inter, sans-serif;
@@ -26,9 +38,14 @@ h1, h2, h3, h4, h5, h6 {
   outline-color: #b45309;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 113, 108, 0.35) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -36,10 +53,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(180, 83, 9, 0.2);
+  background-color: rgba(120, 113, 108, 0.35);
   border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -72,4 +87,25 @@ html:has(.profile-page)::-webkit-scrollbar {
 
 .auth-form .ant-form-item-explain {
   display: none;
+}
+
+.auth-card {
+  animation: auth-card-in 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes auth-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card {
+    animation: none;
+  }
 }
