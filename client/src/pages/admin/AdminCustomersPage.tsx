@@ -96,8 +96,7 @@ export default function AdminCustomersPage() {
       data: {
         email: v.email.trim(),
         fullName: v.fullName.trim(),
-        phone: v.phone?.trim() ?? '',
-        address: v.address?.trim() ?? '',
+        phone: v.phone?.trim() || undefined,        address: v.address?.trim() ?? '',
         // Để trống khi sửa nghĩa là giữ mật khẩu cũ, không gửi lên.
         password: v.password?.trim() || undefined,
       },
