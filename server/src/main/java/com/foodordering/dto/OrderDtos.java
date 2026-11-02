@@ -21,7 +21,7 @@ public class OrderDtos {
     public record CreateOrderRequest(
             @NotEmpty List<OrderItemRequest> items,
             @NotBlank String receiverName,
-            @NotBlank String phone,
+            @NotBlank @Pattern(regexp = "^0\\d{9}$", message = "Số điện thoại phải gồm đúng 10 chữ số") String phone,
             @NotBlank String address,
             @NotBlank @Pattern(regexp = PAYMENT_METHOD_PATTERN, message = "Phương thức thanh toán không hợp lệ") String paymentMethod,
             @Size(max = 255, message = "Lưu ý không được vượt quá 255 ký tự") String note) {}
