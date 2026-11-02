@@ -11,15 +11,15 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 ## 1.1. Kế hoạch và mục tiêu kiểm thử
 
 ### Mục tiêu kiểm thử
-- **MT1 — Đầy đủ chức năng:** Đảm bảo toàn bộ luồng nghiệp vụ hoạt động trơn tru theo đặc tả (xác thực, thực đơn, giỏ hàng, tính giá/voucher, thanh toán mô phỏng, đơn hàng, quản trị món/combo/danh mục/khách hàng/báo cáo).
+- **MT1 — Đầy đủ chức năng:** Đảm bảo toàn bộ luồng nghiệp vụ hoạt động trơn tru theo đặc tả (xác thực, thực đơn, giỏ hàng, tính giá khuyến mãi tự động, thanh toán mô phỏng, đơn hàng, quản trị món/danh mục/khách hàng/báo cáo).
 - **MT2 — Toàn vẹn dữ liệu & Ràng buộc biên:** Dữ liệu tính toán từ server luôn chính xác (giá lấy từ DB, không tin client; tổng tiền voucher không âm; chuyển đổi trạng thái đơn 1 chiều).
 - **MT3 — Chatbot an toàn & tin cậy:** Chatbot AI tư vấn chuẩn xác từ thực đơn thật, **tuyệt đối không bịa món, bịa giá, hay bịa trạng thái phục vụ**; chuyển nhánh dự phòng (fallback) mượt mà khi AI timeout hoặc API key lỗi.
 - **MT4 — Phân quyền & Bảo mật:** Kiểm soát quyền hạn chặt chẽ ở cấp API backend (`SecurityConfig`), không phụ thuộc việc ẩn/hiện UI. Tài khoản bị khoá mất quyền tức thời.
 
 ### Môi trường và Dữ liệu mẫu (DataSeeder)
 - **Tài khoản quản trị:** `admin@demo.com` / `admin123` (vai trò `ADMIN`)
-- **Tài khoản khách hàng:** `user@demo.com` / `user1234` (vai trò `CUSTOMER`, đã có sẵn voucher `WELCOME` trong ví)
-- **Dữ liệu nạp sẵn:** 5 danh mục, 16 món ăn, 7 combo tiết kiệm, 3 voucher mã (`WELCOME`, `LUCKY15`, `HOLIDAY10`), 2 chương trình khuyến mãi tự động ("Cuối tuần mát lạnh", "Món may mắn hôm nay"), 3 đơn hàng mẫu (`COMPLETED`, `PREPARING`, `PENDING`), 2 đánh giá mẫu.
+- **Tài khoản khách hàng:** `user@demo.com` / `user1234` (vai trò `CUSTOMER`)
+- **Dữ liệu nạp sẵn:** 5 danh mục, 16 món ăn, 2 chương trình khuyến mãi tự động ("Cuối tuần mát lạnh", "Món may mắn hôm nay"), 3 đơn hàng mẫu (`COMPLETED`, `PREPARING`, `PENDING`), 2 đánh giá mẫu.
 
 ---
 
@@ -52,7 +52,6 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-MENU-02 | Lọc theo danh mục | Trang chủ `/` | Bấm chọn danh mục "Món Việt" | URL cập nhật `?category=Mon+Viet`, chỉ hiển thị các món thuộc danh mục đã chọn | | |
 | TC-MENU-03 | Tìm kiếm theo từ khóa & Giá | Trang chủ `/` | Nhập từ khóa "bún", lọc khoảng giá 50.000đ - 100.000đ | Lưới món lọc đúng các món chứa từ khóa trong tên và nằm trong khoảng giá | | |
 | TC-MENU-04 | Xem chi tiết món ăn | Có món "Phở bò" | Bấm vào thẻ "Phở bò" | Mở Drawer chi tiết món (`/foods/:id`), hiện mô tả, thành phần, cảnh báo dị ứng, đánh giá sao | | |
-| TC-MENU-05 | Xem danh sách & chi tiết Combo | Có danh sách Combo | Bấm chip "Combo tiết kiệm", chọn "Combo Phở bò + Trà đào" | Mở Drawer chi tiết combo (`/combos/:id`), hiện các món thành phần, tổng giá gốc và số tiền tiết kiệm | | |
 | TC-MENU-06 | Món ngừng phục vụ | Món có `available = false` | Xem món trên thực đơn | Thẻ món hiển thị nhãn "Hết món", nút "Thêm vào giỏ" bị vô hiệu hoá | | |
 
 ### 1.2.3. Giỏ hàng & Định giá Khuyến mãi (UC09 – UC12, PricingService)
@@ -61,14 +60,8 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
 | TC-CART-01 | Thêm món vào giỏ | Món còn phục vụ | Bấm "Thêm vào giỏ" món Phở bò | Giỏ tăng 1, thanh Bottom Cart Bar hiển thị tổng tiền cập nhật đúng | | |
 | TC-CART-02 | Tăng số lượng món trùng | Giỏ đã có Phở bò (1) | Bấm thêm Phở bò lần nữa | Giỏ cập nhật dòng Phở bò thành số lượng 2 (không tạo dòng trùng lặp) | | |
-| TC-CART-03 | Thêm Combo vào giỏ | Combo còn phục vụ | Thêm 1 combo vào giỏ | Giỏ hiển thị dòng combo với đúng đơn giá combo trong DB | | |
 | TC-CART-04 | Cập nhật số lượng / Xoá dòng | Giỏ có món | Tăng/giảm số lượng hoặc bấm xoá dòng | Tổng tiền giỏ hàng cập nhật tương ứng theo thời gian thực | | |
 | TC-CART-05 | Khuyến mãi tự động (Auto-promo) | Thứ Bảy/Chủ Nhật, có CT "Cuối tuần mát lạnh" (-20% đồ uống) | Thêm 1 đồ uống và 1 món ăn vào giỏ | Đồ uống được giảm 20%, món ăn giữ nguyên giá; chiết khấu hiển thị theo dòng | | |
-| TC-CART-06 | Áp voucher hợp lệ từ ví | Khách có `WELCOME` trong ví, giỏ ≥ 100.000đ | Nhập mã `WELCOME` tại bước thanh toán | Trừ 20.000đ vào tổng đơn, hiển thị rõ số tiền giảm và tổng cần thanh toán | | |
-| TC-CART-07 | Áp voucher chưa nhận vào ví | Voucher claimable nhưng ví chưa có | Nhập mã voucher chưa nhận | HTTP 400, thông báo "Bạn chưa nhận voucher này" | | |
-| TC-CART-08 | Áp voucher đã qua sử dụng | Voucher đã có `usedAt != null` | Nhập mã voucher đã dùng ở đơn trước | HTTP 400, thông báo "Voucher này đã được dùng" | | |
-| TC-CART-09 | Voucher không đủ điều kiện tối thiểu | Đơn < 100.000đ, voucher min 100.000đ | Nhập mã voucher | HTTP 400, thông báo đơn hàng chưa đạt giá trị tối thiểu | | |
-| TC-CART-10 | Voucher vượt quá tổng tiền | Đơn 15.000đ, voucher giảm 30.000đ | Áp dụng voucher | Tổng đơn giảm về đúng 0đ, không bao giờ xảy ra tổng tiền âm | | |
 
 ### 1.2.4. Đặt hàng & Vòng đời Đơn hàng (UC12 – UC16, UC30 – UC31)
 
@@ -111,7 +104,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-ADM-05 | Chuyển trạng thái đơn 1 chiều | Đơn đang ở `PENDING` | Chuyển `PENDING -> CONFIRMED -> PREPARING -> COMPLETED` | Trạng thái chuyển thành công tuần tự; cố nhảy cóc bị trả lỗi HTTP 400 | | |
 | TC-ADM-06 | Khoá / Mở khoá khách hàng | Khách hàng vi phạm | Nhấn nút khoá tài khoản khách | Khách bị khoá không thể đăng nhập, token hiện tại bị vô hiệu hoá | | |
 | TC-ADM-07 | Bảo vệ tài khoản Quản trị | Tài khoản mục tiêu là `ADMIN` | Cố gắng khoá hoặc xoá admin khác | HTTP 400, hệ thống từ chối thao tác trên tài khoản quản trị | | |
-| TC-ADM-08 | Quản lý khuyến mãi & Combo | Đăng nhập Admin | Tạo combo mới hoặc cấu hình tỷ lệ giảm giá voucher | CSDL cập nhật, áp dụng chuẩn xác ngay trong các lượt tính giá tiếp theo | | |
+| TC-ADM-08 | Quản lý khuyến mãi tự động | Đăng nhập Admin | Tạo/sửa chương trình khuyến mãi tự động | CSDL cập nhật, áp dụng chuẩn xác ngay trong các lượt tính giá tiếp theo | | |
 | TC-ADM-09 | Báo cáo doanh thu & Xuất file | Đăng nhập Admin | Vào `/admin/reports`, chọn khoảng ngày và bấm "Xuất Excel" | Tải về file `.xlsx` thống kê đúng doanh thu, số đơn và top món bán chạy | | |
 
 ---
@@ -122,7 +115,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 
 Kiểm thử tự động backend tập trung vào việc bảo vệ các thuật toán lõi và nghiệp vụ biên phức tạp mà không phụ thuộc vào hạ tầng bên ngoài (chạy độc lập, không cần Docker/DB):
 - **ChatbotServiceTest:** Kiểm chứng việc áp tiêu chí lọc món xác định bằng code Java, đảm bảo AI không bịa món/giá, và kiểm tra cơ chế fallback.
-- **PricingServiceTest:** Kiểm chứng quy tắc trừ tiền, phân bổ voucher cố định không lệch xu nào, kiểm tra ràng buộc ví voucher và đơn tối thiểu.
+- **PricingServiceTest:** Kiểm chứng quy tắc giảm giá tự động theo từng dòng, chọn chương trình tốt nhất và chặn giảm giá vượt tổng tiền.
 - **OrderDtosValidationTest:** Kiểm chứng ràng buộc biên DTO đầu vào của đơn hàng (whitelist phương thức thanh toán, độ dài ghi chú, giỏ rỗng).
 
 ### 2.1.1. Lệnh thực thi kiểm thử Server
@@ -654,7 +647,7 @@ test.describe('E2E - Luồng Đặt món & Thanh toán', () => {
     await page.waitForURL('/');
   });
 
-  test('Thêm món vào giỏ, áp voucher và đặt hàng COD thành công', async ({ page }) => {
+  test('Thêm món vào giỏ và đặt hàng COD thành công', async ({ page }) => {
     // 1. Thêm món Phở bò vào giỏ
     const phoCard = page.locator('.food-card', { hasText: 'Phở bò' }).first();
     await phoCard.locator('button', { hasText: 'Thêm' }).click();

@@ -129,7 +129,7 @@ lệch nhau.
   nhất theo số tiền giảm, hoà thì xét `priority`. Không cộng dồn hai chương trình tự động trên
   cùng một dòng, nên hoá đơn đọc một lần là hiểu.
 - **Phạm vi** `GLOBAL`, `CATEGORY`, `FOOD` quyết định chương trình có áp cho dòng đó
-  không (`matches`). Chương trình theo danh mục chỉ khớp món, không khớp combo.
+  không (`matches`). Chương trình theo danh mục chỉ khớp món.
 - **Khuyến mãi theo dịp** dùng `daysOfWeek` (ví dụ `SAT,SUN`) và `startTime/endTime`; khung giờ
   qua nửa đêm được hiểu là `start > end`.
 - **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
@@ -228,7 +228,7 @@ Hai nhóm dùng hai layout riêng, đúng yêu cầu "tách riêng trang quản 
 - `DefaultLayout` bọc route khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân
   trang. Trang bảng món tự khoá chiều cao `100dvh - 4rem` và cuộn trong vùng riêng.
 - `AdminLayout` bọc `/admin/*`: menu trái chia nhóm Bán hàng (Tổng quan, Đơn hàng, Khách hàng),
-  Thực đơn (Món ăn, Danh mục, Combo), Marketing (Khuyến mãi), Hệ thống (Chatbot, Báo cáo);
+  Thực đơn (Món ăn, Danh mục), Marketing (Khuyến mãi), Hệ thống (Chatbot, Báo cáo);
   thu gọn thành drawer ở màn hình nhỏ. Vào `/admin` mặc định mở `/admin/dashboard`. Route admin
   không nằm trong `DefaultLayout`, nên không có khung chatbot hay thanh điều hướng của khách.
 
@@ -245,12 +245,9 @@ từ `/api/admin/reports/*` tính trong 30 ngày gần nhất. Doanh thu trên t
 Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang chủ / Thực đơn" làm một
 màn hình:
 
-- **Không còn khối combo/danh mục riêng**: cả hai gộp vào bảng món. Chip **Combo tiết kiệm** nằm
-  ngay sau "Tất cả" trong hàng chip; bấm vào thì lưới đổi sang thẻ combo cùng khung với thẻ món
-  (ảnh `16/10`, giá đã giảm, nhãn `-N%`, nút "Thêm combo", cả thẻ mở `/combos/:id`). Dải lọc giá
-  áp cho cả combo (so trên `combo.price`, hai đầu tính là thuộc dải, giống `greaterThanOrEqualTo`
-  và `lessThanOrEqualTo` của server); không có combo nào trong dải thì hiện thông báo trống.
-- Panel chi tiết (món và combo) dùng ảnh `4/3` trên mobile, `2/1` từ `sm` để không chiếm gần hết
+- **Không còn khối danh mục riêng**: danh mục hiện là chip lọc ngang trên bảng món, còn toàn bộ
+  món hiển thị trong một lưới chung với phân trang 12 món mỗi trang.
+- Panel chi tiết món dùng ảnh `4/3` trên mobile, `2/1` từ `sm` để không chiếm gần hết
   chiều cao Drawer trên desktop.
 - **Không còn khối voucher trên trang chủ**: voucher chào mừng tự vào ví, mã đã nhận chọn ở bước
   thanh toán trong giỏ. API nhận voucher và quà may mắn vẫn còn ở server nhưng hiện không có nút
@@ -272,11 +269,10 @@ Thẻ món được nén để nhìn thấy được nhiều món hơn trên m�
 sẽ xuống dòng thay vì tràn. Đo ở cửa sổ 848×670: chiều cao thẻ 444px xuống 285px, vùng lưới
 tăng từ 546px lên 614px.
 
-`/foods/:id` và `/combos/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`)
-chứ không phải trang riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật
-để thẻ món trong chatbot liên kết được, và nút quay lại của trình duyệt đóng được panel. Hai panel
-dùng chung bố cục: ảnh 4/3, giá và trạng thái, mô tả, lưới thông số, hàng số lượng + tổng tiền +
-nút thêm; combo thay phần đánh giá bằng danh sách món trong combo và dòng tiết kiệm so với gọi lẻ.
+`/foods/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`) chứ không phải trang
+riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật để thẻ món trong
+chatbot liên kết được, và nút quay lại của trình duyệt đóng được panel. Panel dùng bố cục: ảnh
+4/3, giá và trạng thái, mô tả, lưới thông số, hàng số lượng + tổng tiền + nút thêm.
 URL cũ `/foods` chuyển hướng về `/`.
 
 ### Thanh điều hướng và hệ nút
