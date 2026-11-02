@@ -12,8 +12,14 @@ http.interceptors.request.use((config) => {
     localStorage.getItem('auth') ??
     sessionStorage.getItem('auth')
   if (raw) {
-    const { token } = JSON.parse(raw) as { token: string }
-    config.headers.Authorization = `Bearer ${token}`
+    try {
+      const { token } = JSON.parse(raw) as { token: string }
+      if (token) config.headers.Authorization = `Bearer ${token}`
+    } catch {
+      // Storage hỏng không được làm hỏng mọi request; dọn sạch và coi như chưa đăng nhập.
+      localStorage.removeItem('auth')
+      sessionStorage.removeItem('auth')
+    }
   }
   return config
 })
