@@ -139,7 +139,7 @@ public class AuthService {
                     "Không xoá được: khách đã có " + String.join(" và ", parts)
                             + ". Hãy khoá tài khoản để giữ lịch sử.");
         }
-        // Giỏ và thông báo là dữ liệu phụ nên xoá theo; tin nhắn chatbot vẫn giữ để lịch sử hội thoại.
+        // Giỏ, thông báo và tin nhắn chatbot là dữ liệu phụ nên xoá theo tài khoản.
         cartItemRepo.deleteByUserId(id);
         chatRepo.deleteByUserId(id);
         notificationRepo.deleteByUserId(id);
