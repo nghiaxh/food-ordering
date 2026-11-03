@@ -365,13 +365,13 @@ public class ChatbotService {
         try {
             return ai.generate(String.format(ANSWER_PROMPT, extraRules()), data.toString(), false);
         } catch (Exception e) {
-            // Trả null để lớp gọi biết phải rơi sang nhánh dự phòng RAG thay vì câu báo lỗi.
+            // Trả null để lớp gọi biết lượt này không có câu trả lời AI và rơi sang nhánh dự phòng.
             return null;
         }
     }
 
     // ---------------------------------------------------------------------------------------
-    // Nhánh dự phòng: không gọi được AI thì lấy món bằng code và dựng câu trả lời từ RAG.
+    // Nhánh dự phòng: không gọi được AI thì lấy món bằng code và dựng câu trả lời từ dữ liệu món thật.
     // ---------------------------------------------------------------------------------------
 
     /** Từ khóa bỏ qua khi chấm điểm món: chúng nói về cách hỏi chứ không nói về món. */
