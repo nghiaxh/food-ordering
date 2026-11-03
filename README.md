@@ -31,7 +31,7 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 ### Quản trị
 - Tổng quan nhanh (doanh thu, đơn chờ, món bán chạy), duyệt đơn ngay trên dashboard
 - Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
-- Quản lý khuyến mãi / voucher (giảm theo toàn thực đơn, danh mục, món hoặc combo)
+- Quản lý khuyến mãi tự động (giảm theo toàn thực đơn, danh mục hoặc món; theo dịp, ngày trong tuần và khung giờ)
 - Cấu hình chatbot (nhà cung cấp AI, mô hình, số món gợi ý, quy tắc bổ sung) và xem lịch sử hội thoại
 - Báo cáo doanh thu có biểu đồ, top món và xuất Excel
 - Tải ảnh món / danh mục lên server (JPG/PNG/WEBP ≤ 2 MB)
@@ -103,7 +103,7 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 | Client | React 19 + TypeScript 7, Vite 8, Ant Design 6, Zustand 5, Axios, React Router 7 |
 | Server | Spring Boot 3.5 (Java 25), Spring Security + JWT, Spring Data JPA |
 | Database | PostgreSQL 18 |
-| AI | Gemini API (gọi qua REST, class `AiClient`) |
+| AI | Gemini / OpenAI API (gọi qua REST, class `AiClient`) |
 | Hạ tầng | Docker Compose (1 file, 2 profile: `dev` / `prod`) |
 
 ## Kiểm tra nhanh
