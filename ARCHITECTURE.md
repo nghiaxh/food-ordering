@@ -1,18 +1,18 @@
 # Kiến trúc FoodOrdering
 
-Tài liệu mô tả cách FoodOrdering vận hành: các thành phần, luồng dữ liệu, xác thực, chatbot và những quy ước quan trọng khi làm việc.
+Mô tả ngắn gọn cách FoodOrdering vận hành và các quy ước quan trọng. Chi tiết ca kiểm thử xem [TEST.md](TEST.md).
 
 ## Tổng quan
 
-FoodOrdering là ứng dụng **đặt món trực tuyến** theo mô hình monorepo gồm client và server. Điểm khác biệt là **trợ lý AI** tư vấn món ăn theo ngôn ngữ tự nhiên, gợi ý luôn nằm trong thực đơn thật và đặt được ngay.
+Ứng dụng **đặt món trực tuyến** theo mô hình monorepo client–server. Điểm khác biệt: trợ lý AI
+tư vấn món theo ngôn ngữ tự nhiên, gợi ý luôn nằm trong thực đơn thật và đặt được ngay.
 
 ```
-┌──────────────────┐       VITE_API_URL (Bearer JWT)       ┌──────────────────────┐
-│  Vite SPA client │  ───────────────────────────────────▶  │  Spring Boot server  │
-│(React + antd 6)  │  ◀───────────────────────────────────  │  Java 25 + JPA       │
-└──────────────────┘                                        └──────────┬───────────┘
-                                                                             │
-                                                       PostgreSQL 18 (ddl-auto: update)
+┌──────────────────┐     VITE_API_URL (Bearer JWT)      ┌──────────────────────┐
+│  Vite SPA client │ ─────────────────────────────────▶ │  Spring Boot server   │
+│ (React + antd)   │ ◀───────────────────────────────── │  Java 25 + JPA        │
+└──────────────────┘                                    └──────────┬───────────┘
+                                                              PostgreSQL 18
 ```
 
 - **client/**: React 19 + TypeScript 7 + Vite 8 + Ant Design 6 + Zustand 5 + Axios + React Router 7. SPA thuần, không SSR. UI tiếng Việt. `client/src/api/http.ts` dùng `VITE_API_URL` làm `baseURL` (mặc định `http://localhost:8080/api`). Vite hiện không có proxy `/api`; nginx ở prod chỉ phục vụ static SPA và fallback route.
@@ -144,10 +144,10 @@ lệch nhau.
 Trợ lý AI dùng **hai lượt gọi AI, bốn bước xử lý** để AI không bao giờ tự nghĩ ra món hoặc giá:
 
 ```
-Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, jsonMode]
-           → (2) Server truy vấn DB và lọc món bằng code xác định
+Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, jsonMode]
+           → (2) Server truy vấn DB, lọc món bằng code xác định
            → (3) AI viết câu trả lời dựa TRÊN DANH SÁCH MÓN THẬT
-           → (4) Thẻ món trả về client luôn lấy ID từ DB, không từ text AI
+           → (4) Thẻ món trả về client lấy ID/giá từ DB, không từ text AI
 ```
 
 - Lượt AI đầu tiên trích xuất tiêu chí dưới dạng JSON; server lọc `Food` bằng code và chỉ
@@ -336,98 +336,49 @@ không có code kiểm chứng.
 
 ## Cấu trúc mã nguồn
 
-### Server (server/src/main/java/com/foodordering/)
-
 ```
-FoodOrderingApplication.java   entry point
-config/        cấu hình (AppProperties, DataSeeder, SecurityConfig liên quan)
-security/      JwtUtil, JwtFilter
-entity/        JPA entities
-repository/    Spring Data JPA repositories
-dto/           request/response payloads (đồng bộ thủ công với types client)
-service/       nghiệp vụ chính (FoodService, OrderService, CartService, PromotionService,
-               PricingService, ReportService, AuthService, ChatbotService, AiClient)
-controller/    mapping và điều phối request dưới /api/...
-```
+server/src/main/java/com/foodordering/
+  config/  cấu hình (AppProperties, DataSeeder, WebConfig, SecurityConfig)
+  security/ JwtUtil, JwtFilter
+  entity/  JPA entities
+  repository/  Spring Data JPA repositories
+  dto/     request/response (đồng bộ thủ công với types client)
+  service/ nghiệp vụ (OrderService, CartService, PricingService, PromotionService,
+           ChatbotService, AiClient, ReportService, AuthService, FoodService)
+  controller/  mapping dưới /api/...
 
-### Client (client/)
-
-```
-src/
-  main.tsx         bootstrap SPA, render root
-  App.tsx          layout gốc và router
-  api/             lớp HTTP và hàm gọi từng endpoint
-  components/      component dùng chung (ChatbotWidget...)
-  data/            dữ liệu tĩnh cho trang giới thiệu/marketing
-  hooks/           hook xử lý request và thao tác bất đồng bộ
-  layouts/         layout dùng chung cho các nhóm route
-  pages/           trang theo route (auth, foods, cart, orders, admin...)
-  store/           Zustand stores (authStore, cartStore)
-  types/           TS interfaces phản ánh DTO backend (giữ đồng bộ thủ công)
-  utils/           hàm tiện ích dùng chung
-  index.css        style gốc của SPA
-index.html         entry HTML
-vite.config.ts     React plugin, dev server (usePolling cho Docker; không có proxy /api)
-nginx.conf         prod: serve dist/ và fallback về index.html
+client/src/
+  main.tsx  App.tsx(router)  api/  store/(Zustand)  types/  components/
+  pages/    layouts/  hooks/  utils/  index.css
 ```
 
-## Điểm quan trọng khi làm việc
+Sửa DTO phải cập nhật cả `client/src/types/index.ts` và `client/src/api/api.ts`.
 
-- **Không dùng Flyway**: `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); **seed chỉ chạy khi bảng `users` còn trống** (`if (userRepo.count() > 0) return;`), nên lần khởi động sau sẽ bỏ qua toàn bộ seed và không nhân đôi dữ liệu demo.
-- **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
-- **Tiền chỉ tính ở `PricingService`**: giỏ gọi `POST /api/cart/quote`, đơn gọi cùng service đó
-  lúc tạo. Client không nhân phần trăm hay trừ voucher; thêm quy tắc giảm giá thì sửa
-  `PricingService` và bổ sung ca trong `PricingServiceTest`, đừng tính lại ở React.
-- **Đồng bộ types**: `client/src/types/index.ts` phải song song với DTO server. Sửa DTO nhớ cập nhật cả hai phía.
-- **AI gọi một nơi duy nhất**: `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép JSON). Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không bao giờ gửi xuống client.
-- **Ảnh món**: seed dùng ảnh demo cục bộ trong `client/public/images` (đường dẫn tương đối, resolve ở client origin), toàn bộ là `.webp` đã resize theo ô hiển thị. Admin tải ảnh lên qua `POST /api/admin/uploads/image` hoặc dán URL ngoài trong form quản lý; ảnh tải lên có URL tuyệt đối trỏ vào `/api/uploads/**`.
-- **`JwtFilter` nuốt exception** token không hợp lệ (coi như chưa đăng nhập) - đừng log token.
-- **Phân trang `/`**: cắt trang phía client 12 món mỗi trang sau khi đã sắp xếp (`PAGE_SIZE` trong `FoodsPage`). Đổi page size thì nhớ kẹp `page` vào `totalPages`.
-- **Bộ lọc nằm trên URL**: `FoodsPage` đọc `category`, `keyword`, `min`, `max` từ `useSearchParams`, không giữ state lọc cục bộ. Thêm bộ lọc mới thì nhớ thêm khoá vào `patch()`.
-- **`useHasCartBar` tính theo đường dẫn**: bảng món giờ là `/` (không phải `/foods`). Thêm trang mới có thanh giỏ ghim đáy thì cập nhật hook này, nếu không nút mở chatbot sẽ bị thanh giỏ che.
-- **Sửa DTO phải cập nhật cả hai phía**: `client/src/types/index.ts` và hàm gọi trong `client/src/api/api.ts`. Sửa đánh giá dùng DTO riêng `UpdateReviewRequest` không có `foodId` vì sửa đánh giá không đổi món.
-- **Comment và tài liệu**: comment tiếng Việt nên giải thích ràng buộc, nguồn dữ liệu, vòng đời state hoặc fallback; không lặp lại cú pháp. Khi đổi hợp đồng API hoặc quy tắc domain, cập nhật đồng bộ tài liệu kiến trúc và test.
-- **Thanh giỏ cố định đáy**: `/foods` (khi giỏ có món), `/foods/:id` và `/cart` đều có thanh `fixed bottom-0`. Mọi trang đó phải chừa padding đáy, và mọi nút nổi (`ChatbotWidget`, `ScrollTopButton`) phải hỏi `useHasCartBar()` để nhảy lên cao hơn thanh. Thêm trang mới có thanh cố định thì cập nhật hook này.
-- **Trang Thực đơn là trang chủ**: route `/` render `FoodsPage`, `/foods/:id` là route con hiện
-  thành panel phủ, `/foods` chuyển hướng về `/`. Trang bảng món cuộn trong vùng riêng nên
-  `ScrollManager` chỉ còn việc đưa `window.scrollTo(0)` khi đổi trang (dùng cho `/cart`,
-  `/orders`, `/profile` vẫn cuộn theo trang).
+## Môi trường & chạy
 
-## Phát triển local (profile dev)
+Bí mật nằm trong một file `.env` ở root (copy từ `.env.example`): `DB_NAME`, `DB_USER`,
+`DB_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_MODEL`. Compose tự dựng
+`DB_URL`; `AI_PROVIDER` mặc định `gemini`, `UPLOAD_DIR=/app/uploads` trong container.
+`mvn spring-boot:run` **không tự đọc `.env`** — phải export tay hoặc chạy qua compose.
 
-```bash
-docker compose --profile dev up --build
-```
+- Dev: `docker compose --profile dev up --build` (client http://localhost:5173, server :8080)
+- Prod: `docker compose --profile prod up --build -d` (client http://localhost)
+- `docker compose up` (không profile): chỉ Postgres.
+- Server dev hot reload: trong container chỉ mount mã nguồn nên cần terminal riêng chạy
+  `docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"`
+  (hoặc để IDE biên dịch vào `server/target/classes`). Client dev dùng Vite HMR, không cần build lại
+  image trừ khi đổi `package.json`.
 
-Stack gồm postgres, server-dev và client-dev. Client truy cập tại http://localhost:5173; request API dùng `VITE_API_URL` (mặc định http://localhost:8080/api), không có Vite proxy trong cấu hình hiện tại.
+## Kiểm thử
 
-- **server-dev**: mount `./server:/app`, hot reload qua `spring-boot-devtools` (restart khi file `.class` đổi). Trong container chỉ mount mã nguồn nên cần tự biên dịch: chạy `docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"` ở terminal riêng (hoặc để IDE biên dịch vào `server/target/classes`).
-- **client-dev**: mount `./client:/app` (volume ngăn chặn `node_modules`), Vite HMR với `usePolling` - cập nhật ngay khi lưu file. Chỉ cần build lại image khi đổi `package.json` hoặc `Dockerfile`.
-- Cache Maven dùng volume `maven_cache` chung.
+Server có 3 test class (`PricingServiceTest`, `ChatbotServiceTest`, `OrderDtosValidationTest`),
+chạy độc lập không cần DB. Client chưa có test runner; kiểm tra bằng `npm run typecheck` và `npm run build`.
 
-## Môi trường và cấu hình
+## Quy tắc quan trọng khi làm việc
 
-Mọi bí mật nằm trong một file `.env` duy nhất ở root (được docker-compose.yml và server đọc). Server đọc env với fallback mặc định dev (`${VAR:default}` trong application.yml). Lưu ý `mvn spring-boot:run` **không tự nạp `.env`** - phải export vars hoặc chạy qua compose.
-
-| Var                 | Ý nghĩa                                      |
-| ------------------- | -------------------------------------------- |
-| DB_NAME             | tên database Postgres                        |
-| DB_USER             | user Postgres                                |
-| DB_PASSWORD         | mật khẩu Postgres                            |
-| DB_URL              | JDBC URL kết nối (fallback `jdbc:postgresql://localhost:5432/food_ordering`) |
-| JWT_SECRET          | chuỗi bí mật ký token (≥32 ký tự)            |
-| JWT_EXPIRATION_MS   | thời gian sống token (mặc định 86400000)     |
-| AI_API_KEY          | API key dịch vụ AI (Gemini hoặc OpenAI)     |
-| AI_PROVIDER         | nhà cung cấp mặc định (gemini)              |
-| AI_MODEL            | model mặc định (gemini-2.0-flash)           |
-| UPLOAD_DIR          | thư mục lưu ảnh admin tải lên (compose đặt `/app/uploads`) |
-
-Biến chỉ dùng trong docker-compose.yml:
-
-| Var              | Ý nghĩa                                                            |
-| ---------------- | ------------------------------------------------------------------ |
-| VITE_API_URL     | base URL API cho client (mặc định http://localhost:8080/api)          |
-
-`VITE_API_URL` không phải secret. Ở profile `dev`, biến này được truyền vào container client; ở profile `prod`, nó được đưa vào lúc build Docker nên thay đổi cần rebuild image client.
-
-Chạy toàn bộ stack: `docker compose --profile prod up --build` (production, client ở cổng 80) hoặc `docker compose --profile dev up --build` (hot reload, client ở cổng 5173). `docker compose up` (không kèm profile) chỉ khởi động Postgres.
+- Không Flyway; schema do Hibernate `ddl-auto: update` tự đồng bộ.
+- Seed chỉ chạy khi bảng `users` trống; đổi dữ liệu mẫu thì DB cũ giữ nguyên — reset bằng
+  `docker compose --profile prod down -v`.
+- Mọi quy tắc giảm giá sửa ở `PricingService`, đừng tính lại ở React.
+- Sửa endpoint/DTO/quy tắc domain → cập nhật đồng bộ `AGENTS.md`, `ARCHITECTURE.md`, `TEST.md`.
+- Không giữ bí mật trong code; chỉ trong `.env`.

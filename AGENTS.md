@@ -61,8 +61,8 @@ AI bịa món.
 - **Không dùng Flyway.** `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập
   nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); seed bị bỏ qua
   nếu `userRepo.count() > 0`, nên không nhân đôi dữ liệu demo khi chạy lại.
-- **Security**: `SecurityConfig` stateless, `permitAll()` đúng cho `POST /api/auth/register`,
-  `POST /api/auth/login`, GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
+- **Security**: `SecurityConfig` stateless, `permitAll()` cho `/api/auth/register`,
+  `/api/auth/login` (matcher không giới hạn method), GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
   `/api/uploads/**` và toàn bộ `/api/chatbot/**` (khách vãng lai vẫn chat được);
   `/api/admin/**` yêu cầu `ROLE_ADMIN`; phần còn lại `authenticated()`.
   **Phải có `dispatcherTypeMatchers(ERROR).permitAll()`**: thiếu dòng này thì mọi lỗi
@@ -73,10 +73,11 @@ AI bịa món.
 - **Tiền chỉ tính ở `PricingService`**: `POST /api/cart/quote` và lúc tạo đơn dùng chung một
   service. Client không nhân phần trăm hay trừ khuyến mãi, chỉ hiện lại `QuoteLine.lineDiscount`
   (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một khuyến mãi tự động tốt nhất.
-- **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID`; đơn
-  `COMPLETED`/`CANCELLED` khoá hoàn toàn (`OrderService.requireEditable`). `AdminOrderRequest.items`
-  được phép null để sửa thông tin giao hàng, còn `adminCreate` tự kiểm danh sách món không rỗng.
-  Khách cũng chỉ hủy được đơn `PENDING` + chưa thanh toán.
+- **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`OrderService.canEditItems`);
+  đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (`requireEditable`); các
+  trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `AdminOrderRequest.items`
+  được phép null, còn `adminCreate` tự kiểm danh sách món không rỗng. Khách cũng chỉ hủy được đơn
+  `PENDING` + chưa thanh toán.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
   trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
   từng mục nằm trong `TEST.md`.
@@ -99,7 +100,8 @@ AI bịa món.
 - **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
   sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
 - **Thanh điều hướng có 5 thành phần** (nút trang chủ, ô tìm kiếm, đơn hàng, giỏ, đăng nhập)
-  theo Bảng 2.22. Logo **không** nằm ở thanh điều hướng; trang đăng nhập/đăng ký (`AuthShell`)
+  theo Bảng 2.22, cộng thêm chuông thông báo (chỉ khi đã đăng nhập) và nút tắt nhanh sang
+  trang quản trị (chỉ ADMIN). Logo **không** nằm ở thanh điều hướng; trang đăng nhập/đăng ký (`AuthShell`)
   không còn hiển thị thương hiệu/link về bảng món. Nút đơn hàng (icon `inbox`)
   chỉ hiện khi đã đăng nhập vì `/orders` cần token; đừng thêm menu điều hướng, các trang con còn
   lại nằm trong menu tài khoản. Header cao `3.25rem`; đổi chiều cao này thì sửa luôn
@@ -123,23 +125,24 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 **Client** (`./client`):
 - Dev server: `npm run dev` (http://localhost:5173)
 - Build: `npm run build` (tsc --noEmit + vite build → `dist/`)
-- Typecheck: `npm run typecheck` (tsc --noEmit). Không có lint target.
+- Typecheck: `npm run typecheck` (tsc --noEmit). Không có lint target, client chưa có test runner; kiểm tra bằng typecheck + build.
 - API client dùng `VITE_API_URL` làm `baseURL`; `vite.config.ts` không có proxy `/api`.
 
 **Server** (`./server`):
 - Dev: `docker compose --profile dev up --build` từ repo root (postgres + server-dev +
   client-dev, hot reload), hoặc `mvn spring-boot:run` (cần Postgres ở localhost:5432
   và nạp các biến từ `.env` - Maven không tự đọc `.env`)
-- Build/test: `mvn package` / `mvn test`. Hiện chưa có test source, nên `mvn test`
-  chủ yếu kiểm tra compile.
+- Build/test: `mvn package` / `mvn test`. Có 3 test class (`PricingServiceTest`,
+  `ChatbotServiceTest`, `OrderDtosValidationTest`), chạy độc lập không cần DB.
 - Prod: `docker compose --profile prod up --build -d`
 
 **Full stack** (repo root):
 - Prod: `docker compose --profile prod up --build`
 - Dev: `docker compose --profile dev up --build`
 - `docker compose up` (không profile) chỉ khởi động Postgres.
-- Tên biến trong compose khớp `application.yml`: `DB_URL`/`DB_USER`/`DB_PASSWORD`,
-  `JWT_SECRET`, `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_PROVIDER`, `AI_MODEL`, `UPLOAD_DIR`.
+- Compose tự dựng `DB_URL` từ `DB_NAME`; `AI_PROVIDER` mặc định `gemini`, `UPLOAD_DIR=/app/uploads`.
+  Các biến còn lại đọc từ `.env`, tên khớp `application.yml` (`DB_USER`/`DB_PASSWORD`, `JWT_SECRET`,
+  `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_MODEL`).
 
 ## Quy ước comment và tài liệu
 
