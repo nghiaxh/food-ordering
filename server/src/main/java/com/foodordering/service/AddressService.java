@@ -24,7 +24,7 @@ public class AddressService {
     }
 
     public List<AddressResponse> list(String email) {
-        return addressRepo.findByUserIdOrderByIsDefaultDescCreatedAtAsc(currentUser(email).getId()).stream()
+        return addressRepo.findByUserIdOrderByIsDefaultAddressDescCreatedAtAsc(currentUser(email).getId()).stream()
                 .map(AddressService::toResponse)
                 .toList();
     }
@@ -39,7 +39,7 @@ public class AddressService {
         boolean first = addressRepo.findByUserId(user.getId()).isEmpty();
         if (req.isDefault() || first) {
             clearDefaults(user.getId());
-            address.setDefault(true);
+            address.setDefaultAddress(true);
         }
         return toResponse(addressRepo.save(address));
     }
@@ -50,7 +50,7 @@ public class AddressService {
         apply(address, req);
         if (req.isDefault()) {
             clearDefaults(address.getUser().getId());
-            address.setDefault(true);
+            address.setDefaultAddress(true);
         }
         return toResponse(addressRepo.save(address));
     }
@@ -59,7 +59,7 @@ public class AddressService {
     public AddressResponse setDefault(String email, Long id) {
         UserAddress address = owned(email, id);
         clearDefaults(address.getUser().getId());
-        address.setDefault(true);
+        address.setDefaultAddress(true);
         return toResponse(addressRepo.save(address));
     }
 
@@ -68,19 +68,19 @@ public class AddressService {
         UserAddress address = owned(email, id);
         addressRepo.delete(address);
         // Nếu xóa địa chỉ mặc định, nâng địa chỉ đầu tiên còn lại lên làm mặc định.
-        if (address.isDefault()) {
+        if (address.isDefaultAddress()) {
             addressRepo.findByUserId(address.getUser().getId()).stream()
                     .findFirst()
                     .ifPresent(next -> {
                         clearDefaults(address.getUser().getId());
-                        next.setDefault(true);
+                        next.setDefaultAddress(true);
                         addressRepo.save(next);
                     });
         }
     }
 
     private void apply(UserAddress address, AddressRequest req) {
-        address.setLabel(req.label() == null ? "" : req.label().trim());
+        address.setAddressLabel(req.label() == null ? "" : req.label().trim());
         address.setReceiverName(req.receiverName().trim());
         address.setPhone(req.phone());
         address.setAddress(req.address().trim());
@@ -97,8 +97,8 @@ public class AddressService {
 
     private void clearDefaults(Long userId) {
         addressRepo.findByUserId(userId).stream()
-                .filter(UserAddress::isDefault)
-                .forEach(a -> a.setDefault(false));
+                .filter(UserAddress::isDefaultAddress)
+                .forEach(a -> a.setDefaultAddress(false));
     }
 
     private User currentUser(String email) {
@@ -107,7 +107,7 @@ public class AddressService {
     }
 
     private static AddressResponse toResponse(UserAddress address) {
-        return new AddressResponse(address.getId(), address.getLabel(), address.getReceiverName(),
-                address.getPhone(), address.getAddress(), address.isDefault());
+        return new AddressResponse(address.getId(), address.getAddressLabel(), address.getReceiverName(),
+                address.getPhone(), address.getAddress(), address.isDefaultAddress());
     }
 }
