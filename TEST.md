@@ -93,7 +93,11 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-BOT-09 | Lưu lịch sử khi đã đăng nhập | Khách đã đăng nhập chat | Nội dung hội thoại được lưu vào bảng `chat_messages`, xem được tại trang admin | | |
 | TC-BOT-10 | Nhánh dự phòng (Fallback - Sai API Key) | Khoá AI bị sai/hỏng/hết hạn, hỏi "Món chay không cay" | Server chuyển sang `selectFoodsByCode()`, trả lời tóm tắt 1 dòng + hiển thị đúng thẻ món chay không cay từ DB | | |
 
-### 1.2.6. Quản trị hệ thống (Admin Portal: UC26 – UC35)
+| TC-BOT-11 | Lưu lịch sử khách vãng lai | Khách chưa đăng nhập gửi 2 câu hỏi liên tiếp | Câu hỏi thứ hai được lưu vào `chat_message` với `user = null` theo `sessionId`; ngữ cảnh phiên được dùng cho lượt trả lời | | |
+| TC-BOT-12 | Giải quyết đại từ tham chiếu | Sau khi gợi ý món, hỏi "món đó rẻ hơn được không?" | Server dùng tên món vừa gợi ý để trích tiêu chí; kết quả lọc dựa trên các món đó, không trả về danh sách không liên quan | | |
+| TC-BOT-13 | Validate tiêu chí | AI trích xuất `keywords` quá chắt không khớp món nào | Server bỏ lọc từ khóa, vẫn giữ ràng buộc thuộc tính (cay, dị ứng, nhãn); không trả danh sách rỗng vô lý | | |
+
+### 1.2.6. Quản trị hệ thống (Admin Portal: UC26 - UC35)
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
