@@ -11,6 +11,8 @@ import java.text.Normalizer;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +23,9 @@ public class ChatbotService {
      * không bị nổ, đồng thời vẫn đủ để có lựa chọn thay thế trong tầm ngân sách.
      */
     private static final int CANDIDATES_PER_GROUP = 5;
+
+    /** Lưu tên các món vừa gợi ý theo phiên để giải quyết đại từ ("món đó", "rẻ hơn"). */
+    private final ConcurrentMap<String, List<String>> lastPickedBySession = new ConcurrentHashMap<>();
 
     private static final String EXTRACT_PROMPT = """
             Bạn là bộ phân tích yêu cầu của chatbot tư vấn món ăn cho một nhà hàng.
@@ -88,12 +93,15 @@ public class ChatbotService {
     public ChatResponse chat(String email, ChatRequest req) {
         String sessionId = req.sessionId() == null ? UUID.randomUUID().toString() : req.sessionId();
         User user = email == null ? null : userRepo.findByEmail(email).orElse(null);
-        // Lịch sử chỉ lưu cho khách đã đăng nhập; khách vãng lai vẫn chat được nhưng để dấu vết rỗng.
-        if (user != null) save(user, sessionId, ChatMessage.Sender.USER, req.message());
+        // Luu lich su cho ca khach vang lai (user = null) de phien chat co ngu canh.
+        save(user, sessionId, ChatMessage.Sender.USER, req.message());
 
-        Criteria criteria = extractCriteria(req.message());
+        String workingMessage = enrichWithLastPicked(sessionId, req.message());
+
+        Criteria rawCriteria = extractCriteria(workingMessage);
+        Criteria criteria = rawCriteria == null ? null : normalizeCriteria(rawCriteria);
         // Câu hỏi tiếp theo về món vừa gợi ý cần nhớ lượt trước, nên đưa lịch sử phiên vào ngữ cảnh.
-        List<String> history = user != null ? recentTurns(sessionId) : List.of();
+        List<String> history = recentTurns(sessionId);
 
         // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
         // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
@@ -109,10 +117,16 @@ public class ChatbotService {
             reply = aiReply;
         } else {
             Filters filters = readFilters(req.message());
-            picked = aiPicked.isEmpty() ? selectFoodsByCode(req.message(), filters) : aiPicked;
+            picked = aiPicked.isEmpty() ? selectFoodsByCode(workingMessage, filters) : aiPicked;
             reply = fallbackReply(req.message(), picked, filters);
         }
-        if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
+        save(user, sessionId, ChatMessage.Sender.BOT, reply);
+
+        if (!picked.isEmpty()) {
+            lastPickedBySession.put(sessionId, picked.stream().map(p -> p.food().getName()).toList());
+        } else {
+            lastPickedBySession.remove(sessionId);
+        }
 
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = picked.stream().limit(maxSuggestions())
@@ -152,6 +166,54 @@ public class ChatbotService {
      * Chọn món theo tiêu chí. Chia làm hai bước để các ràng buộc về tiền và số người được
      * áp đúng: lọc thuộc tính món trước, rồi mới ghép và kiểm tra tổng ngân sách.
      */
+    /**
+     * Chuan hoa tieu chi AI trich xuat: bo gia tri vo ly, trim chuoi, tranh ket qua rong vo ich.
+     */
+    private Criteria normalizeCriteria(Criteria c) {
+        if (c == null) return null;
+        Integer spicy = c.maxSpicyLevel();
+        if (spicy != null && (spicy < 0 || spicy > 3)) spicy = null;
+        Long budget = c.maxBudget();
+        if (budget != null && budget <= 0) budget = null;
+        Integer people = c.people();
+        if (people != null && (people <= 0 || people > 50)) people = null;
+        List<String> allergens = c.excludeAllergens() == null ? List.of() :
+                c.excludeAllergens().stream().map(String::trim).filter(s -> !s.isEmpty()).distinct().toList();
+        List<String> tags = c.dietaryTags() == null ? List.of() :
+                c.dietaryTags().stream().map(String::trim).filter(s -> !s.isEmpty()).distinct().toList();
+        List<String> keywords = c.keywords() == null ? List.of() :
+                c.keywords().stream().map(String::trim).filter(s -> !s.isEmpty()).distinct().toList();
+        List<CategoryNeed> groups = new ArrayList<>();
+        if (c.categories() != null) {
+            for (CategoryNeed g : c.categories()) {
+                if (g == null || g.name() == null || g.name().isBlank()) continue;
+                boolean trung = groups.stream().anyMatch(x -> x.name().equalsIgnoreCase(g.name()));
+                if (trung) continue;
+                int count = g.count() == null || g.count() < 1 ? 1 : g.count();
+                groups.add(new CategoryNeed(g.name().trim(), count));
+            }
+        }
+        return new Criteria(groups.isEmpty() ? null : groups, spicy, budget, people,
+                allergens.isEmpty() ? null : allergens, tags.isEmpty() ? null : tags,
+                keywords.isEmpty() ? null : keywords);
+    }
+
+    /**
+     * Giai quyet dai tu tham chieu: neu cau hoi chua tu chi mon ("mon do", "re hon"...) va phien
+     * vua goi y mon, them ten cac mon do vao cau hoi de AI trich tieu chi chinh xac hon.
+     */
+    private String enrichWithLastPicked(String sessionId, String message) {
+        if (message == null) return "";
+        List<String> last = lastPickedBySession.get(sessionId);
+        if (last == null || last.isEmpty()) return message;
+        String lower = message.toLowerCase();
+        boolean pronoun = lower.contains("đó") || lower.contains("này") || lower.contains("vừa")
+                || lower.contains("rẻ hơn") || lower.contains("đắt hơn") || lower.contains("cái đó")
+                || message.trim().split("\\s+").length <= 4;
+        if (!pronoun) return message;
+        return "Dựa trên các món vừa gợi ý: " + String.join(", ", last) + ". " + message;
+    }
+
     private List<Picked> selectFoods(Criteria c) {
         // Bước 1: lọc thuộc tính của món. Danh mục và giá để dành cho bước 2 vì cách tính
         // tổng tiền phụ thuộc vào việc khách muốn một nhóm hay nhiều nhóm món.
@@ -165,6 +227,19 @@ public class ChatbotService {
                     && !containsAll(f.getDietaryTags(), c.dietaryTags())) continue;
             if (c.keywords() != null && !c.keywords().isEmpty() && !matchKeyword(f, c.keywords())) continue;
             pool.add(f);
+        }
+        if (pool.isEmpty() && c.keywords() != null && !c.keywords().isEmpty()) {
+            // Tu khoa AI trich xuat qua chat che khong khop mon nao: bo loc tu khoa, van giu
+            // cac rang buoc thuoc tinh (cay, allergen, nhan) de khong mat goi y.
+            for (Food f : foodRepo.findAll()) {
+                if (!f.isAvailable()) continue;
+                if (c.maxSpicyLevel() != null && f.getSpicyLevel() > c.maxSpicyLevel()) continue;
+                if (hasAny(f.getAllergens(), c.excludeAllergens())) continue;
+                if (hasAny(f.getIngredients(), c.excludeAllergens())) continue;
+                if (c.dietaryTags() != null && !c.dietaryTags().isEmpty()
+                        && !containsAll(f.getDietaryTags(), c.dietaryTags())) continue;
+                pool.add(f);
+            }
         }
         if (pool.isEmpty()) return List.of();
 
