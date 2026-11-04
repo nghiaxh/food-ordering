@@ -6,7 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/** Địa chỉ đã lưu của một người dùng; đơn hàng vẫn chụp riêng thông tin giao hàng khi đặt. */
 @Entity
 @Table(name = "user_addresses")
 @Getter @Setter @NoArgsConstructor
@@ -17,9 +16,8 @@ public class UserAddress {
     @ManyToOne(optional = false)
     private User user;
 
-    /** Nhãn do khách đặt (Nhà riêng, Cơ quan...), chỉ để hiển thị. */
     @Column(length = 50)
-    private String label;
+    private String addressLabel;
 
     @Column(nullable = false)
     private String receiverName;
@@ -30,8 +28,7 @@ public class UserAddress {
     @Column(nullable = false)
     private String address;
 
-    /** Mỗi user chỉ có một địa chỉ mặc định; được áp khi khách không chọn gì. */
-    private boolean isDefault;
+    private boolean isDefaultAddress;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
