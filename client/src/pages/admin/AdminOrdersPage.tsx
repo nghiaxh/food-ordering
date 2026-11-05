@@ -265,7 +265,7 @@ export default function AdminOrdersPage() {
                           onClick={() => void changeStatus(o.id, primaryNext)}
                         >
                           {primaryNext === 'CONFIRMED' && 'Duyệt đơn'}
-                          {primaryNext === 'PREPARING' && 'Bắt đầu nấu'}
+                          {primaryNext === 'PREPARING' && 'Giao hàng'}
                           {primaryNext === 'COMPLETED' && 'Hoàn thành'}
                         </Button>
                       )}

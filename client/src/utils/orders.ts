@@ -3,7 +3,7 @@ import type { OrderStatus } from '../types'
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
-  PREPARING: 'Đang chế biến',
+  PREPARING: 'Đang vận chuyển',
   COMPLETED: 'Đã giao',
   CANCELLED: 'Đã hủy',
 }

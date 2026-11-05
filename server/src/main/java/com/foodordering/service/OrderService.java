@@ -217,7 +217,7 @@ public class OrderService {
         // Mỗi trạng thái nghiệp vụ có nội dung thông báo tương ứng; PENDING không gửi thông báo lặp.
         String content = switch (next) {
             case CONFIRMED -> "Đơn hàng #" + id + " đã được xác nhận.";
-            case PREPARING -> "Đơn hàng #" + id + " đang được chuẩn bị.";
+            case PREPARING -> "Đơn hàng #" + id + " đang được vận chuyển.";
             case COMPLETED -> "Đơn hàng #" + id + " đã hoàn thành. Cảm ơn bạn đã đặt món!";
             case CANCELLED -> "Đơn hàng #" + id + " đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.";
             default -> null;
@@ -256,7 +256,7 @@ public class OrderService {
         return switch (s) {
             case PENDING -> "Chờ xác nhận";
             case CONFIRMED -> "Đã xác nhận";
-            case PREPARING -> "Đang chuẩn bị";
+            case PREPARING -> "Đang vận chuyển";
             case COMPLETED -> "Hoàn thành";
             case CANCELLED -> "Đã hủy";
         };
