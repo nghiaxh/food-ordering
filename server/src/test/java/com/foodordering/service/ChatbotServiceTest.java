@@ -209,6 +209,17 @@ class ChatbotServiceTest {
     }
 
     @Test
+    @DisplayName("Khóa API bị nhà cung cấp từ chối: báo 503 như thiếu khóa, không dựng nhánh dự phòng")
+    void khoaBiTuChoiThiTuChoi() {
+        when(ai.generate(anyString(), anyString(), anyBoolean()))
+                .thenThrow(new AiClient.AiKeyRejectedException("khóa bị từ chối", null));
+
+        assertThatThrownBy(() -> service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s12", null, null)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("chưa được cấu hình");
+    }
+
+    @Test
     @DisplayName("Trạng thái trợ lý: chỉ báo boolean và câu nhắc, không trả khóa")
     void trangThaiTheoKhoaApi() {
         when(ai.isConfigured()).thenReturn(false);

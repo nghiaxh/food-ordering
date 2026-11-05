@@ -140,8 +140,9 @@ export default function AdminChatbotPage() {
           message="Chưa cấu hình trợ lý AI"
           description={
             <>
-              Trợ lý chưa dùng được vì máy chủ thiếu khóa API. Đặt biến <code>AI_API_KEY</code> trong
-              tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.
+              Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối.
+              Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi
+              khởi động lại máy chủ.
             </>
           }
         />

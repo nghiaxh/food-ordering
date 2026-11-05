@@ -194,12 +194,17 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
 - Lỗi AI/JSON sai thì xử lý bằng `try/catch` → hệ thống vẫn chạy bình thường. JSON AI trả về có
   thể có thêm trường lạ; mapper bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường
   thừa không làm mất gợi ý.
-- **Thiếu khóa API**: `AiClient.isConfigured()` kiểm tra `app.ai.api-key`; nếu rỗng, `chat()`
-  ném `503 SERVICE_UNAVAILABLE` với câu "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau."
-  ngay trước khi lưu câu hỏi, nên không có lịch sử rác và không tốn thời gian chờ timeout.
-  `GET /api/chatbot/status` trả `{ available, notice }` để client biết trước: khung chat hiện
-  banner đúng câu trên, ô nhập và nút gửi bị khóa. Khóa có nhưng gọi lỗi thì vẫn fallback.
-- **Nhánh dự phòng khi không gọi được AI** (khóa hỏng, JSON sai, hết thời gian chờ): `chat()`
+- **Thiếu hoặc hỏng khóa API**: `AiClient.isConfigured()` kiểm tra `app.ai.api-key`; nếu rỗng,
+  `chat()` ném `503 SERVICE_UNAVAILABLE` với câu "Trợ lý AI chưa được cấu hình, vui lòng thử
+  lại sau." ngay trước khi lưu câu hỏi, nên không có lịch sử rác và không tốn thời gian chờ
+  timeout. `GET /api/chatbot/status` trả `{ available, notice }` để client biết trước: khung chat
+  hiện banner đúng câu trên, ô nhập và nút gửi bị khóa.
+- **Khóa bị nhà cung cấp từ chối** (401/403, hoặc 400 kèm `API_KEY_INVALID` của Gemini) cũng bị
+  coi là chưa cấu hình: `AiClient` bật cờ dính (`credentialsRejected`, giữ tới khi khởi động
+  lại), `AiKeyRejectedException` được đẩy xuyên qua `extractCriteria`/`generateReply` để `chat()`
+  đổi thành 503 thay vì dựng câu trả lời dự phòng. Lỗi 429/5xx, hết thời gian chờ mới đi nhánh
+  dự phòng. Vì cờ chỉ bật sau một lượt gọi thật, lần hỏi đầu tiên vẫn do client tự bắt 503.
+- **Nhánh dự phòng khi không gọi được AI** (429/5xx, JSON sai, hết thời gian chờ): `chat()`
   rơi sang `ChatbotService.selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code
   theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm
   tên danh mục, rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải

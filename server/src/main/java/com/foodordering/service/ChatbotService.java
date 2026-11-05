@@ -123,17 +123,27 @@ public class ChatbotService {
 
         String workingMessage = enrichWithLastPicked(sessionId, req.message());
 
-        Criteria rawCriteria = extractCriteria(workingMessage, history);
-        Criteria criteria = rawCriteria == null ? null : normalizeCriteria(rawCriteria);
+        Criteria criteria;
+        List<Long> contextIds;
+        List<Picked> aiPicked;
+        String aiReply;
+        try {
+            Criteria rawCriteria = extractCriteria(workingMessage, history);
+            criteria = rawCriteria == null ? null : normalizeCriteria(rawCriteria);
 
-        // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
-        // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
-        List<Long> contextIds = contextIds(req, criteria);
-        List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria, contextIds);
-        String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
+            // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
+            // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
+            contextIds = contextIds(req, criteria);
+            aiPicked = criteria == null ? List.of() : selectFoods(criteria, contextIds);
+            aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
+        } catch (AiClient.AiKeyRejectedException e) {
+            // Khóa có nhưng bị nhà cung cấp từ chối (sai, hết hạn, chưa bật API): coi như chưa
+            // cấu hình, để khách nhận đúng câu báo và client khóa khung chat.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, MISSING_KEY_NOTICE, e);
+        }
 
-        // Có khóa nhưng không gọi được AI (khóa hỏng, JSON sai, hết thời gian chờ) thì trả lời
-        // bằng nhánh dự phòng: code chấm điểm và lọc món, vẫn ra thẻ món thật từ DB.
+        // Có khóa và gọi được AI nhưng không có câu trả lời (JSON sai, hết thời gian chờ) thì trả
+        // lời bằng nhánh dự phòng: code chấm điểm và lọc món, vẫn ra thẻ món thật từ DB.
         List<Picked> picked;
         String reply;
         if (aiReply != null) {
@@ -274,6 +284,9 @@ public class ChatbotService {
             json = json.replaceAll("```json|```", "").trim();
             return mapper.readValue(json, Criteria.class);
         } catch (Exception e) {
+            // Khóa bị từ chối thì dừng hẳn lượt này (chat() đổi thành 503) thay vì dựng tiêu chí
+            // bằng code, vì khách cần thấy thông báo chưa cấu hình.
+            if (e instanceof AiClient.AiKeyRejectedException rejected) throw rejected;
             // Lượt này không có tiêu chí đáng tin; chat() sẽ không gợi ý món cho câu hỏi này.
             return null;
         }
@@ -632,6 +645,8 @@ public class ChatbotService {
         try {
             return ai.generate(String.format(ANSWER_PROMPT, extraRules()), data.toString(), false);
         } catch (Exception e) {
+            // Khóa bị từ chối thì không rơi sang nhánh dự phòng; chat() đổi thành 503.
+            if (e instanceof AiClient.AiKeyRejectedException rejected) throw rejected;
             // Trả null để lớp gọi biết lượt này không có câu trả lời AI và rơi sang nhánh dự phòng.
             return null;
         }
