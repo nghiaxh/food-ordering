@@ -57,6 +57,9 @@ public class CartService {
             CartItem created = new CartItem();
             created.setUser(user);
             created.setFood(food);
+            // Entity mặc định quantity = 1; dòng mới phải bắt đầu từ 0 rồi cộng quantity,
+            // nếu không mỗi lần thêm món đầu tiên sẽ dư 1 phần so với số khách chọn.
+            created.setQuantity(0);
             return created;
         });
         item.setQuantity(item.getQuantity() + quantity);
