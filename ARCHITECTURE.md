@@ -249,7 +249,7 @@ số người để lượt hỏi đó vẫn gợi ý được món thay vì tr�
 Hai nhóm dùng hai layout riêng, đúng yêu cầu "tách riêng trang quản trị với trang khách hàng":
 
 - `DefaultLayout` bọc route khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân
-  trang. Trang bảng món tự khoá chiều cao `100dvh - 4rem` và cuộn trong vùng riêng.
+  trang. Trang bảng món tự khoá chiều cao `100dvh - 3.25rem` và cuộn trong vùng riêng.
 - `AdminLayout` bọc `/admin/*`: menu trái chia nhóm Bán hàng (Tổng quan, Đơn hàng, Khách hàng),
   Thực đơn (Món ăn, Danh mục), Marketing (Khuyến mãi), Hệ thống (Chatbot, Báo cáo);
   thu gọn thành drawer ở màn hình nhỏ. Vào `/admin` mặc định mở `/admin/dashboard`. Route admin
@@ -277,12 +277,15 @@ màn hình:
   trên giao diện khách.
 - Thẻ món gắn nhãn ưu đãi tự động (`Hôm nay`, `Cuối tuần`, `Dịp lễ`) cạnh nhãn `-N%`, lấy từ
   `discountLabel` do server điền theo `Promotion.occasion`.
-- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Dải giá nằm **hàng riêng
-  bên dưới** dải danh mục, cả hai cùng dính đầu vùng lưới (`sticky top-0`), nên mỗi hàng vẫn
-  cuộn ngang được trên màn hẹp thay vì cắt mất nút. Mục đầu ghi "Mọi giá" chứ không phải "Tất cả"
+- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Từ `md` trở lên dải giá
+  nằm **cùng hàng** với chip danh mục: danh mục co giãn và cuộn ngang, dải giá giữ nguyên một
+  hàng không rơi xuống. Dưới `md` dải giá `flex-wrap` xuống nhiều dòng nên không bị cắt. Cả thanh
+  dính đầu vùng lưới (`sticky top-0`), chip thấp 32px (`py-1.5`, `text-xs`) để không chiếm chỗ.
+  Mục đầu ghi "Mọi giá" chứ không phải "Tất cả"
   vì hàng trên đã có "Tất cả", hai chữ giống nhau cạnh nhau dễ bị hiểu là một bộ lọc.
-- Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang. Số cột đổi theo bề rộng
-  (`grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`).
+- Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang (`PAGE_SIZE` chia hết cho cả
+  2 và 4 nên không trang nào lẻ hàng). Số cột: 2 cột dưới `md`, 4 cột từ `md`
+  (`grid-cols-2 md:grid-cols-4`), không còn 3 hay 5 cột.
 - Thanh giỏ ghim đáy hiện khi giỏ có món, chứa tổng tiền và nút "Xem giỏ và đặt món".
 - Toàn bộ bộ lọc nằm trên URL (`category`, `keyword`, `min`, `max`) nên người dùng chia sẻ
   được đường dẫn đã lọc và ô tìm kiếm trên thanh điều hướng điều khiển được trang này.
@@ -293,9 +296,11 @@ màn hình:
   ở trang khác thì về `/` kèm từ khoá thay vì làm rỗng bộ lọc.
 
 Thẻ món được nén để nhìn thấy được nhiều món hơn trên một màn hình: ảnh cắt theo 16:10 (thay
-4:3), đệm `p-3`, tối đa 2 nhãn, chữ giá `text-lg`. Hàng giá và nút dùng `flex-wrap` nên thẻ hẹp
-sẽ xuống dòng thay vì tràn. Đo ở cửa sổ 848×670: chiều cao thẻ 444px xuống 285px, vùng lưới
-tăng từ 546px lên 614px.
+4:3), đệm `p-2.5` trên mobile và `p-3` từ `sm`, tối đa 2 nhãn, giá `text-base` trên mobile và
+`text-lg` từ `sm`. Dưới `sm` giá và nút xếp dọc, nút "Thêm vào giỏ" dùng `size="small"` chữ
+`text-xs` và rộng hết thẻ; từ `sm` chúng quay lại một hàng. Ở 360px thẻ rộng khoảng 162px, phần
+nội dung 142px, đủ chỗ cho ảnh, giá và nút nên không tràn ngang. Đo ở cửa sổ 848×670: chiều cao
+thẻ 444px xuống 285px, vùng lưới tăng từ 546px lên 614px.
 
 `/foods/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`) chứ không phải trang
 riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật để thẻ món trong

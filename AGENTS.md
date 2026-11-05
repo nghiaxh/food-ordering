@@ -102,7 +102,8 @@ AI bịa món.
   không cần sửa nginx.
 - **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, chi tiết món là **route con** `/foods/:id`,
   hiện thành Drawer phủ (không phải trang riêng) để không rời bảng món và dùng chung bố cục. Bộ lọc của trang này nằm trên URL (`category`, `keyword`,
-  `min`, `max`), đọc bằng `useSearchParams`.
+  `min`, `max`), đọc bằng `useSearchParams`. Lưới món 2 cột dưới `md` và 4 cột từ `md`; thanh lọc
+  gộp chip danh mục với dải giá trên một hàng từ `md`, dưới `md` dải giá xuống dòng.
 - **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
   `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
   viết class nút mới. **Đừng ghi đè kích thước bằng class.** Hai class `!h-*` có cùng độ ưu
