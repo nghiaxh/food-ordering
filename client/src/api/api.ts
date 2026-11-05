@@ -112,6 +112,8 @@ export const getNotifications = (signal?: AbortSignal) =>
 
 export const markNotificationsRead = () => http.post('/notifications/read-all')
 
+export const markNotificationRead = (id: number) => http.post(`/notifications/${id}/read`)
+
 export const deleteReadNotifications = () => http.delete('/notifications/read')
 
 export const deleteNotification = (id: number) => http.delete(`/notifications/${id}`)

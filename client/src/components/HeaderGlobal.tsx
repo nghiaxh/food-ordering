@@ -6,7 +6,7 @@ import UiIcon from './UiIcon'
 import UiButton from './UiButton'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
-import { deleteNotification, deleteReadNotifications, getNotifications, markNotificationsRead } from '../api/api'
+import { deleteNotification, deleteReadNotifications, getNotifications, markNotificationRead, markNotificationsRead } from '../api/api'
 import { DeleteOutlined } from '@ant-design/icons'
 import type { NotificationItem } from '../types'
 
@@ -83,9 +83,17 @@ export default function HeaderGlobal() {
     }
   }
 
-  // Đóng popover trước khi điều hướng; thông báo cũ không có orderId thì chỉ đóng.
-  const openNotification = (n: NotificationItem) => {
+  // Đóng popover ngay để phản hồi tức thì; thông báo cũ không có orderId thì dừng ở đó.
+  const openNotification = async (n: NotificationItem) => {
     setNotifOpen(false)
+    if (!n.read) {
+      try {
+        await markNotificationRead(n.id)
+        setNotifications((prev) => prev.map((item) => (item.id === n.id ? { ...item, read: true } : item)))
+      } catch {
+        // Đánh dấu đã đọc thất bại không chặn việc mở đơn.
+      }
+    }
     if (n.orderId !== null) navigate(`/orders?orderId=${n.orderId}`)
   }
 
@@ -197,7 +205,7 @@ export default function HeaderGlobal() {
                           {/* Vùng bấm chính là button riêng, không lồng nút xóa bên trong. */}
                           <button
                             type="button"
-                            onClick={() => openNotification(n)}
+                            onClick={() => void openNotification(n)}
                             className="block w-full rounded-lg px-3 py-2 pr-8 text-left"
                           >
                             <span

@@ -45,16 +45,29 @@ public class NotificationController {
         notificationRepo.deleteByUserIdAndReadTrue(currentUser(auth).getId());
     }
 
+    @PostMapping("/{id}/read")
+    @Transactional
+    public void markRead(@PathVariable Long id, Authentication auth) {
+        Notification notification = ownNotification(auth, id);
+        notification.setRead(true);
+        notificationRepo.save(notification);
+    }
+
     @DeleteMapping("/{id}")
     @Transactional
     public void deleteOne(@PathVariable Long id, Authentication auth) {
+        notificationRepo.delete(ownNotification(auth, id));
+    }
+
+    /** Chỉ chủ sở hữu mới đọc hoặc xoá được thông báo; 404 khi không tồn tại, 403 khi của người khác. */
+    private Notification ownNotification(Authentication auth, Long id) {
         User user = currentUser(auth);
         Notification notification = notificationRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thông báo"));
         if (!notification.getUser().getId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xoá thông báo này");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên thông báo này");
         }
-        notificationRepo.delete(notification);
+        return notification;
     }
 
     private User currentUser(Authentication auth) {
