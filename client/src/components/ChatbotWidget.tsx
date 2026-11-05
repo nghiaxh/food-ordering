@@ -22,6 +22,14 @@ const GREETING =
   'Chào bạn! Mình gợi ý món theo khẩu vị, ngân sách và số người ăn. Bạn đang muốn ăn gì?'
 
 /**
+ * Câu trả lời về trong một lần (server không stream), nên chữ được chạy dần ở client
+ * để khung chat có cảm giác đang gõ. Chia đều khoảng 140 nhịp mỗi câu, câu dài chạy nhanh
+ * hơn câu ngắn nhưng tổng thời gian chờ khoảng 2 giây.
+ */
+const STREAM_TICK_MS = 16
+const STREAM_TICKS = 140
+
+/**
  * Cửa sổ chatbot cố định ở mọi trang như yêu cầu mục 2.4.1: chạm vào màn hình đang xem
  * vẫn hỏi được mà không phải rời trang. Component tự giữ trạng thái mở vì layout không
  * còn dùng state đó cho việc khác.
@@ -38,6 +46,8 @@ export default function ChatbotWidget() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([{ sender: 'BOT', content: GREETING }])
+  // Tin bot đang chạy chữ: nội dung đầy đủ, số ký tự đã hiện và thẻ món chờ hiện sau cùng.
+  const [draft, setDraft] = useState<{ content: string; shown: number; foods: FoodCard[] } | null>(null)
   // Server chỉ trả notice khi thiếu cấu hình (ví dụ chưa có khóa AI); hiện banner nhưng vẫn chat.
   const [notice, setNotice] = useState<string | null>(null)
   // sessionId giữ một phiên chat; các ref bên dưới dùng cho thao tác gửi lại và vòng đời widget.
@@ -54,7 +64,24 @@ export default function ChatbotWidget() {
     if (list && typeof list.scrollTo === 'function') {
       list.scrollTo({ top: list.scrollHeight })
     }
-  }, [messages, loading])
+    // `draft` đổi mỗi nhịp chạy chữ nên khung chat vẫn bám đáy trong lúc chữ hiện dần.
+  }, [messages, loading, draft])
+
+  // Chạy chữ cho câu trả lời vừa nhận; xong hết mới đưa tin vào lịch sử kèm thẻ món.
+  useEffect(() => {
+    if (!draft) return
+    if (draft.shown >= draft.content.length) {
+      pushBotMessage(draft.content, draft.foods)
+      setDraft(null)
+      return
+    }
+    // Câu càng dài bước càng lớn để tổng thời gian chạy chữ không tăng theo độ dài.
+    const step = Math.max(2, Math.ceil(draft.content.length / STREAM_TICKS))
+    const timer = window.setTimeout(() => {
+      setDraft((d) => (d ? { ...d, shown: Math.min(d.content.length, d.shown + step) } : d))
+    }, STREAM_TICK_MS)
+    return () => window.clearTimeout(timer)
+  }, [draft])
 
   const isAdmin = location.pathname.startsWith('/admin')
   const user = useAuthStore((s) => s.user)
@@ -85,6 +112,11 @@ export default function ChatbotWidget() {
   const handleSend = async (raw?: string) => {
     const text = (raw ?? input).trim()
     if (!text || loading) return
+    // Câu trước còn đang chạy chữ thì đẩy nốt vào lịch sử, tránh mất tin khi hỏi tiếp.
+    if (draft) {
+      pushBotMessage(draft.content, draft.foods)
+      setDraft(null)
+    }
     setInput('')
     lastUserRef.current = text
     // 3 câu gần nhất của khách giúp AI hiểu đại từ ở câu hỏi tiếp.
@@ -101,7 +133,8 @@ export default function ChatbotWidget() {
       const foods = res.foods.slice(0, 5)
       // Tin mới không có món thì clear ngữ cảnh, tránh "món đó" trỏ về lượt đã mất thẻ.
       lastFoodIdsRef.current = foods.map((f) => f.id)
-      pushBotMessage(res.reply, foods)
+      // Chữ chạy dần thay vì bung cả khối; thẻ món chỉ hiện khi câu trả lời đã chạy xong.
+      setDraft({ content: res.reply, shown: 0, foods })
     } catch {
       if (!activeRef.current) return
       setError(true)
@@ -135,6 +168,16 @@ export default function ChatbotWidget() {
 
   // Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào; sau tin nhắn đầu tiên thì thôi.
   const showSuggestions = messages.length <= 1
+
+  // Tin đang chạy chữ được render như tin thường để dùng chung khung bong bóng và thẻ món.
+  const streamingMessage: ChatMessage | null = draft
+    ? {
+        sender: 'BOT',
+        content: draft.content.slice(0, draft.shown),
+        foods: draft.shown >= draft.content.length ? draft.foods : [],
+      }
+    : null
+  const renderedMessages = streamingMessage ? [...messages, streamingMessage] : messages
 
   return (
     // Cả cụm bám trang: bắt đầu ngay dưới thanh điều hướng và kết thúc trên nút mở, nên
@@ -171,15 +214,19 @@ export default function ChatbotWidget() {
           ) : null}
 
           <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto bg-stone-50/70 p-3">
-            {messages.map((m, index) => {
+            {renderedMessages.map((m, index) => {
               const foods = m.foods ?? []
               const isBot = m.sender === 'BOT'
+              const isStreaming = draft !== null && index === renderedMessages.length - 1
               return (
                 <div key={index} className={isBot ? '' : 'flex justify-end'}>
                   <div className={isBot ? 'max-w-[92%]' : 'max-w-[85%]'}>
                     {isBot ? (
                       <div className="rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-stone-700 ring-1 ring-stone-200/70">
                         {m.content}
+                        {isStreaming && draft && draft.shown < draft.content.length && (
+                          <span className="ml-0.5 inline-block h-3.5 w-1 animate-pulse rounded-sm bg-stone-400 align-middle" />
+                        )}
                       </div>
                     ) : (
                       <div className="rounded-2xl rounded-br-md bg-amber-600 px-3.5 py-2 text-sm whitespace-pre-wrap text-white">
