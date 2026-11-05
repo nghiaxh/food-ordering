@@ -150,13 +150,11 @@ export default function ChatbotWidget() {
     } catch (e) {
       if (!activeRef.current) return
       // 503 là server báo chưa cấu hình khóa AI: khóa khung chat luôn thay vì mời thử lại,
-      // vì gửi lại lúc này chắc chắn vẫn lỗi.
+      // vì gửi lại lúc này chắc chắn vẫn lỗi. Banner đã nêu lý do nên không thêm tin bot.
       if ((e as { response?: { status?: number } }).response?.status === 503) {
-        const notice = apiErrorMessage(e) ?? CHATBOT_OFF_NOTICE
-        setStatus({ available: false, notice })
+        setStatus({ available: false, notice: apiErrorMessage(e) ?? CHATBOT_OFF_NOTICE })
         setError(false)
         lastFoodIdsRef.current = []
-        pushBotMessage(notice, [])
         return
       }
       setError(true)
@@ -190,6 +188,10 @@ export default function ChatbotWidget() {
 
   // Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào; sau tin nhắn đầu tiên thì thôi.
   const showSuggestions = messages.length <= 1
+
+  // Thiếu khóa AI thì khung chat không có gì để nói: ẩn cả câu chào lẫn gợi ý, chỉ còn banner
+  // và ô nhập đã khóa. Nếu khách đang chat dở mà server mất khóa giữa chừng thì giữ hội thoại.
+  const showBody = !unavailable || messages.some((m) => m.sender === 'USER')
 
   // Tin đang chạy chữ được render như tin thường để dùng chung khung bong bóng và thẻ món.
   const streamingMessage: ChatMessage | null = draft
@@ -236,7 +238,7 @@ export default function ChatbotWidget() {
           ) : null}
 
           <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto bg-stone-50/70 p-3">
-            {renderedMessages.map((m, index) => {
+            {showBody && renderedMessages.map((m, index) => {
               const foods = m.foods ?? []
               const isBot = m.sender === 'BOT'
               const isStreaming = draft !== null && index === renderedMessages.length - 1
