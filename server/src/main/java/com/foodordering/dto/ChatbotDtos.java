@@ -5,7 +5,13 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 public class ChatbotDtos {
-    public record ChatRequest(@NotBlank String message, String sessionId) {}
+    /**
+     * {@code history} là vài câu hỏi gần nhất của khách, {@code lastFoodIds} là ID các món vừa
+     * gợi ý ở lượt trước. Client gửi kèm để khách vãng lai vẫn hỏi tiếp được ("món đó cay
+     * không") mà server không phải lưu ngữ cảnh vào CSDL. Cả hai đều không bắt buộc.
+     */
+    public record ChatRequest(@NotBlank String message, String sessionId,
+                              List<String> history, List<Long> lastFoodIds) {}
 
     /**
      * Thẻ món gợi ý. {@code portions} là số phần khách cần để đủ cho số người ăn, còn
@@ -21,7 +27,8 @@ public class ChatbotDtos {
         }
     }
 
-    public record ChatResponse(String reply, List<FoodCard> foods) {}
+    /** {@code notice} chỉ có giá trị khi hệ thống cần báo một điều kiện cấu hình, ví dụ thiếu khóa AI. */
+    public record ChatResponse(String reply, List<FoodCard> foods, String notice) {}
 
     /**
      * Tiêu chí chatbot trích xuất từ câu hỏi.

@@ -50,6 +50,14 @@ public class ChatbotService {
               "keywords": string[]              // tên món hoặc nguyên liệu khách nhắc tới
             }
 
+            CÂU HỎI TRƯỚC CỦA KHÁCH (chỉ để hiểu đại từ; không phải câu cần phân tích):
+            %s
+
+            Nếu câu hiện tại hỏi tiếp bằng đại từ hoặc cụm như "món đó", "cái đó", "món này",
+            "món vừa gợi ý", "mấy món trên", "trong số đó" thì chỉ trả các ràng buộc MỚI
+            (độ cay, ngân sách, số người); để trống categories, keywords, dietaryTags và
+            excludeAllergens. Chỉ điền các trường đó khi khách nêu chủ đề mới.
+
             Danh mục hiện có: %s
             Chỉ trả về JSON hợp lệ.
             """;
@@ -101,13 +109,21 @@ public class ChatbotService {
         // Lịch sử chỉ lưu cho khách đã đăng nhập; khách vãng lai vẫn chat được nhưng để dấu vết rỗng.
         if (user != null) save(user, sessionId, ChatMessage.Sender.USER, req.message());
 
-        Criteria criteria = extractCriteria(req.message());
-        // Câu hỏi tiếp theo về món vừa gợi ý cần nhớ lượt trước, nên đưa lịch sử phiên vào ngữ cảnh.
-        List<String> history = user != null ? recentTurns(sessionId) : List.of();
+        // Ngữ cảnh lấy từ request trước (khách vãng lai cũng có), chỉ đọc CSDL khi client không gửi.
+        List<String> history = requestHistory(req.history());
+        if (history.isEmpty() && user != null) history = recentTurns(sessionId, req.message());
+
+        // Thiếu khóa thì bỏ luôn lời gọi mạng, khỏi chờ timeout rồi mới rơi sang nhánh dự phòng.
+        boolean configured = ai.isConfigured();
+        Criteria criteria = configured ? extractCriteria(req.message(), history) : null;
+
+        // Chỉ coi là hỏi tiếp khi câu có đại từ tham chiếu và không mở chủ đề mới. Hỏi ngắn
+        // không đủ để đoán: "món chay" cũng ngắn nhưng là chủ đề mới.
+        List<Long> contextIds = contextIds(req, criteria);
 
         // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
         // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
-        List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria);
+        List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria, contextIds);
         String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
 
         // Không gọi được AI (thiếu khóa, khóa hỏng, JSON sai, hết thời gian chờ) thì trả lời
@@ -119,15 +135,90 @@ public class ChatbotService {
             reply = aiReply;
         } else {
             Filters filters = readFilters(req.message());
-            picked = aiPicked.isEmpty() ? selectFoodsByCode(req.message(), filters) : aiPicked;
-            reply = fallbackReply(req.message(), picked, filters);
+            if (!aiPicked.isEmpty()) {
+                picked = aiPicked;
+            } else if (contextIds != null) {
+                // Câu hỏi tiếp mà AI lỗi: nhánh dự phòng cũng phải bám các món vừa gợi ý.
+                picked = selectContextByCode(contextIds, filters);
+            } else {
+                picked = selectFoodsByCode(req.message(), filters);
+            }
+            reply = fallbackReply(picked, filters);
         }
         if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
 
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = picked.stream().limit(maxSuggestions())
                 .map(p -> FoodCard.from(p.food(), p.portions(), p.totalPrice())).toList();
-        return new ChatResponse(reply, cards);
+        return new ChatResponse(reply, cards, configured ? null : MISSING_KEY_NOTICE);
+    }
+
+    /**
+     * ID các món được dùng làm ngữ cảnh cho lượt này, hoặc null nếu phải tìm trên toàn thực đơn.
+     * Điều kiện: câu có đại từ tham chiếu, client có gửi lastFoodIds, và tiêu chí không mở
+     * chủ đề mới (danh mục, từ khóa, nhãn ăn kiêng, thành phần loại trừ).
+     */
+    private List<Long> contextIds(ChatRequest req, Criteria criteria) {
+        if (!isFollowUp(req.message()) || req.lastFoodIds() == null || req.lastFoodIds().isEmpty()) {
+            return null;
+        }
+        boolean newTopic = criteria != null ? hasNewTopic(criteria) : hasNewTopicByCode(req.message());
+        return newTopic ? null : req.lastFoodIds();
+    }
+
+    /** Câu hỏi có đại từ/tham chiếu rõ tới lượt gợi ý trước không. */
+    private boolean isFollowUp(String message) {
+        String plain = plain(message);
+        return FOLLOW_UP_PHRASES.stream().anyMatch(plain::contains);
+    }
+
+    /**
+     * Tiêu chí có mở chủ đề mới không. Cay, ngân sách và số người không tính vì chúng vẫn áp
+     * được lên đúng các món vừa gợi ý.
+     */
+    private boolean hasNewTopic(Criteria c) {
+        if (c.categories() != null && !c.categories().isEmpty()) return true;
+        if (c.dietaryTags() != null && !c.dietaryTags().isEmpty()) return true;
+        if (c.excludeAllergens() != null && !c.excludeAllergens().isEmpty()) return true;
+        return c.keywords() != null && c.keywords().stream().anyMatch(k -> !isReferenceKeyword(k));
+    }
+
+    /**
+     * Từ khóa AI có thể trả cho câu hỏi tiếp ("món đó", "trên"...). Chúng không phải chủ đề
+     * mới, nếu tính là chủ đề mới thì mọi câu hỏi tiếp đều mất ngữ cảnh.
+     */
+    private boolean isReferenceKeyword(String keyword) {
+        String plain = plain(keyword).trim();
+        if (plain.isEmpty()) return true;
+        return FOLLOW_UP_PHRASES.stream().anyMatch(plain::contains)
+                || Arrays.stream(plain.split("\\s+")).allMatch(REFERENCE_TOKENS::contains);
+    }
+
+    /** Bản dùng cho nhánh dự phòng, khi không có tiêu chí do AI trích xuất. */
+    private boolean hasNewTopicByCode(String question) {
+        Filters filters = readFilters(question);
+        if (filters.chay() || filters.excludeSeafood()) return true;
+        String plain = plain(question);
+        return categoryRepo.findAll().stream()
+                .map(Category::getName)
+                .filter(Objects::nonNull)
+                .map(this::plain)
+                .filter(name -> !name.isBlank())
+                .anyMatch(plain::contains);
+    }
+
+    /**
+     * Câu hỏi trước do client gửi kèm. Giới hạn 3 câu để prompt không phình và không phụ
+     * thuộc vào độ dài hội thoại trên giao diện.
+     */
+    private List<String> requestHistory(List<String> history) {
+        if (history == null) return List.of();
+        return history.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .limit(3)
+                .toList();
     }
 
     /**
@@ -136,20 +227,27 @@ public class ChatbotService {
      */
     private record Picked(Food food, int portions, long totalPrice) {}
 
-    /** Lấy lượt hỏi gần nhất của phiên, bỏ qua lượt hỏi hiện tại để không lặp nội dung. */
-    private List<String> recentTurns(String sessionId) {
-        return chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(sessionId).stream()
+    /**
+     * Lấy lượt hỏi gần nhất của phiên, bỏ qua lượt hỏi hiện tại để không lặp nội dung.
+     * Trả theo thứ tự thời gian để AI đọc mạch hội thoại.
+     */
+    private List<String> recentTurns(String sessionId, String current) {
+        List<String> turns = chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(sessionId).stream()
                 .filter(m -> m.getSender() == ChatMessage.Sender.USER)
                 .map(ChatMessage::getContent)
+                .filter(c -> c != null && !c.equals(current))
                 .limit(3)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.reverse(turns);
+        return turns;
     }
 
-    private Criteria extractCriteria(String message) {
+    private Criteria extractCriteria(String message, List<String> history) {
         String categories = categoryRepo.findAll().stream().map(Category::getName)
                 .collect(Collectors.joining(", "));
+        String previous = history.isEmpty() ? "(không có)" : String.join("\n", history);
         try {
-            String json = ai.generate(String.format(EXTRACT_PROMPT, categories), message, true);
+            String json = ai.generate(String.format(EXTRACT_PROMPT, previous, categories), message, true);
             json = json.replaceAll("```json|```", "").trim();
             return mapper.readValue(json, Criteria.class);
         } catch (Exception e) {
@@ -450,6 +548,19 @@ public class ChatbotService {
     // Nhánh dự phòng: không gọi được AI thì lấy món bằng code và dựng câu trả lời từ dữ liệu món thật.
     // ---------------------------------------------------------------------------------------
 
+    /**
+     * Cụm tham chiếu rõ tới lượt gợi ý trước, đã bỏ dấu. Chỉ những cụm này mới coi là câu hỏi
+     * tiếp; không dùng độ dài câu để đoán vì "món chay" cũng ngắn.
+     */
+    private static final List<String> FOLLOW_UP_PHRASES = List.of(
+            "mon do", "cai do", "mon nay", "cai nay", "mon vua goi y", "mon vua roi",
+            "may mon tren", "trong so do", "cac mon do", "nhung mon do", "mon tren");
+
+    /** Từ đơn không đủ để coi là chủ đề mới khi AI trả về trong {@code keywords} của câu hỏi tiếp. */
+    private static final Set<String> REFERENCE_TOKENS = Set.of(
+            "mon", "cai", "do", "nay", "vua", "goi", "y", "tren", "may", "trong", "so",
+            "cac", "nhung", "roi", "vay");
+
     /** Từ khóa bỏ qua khi chấm điểm món: chúng nói về cách hỏi chứ không nói về món. */
     private static final Set<String> STOP_WORDS = Set.of(
             "món", "mon", "nào", "nao", "gợi", "ý", "cho", "một", "mot", "các", "của", "cua",
@@ -665,13 +776,17 @@ public class ChatbotService {
         return best;
     }
 
-    /** Bỏ dấu tiếng Việt và chuyển chữ thường để so khớp không phân biệt dấu. */
+    /**
+     * Bỏ dấu tiếng Việt và chuyển chữ thường để so khớp không phân biệt dấu. "đ" không có
+     * dạng NFD nên phải đổi riêng, nếu không "món đó" sẽ không khớp cụm "mon do".
+     */
     private String plain(String text) {
         if (text == null) return "";
-        String stripped = Normalizer.normalize(text, Normalizer.Form.NFD)
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
+                .replace('đ', 'd')
+                .replace('Đ', 'd')
                 .toLowerCase();
-        return stripped;
     }
 
     /** Trường của món có chứa từ cần tìm không, so trên dạng bỏ dấu. */
