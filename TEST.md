@@ -99,7 +99,11 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-BOT-15 | Chủ đề mới không dính ngữ cảnh cũ | Sau lượt gợi ý món mặn, hỏi "Món đó có món chay không?" | Bỏ qua `lastFoodIds`, tìm trên toàn thực đơn; chỉ trả món có nhãn "chay" | | |
 | TC-BOT-16 | Khách vãng lai thêm món từ thẻ chatbot | Chưa đăng nhập, mở chatbot có thẻ món | Nút thêm vào giỏ bị disabled kèm tooltip "Đăng nhập để thêm món vào giỏ"; bấm vào không thêm món và không điều hướng sang chi tiết món | | |
 
-### 1.2.6. Quản trị hệ thống (Admin Portal: UC26 – UC35)
+| TC-BOT-11 | Lưu lịch sử khách vãng lai | Khách chưa đăng nhập gửi 2 câu hỏi liên tiếp | Câu hỏi thứ hai được lưu vào `chat_message` với `user = null` theo `sessionId`; ngữ cảnh phiên được dùng cho lượt trả lời | | |
+| TC-BOT-12 | Giải quyết đại từ tham chiếu | Sau khi gợi ý món, hỏi "món đó rẻ hơn được không?" | Server dùng tên món vừa gợi ý để trích tiêu chí; kết quả lọc dựa trên các món đó, không trả về danh sách không liên quan | | |
+| TC-BOT-13 | Validate tiêu chí | AI trích xuất `keywords` quá chắt không khớp món nào | Server bỏ lọc từ khóa, vẫn giữ ràng buộc thuộc tính (cay, dị ứng, nhãn); không trả danh sách rỗng vô lý | | |
+
+### 1.2.6. Quản trị hệ thống (Admin Portal: UC26 - UC35)
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|

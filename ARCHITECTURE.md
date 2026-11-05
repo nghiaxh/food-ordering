@@ -193,6 +193,9 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
   để câu trả lời của hai nhánh (AI và dự phòng) nhìn giống nhau.
 - **Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại.** Khách vãng lai vẫn chat được nhưng
   tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
+- **Lưu lịch sử cho khách vãng lai**: từ phiên bản này, cả khách chưa đăng nhập cũng được lưu `chat_message` với `user = null` theo `sessionId`, nên ngữ cảnh phiên hoạt động cho mọi khách. `recentTurns` đọc theo `sessionId` không phụ thuộc tài khoản.
+- **Giải quyết đại từ tham chiếu**: server nhớ tên các món vừa gợi ý theo `sessionId` (bộ nhớ trong tiến trình). Nếu câu hỏi chứa đại từ ("món đó", "rẻ hơn"...) hoặc rất ngắn, server thêm tên các món đó vào câu hỏi trước khi trích tiêu chí, giúp AI không hiểu sai.
+- **Validate tiêu chí**: `normalizeCriteria` loại bỏ giá trị vô lý (độ cay ngoài 0–3, ngân sách ≤ 0, số người ≤ 0/>50, chuỗi rỗng). Nếu bộ lọc từ khóa không khớp món nào, server bỏ lọc từ khóa nhưng vẫn giữ các ràng buộc thuộc tính, tránh trả danh sách rỗng vô lý.
 - Không còn RAG/tài liệu tham khảo: chatbot chỉ dùng dữ liệu món trong DB và cấu hình AI
   (provider/model), nên không có tài liệu nào để nạp hay trích dẫn.
 

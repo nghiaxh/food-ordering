@@ -48,6 +48,7 @@ class ChatbotServiceTest {
         foodRepo = mock(FoodRepository.class);
         categoryRepo = mock(CategoryRepository.class);
         ChatMessageRepository chatRepo = mock(ChatMessageRepository.class);
+        when(chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(anyString())).thenReturn(List.of());
         UserRepository userRepo = mock(UserRepository.class);
         AiSettingRepository settingRepo = mock(AiSettingRepository.class);
 

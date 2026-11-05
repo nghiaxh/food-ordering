@@ -6,9 +6,9 @@ import java.util.List;
 
 public interface UserAddressRepository extends JpaRepository<UserAddress, Long> {
     /** Mặc định đứng đầu để khách gọi lại dễ chọn. */
-    List<UserAddress> findByUserIdOrderByIsDefaultDescCreatedAtAsc(Long userId);
+    List<UserAddress> findByUserIdOrderByIsDefaultAddressDescCreatedAtAsc(Long userId);
 
     List<UserAddress> findByUserId(Long userId);
 
-    java.util.Optional<UserAddress> findByUserIdAndIsDefaultTrue(Long userId);
+    java.util.Optional<UserAddress> findByUserIdAndIsDefaultAddressTrue(Long userId);
 }
