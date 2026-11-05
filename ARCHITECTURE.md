@@ -235,6 +235,9 @@ số người để lượt hỏi đó vẫn gợi ý được món thay vì tr�
 
 - Khách chỉ được đánh giá món có trong **đơn hoàn thành** của chính mình
   (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
+- Nội dung nhận xét **không bắt buộc**: khách có thể chỉ chọn số sao. `ReviewController` chuẩn hóa
+  chuỗi rỗng hoặc chỉ khoảng trắng thành `null` ở cả tạo và sửa; cột `comment` vốn đã nullable nên
+  không cần đổi CSDL.
 - `GET /api/reviews/food/{foodId}` trả kèm cờ `mine` để client biết đánh giá nào của chính
   mình và chỉ hiện nút Sửa/Xóa ở đúng đánh giá đó. `PUT` và `DELETE /api/reviews/{id}` đều kiểm
   tra chủ sở hữu ở server, không tin cờ `mine` từ client.
@@ -243,6 +246,20 @@ số người để lượt hỏi đó vẫn gợi ý được món thay vì tr�
   kèm cảnh báo. Nút **Hủy đơn** đi qua helper `canCancelOrder` (`client/src/utils/orders.ts`)
   cùng ràng buộc với `OrderService.cancel`: đơn `PENDING` chưa thanh toán; đơn `PENDING` đã
   `PAID` thay nút bằng gợi ý gọi hotline.
+
+### 7. Thông báo
+
+- Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `OrderService.notify` set. Cột mới
+  được `ddl-auto=update` tự thêm; thông báo tạo trước thay đổi này có `orderId = null`.
+- Các thao tác giữ nguyên một bộ endpoint: `POST /api/notifications/read-all`,
+  `POST /api/notifications/{id}/read`, `DELETE /api/notifications/read` (xóa các thông báo đã đọc)
+  và `DELETE /api/notifications/{id}`. Endpoint thao tác một thông báo kiểm tra chủ sở hữu như
+  xóa: 404 khi không tồn tại, 403 khi của người khác.
+- Bấm vào thân thông báo: đánh dấu đã đọc, đóng popover, và nếu có `orderId` thì điều hướng
+  `/orders?orderId=...`; trang đơn cuộn tới thẻ `order-{id}` và tô ring để chỉ đúng đơn. Thông báo
+  cũ không có `orderId` chỉ mark read rồi đóng popover.
+- Nút "Xóa đã đọc" xóa mọi thông báo `read = true` của chính người dùng. Nút xóa từng thông báo
+  luôn hiện trên mobile, còn desktop chỉ hiện khi hover hoặc focus.
 
 ## Giao diện khách hàng và giao diện quản trị
 

@@ -55,10 +55,10 @@ export default function FoodDetailPage() {
   } = useAsyncData((signal) => getReviews(foodId, signal), [foodId])
 
   const { run: submitReview, pending: reviewPending } = useAsyncAction(
-    (payload: { foodId: number; rating: number; comment: string }) => createReview(payload),
+    (payload: { foodId: number; rating: number; comment?: string }) => createReview(payload),
   )
   const { run: editReview, pending: editPending } = useAsyncAction(
-    (payload: { id: number; rating: number; comment: string }) =>
+    (payload: { id: number; rating: number; comment?: string }) =>
       updateReview(payload.id, { rating: payload.rating, comment: payload.comment }),
   )
   const { run: removeReview } = useAsyncAction((id: number) => deleteReview(id))
@@ -72,7 +72,7 @@ export default function FoodDetailPage() {
     }
   }
 
-  const onReview = async (payload: { foodId: number; rating: number; comment: string }) => {
+  const onReview = async (payload: { foodId: number; rating: number; comment?: string }) => {
     if (!user) {
       message.warning('Vui lòng đăng nhập để đánh giá')
       return { ok: false as const, error: new Error('Chưa đăng nhập') }
@@ -87,7 +87,7 @@ export default function FoodDetailPage() {
     return res
   }
 
-  const onEditReview = async (id: number, payload: { rating: number; comment: string }) => {
+  const onEditReview = async (id: number, payload: { rating: number; comment?: string }) => {
     const res = await editReview({ id, ...payload })
     if (res.ok) {
       message.success('Đã cập nhật đánh giá!')
