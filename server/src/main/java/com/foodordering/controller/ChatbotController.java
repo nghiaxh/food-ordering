@@ -16,6 +16,12 @@ public class ChatbotController {
         this.chatbotService = chatbotService;
     }
 
+    /** Client gọi khi mở khung chat để biết có được dùng trợ lý hay chưa. */
+    @GetMapping("/status")
+    public ChatbotStatus status() {
+        return chatbotService.status();
+    }
+
     @PostMapping("/chat")
     public ChatResponse chat(Authentication auth, @Valid @RequestBody ChatRequest req) {
         // Endpoint cho phép khách vãng lai chat nên Authentication có thể null hoặc là token ẩn danh;

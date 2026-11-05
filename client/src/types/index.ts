@@ -136,6 +136,12 @@ export interface ChatMessage {
   foods?: FoodCard[]
 }
 
+/** Trạng thái trợ lý; `notice` có câu nhắc khi server chưa cấu hình khóa API. */
+export interface ChatbotStatus {
+  available: boolean
+  notice: string | null
+}
+
 export interface ChatHistoryMessage {
   id: number
   /** Lịch sử của khách vãng lai có thể không gắn với user đã đăng nhập. */

@@ -2,9 +2,10 @@ import { useRef, useState, useEffect } from 'react'
 import { Input, Tooltip, message } from 'antd'
 import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
-import { chat } from '../api/api'
-import type { ChatMessage, Food, FoodCard } from '../types'
+import { chat, getChatbotStatus } from '../api/api'
+import type { ChatMessage, ChatbotStatus, Food, FoodCard } from '../types'
 import { formatVND } from '../utils/format'
+import { apiErrorMessage } from '../utils/api-error'
 import { useHasCartBar } from '../hooks/useCartBar'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
@@ -20,6 +21,9 @@ const SUGGESTIONS = [
 
 const GREETING =
   'Chào bạn! Mình gợi ý món theo khẩu vị, ngân sách và số người ăn. Bạn đang muốn ăn gì?'
+
+/** Câu báo trợ lý chưa dùng được; server cũng dùng đúng câu này trong mã 503. */
+const CHATBOT_OFF_NOTICE = 'Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.'
 
 /**
  * Câu trả lời về trong một lần (server không stream), nên chữ được chạy dần ở client
@@ -48,8 +52,10 @@ export default function ChatbotWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([{ sender: 'BOT', content: GREETING }])
   // Tin bot đang chạy chữ: nội dung đầy đủ, số ký tự đã hiện và thẻ món chờ hiện sau cùng.
   const [draft, setDraft] = useState<{ content: string; shown: number; foods: FoodCard[] } | null>(null)
-  // Server chỉ trả notice khi thiếu cấu hình (ví dụ chưa có khóa AI); hiện banner nhưng vẫn chat.
-  const [notice, setNotice] = useState<string | null>(null)
+  // Server chỉ cho dùng trợ lý khi đã cấu hình khóa AI; thiếu khóa thì khung chat chỉ để xem.
+  const [status, setStatus] = useState<ChatbotStatus | null>(null)
+  const unavailable = status?.available === false
+  const statusNotice = status?.notice ?? CHATBOT_OFF_NOTICE
   // sessionId giữ một phiên chat; các ref bên dưới dùng cho thao tác gửi lại và vòng đời widget.
   const sessionId = useRef(crypto.randomUUID())
   const lastUserRef = useRef('')
@@ -58,6 +64,13 @@ export default function ChatbotWidget() {
   const listRef = useRef<HTMLDivElement>(null)
   // Khi widget đóng, request đang chạy không được cập nhật state của component.
   const activeRef = useRef(true)
+
+  // Kiểm tra một lần khi mount; lỗi mạng thì để lần gửi đầu tiên tự phát hiện qua mã 503.
+  useEffect(() => {
+    getChatbotStatus()
+      .then(setStatus)
+      .catch(() => setStatus(null))
+  }, [])
 
   useEffect(() => {
     const list = listRef.current
@@ -111,7 +124,7 @@ export default function ChatbotWidget() {
 
   const handleSend = async (raw?: string) => {
     const text = (raw ?? input).trim()
-    if (!text || loading) return
+    if (!text || loading || unavailable) return
     // Câu trước còn đang chạy chữ thì đẩy nốt vào lịch sử, tránh mất tin khi hỏi tiếp.
     if (draft) {
       pushBotMessage(draft.content, draft.foods)
@@ -129,14 +142,23 @@ export default function ChatbotWidget() {
       // `res.foods` đã được server lọc và ánh xạ từ entity; không lấy món từ nội dung AI.
       // Server trả rỗng khi không phân tích được câu hỏi, đừng tự bịa món thay thế.
       setError(false)
-      setNotice(res.notice)
       const foods = res.foods.slice(0, 5)
       // Tin mới không có món thì clear ngữ cảnh, tránh "món đó" trỏ về lượt đã mất thẻ.
       lastFoodIdsRef.current = foods.map((f) => f.id)
       // Chữ chạy dần thay vì bung cả khối; thẻ món chỉ hiện khi câu trả lời đã chạy xong.
       setDraft({ content: res.reply, shown: 0, foods })
-    } catch {
+    } catch (e) {
       if (!activeRef.current) return
+      // 503 là server báo chưa cấu hình khóa AI: khóa khung chat luôn thay vì mời thử lại,
+      // vì gửi lại lúc này chắc chắn vẫn lỗi.
+      if ((e as { response?: { status?: number } }).response?.status === 503) {
+        const notice = apiErrorMessage(e) ?? CHATBOT_OFF_NOTICE
+        setStatus({ available: false, notice })
+        setError(false)
+        lastFoodIdsRef.current = []
+        pushBotMessage(notice, [])
+        return
+      }
       setError(true)
       lastFoodIdsRef.current = []
       pushBotMessage('Mình chưa gửi được câu hỏi, bạn thử lại nhé!', [])
@@ -207,9 +229,9 @@ export default function ChatbotWidget() {
             </button>
           </div>
 
-          {notice ? (
+          {unavailable ? (
             <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              {notice}
+              {statusNotice}
             </div>
           ) : null}
 
@@ -297,7 +319,8 @@ export default function ChatbotWidget() {
                           <button
                             key={s}
                             type="button"
-                            className="rounded-full bg-white px-3 py-2.5 text-xs text-amber-700 ring-1 ring-stone-200 transition hover:bg-amber-50"
+                            disabled={unavailable}
+                            className="rounded-full bg-white px-3 py-2.5 text-xs text-amber-700 ring-1 ring-stone-200 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:text-stone-400 disabled:hover:bg-white"
                             onClick={() => handleSend(s)}
                           >
                             {s}
@@ -335,14 +358,14 @@ export default function ChatbotWidget() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onPressEnter={() => handleSend()}
-              placeholder="Nhập câu hỏi về món ăn..."
-              disabled={loading}
+              placeholder={unavailable ? 'Trợ lý đang tạm tắt' : 'Nhập câu hỏi về món ăn...'}
+              disabled={loading || unavailable}
               aria-label="Nhập câu hỏi cho chatbot"
               suffix={
                 <button
                   type="button"
                   aria-label="Gửi câu hỏi"
-                  disabled={!input.trim() || loading}
+                  disabled={!input.trim() || loading || unavailable}
                   onClick={() => handleSend()}
                   className="grid h-9 w-9 place-items-center rounded-full bg-amber-600 text-white transition hover:bg-amber-500 disabled:bg-stone-200"
                 >

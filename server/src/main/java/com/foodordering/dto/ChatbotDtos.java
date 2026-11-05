@@ -27,8 +27,13 @@ public class ChatbotDtos {
         }
     }
 
-    /** {@code notice} chỉ có giá trị khi hệ thống cần báo một điều kiện cấu hình, ví dụ thiếu khóa AI. */
-    public record ChatResponse(String reply, List<FoodCard> foods, String notice) {}
+    public record ChatResponse(String reply, List<FoodCard> foods) {}
+
+    /**
+     * Trạng thái sẵn dùng của trợ lý. {@code notice} là câu hiện cho khách khi thiếu khóa API;
+     * endpoint chỉ trả boolean và câu thông báo, không bao giờ trả giá trị khóa.
+     */
+    public record ChatbotStatus(boolean available, String notice) {}
 
     /**
      * Tiêu chí chatbot trích xuất từ câu hỏi.

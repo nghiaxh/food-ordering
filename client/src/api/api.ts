@@ -1,5 +1,5 @@
 import http from './http'
-import type { AuthUser, CartItem, CartQuote, Category, ChatHistoryMessage, ChatMessage, Food, FoodCard, NotificationItem, Order, OrderStatus, Promotion, Review, SavedAddress, User } from '../types'
+import type { AuthUser, CartItem, CartQuote, Category, ChatHistoryMessage, ChatMessage, ChatbotStatus, Food, FoodCard, NotificationItem, Order, OrderStatus, Promotion, Review, SavedAddress, User } from '../types'
 
 /** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
 export interface AdminOrderPayload {
@@ -145,13 +145,16 @@ export const chat = (
   lastFoodIds: number[] = [],
 ) =>
   http
-    .post<{ reply: string; foods: FoodCard[]; notice: string | null }>('/chatbot/chat', {
+    .post<{ reply: string; foods: FoodCard[] }>('/chatbot/chat', {
       message,
       sessionId,
       history,
       lastFoodIds,
     })
     .then((r) => r.data)
+
+export const getChatbotStatus = (signal?: AbortSignal) =>
+  http.get<ChatbotStatus>('/chatbot/status', { signal }).then((r) => r.data)
 
 export type { ChatMessage }
 

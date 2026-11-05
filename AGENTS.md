@@ -66,9 +66,11 @@ gần nhất). Server chỉ dùng `lastFoodIds` khi câu có cụm tham chiếu 
 và áp ràng buộc mới. Không dùng độ dài câu để đoán hỏi tiếp. Nhánh dự phòng khi AI lỗi cũng
 bám context này.
 
-**Thiếu khóa AI**: `AiClient.isConfigured()` false thì `chat()` không gọi AI (tránh chờ
-timeout), đi thẳng nhánh dự phòng và trả `notice`; client hiện banner hổ phách nhưng vẫn
-chat bình thường. Khóa có mà gọi lỗi thì chỉ fallback, không notice.
+**Thiếu khóa AI**: `AiClient.isConfigured()` false thì `chat()` ném `503 SERVICE_UNAVAILABLE`
+với câu "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau." **trước khi** lưu câu hỏi hay chọn
+món; trợ lý chỉ dùng được khi quản trị đã đặt khóa. `GET /api/chatbot/status` trả
+`{available, notice}` (không bao giờ trả khóa) để client biết trước mà khóa ô nhập và hiện banner.
+Khóa **có** mà gọi lỗi thì mới fallback sang nhánh code, không có notice.
 
 ### Key wiring (không rõ từ tên file)
 
@@ -209,7 +211,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - `JwtFilter` nuốt exception không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
-- **`AI_API_KEY` trong `.env` phải là khóa thật.** Nếu sai hoặc hết hạn, mọi câu hỏi đều trả
-  thông báo dự phòng và **không có thẻ món nào**; đó là hành vi dự kiến chứ không phải lỗi
-  code. Muốn demo luồng có gợi ý món thì phải thay khoá thật trước.
+- **`AI_API_KEY` trong `.env` phải là khóa thật.** Để trống thì trợ lý bị khóa hẳn (banner +
+  ô nhập disabled, `/api/chatbot/status` trả `available = false`). Khóa sai hoặc hết hạn thì
+  mọi câu hỏi rơi vào nhánh dự phòng và **không có thẻ món nào**; đó là hành vi dự kiến chứ
+  không phải lỗi code. Muốn demo luồng có gợi ý món thì phải thay khoá thật trước.
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.
