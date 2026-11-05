@@ -266,6 +266,11 @@ màn hình:
 - Thanh giỏ ghim đáy hiện khi giỏ có món, chứa tổng tiền và nút "Xem giỏ và đặt món".
 - Toàn bộ bộ lọc nằm trên URL (`category`, `keyword`, `min`, `max`) nên người dùng chia sẻ
   được đường dẫn đã lọc và ô tìm kiếm trên thanh điều hướng điều khiển được trang này.
+- Tìm kiếm khớp **không dấu, không phân biệt hoa thường**: server bỏ điều kiện `LIKE` khỏi
+  Specification và lọc từ khoá bằng Java qua `TextNormalizer` (NFD bỏ dấu, đ/Đ → d) sau
+  `findAll` — không cầu extension `unaccent` của PostgreSQL. Enter trong ô tìm kiếm áp dụng
+  ngay qua `commitSearch` dùng chung với debounce: ở `/` giữ nguyên `category`/`min`/`max`,
+  ở trang khác thì về `/` kèm từ khoá thay vì làm rỗng bộ lọc.
 
 Thẻ món được nén để nhìn thấy được nhiều món hơn trên một màn hình: ảnh cắt theo 16:10 (thay
 4:3), đệm `p-3`, tối đa 2 nhãn, chữ giá `text-lg`. Hàng giá và nút dùng `flex-wrap` nên thẻ hẹp
