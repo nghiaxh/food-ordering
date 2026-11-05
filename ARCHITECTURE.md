@@ -60,11 +60,13 @@ Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm so�
 
 Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique theo user + món):
 
-- Khách đã đăng nhập: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác thực); giỏ
-  được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
-- Khách vãng lai: giỏ nằm trong bộ nhớ của Zustand (không phải `localStorage` bền); khi
-  đăng nhập, hệ thống đẩy bản nháp lên server rồi tải giỏ chính thức về. Khi đăng xuất,
-  state giỏ của tài khoản được xóa khỏi client.
+- Chỉ khách đã đăng nhập mới có giỏ: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác
+  thực), giỏ được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
+- Khách vãng lai **không có giỏ local**: nút "Thêm vào giỏ" bị khoá, hover hoặc focus hiện
+  tooltip "Đăng nhập để thêm món vào giỏ". `/cart` nằm trong `RequireAuth`, nên bấm nút giỏ trên
+  header hoặc mở thẳng đường dẫn đều bị đưa sang `/login` và quay lại đúng trang sau khi đăng
+  nhập. `cartStore.add` trả `false` khi chưa đăng nhập như lớp phòng thủ thứ hai.
+- Đăng xuất thì `CartSync` gọi `resetLocal` để xoá state giỏ của tài khoản khỏi client.
 - Giá món hiển thị từ dữ liệu trả về khi duyệt món.
 
 ### 4. Đặt món (giá lấy từ DB)
@@ -120,9 +122,23 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 ### 4c. Khuyến mãi tự động
 
 Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `service/PricingService`.
-Client không tự nhân phần trăm, không tự trừ voucher; nó gọi `POST /api/cart/quote` và hiện
-lại đúng những gì server trả. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
+Client không tự nhân phần trăm, không tự trừ voucher; nó gửi `POST /api/cart/quote` kèm
+`{ items }` đúng danh sách dòng đang hiển thị và hiện lại đúng những gì server trả. Quote tính
+bằng `priceOrder` trên danh sách đó, **không đọc lại giỏ trong DB**, nên thêm món xong không bị
+response của giỏ cũ ghi đè. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
 lệch nhau.
+
+- **Đồng bộ báo giá ở client**: mỗi lần `items` đổi, `CartPage` abort request quote cũ và xoá
+  quote hiện tại trước khi gọi lại. Trong lúc chờ hoặc khi lỗi, khối tổng hiện "Đang cập nhật
+  giá..." và nút "Xác nhận đặt món" bị khoá; dòng món vẫn tạm hiện giá gốc từ cart item.
+- **Dòng optimistic**: `cartStore.add` và `setQuantity` thay dòng tạm bằng `CartItem` server trả
+  (food đầy đủ field, giá là số, `available` đúng), nên món thêm từ chatbot không còn dòng
+  "Hết món" giả. Mỗi món có số thứ tự request riêng; chỉ response của request mới nhất được ghi
+  vào giỏ, nên response về muộn không đè lần bấm sau dù số lượng server trả khác dòng đang hiển
+  thị. Xoá sạch giỏ hoặc đăng xuất thì tăng "thế hệ" giỏ để response đang bay không dựng lại dòng
+  vừa xoá.
+- **Số lượng dòng mới**: `CartService.add` tạo `CartItem` với `quantity = 0` trước khi cộng,
+  vì entity mặc định 1; thiếu bước này thì lần thêm đầu tiên dư 1 phần so với số khách chọn.
 
 - **Một dòng, một khoản giảm.** `QuoteLine.lineDiscount` và `OrderItem.discountAmount` là số
   tiền giảm của **cả dòng** (đã nhân số lượng), không phải của một phần.
