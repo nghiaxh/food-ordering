@@ -58,23 +58,20 @@ export function PageCard({ children, className }: { children: ReactNode; classNa
 }
 
 /**
- * Header chuẩn cho trang admin: tiêu đề + mô tả trái, cụm hành động phải.
- * Tạo sự đồng nhất — thay cho 4 kiểu header lỏng lẻo hiện tại.
+ * Header chuẩn cho trang admin: tiêu đề trái, cụm hành động phải.
+ * Không có dòng mô tả: tiêu đề trang đã đủ nói nội dung, mô tả chỉ làm loãng header.
  */
 export function PageHeader({
   title,
-  subtitle,
   extra,
 }: {
   title: ReactNode
-  subtitle?: ReactNode
   extra?: ReactNode
 }) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div className="min-w-0">
         <h2 className="text-2xl font-bold tracking-tight text-stone-900">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm text-stone-500">{subtitle}</p> : null}
       </div>
       {extra ? <div className="flex shrink-0 items-center gap-2">{extra}</div> : null}
     </div>
