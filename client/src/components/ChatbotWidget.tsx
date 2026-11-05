@@ -162,6 +162,12 @@ export default function ChatbotWidget() {
             </button>
           </div>
 
+          {notice ? (
+            <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {notice}
+            </div>
+          ) : null}
+
           <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto bg-stone-50/70 p-3">
             {messages.map((m, index) => {
               const foods = m.foods ?? []

@@ -49,6 +49,15 @@ public class AiClient {
         this.http = RestClient.builder().requestFactory(factory).build();
     }
 
+    /**
+     * Khóa API đã được cấu hình chưa. Chatbot dùng cờ này để bỏ qua lời gọi mạng khi thiếu
+     * khóa, tránh chờ hết timeout rồi mới rơi sang nhánh dự phòng. Không trả về hay log giá trị khóa.
+     */
+    public boolean isConfigured() {
+        String apiKey = props.getAi().getApiKey();
+        return apiKey != null && !apiKey.isBlank();
+    }
+
     public String generate(String systemPrompt, String userPrompt, boolean jsonMode) {
         // Model và API key lấy từ cấu hình; không ghi các giá trị bí mật này vào log.
         String provider = setting("provider", props.getAi().getProvider()).toLowerCase();
