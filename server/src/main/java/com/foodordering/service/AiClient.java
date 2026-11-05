@@ -42,6 +42,16 @@ public class AiClient {
     private final ObjectMapper mapper = new ObjectMapper();
     /** Nhà cung cấp đã từ chối khóa ở một lượt trước; giữ lại để các lượt sau báo như thiếu khóa. */
     private volatile boolean credentialsRejected = false;
+    /** Kết quả kiểm tra khóa với nhà cung cấp; null là chưa kiểm tra lần nào. */
+    private volatile Boolean keyAccepted = null;
+    /** Lần thử gần nhất không kết luận được (mạng, quota), dùng để giãn nhịp thử lại. */
+    private volatile long probeFailedAt = 0;
+
+    /** Câu thử tối giản để biết nhà cung cấp có chấp nhận khóa không. */
+    private static final String PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
+    private static final String PROBE_USER = "ping";
+    /** Chờ ngần này trước khi thử lại sau một lần không kết luận được, tránh gọi mạng mỗi lần mở trang. */
+    private static final long PROBE_RETRY_MS = 5 * 60 * 1000L;
 
     /** Khóa API bị nhà cung cấp từ chối (sai, hết hạn, chưa bật API) - không phải lỗi tạm thời. */
     public static class AiKeyRejectedException extends RuntimeException {
@@ -67,6 +77,28 @@ public class AiClient {
     public boolean isConfigured() {
         String apiKey = props.getAi().getApiKey();
         return apiKey != null && !apiKey.isBlank() && !credentialsRejected;
+    }
+
+    /**
+     * Khóa có được nhà cung cấp chấp nhận không. Lần đầu gọi thử một câu tối giản rồi giữ kết
+     * quả, nhờ vậy mở trang là biết ngay khóa sai thay vì đợi tới lượt chat đầu tiên. Lỗi
+     * mạng/quota không kết luận được thì coi như dùng được và chỉ thử lại sau một lúc.
+     */
+    public synchronized boolean verifyKey() {
+        if (!isConfigured()) return false;
+        if (keyAccepted != null) return keyAccepted;
+        if (System.currentTimeMillis() - probeFailedAt < PROBE_RETRY_MS) return true;
+        try {
+            generate(PROBE_SYSTEM, PROBE_USER, false);
+            keyAccepted = true;
+            return true;
+        } catch (AiKeyRejectedException e) {
+            credentialsRejected = true;
+            return false;
+        } catch (RuntimeException e) {
+            probeFailedAt = System.currentTimeMillis();
+            return true;
+        }
     }
 
     public String generate(String systemPrompt, String userPrompt, boolean jsonMode) {

@@ -174,9 +174,12 @@ public class ChatbotService {
         return new ChatResponse(reply, cards);
     }
 
-    /** Trạng thái sẵn dùng cho client; không trả giá trị khóa, chỉ boolean và câu thông báo. */
+    /**
+     * Trạng thái sẵn dùng cho client; không trả giá trị khóa, chỉ boolean và câu thông báo.
+     * Gọi {@code verifyKey()} để khóa sai/hết hạn hiện thông báo ngay khi mở trang.
+     */
     public ChatbotStatus status() {
-        boolean available = ai.isConfigured();
+        boolean available = ai.verifyKey();
         return new ChatbotStatus(available, available ? null : MISSING_KEY_NOTICE);
     }
 

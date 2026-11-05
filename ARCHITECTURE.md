@@ -200,10 +200,12 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
   timeout. `GET /api/chatbot/status` trả `{ available, notice }` để client biết trước: khung chat
   hiện banner đúng câu trên, ô nhập và nút gửi bị khóa.
 - **Khóa bị nhà cung cấp từ chối** (401/403, hoặc 400 kèm `API_KEY_INVALID` của Gemini) cũng bị
-  coi là chưa cấu hình: `AiClient` bật cờ dính (`credentialsRejected`, giữ tới khi khởi động
-  lại), `AiKeyRejectedException` được đẩy xuyên qua `extractCriteria`/`generateReply` để `chat()`
-  đổi thành 503 thay vì dựng câu trả lời dự phòng. Lỗi 429/5xx, hết thời gian chờ mới đi nhánh
-  dự phòng. Vì cờ chỉ bật sau một lượt gọi thật, lần hỏi đầu tiên vẫn do client tự bắt 503.
+  coi là chưa cấu hình. `AiClient.verifyKey()` (được `/status` gọi) thử một câu tối giản ở lần
+  đầu rồi nhớ kết quả, nên mở trang là banner hiện ngay; lỗi mạng/quota thì coi như dùng được và
+  chỉ thử lại sau 5 phút. Khi bị từ chối, `AiClient` bật cờ dính (`credentialsRejected`, giữ tới
+  khi khởi động lại) và `AiKeyRejectedException` được đẩy xuyên qua
+  `extractCriteria`/`generateReply` để `chat()` đổi thành 503 thay vì dựng câu trả lời dự phòng.
+  Lỗi 429/5xx, hết thời gian chờ mới đi nhánh dự phòng.
 - **Nhánh dự phòng khi không gọi được AI** (429/5xx, JSON sai, hết thời gian chờ): `chat()`
   rơi sang `ChatbotService.selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code
   theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm

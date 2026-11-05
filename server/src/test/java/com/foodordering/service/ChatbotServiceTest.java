@@ -222,12 +222,12 @@ class ChatbotServiceTest {
     @Test
     @DisplayName("Trạng thái trợ lý: chỉ báo boolean và câu nhắc, không trả khóa")
     void trangThaiTheoKhoaApi() {
-        when(ai.isConfigured()).thenReturn(false);
+        when(ai.verifyKey()).thenReturn(false);
         ChatbotStatus missing = service.status();
         assertThat(missing.available()).isFalse();
         assertThat(missing.notice()).isEqualTo("Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.");
 
-        when(ai.isConfigured()).thenReturn(true);
+        when(ai.verifyKey()).thenReturn(true);
         ChatbotStatus ready = service.status();
         assertThat(ready.available()).isTrue();
         assertThat(ready.notice()).isNull();

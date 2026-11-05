@@ -68,10 +68,12 @@ bám context này.
 
 **Thiếu hoặc hỏng khóa AI**: `AiClient.isConfigured()` false khi `AI_API_KEY` rỗng **hoặc** nhà
 cung cấp đã từ chối khóa (401/403, hay 400 kèm `API_KEY_INVALID` của Gemini); cờ "bị từ chối"
-giữ tới khi khởi động lại server. Khi đó `chat()` ném `503 SERVICE_UNAVAILABLE` với câu "Trợ lý
-AI chưa được cấu hình, vui lòng thử lại sau." **trước khi** lưu câu hỏi hay chọn món, và
-`GET /api/chatbot/status` trả `available = false` (không bao giờ trả khóa) để client khóa ô nhập
-và hiện banner. Lỗi tạm thời mới rơi sang nhánh code ở trên.
+giữ tới khi khởi động lại server. `GET /api/chatbot/status` gọi `verifyKey()`: lần đầu thử một
+câu tối giản với nhà cung cấp rồi nhớ kết quả, nên mở trang là biết khóa sai ngay chứ không đợi
+lượt chat đầu tiên; lỗi mạng/quota thì coi như dùng được và chỉ thử lại sau 5 phút. Khi không
+dùng được, `chat()` ném `503 SERVICE_UNAVAILABLE` với câu "Trợ lý AI chưa được cấu hình, vui lòng
+thử lại sau." **trước khi** lưu câu hỏi hay chọn món, và status trả `available = false` (không
+bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm thời mới rơi sang nhánh code ở trên.
 
 ### Key wiring (không rõ từ tên file)
 
@@ -213,7 +215,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
 - **`AI_API_KEY` trong `.env` phải là khóa thật.** Để trống, sai hoặc hết hạn thì trợ lý bị khóa
-  hẳn: lần gửi đầu tiên nhận 503 rồi khung chat hiện banner, các lượt sau `/api/chatbot/status`
-  trả `available = false` ngay từ lúc mở trang. Đó là hành vi dự kiến chứ không phải lỗi code.
-  Muốn demo luồng có gợi ý món thì phải thay khoá thật rồi khởi động lại server.
+  hẳn ngay khi mở trang: `/api/chatbot/status` trả `available = false`, khung chat hiện banner và
+  khóa ô nhập. Đó là hành vi dự kiến chứ không phải lỗi code. Muốn demo luồng có gợi ý món thì
+  phải thay khoá thật rồi khởi động lại server (kết quả kiểm tra khóa cũ được giữ trong bộ nhớ).
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.
