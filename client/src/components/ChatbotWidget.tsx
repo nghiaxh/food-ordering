@@ -149,7 +149,9 @@ export default function ChatbotWidget() {
       {open && (
         <div className="pointer-events-auto flex min-h-0 w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 max-h-[600px] max-sm:max-h-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
           <div className="flex shrink-0 items-center gap-2 bg-amber-600 px-3 py-2">
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+            {/* `m-0` vì reset của AntD cho `p` margin-bottom 14px, làm thanh tiêu đề cao
+                thêm 2px và đẩy chữ lệch lên so với nút đóng. */}
+            <p className="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">
               Trợ lý gợi ý món ăn
             </p>
             <button
