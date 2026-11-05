@@ -75,7 +75,8 @@ export default function AdminChatbotPage() {
     if (!data) return
     setHistory(data[0])
     const settings = Object.fromEntries(data[1].map((item) => [item.settingKey, item.settingValue]))
-    setMaxSuggestions(Number(settings.max_suggestions ?? 5))
+    // Cấu hình cũ có thể đang để 8/10; giao diện chỉ cho tối đa 5 thẻ mỗi lượt.
+    setMaxSuggestions(Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5)))
     setExtraRules(settings.extra_rules ?? '')
     setProvider(settings.provider ?? 'gemini')
     setModel(settings.model ?? '')
@@ -167,7 +168,7 @@ export default function AdminChatbotPage() {
               id="max-suggestions"
               className="mt-2 w-full"
               min={1}
-              max={10}
+              max={5}
               value={maxSuggestions}
               onChange={(v) => setMaxSuggestions(Number(v))}
             />

@@ -95,7 +95,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | Mã TC | Tình huống | Dữ liệu đầu vào (Câu hỏi) | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|------------|----------------------------|-------------------|------------------|-----------|
 | TC-BOT-01 | Tư vấn theo khẩu vị & dị ứng | "Tôi muốn ăn món Việt, không cay và không có hải sản" | Gợi ý món có `spicyLevel = 0`, danh mục Món Việt, không chứa hải sản trong dị ứng/thành phần | | |
-| TC-BOT-02 | Tư vấn theo số người & ngân sách | "Gợi ý món ăn cho 4 người trong tầm giá 200.000đ" | Tính `portions = ceil(4 / servingSize)` cho từng món; `totalPrice = gia * portions <= 200.000đ` | | |
+| TC-BOT-02 | Tư vấn theo số người & ngân sách | "Gợi ý món ăn cho 4 người trong tầm giá 200.000đ" | Tính `portions = ceil(4 / servingSize)` cho từng món; `totalPrice = gia * portions`; **tổng `totalPrice` của toàn bộ thẻ ≤ 200.000đ**, không chỉ từng món | | |
 | TC-BOT-03 | Kết hợp món ăn & đồ uống | "Cho tôi một món chính và một món uống dưới 100k" | Trả về đúng 2 thẻ: 1 món chính và 1 đồ uống, tổng tiền 2 món ≤ 100.000đ | | |
 | TC-BOT-04 | Món ăn theo chế độ ăn kiêng | "Có món chay nào ngon không?" | Chỉ gợi ý các món có nhãn "chay" trong `dietaryTags`, không gợi ý món thịt | | |
 | TC-BOT-05 | Câu hỏi ngoài lề (Out of scope) | "Thời tiết hôm nay thế nào?" / "Viết code Java giúp tôi" | Từ chối lịch sự, nhắc nhở phạm vi tư vấn món ăn, **tuyệt đối không gợi ý thẻ món nào** | | |
@@ -103,7 +103,13 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-BOT-07 | Không gợi ý món đã ngừng bán | Một món vừa bị tắt `available = false` | Món ngừng bán không bao giờ xuất hiện trong danh sách thẻ gợi ý | | |
 | TC-BOT-08 | Khách vãng lai chưa đăng nhập | Đặt câu hỏi tư vấn tại trang chủ | Chatbot trả lời và hiện thẻ món bình thường nhưng **không** lưu lại phiên vào CSDL lịch sử | | |
 | TC-BOT-09 | Lưu lịch sử khi đã đăng nhập | Khách đã đăng nhập chat | Nội dung hội thoại được lưu vào bảng `chat_messages`, xem được tại trang admin | | |
-| TC-BOT-10 | Nhánh dự phòng (Fallback - Sai API Key) | Khoá AI bị sai/hỏng/hết hạn, hỏi "Món chay không cay" | Server chuyển sang `selectFoodsByCode()`, trả lời tóm tắt 1 dòng + hiển thị đúng thẻ món chay không cay từ DB | | |
+| TC-BOT-10 | Nhánh dự phòng (Fallback - Sai API Key) | Khoá AI bị sai/hỏng/hết hạn, hỏi "Món chay không cay" | Server chuyển sang `selectFoodsByCode()`, trả lời tóm tắt 1 dòng + hiển thị đúng thẻ món chay không cay từ DB, không có banner notice | | |
+| TC-BOT-11 | Thiếu khóa API | `.env` không có `AI_API_KEY` (rỗng), hỏi "Món chay không cay" | Không gọi mạng tới AI; banner hổ phách "Trợ lý AI chưa được cấu hình khóa API..." hiện đầu khung chat; chatbot vẫn trả thẻ món dự phòng từ DB | | |
+| TC-BOT-12 | Chỉ giữ thẻ của lượt mới nhất | Hỏi 3 câu liên tiếp, mỗi câu đều có gợi ý món | Khung chat chỉ còn tối đa 5 thẻ ở tin bot mới nhất; tin bot cũ vẫn giữ chữ nhưng không còn thẻ; không còn nút "Xem thực đơn" | | |
+| TC-BOT-13 | Ngân sách là tổng bộ gợi ý | Hỏi "Bữa tối 200k cho 2 người" | Tổng `totalPrice` của tất cả thẻ ≤ 200.000đ; cấu hình `max_suggestions` cũ 8/10 vẫn chỉ trả tối đa 5 thẻ | | |
+| TC-BOT-14 | Hỏi tiếp theo ngữ cảnh | Sau lượt gợi ý món, hỏi "Món đó cay không?" | Server dùng `lastFoodIds`, chỉ trả món trong nhóm vừa gợi ý đã áp ràng buộc cay; không quét sang món ngoài ngữ cảnh | | |
+| TC-BOT-15 | Chủ đề mới không dính ngữ cảnh cũ | Sau lượt gợi ý món mặn, hỏi "Món đó có món chay không?" | Bỏ qua `lastFoodIds`, tìm trên toàn thực đơn; chỉ trả món có nhãn "chay" | | |
+| TC-BOT-16 | Khách vãng lai thêm món từ thẻ chatbot | Chưa đăng nhập, mở chatbot có thẻ món | Nút thêm vào giỏ bị disabled kèm tooltip "Đăng nhập để thêm món vào giỏ"; bấm vào không thêm món và không điều hướng sang chi tiết món | | |
 
 | TC-BOT-11 | Lưu lịch sử khách vãng lai | Khách chưa đăng nhập gửi 2 câu hỏi liên tiếp | Câu hỏi thứ hai được lưu vào `chat_message` với `user = null` theo `sessionId`; ngữ cảnh phiên được dùng cho lượt trả lời | | |
 | TC-BOT-12 | Giải quyết đại từ tham chiếu | Sau khi gợi ý món, hỏi "món đó rẻ hơn được không?" | Server dùng tên món vừa gợi ý để trích tiêu chí; kết quả lọc dựa trên các món đó, không trả về danh sách không liên quan | | |
