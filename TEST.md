@@ -51,6 +51,9 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-MENU-01 | Xem danh sách món & Phân trang | Trang chủ `/` | Cuộn danh sách món | Hiển thị dạng lưới thẻ món (12 món/trang), kèm nhãn giá, tag ăn kiêng, độ cay | | |
 | TC-MENU-02 | Lọc theo danh mục | Trang chủ `/` | Bấm chọn danh mục "Món Việt" | URL cập nhật `?category=Mon+Viet`, chỉ hiển thị các món thuộc danh mục đã chọn | | |
 | TC-MENU-03 | Tìm kiếm theo từ khóa & Giá | Trang chủ `/` | Nhập từ khóa "bún", lọc khoảng giá 50.000đ - 100.000đ | Lưới món lọc đúng các món chứa từ khóa trong tên và nằm trong khoảng giá | | |
+| TC-MENU-05 | Tìm không dấu & không phân biệt hoa thường | Trang chủ `/` | Gõ "pho bo", "ca phe", "do uong" vào ô tìm kiếm | Lần lượt ra "Phở bò", "Cà phê sữa đá", các món Đồ uống; server lọc qua `TextNormalizer` (không cần PostgreSQL `unaccent`) | | |
+| TC-MENU-07 | Enter giữ bộ lọc hiện tại | Đang lọc theo danh mục + khoảng giá trên `/` | Gõ từ khóa mới rồi nhấn Enter | URL giữ nguyên `category`/`min`/`max` và cập nhật `keyword` tức thì (không đợi debounce), lưới món lọc theo cả bộ lọc cũ + từ khóa mới | | |
+| TC-MENU-08 | Enter khi đang ở trang khác | Đang ở `/orders` hoặc `/cart` | Gõ từ khóa trong ô tìm kiếm rồi nhấn Enter | Quay về `/` kèm `?keyword=...`; không mất dữ liệu trang đang xem khi dùng nút Quay lại | | |
 | TC-MENU-04 | Xem chi tiết món ăn | Có món "Phở bò" | Bấm vào thẻ "Phở bò" | Mở Drawer chi tiết món (`/foods/:id`), hiện mô tả, thành phần, cảnh báo dị ứng, đánh giá sao | | |
 | TC-MENU-06 | Món ngừng phục vụ | Món có `available = false` | Xem món trên thực đơn | Thẻ món hiển thị nhãn "Hết món", nút "Thêm vào giỏ" bị vô hiệu hoá | | |
 
