@@ -77,7 +77,11 @@ AI bịa món.
   đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (`requireEditable`); các
   trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `AdminOrderRequest.items`
   được phép null, còn `adminCreate` tự kiểm danh sách món không rỗng. Khách cũng chỉ hủy được đơn
-  `PENDING` + chưa thanh toán.
+  `PENDING` + chưa thanh toán; client ẩn nút bằng `canCancelOrder` trong `client/src/utils/orders.ts`.
+
+- **Nhãn PREPARING là "Đang vận chuyển"**: mã trạng thái trong DB không đổi, chỉ đổi nhãn hiển thị
+  (`ORDER_STATUS_LABEL`, `OrderService.label`, thông báo "đang được vận chuyển"); nút admin
+  `CONFIRMED → PREPARING` là "Giao hàng", nút **Đặt lại** ở `/orders` chỉ hiện khi `COMPLETED`.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
   trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
   từng mục nằm trong `TEST.md`.

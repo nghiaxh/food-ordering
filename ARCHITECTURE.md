@@ -74,8 +74,9 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 2. `OrderService.create` set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
 3. Mỗi đơn được ghi một giao dịch thanh toán (`payment_transactions`: phương thức, số tiền,
    trạng thái PENDING/PAID) và tạo thông báo xác nhận cho khách (`notifications`).
-4. Trạng thái đơn dùng các giá trị `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`;
-   trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
+4. Trạng thái đơn dùng các giá trị `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`
+   — `PREPARING` có nghĩa là đang vận chuyển, nhãn hiển thị "Đang vận chuyển" ở cả client lẫn
+   thông báo server (mã trong DB không đổi); trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
 5. **Trạng thái đi đúng một chiều**: `PENDING → CONFIRMED → PREPARING → COMPLETED`, được canh
    trong `OrderService.isValidTransition`. Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
    thái được. `CANCELLED` được phép từ mọi trạng thái chưa chốt. Client cũng lọc danh sách trạng
@@ -96,7 +97,7 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
    dòng giải thích khi đơn đã xác nhận hoặc đã thu tiền.
 9. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
    trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
-   Nút "Đặt lại" chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
+   Nút "Đặt lại" chỉ hiện ở đơn `COMPLETED`, chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
 10. Mã đơn hiển thị cho khách và quản trị viên là `FO-xxxx` (tiền tố `FO` + id đệm 4 chữ số),
     sinh bởi `orderCode` trong `client/src/utils/orders.ts` để hai bên không lệch nhau. Id do
     server cấp nên đổi tiền tố không cần sửa dữ liệu; mã QR vẫn giữ `FOOD-{id}-{tổng tiền}`.
@@ -221,8 +222,11 @@ số người để lượt hỏi đó vẫn gợi ý được món thay vì tr�
 - `GET /api/reviews/food/{foodId}` trả kèm cờ `mine` để client biết đánh giá nào của chính
   mình và chỉ hiện nút Sửa/Xóa ở đúng đánh giá đó. `PUT` và `DELETE /api/reviews/{id}` đều kiểm
   tra chủ sở hữu ở server, không tin cờ `mine` từ client.
-- Trang lịch sử đơn có nút **Đặt lại**: đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ,
-  món ngừng phục vụ bị bỏ qua kèm cảnh báo.
+- Trang lịch sử đơn có nút **Đặt lại** (chỉ render khi đơn `COMPLETED` theo điều kiện trong
+  `OrdersPage`): đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ, món ngừng phục vụ bị bỏ qua
+  kèm cảnh báo. Nút **Hủy đơn** đi qua helper `canCancelOrder` (`client/src/utils/orders.ts`)
+  cùng ràng buộc với `OrderService.cancel`: đơn `PENDING` chưa thanh toán; đơn `PENDING` đã
+  `PAID` thay nút bằng gợi ý gọi hotline.
 
 ## Giao diện khách hàng và giao diện quản trị
 
