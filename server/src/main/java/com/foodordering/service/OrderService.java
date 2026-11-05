@@ -334,6 +334,7 @@ public class OrderService {
         Notification n = new Notification();
         n.setUser(order.getUser());
         n.setContent(content);
+        n.setOrderId(order.getId());
         notificationRepo.save(n);
     }
 }

@@ -63,6 +63,6 @@ public class NotificationController {
     }
 
     private static NotificationResponse toResponse(Notification n) {
-        return new NotificationResponse(n.getId(), n.getContent(), n.isRead(), n.getCreatedAt().toString());
+        return new NotificationResponse(n.getId(), n.getContent(), n.isRead(), n.getCreatedAt().toString(), n.getOrderId());
     }
 }

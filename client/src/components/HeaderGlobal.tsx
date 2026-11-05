@@ -24,6 +24,7 @@ export default function HeaderGlobal() {
   const logout = useAuthStore((s) => s.logout)
   const count = useCartStore((s) => s.count())
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [notifOpen, setNotifOpen] = useState(false)
 
   // Ô tìm kiếm ghi thẳng vào URL để trang thực đơn đọc được và người dùng chia sẻ
   // được đường dẫn đã lọc. `replace` tránh mỗi ký tự lại thêm một mục lịch sử.
@@ -80,6 +81,12 @@ export default function HeaderGlobal() {
     } catch {
       // Bỏ qua lỗi phụ
     }
+  }
+
+  // Đóng popover trước khi điều hướng; thông báo cũ không có orderId thì chỉ đóng.
+  const openNotification = (n: NotificationItem) => {
+    setNotifOpen(false)
+    if (n.orderId !== null) navigate(`/orders?orderId=${n.orderId}`)
   }
 
   const accountMenu: MenuProps = {
@@ -145,7 +152,9 @@ export default function HeaderGlobal() {
               trigger="click"
               placement="bottomRight"
               arrow={false}
+              open={notifOpen}
               onOpenChange={(open) => {
+                setNotifOpen(open)
                 if (open) getNotifications().then(setNotifications).catch(() => setNotifications([]))
               }}
               content={
@@ -181,11 +190,16 @@ export default function HeaderGlobal() {
                       notifications.slice(0, 10).map((n) => (
                         <div
                           key={n.id}
-                          className={`group relative rounded-lg px-3 py-2 text-sm ${
+                          className={`group relative rounded-lg text-sm ${
                             n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-amber-50/70 font-medium text-stone-800'
-                          }}`}
+                          }`}
                         >
-                          <div className="pr-6">
+                          {/* Vùng bấm chính là button riêng, không lồng nút xóa bên trong. */}
+                          <button
+                            type="button"
+                            onClick={() => openNotification(n)}
+                            className="block w-full rounded-lg px-3 py-2 pr-8 text-left"
+                          >
                             <span
                               className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
                                 n.read ? 'bg-stone-200' : 'bg-amber-500'
@@ -195,11 +209,14 @@ export default function HeaderGlobal() {
                             <span className="mt-0.5 block text-xs font-normal text-stone-400">
                               {new Date(n.createdAt).toLocaleString('vi-VN')}
                             </span>
-                          </div>
+                          </button>
                           <button
                             type="button"
-                            onClick={() => void removeOne(n.id)}
-                            className="absolute right-2 top-2 hidden text-stone-400 hover:text-rose-600 group-hover:block"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              void removeOne(n.id)
+                            }}
+                            className="absolute right-2 top-2 text-stone-400 opacity-100 hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                             title="Xóa thông báo này"
                           >
                             <DeleteOutlined className="text-xs" />

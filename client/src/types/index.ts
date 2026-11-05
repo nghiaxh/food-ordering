@@ -100,6 +100,8 @@ export interface NotificationItem {
   content: string
   read: boolean
   createdAt: string
+  /** Đơn liên quan; null với thông báo cũ nên chỉ đánh dấu đã đọc, không điều hướng. */
+  orderId: number | null
 }
 
 export interface Review {
