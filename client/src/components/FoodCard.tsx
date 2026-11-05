@@ -56,14 +56,11 @@ export default function FoodCard({ food }: { food: Food }) {
               Hết món
             </span>
           )}
+          {/* Chỉ hiện phần trăm giảm: tên chương trình khuyến mãi dài, đè kín ảnh món.
+              Giá gạch ngang bên dưới đã cho biết món đang được giảm. */}
           {food.available && !!food.discountPercent && (
             <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[11px] font-semibold text-white">
               -{food.discountPercent}%
-            </span>
-          )}
-          {food.available && !!food.discountLabel && (
-            <span className="rounded-full bg-amber-50/95 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200 backdrop-blur">
-              {food.discountLabel}
             </span>
           )}
         </div>

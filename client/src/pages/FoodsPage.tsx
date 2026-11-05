@@ -89,7 +89,7 @@ export default function FoodsPage() {
     }`
 
   return (
-    <div className="h-[calc(100dvh-3.25rem)] overflow-y-auto">
+    <div className="kiosk-scroll h-[calc(100dvh-3.25rem)] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
       <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-6">
         <section id="thuc-don" className="py-3 sm:py-4">
           <div className="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-1.5 backdrop-blur sm:-mx-6 sm:px-6 sm:py-2">
