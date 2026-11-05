@@ -107,6 +107,10 @@ AI bịa món.
   lại nằm trong menu tài khoản. Header cao `3.25rem`; đổi chiều cao này thì sửa luôn
   `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở `FoodsPage`, nếu không khung chat sẽ
   tràn lên header hoặc bảng món bị hụt dải phía dưới.
+- **Thông báo gắn đơn**: `OrderService.notify` set `orderId` (nullable) cho mỗi thông báo. Bấm
+  thân thông báo thì mark read, đóng popover, rồi điều hướng `/orders?orderId=`; `OrdersPage`
+  cuộn tới `order-{id}` và tô ring. Thông báo cũ có `orderId = null` chỉ mark read. Đã có đủ
+  read-all, read-one, delete-read, delete-one, đừng thêm endpoint trùng.
 - **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[3.25rem]` + `justify-end`,
   khung chat
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
