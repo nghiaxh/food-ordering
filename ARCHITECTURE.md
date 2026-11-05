@@ -153,18 +153,34 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
 - Lượt AI đầu tiên trích xuất tiêu chí dưới dạng JSON; server lọc `Food` bằng code và chỉ
   dùng các entity đang phục vụ.
 - Lượt AI thứ hai viết câu trả lời từ danh sách món đã lọc. Danh sách gửi vào prompt bị
-  giới hạn 15 món; số thẻ trả về mặc định là 5 và có thể đổi trong cấu hình chatbot.
+  giới hạn 15 món; số thẻ trả về mỗi lượt luôn nằm trong **1..5**. Cấu hình `max_suggestions`
+  trong trang Chatbot bị kẹp về khoảng này, nên giá trị cũ 8/10 cũng không vượt 5.
 - Thẻ món phía client được tạo từ entity đã lọc (`FoodCard.from`), nên ID và giá không lấy
   từ câu trả lời AI. Thẻ mang thêm `portions` và `totalPrice` do server tính, nên giá hiển thị
   khớp với tổng tiền khách sẽ phải trả.
 - `AiClient` đọc nhà cung cấp và tên mô hình từ bảng cấu hình `ai_setting` (quản trị viên đặt
   trong trang Chatbot), chỉ fallback về `app.ai.provider` / `app.ai.model` khi chưa đặt. Cả
   Gemini và OpenAI đều được hỗ trợ; `RestClient` có timeout 15 giâp cho cả kết nối và đọc.
-- Câu hỏi tiếp theo của cùng phiên được đưa vào ngữ cảnh lượt ghi câu trả lời, để khách hỏi
-  tiếp về món vừa được gợi ý mà AI vẫn biết đang nói về món nào.
+- **Ngữ cảnh hỏi tiếp nằm ở client, không lưu vào CSDL.** `ChatRequest` nhận thêm `history`
+  (tối đa 3 câu hỏi gần nhất) và `lastFoodIds` (ID các món ở tin bot gần nhất). Client xoá
+  `foods` của mọi tin bot cũ nên chỉ tin mới nhất còn thẻ; ref `lastFoodIds` được cập nhật theo
+  tin đó và clear khi tin mới không có món.
+- `history` được đưa vào prompt trích xuất tiêu chí dưới nhãn "CÂU HỎI TRƯỚC CỦA KHÁCH" để AI
+  hiểu "món đó", "món vừa gợi ý". Với khách đã đăng nhập, server dùng lịch sử phiên trong
+  `chat_message` khi client không gửi gì.
+- `lastFoodIds` chỉ được dùng khi câu mới là hỏi tiếp thật sự: có cụm tham chiếu rõ ("món đó",
+  "cái đó", "món này", "món vừa gợi ý", "mấy món trên", "trong số đó") **và** tiêu chí không mở
+  chủ đề mới (`categories`, `keywords`, `dietaryTags`, `excludeAllergens` đều rỗng). Khi đó
+  server lấy đúng các `Food` theo ID rồi áp ràng buộc mới (cay, ngân sách, số người). Câu mở
+  chủ đề mới bỏ qua context và tìm trên toàn thực đơn. Không dùng độ dài câu để đoán hỏi tiếp.
+  Nhánh dự phòng khi AI lỗi cũng bám `lastFoodIds` nếu câu là hỏi tiếp.
 - Lỗi AI/JSON sai thì xử lý bằng `try/catch` → hệ thống vẫn chạy bình thường. JSON AI trả về có
   thể có thêm trường lạ; mapper bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường
   thừa không làm mất gợi ý.
+- **Thiếu khóa API**: `AiClient.isConfigured()` kiểm tra `app.ai.api-key`; nếu rỗng, `chat()`
+  không gọi AI (tránh chờ timeout) mà đi thẳng nhánh dự phòng và trả `notice = "Trợ lý AI
+  chưa được cấu hình khóa API. Đang gợi ý bằng bộ lọc."`. Client hiện banner hổ phách ở đầu
+  khung chat nhưng vẫn cho chat bình thường. Khóa có nhưng gọi lỗi thì chỉ fallback, không notice.
 - **Nhánh dự phòng khi không gọi được AI** (thiếu khóa, khóa hỏng, hết thời gian chờ): `chat()`
   rơi sang `ChatbotService.selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code
   theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm
@@ -188,19 +204,26 @@ Tiêu chí AI trả về gồm `categories` (loại món và số món mong mu�
 
 1. **Lọc thuộc tính món**: còn phục vụ, độ cay, thành phần loại trừ (quét cả `allergens` lẫn
    `ingredients`), nhãn chế độ ăn, từ khóa. Danh mục và giá để dành cho bước 2.
-2. **Chọn món theo ngân sách**:
-   - *Một loại món* (hoặc khách không nói rõ loại nào): lấy các món rẻ nhất còn nằm trong
-     tổng ngân sách.
+2. **Chọn món theo ngân sách** (`maxBudget` là TỔNG của cả bộ gợi ý):
+   - *Một loại món* (hoặc khách không nói rõ loại nào): `FlatBudgetPicker` dò tổ hợp trên tối
+     đa 20 món rẻ nhất (bỏ trùng theo ID), chọn 1..5 món sao cho `sum(totalPrice) <= maxBudget`
+     và tổng tiền lớn nhất; hoà tổng thì ưu tiên nhiều món hơn. Không có bộ nào vừa thì trả
+     rỗng và câu trả lời nói rõ chưa có món trong ngân sách.
    - *Kết hợp nhiều loại* ("một món chính và một món uống"): mỗi loại giữ 5 ứng viên rẻ nhất
-     rồi dò tổ hợp, chọn tổ hợp có tổng tiền cao nhất nhưng không vượt ngân sách.
+     rồi `BudgetCombiner` dò tổ hợp, giữ đúng số món mỗi nhóm và tổng không vượt ngân sách.
+     Không ghép được thì trả rỗng, không lấy lệch loại món khách yêu cầu.
+   - Không có `maxBudget`: giữ hành vi cũ, trả danh sách ứng viên và `chat()` cắt còn tối đa 5.
 
 **Số người ăn và khẩu phần**: số phần cần của một món là `ceil(people / khẩu phần)`, ví dụ
 4 người ăn, món phục vụ 2 người thì cần 2 phần. Tổng tiền của món là `giá × số phần`, và
 ngân sách so với **tổng** số phần chứ không phải giá một phần. Số phần và tổng tiền được
 ghi kèm vào prompt để AI đọc lại thay vì tự tính, và gửi kèm thẻ món ra client.
 
-Nếu số người AI đoán ra quá lớn khiến không món nào vừa ngân sách, server thử lại bỏ yếu tố
-số người để lượt hỏi đó vẫn gợi ý được món thay vì trả về danh sách rỗng.
+Nếu không tổ hợp nào vừa ngân sách (kể cả khi số người làm số phần tăng), server trả danh sách
+rỗng và câu trả lời nói rõ chưa có món trong ngân sách; không tự bỏ yếu tố số người vì như vậy
+giá hiển thị sẽ lệch với số người khách nói. Tổng bộ gợi ý và ngân sách được ghi vào prompt
+trả lời (`TỔNG BỘ GỢI Ý`, `NGÂN SÁCH`) để AI không nói sai, và `fallbackReply` cũng tóm tắt
+dạng "N món, tổng ... trong ngân sách ...".
 
 ### 5b. Ảnh món do admin tải lên
 
@@ -317,17 +340,21 @@ Bố cục khung chat:
 - Thẻ món gộp trong **một khung trắng**, các dòng ngăn bằng đường kẻ, không viền riêng từng
   thẻ: ảnh 40px, tên một dòng, giá hổ phách căn phải. Cả dòng là liên kết tới `/foods/:id`.
   Khung này canh cùng mép trái với bong bóng của bot.
-- Khi tin bot không kèm món nào, hiện nút **"Xem thực đơn"** mở `/`, chỉ ở tin bot gần nhất
-  để khung chat không bị dồn nút. Quy tắc này không cần field riêng trong DTO nên `ChatResponse`
-  giữ nguyên `reply` + `foods`.
+- **Chỉ tin bot mới nhất giữ thẻ món**, tối đa 5 thẻ. Khi nhận tin bot mới, client bỏ thuộc
+  tính `foods` của mọi tin bot cũ (vẫn giữ nội dung chữ) rồi gắn thẻ của tin mới. Nhờ vậy khung
+  chat không dồn thẻ và khách không tưởng món của lượt cũ là gợi ý hiện tại.
+- Nút thêm vào giỏ trong thẻ yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip
+  "Đăng nhập để thêm món vào giỏ" và bấm vào không điều hướng theo link của thẻ.
+- Khi server trả `notice` (ví dụ thiếu khóa AI), khung chat hiện banner hổ phách nhỏ ngay dưới
+  thanh tiêu đề nhưng không chặn chat. `ChatResponse` gồm `reply` + `foods` + `notice`.
 - Nút gửi nằm trong ô nhập (`suffix`) thay vì một nút tròn riêng, nên khung chat đỡ một phần
   tử và ô nhập không bị bó hẹp.
 - Ba chấm "đang trả lời" cũng nằm trong bong bóng trắng cùng kiểu để khung nhìn nhất quán.
 
-Phía server, `extractCriteria` trả `null` khi AI lỗi hoặc JSON sai. `chat()` coi `null` là
-"không phân tích được" và **không gợi ý món**. Lý do: tiêu chí rỗng sẽ khớp mọi món, danh
-sách trả về chỉ là vài món rẻ nhất, khách hỏi món chay sẽ nhận cà phê đá. Khi trích xuất thành
-công nhưng sinh câu trả lời thất bại thì thẻ món vẫn hiện, vì chúng khớp thật câu hỏi.
+Phía server, `extractCriteria` trả `null` khi AI lỗi hoặc JSON sai. `chat()` không coi tiêu
+chí rỗng là khớp mọi món (làm vậy khách hỏi món chay sẽ nhận cà phê đá), mà chuyển sang nhánh
+dự phòng chấm điểm bằng code. Khi trích xuất thành công nhưng sinh câu trả lời thất bại thì
+thẻ món của bước lọc vẫn hiện, vì chúng khớp thật câu hỏi.
 
 Tài liệu tri thức mẫu không được hứa điều mà hệ thống không làm: `OrderService.create` chỉ cộng
 tiền món nên tài liệu đã bỏ câu "Phí giao hàng 15.000 đồng". Ba câu còn lại (giờ mở cửa, khu vực

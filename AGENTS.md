@@ -33,19 +33,22 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [AiClien
 ```
 
 AI **không bao giờ** được tự nghĩ ra món/giá. Prompt truy vấn món chỉ nhận danh sách
-có sẵn từ `FoodRepository`; nếu lỗi AI/JSON sai thì `extractCriteria` trả `null` để hệ
-thống vẫn chạy, và `chat()` **không gợi ý món** cho lượt đó. Đừng đổi `null` thành tiêu
-chí rỗng: tiêu chí rỗng khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan
-gì tới câu hỏi, khách hỏi món chay lại nhận cà phê đá. Chỉ khách **đã đăng nhập**
-mới ghi lịch sử hội thoại; khách vãng lai chat được nhưng để dấu vết rỗng.
+có sẵn từ `FoodRepository`; nếu lỗi AI/JSON sai thì `extractCriteria` trả `null` và
+`chat()` chuyển sang nhánh dự phòng. Đừng coi `null` là tiêu chí rỗng: tiêu chí rỗng
+khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan gì tới câu hỏi, khách hỏi
+món chay lại nhận cà phê đá. Chỉ khách **đã đăng nhập** mới ghi lịch sử hội thoại; khách
+vãng lai chat được nhờ `history`/`lastFoodIds` client gửi kèm, không lưu vào DB.
 
 **Cách áp tiêu chí** (`ChatbotService.selectFoods`): lọc thuộc tính món trước (còn phục
 vụ, độ cay, thành phần loại trừ, nhãn chế độ ăn, từ khóa), rồi mới chọn món theo ngân
-sách. `maxBudget` là **TỔNG** tiền của cả bữa, không phải giá một món. Số phần cần tính
-theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá × số phần`; đừng so
-`maxBudget` với giá một phần. `categories` là danh sách loại món kèm số lượng, dùng cho
-câu hỏi kiểu "một món chính và một món uống". Số phần và tổng tiền phải tính ở server và
-gửi kèm thẻ món, không giao cho AI tự tính.
+sách. `maxBudget` là **TỔNG** tiền của cả bộ gợi ý, không phải giá một món. Số phần cần
+tính theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá × số phần`; đừng
+so `maxBudget` với giá một phần. Có ngân sách thì `FlatBudgetPicker` (0/1 nhóm, tối đa 20
+ứng viên rẻ nhất) hoặc `BudgetCombiner` (≥2 nhóm) chọn 1..5 món sao cho tổng `totalPrice`
+không vượt hạn mức; không có bộ nào vừa thì trả rỗng và câu trả lời nói rõ. `categories`
+là danh sách loại món kèm số lượng, dùng cho câu hỏi kiểu "một món chính và một món uống".
+Mỗi lượt trả tối đa **5 thẻ**; `maxSuggestions()` kẹp cấu hình về 1..5 kể cả giá trị cũ 8/10.
+Số phần và tổng tiền phải tính ở server và gửi kèm thẻ món, không giao cho AI tự tính.
 
 **Nhánh dự phòng khi không gọi được AI** (thiếu/hỏng khóa, hết thời gian chờ):
 `chat()` rơi sang `selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code theo
@@ -55,6 +58,17 @@ sách, số người. Câu trả lời chỉ tóm tắt một dòng rồi mời 
 kê lại danh sách món (thẻ món đã hiện bên dưới) - luật 9 của prompt AI cũng cấm AI làm vậy.
 Câu hỏi ngoài lề không gợi ý món nào. Thẻ món vẫn lấy ID/giá từ DB nên không có chuyện
 AI bịa món.
+
+**Câu hỏi tiếp**: client gửi `history` (3 câu gần nhất) và `lastFoodIds` (món ở tin bot
+gần nhất). Server chỉ dùng `lastFoodIds` khi câu có cụm tham chiếu rõ ("món đó", "cái đó",
+"món này", "món vừa gợi ý", "mấy món trên", "trong số đó") và tiêu chí không mở chủ đề mới
+(`categories`/`keywords`/`dietaryTags`/`excludeAllergens`); khi đó lấy đúng `Food` theo ID
+và áp ràng buộc mới. Không dùng độ dài câu để đoán hỏi tiếp. Nhánh dự phòng khi AI lỗi cũng
+bám context này.
+
+**Thiếu khóa AI**: `AiClient.isConfigured()` false thì `chat()` không gọi AI (tránh chờ
+timeout), đi thẳng nhánh dự phòng và trả `notice`; client hiện banner hổ phách nhưng vẫn
+chat bình thường. Khóa có mà gọi lỗi thì chỉ fallback, không notice.
 
 ### Key wiring (không rõ từ tên file)
 
@@ -107,6 +121,10 @@ AI bịa món.
   lại nằm trong menu tài khoản. Header cao `3.25rem`; đổi chiều cao này thì sửa luôn
   `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở `FoodsPage`, nếu không khung chat sẽ
   tràn lên header hoặc bảng món bị hụt dải phía dưới.
+- **Chatbot chỉ giữ thẻ của tin bot mới nhất** (tối đa 5); tin bot cũ vẫn còn chữ nhưng mất
+  `foods`, nên khung chat không dồn thẻ. Không còn nút "Xem thực đơn" trong khung chat. Nút
+  thêm món trong thẻ yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip và bấm
+  không điều hướng theo link của thẻ.
 - **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[3.25rem]` + `justify-end`,
   khung chat
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
