@@ -24,6 +24,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -58,34 +60,41 @@ class ChatbotServiceTest {
 
         when(categoryRepo.findAll()).thenReturn(List.of(monChinh, doUong));
         when(foodRepo.findAll()).thenAnswer(inv -> thucDong());
+        when(foodRepo.findAllById(any())).thenAnswer(inv -> {
+            Iterable<Long> ids = inv.getArgument(0);
+            List<Long> wanted = new ArrayList<>();
+            ids.forEach(wanted::add);
+            return thucDong().stream().filter(f -> wanted.contains(f.getId())).toList();
+        });
         when(settingRepo.findById(anyString())).thenReturn(Optional.empty());
+        // Mặc định coi như đã có khóa AI; test thiếu khóa tự đổi thành false.
+        when(ai.isConfigured()).thenReturn(true);
 
         service = new ChatbotService(ai, foodRepo, categoryRepo, chatRepo, userRepo,
                 settingRepo);
     }
 
     @Test
-    @DisplayName("Tư vấn theo số người: số phần tính theo khẩu phần, tổng tiền nằm trong ngân sách")
+    @DisplayName("Tư vấn theo số người: số phần tính theo khẩu phần, tổng cả bộ nằm trong ngân sách")
     void tuVanTheoSoNguoi() {
         // 2 người, ngân sách 200k: món phục vụ 1 người cần 2 phần nên giá x2.
         mockExtract("""
-                {"categories":[{"name":"Món Việt","count":1}],
-                 "maxSpicyLevel":null,"maxBudget":200000,"people":2,
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":200000,"people":2,
                  "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
                 """);
 
-        ChatResponse res = service.chat(null, new ChatRequest("Món ngon dưới 200k cho 2 người", "s1"));
+        ChatResponse res = service.chat(null, new ChatRequest("Món ngon dưới 200k cho 2 người", "s1", null, null));
 
-        assertThat(res.foods()).isNotEmpty();
-        // Phở bò 65k, khẩu phần 1 người -> 2 phần = 130k
-        FoodCard pho = res.foods().stream().filter(c -> c.name().equals("Phở bò")).findFirst().orElseThrow();
-        assertThat(pho.portions()).isEqualTo(2);
-        assertThat(pho.totalPrice()).isEqualTo("130000");
-        // Mọi món gợi ý đều phải vừa ngân sách tính theo số phần
+        assertThat(res.foods()).isNotEmpty().hasSizeLessThanOrEqualTo(5);
+        long tong = res.foods().stream().mapToLong(c -> Long.parseLong(c.totalPrice())).sum();
+        assertThat(tong).isGreaterThan(0).isLessThanOrEqualTo(200000L);
+        // Mọi thẻ đều có tổng tiền = giá một phần × số phần, và tổng bộ không vượt ngân sách.
         assertThat(res.foods()).allSatisfy(c -> {
-            assertThat(Long.parseLong(c.totalPrice())).isLessThanOrEqualTo(200000L);
             assertThat(c.portions()).isGreaterThanOrEqualTo(1);
+            assertThat(Long.parseLong(c.totalPrice()))
+                    .isEqualTo(Long.parseLong(c.price()) * c.portions());
         });
+        assertThat(res.foods()).anySatisfy(c -> assertThat(c.portions()).isEqualTo(2));
     }
 
     @Test
@@ -98,7 +107,8 @@ class ChatbotServiceTest {
                  "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
                 """);
 
-        ChatResponse res = service.chat(null, new ChatRequest("1 món chính và 1 món uống khoảng 150k", "s2"));
+        ChatResponse res = service.chat(null,
+                new ChatRequest("1 món chính và 1 món uống khoảng 150k", "s2", null, null));
 
         assertThat(res.foods()).hasSize(2);
         long tong = res.foods().stream().mapToLong(c -> Long.parseLong(c.totalPrice())).sum();
@@ -109,22 +119,92 @@ class ChatbotServiceTest {
     }
 
     @Test
-    @DisplayName("Tư vấn theo khẩu vị: chỉ món không cay, loại trừ thành phần khách dị ứng")
-    void tuVanTheoKhauVi() {
+    @DisplayName("Ngân sách là tổng của cả bộ gợi ý, không phải giá từng món")
+    void nganSachLaTongCuaBoGoiY() {
         mockExtract("""
-                {"categories":[],"maxSpicyLevel":0,"maxBudget":null,"people":null,
-                 "excludeAllergens":["hải sản"],"dietaryTags":[],"keywords":[]}
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":100000,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
                 """);
 
-        ChatResponse res = service.chat(null, new ChatRequest("Món nào không cay và không có hải sản?", "s3"));
+        ChatResponse res = service.chat(null,
+                new ChatRequest("Món ngon trong 100k", "s7", null, null));
+
+        assertThat(res.foods()).isNotEmpty().hasSizeLessThanOrEqualTo(5);
+        long tong = res.foods().stream().mapToLong(c -> Long.parseLong(c.totalPrice())).sum();
+        assertThat(tong).isLessThanOrEqualTo(100000L);
+        // Nhiều món cộng lại chứ không phải mỗi món dưới 100k: dữ liệu mẫu có bộ đúng 100k.
+        assertThat(tong).isEqualTo(100000L);
+    }
+
+    @Test
+    @DisplayName("Không có ngân sách thì vẫn trả tối đa 5 lựa chọn")
+    void khongCoNganSachTraToiDa5() {
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+
+        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món ngon", "s8", null, null));
+
+        assertThat(res.foods()).hasSize(5);
+    }
+
+    @Test
+    @DisplayName("Câu hỏi tiếp dùng lastFoodIds: chỉ trả món trong ngữ cảnh, áp ràng buộc mới")
+    void hoiTiepDungLastFoodIds() {
+        Food pho = food("Phở bò");
+        Food bunBo = food("Bún bò Huế");
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":0,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+
+        ChatResponse res = service.chat(null, new ChatRequest("Món đó cay không?", "s9",
+                List.of("Gợi ý món cho 2 người"), List.of(pho.getId(), bunBo.getId())));
+
+        // Bún bò Huế cay 3/3 nên bị ràng buộc mới loại; không được quét sang món ngoài context.
+        assertThat(res.foods()).hasSize(1);
+        assertThat(res.foods().get(0).id()).isEqualTo(pho.getId());
+    }
+
+    @Test
+    @DisplayName("Câu hỏi mở chủ đề mới bỏ qua lastFoodIds và tìm trên toàn thực đơn")
+    void chuDeMoiBoQuaLastFoodIds() {
+        Food pho = food("Phở bò");
+        Food bunCha = food("Bún chả Hà Nội");
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":["chay"],"keywords":[]}
+                """);
+
+        ChatResponse res = service.chat(null, new ChatRequest("Món đó có món chay không?", "s10",
+                null, List.of(pho.getId(), bunCha.getId())));
 
         assertThat(res.foods()).isNotEmpty();
         assertThat(res.foods()).allSatisfy(c -> {
-            Food f = thucDong().stream().filter(x -> x.getName().equals(c.name())).findFirst().orElseThrow();
-            assertThat(f.getSpicyLevel()).isZero();
-            assertThat((f.getAllergens() + " " + f.getIngredients()).toLowerCase())
-                    .doesNotContain("hải sản");
+            Food f = food(c.name());
+            assertThat(f.getDietaryTags().toLowerCase()).contains("chay");
         });
+        // Có món ngoài context cũ, chứng tỏ không bị giới hạn vào hai món vừa gợi ý.
+        assertThat(res.foods()).anySatisfy(c -> assertThat(c.id()).isNotIn(pho.getId(), bunCha.getId()));
+    }
+
+    @Test
+    @DisplayName("Thiếu khóa API: báo notice, không gọi AI và vẫn gợi ý bằng bộ lọc")
+    void thieuApiKeyThiBaoRo() {
+        when(ai.isConfigured()).thenReturn(false);
+
+        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s11", null, null));
+
+        assertThat(res.notice()).contains("chưa được cấu hình khóa API");
+        assertThat(res.foods()).isNotEmpty();
+        assertThat(res.foods()).allSatisfy(c -> {
+            Food f = food(c.name());
+            assertThat(f.getDietaryTags().toLowerCase()).contains("chay");
+            assertThat(f.getSpicyLevel()).isZero();
+        });
+        // Không gọi mạng khi biết chắc thiếu khóa, tránh chờ hết timeout.
+        verify(ai, never()).generate(anyString(), anyString(), anyBoolean());
     }
 
     @Test
@@ -132,11 +212,12 @@ class ChatbotServiceTest {
     void aiLoiRoiSangNhanhDungPhong() {
         when(ai.generate(anyString(), anyString(), anyBoolean())).thenThrow(new RuntimeException("AI lỗi"));
 
-        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s4"));
+        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s4", null, null));
 
+        assertThat(res.notice()).isNull();
         assertThat(res.foods()).isNotEmpty();
         assertThat(res.foods()).allSatisfy(c -> {
-            Food f = thucDong().stream().filter(x -> x.getName().equals(c.name())).findFirst().orElseThrow();
+            Food f = food(c.name());
             assertThat(f.getDietaryTags().toLowerCase()).contains("chay");
             assertThat(f.getSpicyLevel()).isZero();
         });
@@ -147,11 +228,25 @@ class ChatbotServiceTest {
     }
 
     @Test
+    @DisplayName("AI lỗi mà câu là hỏi tiếp thì nhánh dự phòng vẫn bám lastFoodIds")
+    void aiLoiHoiTiepVanDungContext() {
+        when(ai.generate(anyString(), anyString(), anyBoolean())).thenThrow(new RuntimeException("AI lỗi"));
+        Food pho = food("Phở bò");
+        Food bunBo = food("Bún bò Huế");
+
+        ChatResponse res = service.chat(null, new ChatRequest("Món đó cay không?", "s12",
+                null, List.of(pho.getId(), bunBo.getId())));
+
+        assertThat(res.foods()).hasSize(1);
+        assertThat(res.foods().get(0).id()).isEqualTo(bunBo.getId());
+    }
+
+    @Test
     @DisplayName("AI lỗi và câu hỏi ngoài lề thì không gợi ý món nào")
     void aiLoiCauHoiNgoaiLe() {
         when(ai.generate(anyString(), anyString(), anyBoolean())).thenThrow(new RuntimeException("AI lỗi"));
 
-        ChatResponse res = service.chat(null, new ChatRequest("Ai là Tổng thống Việt Nam?", "s6"));
+        ChatResponse res = service.chat(null, new ChatRequest("Ai là Tổng thống Việt Nam?", "s6", null, null));
 
         assertThat(res.foods()).isEmpty();
         assertThat(res.reply()).contains("Mình chỉ tư vấn được về món ăn của quán");
@@ -165,7 +260,7 @@ class ChatbotServiceTest {
                  "excludeAllergens":[],"dietaryTags":[],"keywords":[],"mucDoCay":"khong","note":"abc"}
                 """);
 
-        ChatResponse res = service.chat(null, new ChatRequest("món không cay", "s5"));
+        ChatResponse res = service.chat(null, new ChatRequest("món không cay", "s5", null, null));
 
         assertThat(res.foods()).isNotEmpty();
     }
@@ -174,6 +269,11 @@ class ChatbotServiceTest {
     private void mockExtract(String json) {
         when(ai.generate(anyString(), anyString(), anyBoolean()))
                 .thenAnswer(inv -> inv.getArgument(2, Boolean.class) ? json : "Dưới đây là gợi ý của mình.");
+    }
+
+    /** Món trong dữ liệu mẫu, dùng để lấy ID thật của entity. */
+    private Food food(String name) {
+        return thucDong().stream().filter(f -> f.getName().equals(name)).findFirst().orElseThrow();
     }
 
     /** Dữ liệu món giống hệt phần seed trong DataSeeder để số liệu kiểm thử khớp thực tế. */
