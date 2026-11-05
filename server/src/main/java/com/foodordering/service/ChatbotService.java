@@ -598,8 +598,23 @@ public class ChatbotService {
                 .map(v -> "10. Quy tắc bổ sung của nhà hàng: " + v).orElse("");
     }
 
+    /**
+     * Số thẻ món tối đa mỗi lượt, luôn nằm trong 1..5 kể cả khi cấu hình cũ đang để 8/10.
+     * Giá trị hỏng được coi như mặc định 5 thay vì làm hỏng cả lượt chat.
+     */
     private int maxSuggestions() {
-        return settingRepo.findById("max_suggestions").map(s -> Integer.parseInt(s.getSettingValue())).orElse(5);
+        return settingRepo.findById("max_suggestions")
+                .map(AiSetting::getSettingValue)
+                .map(String::trim)
+                .map(v -> {
+                    try {
+                        return Integer.parseInt(v);
+                    } catch (NumberFormatException e) {
+                        return 5;
+                    }
+                })
+                .map(v -> Math.max(1, Math.min(5, v)))
+                .orElse(5);
     }
 
     private void save(User user, String sessionId, ChatMessage.Sender sender, String content) {

@@ -1,14 +1,13 @@
 import { useRef, useState, useEffect } from 'react'
-import { Input } from 'antd'
-import { MessageOutlined, CloseOutlined, SendOutlined } from '@ant-design/icons'
+import { Input, Tooltip, message } from 'antd'
+import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
 import { chat } from '../api/api'
-import type { ChatMessage } from '../types'
+import type { ChatMessage, Food, FoodCard } from '../types'
 import { formatVND } from '../utils/format'
 import { useHasCartBar } from '../hooks/useCartBar'
 import { useCartStore } from '../store/cartStore'
-import { ShoppingCartOutlined } from '@ant-design/icons'
-import { message } from 'antd'
+import { useAuthStore } from '../store/authStore'
 import UiButton from './UiButton'
 import UiImg from './UiImg'
 
@@ -39,9 +38,13 @@ export default function ChatbotWidget() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([{ sender: 'BOT', content: GREETING }])
+  // Server chỉ trả notice khi thiếu cấu hình (ví dụ chưa có khóa AI); hiện banner nhưng vẫn chat.
+  const [notice, setNotice] = useState<string | null>(null)
   // sessionId giữ một phiên chat; các ref bên dưới dùng cho thao tác gửi lại và vòng đời widget.
   const sessionId = useRef(crypto.randomUUID())
   const lastUserRef = useRef('')
+  // ID món của tin bot gần nhất, gửi kèm để server hiểu câu hỏi tiếp ("món đó").
+  const lastFoodIdsRef = useRef<number[]>([])
   const listRef = useRef<HTMLDivElement>(null)
   // Khi widget đóng, request đang chạy không được cập nhật state của component.
   const activeRef = useRef(true)
@@ -55,13 +58,28 @@ export default function ChatbotWidget() {
 
   const isAdmin = location.pathname.startsWith('/admin')
   const addToCart = useCartStore((s) => s.add)
+  const user = useAuthStore((s) => s.user)
+  // Chưa đăng nhập vẫn xem được gợi ý nhưng không thêm được vào giỏ (giỏ cần token).
+  const canAdd = user !== null
 
-  const handleAddToCart = async (e: React.MouseEvent, f: any) => {
+  const handleAddToCart = async (e: React.MouseEvent, f: FoodCard) => {
     e.preventDefault()
     e.stopPropagation()
+    if (!canAdd) return
     const portions = f.portions && f.portions > 0 ? f.portions : 1
-    await addToCart(f, portions)
+    await addToCart(f as unknown as Food, portions)
     message.success(`Đã thêm ${portions}x ${f.name} vào giỏ!`)
+  }
+
+  /**
+   * Chỉ tin bot mới nhất được giữ thẻ món: tin cũ vẫn còn chữ nhưng mất `foods`, nên khung
+   * chat không dồn ngày càng nhiều thẻ và khách không tưởng món cũ là gợi ý hiện tại.
+   */
+  const pushBotMessage = (content: string, foods: FoodCard[]) => {
+    setMessages((current) => [
+      ...current.map((m) => (m.sender === 'BOT' ? { sender: m.sender, content: m.content } : m)),
+      { sender: 'BOT', content, foods },
+    ])
   }
 
   const handleSend = async (raw?: string) => {
@@ -69,19 +87,26 @@ export default function ChatbotWidget() {
     if (!text || loading) return
     setInput('')
     lastUserRef.current = text
+    // 3 câu gần nhất của khách giúp AI hiểu đại từ ở câu hỏi tiếp.
+    const history = messages.filter((m) => m.sender === 'USER').map((m) => m.content).slice(-3)
     setMessages((m) => [...m, { sender: 'USER', content: text }])
     setLoading(true)
     try {
-      const res = await chat(text, sessionId.current)
+      const res = await chat(text, sessionId.current, history, lastFoodIdsRef.current)
       if (!activeRef.current) return
       // `res.foods` đã được server lọc và ánh xạ từ entity; không lấy món từ nội dung AI.
       // Server trả rỗng khi không phân tích được câu hỏi, đừng tự bịa món thay thế.
       setError(false)
-      setMessages((m) => [...m, { sender: 'BOT', content: res.reply, foods: res.foods }])
+      setNotice(res.notice)
+      const foods = res.foods.slice(0, 5)
+      // Tin mới không có món thì clear ngữ cảnh, tránh "món đó" trỏ về lượt đã mất thẻ.
+      lastFoodIdsRef.current = foods.map((f) => f.id)
+      pushBotMessage(res.reply, foods)
     } catch {
       if (!activeRef.current) return
       setError(true)
-      setMessages((m) => [...m, { sender: 'BOT', content: 'Mình chưa gửi được câu hỏi, bạn thử lại nhé!' }])
+      lastFoodIdsRef.current = []
+      pushBotMessage('Mình chưa gửi được câu hỏi, bạn thử lại nhé!', [])
     } finally {
       if (activeRef.current) setLoading(false)
     }
@@ -110,8 +135,6 @@ export default function ChatbotWidget() {
 
   // Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào; sau tin nhắn đầu tiên thì thôi.
   const showSuggestions = messages.length <= 1
-  // Nút mở thực đơn chỉ dính vào tin bot gần nhất để khung chat không bị dồn nút.
-  const lastBotIndex = messages.reduce((acc, m, i) => (m.sender === 'BOT' ? i : acc), -1)
 
   return (
     // Cả cụm bám trang: bắt đầu ngay dưới thanh điều hướng và kết thúc trên nút mở, nên

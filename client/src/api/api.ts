@@ -130,8 +130,24 @@ export const updateReview = (id: number, data: { rating: number; comment: string
 export const deleteReview = (id: number) => http.delete(`/reviews/${id}`)
 
 // ----- Chatbot -----
-export const chat = (message: string, sessionId: string) =>
-  http.post<{ reply: string; foods: FoodCard[] }>('/chatbot/chat', { message, sessionId }).then((r) => r.data)
+/**
+ * Gửi câu hỏi kèm 3 câu trước và ID các món vừa gợi ý để server hiểu câu hỏi tiếp; server
+ * không lưu ngữ cảnh này vào CSDL nên khách vãng lai vẫn dùng được.
+ */
+export const chat = (
+  message: string,
+  sessionId: string,
+  history: string[] = [],
+  lastFoodIds: number[] = [],
+) =>
+  http
+    .post<{ reply: string; foods: FoodCard[]; notice: string | null }>('/chatbot/chat', {
+      message,
+      sessionId,
+      history,
+      lastFoodIds,
+    })
+    .then((r) => r.data)
 
 export type { ChatMessage }
 
