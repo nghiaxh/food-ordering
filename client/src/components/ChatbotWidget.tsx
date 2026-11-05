@@ -6,9 +6,11 @@ import { chat } from '../api/api'
 import type { ChatMessage } from '../types'
 import { formatVND } from '../utils/format'
 import { useHasCartBar } from '../hooks/useCartBar'
+import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { ShoppingCartOutlined } from '@ant-design/icons'
 import { message } from 'antd'
+import LoginTooltip from './LoginTooltip'
 import UiButton from './UiButton'
 import UiImg from './UiImg'
 
@@ -54,14 +56,18 @@ export default function ChatbotWidget() {
   }, [messages, loading])
 
   const isAdmin = location.pathname.startsWith('/admin')
+  const user = useAuthStore((s) => s.user)
   const addToCart = useCartStore((s) => s.add)
+  // Thẻ món trong chat vẫn mở được chi tiết khi chưa đăng nhập; chỉ nút thêm món bị khoá.
+  const canAdd = user !== null
 
   const handleAddToCart = async (e: React.MouseEvent, f: any) => {
     e.preventDefault()
     e.stopPropagation()
+    if (!user) return
     const portions = f.portions && f.portions > 0 ? f.portions : 1
-    await addToCart(f, portions)
-    message.success(`Đã thêm ${portions}x ${f.name} vào giỏ!`)
+    const ok = await addToCart(f, portions)
+    if (ok) message.success(`Đã thêm ${portions}x ${f.name} vào giỏ!`)
   }
 
   const handleSend = async (raw?: string) => {
@@ -186,14 +192,17 @@ export default function ChatbotWidget() {
                                 ? formatVND(Number(f.totalPrice))
                                 : formatVND(Number(f.price))}
                             </span>
-                            <button
-                              type="button"
-                              onClick={(e) => void handleAddToCart(e, f)}
-                              title="Thêm vào giỏ"
-                              className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 transition hover:bg-amber-600 hover:text-white"
-                            >
-                              <ShoppingCartOutlined className="text-xs" />
-                            </button>
+                            <LoginTooltip active={!canAdd} blockLink>
+                              <button
+                                type="button"
+                                disabled={!canAdd}
+                                onClick={(e) => void handleAddToCart(e, f)}
+                                title="Thêm vào giỏ"
+                                className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 transition hover:bg-amber-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-amber-50 disabled:hover:text-amber-700"
+                              >
+                                <ShoppingCartOutlined className="text-xs" />
+                              </button>
+                            </LoginTooltip>
                           </Link>
                         ))}
                       </div>

@@ -19,7 +19,7 @@ const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255
 
 export default function CartPage() {
-  const { items, loaded, setQuantity, remove, clear, count, total } = useCartStore()
+  const { items, loaded, setQuantity, remove, clear, count } = useCartStore()
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const [ordering, setOrdering] = useState(false)
@@ -31,6 +31,8 @@ export default function CartPage() {
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null)
   const [savingAddress, setSavingAddress] = useState(false)
   const [quote, setQuote] = useState<CartQuote | null>(null)
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const [quoteError, setQuoteError] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('COD')
 
   const { run: submitOrder, pending: submitting } = useAsyncAction(
@@ -57,33 +59,40 @@ export default function CartPage() {
   }, [addresses])
 
   /**
-   * Báo giá lại mỗi khi giỏ hoặc mã đổi. Khách vãng lai chưa có tài khoản nên chưa xem
-   * được giảm giá; các con số còn lại vẫn là tạm tính từ giá niêm yết.
+   * Báo giá lại mỗi khi giỏ đổi, gửi đúng danh sách dòng đang hiển thị để server không đọc
+   * giỏ DB chậm hơn state. Abort request cũ để response về muộn không ghi đè số mới, và xoá
+   * quote ngay khi danh sách đổi để không hiện tiền của giỏ trước.
    */
   useEffect(() => {
-    if (!user || items.length === 0) {
+    if (items.length === 0) {
       setQuote(null)
+      setQuoteLoading(false)
+      setQuoteError(false)
       return
     }
-    let alive = true
-    quoteCart()
+    const ctrl = new AbortController()
+    setQuote(null)
+    setQuoteLoading(true)
+    setQuoteError(false)
+    quoteCart(
+      items.filter((i) => i.food).map((i) => ({ foodId: i.food!.id, quantity: i.quantity })),
+      ctrl.signal,
+    )
       .then((next) => {
-        if (alive) setQuote(next)
+        if (ctrl.signal.aborted) return
+        setQuote(next)
+        setQuoteLoading(false)
       })
-      .catch((err: unknown) => {
-        if (!alive) return
-        message.error(apiErrorMessage(err) ?? 'Không tính được giá giỏ hàng')
+      .catch(() => {
+        if (ctrl.signal.aborted) return
+        setQuote(null)
+        setQuoteLoading(false)
+        setQuoteError(true)
       })
-    return () => {
-      alive = false
-    }
-  }, [user, items])
+    return () => ctrl.abort()
+  }, [items])
 
   const selectedAddress = addresses.find((a) => a.id === selectedId) ?? null
-
-  const subtotal = quote?.subtotal ?? total()
-  const discountTotal = quote?.discountTotal ?? 0
-  const grandTotal = quote?.total ?? total()
 
   const applyAddress = (address: SavedAddress) => {
     setSelectedId(address.id)
@@ -151,6 +160,7 @@ export default function CartPage() {
       return
     }
     if (submitting || ordering) return
+    if (!quote || quoteLoading || quoteError) return
     setOrdering(true)
     const res = await submitOrder({
       ...v,
@@ -253,24 +263,28 @@ export default function CartPage() {
             )
           })}
 
-          {/* Tổng tiền và giảm giá tự động */}
+          {/* Tổng tiền và giảm giá tự động; chỉ hiện khi báo giá mới nhất đã về. */}
           <div className="border-t border-stone-100 bg-stone-50/60 p-4 sm:p-5">
-            <div className="mt-1.5 space-y-1.5 border-t border-dashed border-stone-200 pt-3 text-sm">
-              <div className="flex justify-between text-stone-600">
-                <span>Tạm tính</span>
-                <span className="tabular-nums">{formatVND(subtotal)}</span>
-              </div>
-              {discountTotal > 0 && (
-                <div className="flex justify-between text-emerald-600">
-                  <span>Giảm giá</span>
-                  <span className="tabular-nums">-{formatVND(discountTotal)}</span>
+            {quoteLoading || quoteError || !quote ? (
+              <p className="text-sm text-stone-500">Đang cập nhật giá...</p>
+            ) : (
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between text-stone-600">
+                  <span>Tạm tính</span>
+                  <span className="tabular-nums">{formatVND(quote.subtotal)}</span>
                 </div>
-              )}
-              <div className="flex items-center justify-between pt-1 text-base font-bold text-stone-900">
-                <span>Tổng thanh toán</span>
-                <span className="text-lg tabular-nums text-amber-700">{formatVND(grandTotal)}</span>
+                {quote.discountTotal > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Giảm giá</span>
+                    <span className="tabular-nums">-{formatVND(quote.discountTotal)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t border-dashed border-stone-200 pt-2 text-base font-bold text-stone-900">
+                  <span>Tổng thanh toán</span>
+                  <span className="text-lg tabular-nums text-amber-700">{formatVND(quote.total)}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -426,10 +440,16 @@ export default function CartPage() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <div className="text-sm text-stone-600">
-            <span className="font-semibold text-stone-900">Tổng cộng: </span>
-            <span className="ml-1 text-lg font-bold tabular-nums text-amber-700">{formatVND(grandTotal)}</span>
-            {discountTotal > 0 && (
-              <span className="ml-2 text-xs text-stone-400 line-through tabular-nums">{formatVND(subtotal)}</span>
+            {quoteLoading || quoteError || !quote ? (
+              <span className="font-medium text-stone-500">Đang cập nhật giá...</span>
+            ) : (
+              <>
+                <span className="font-semibold text-stone-900">Tổng cộng: </span>
+                <span className="ml-1 text-lg font-bold tabular-nums text-amber-700">{formatVND(quote.total)}</span>
+                {quote.discountTotal > 0 && (
+                  <span className="ml-2 text-xs text-stone-400 line-through tabular-nums">{formatVND(quote.subtotal)}</span>
+                )}
+              </>
             )}
           </div>
           <UiButton
@@ -437,7 +457,7 @@ export default function CartPage() {
             htmlType="submit"
             form={CHECKOUT_FORM_ID}
             loading={submitting || ordering}
-            disabled={submitting || ordering}
+            disabled={submitting || ordering || quoteLoading || quoteError || !quote}
           >
             Xác nhận đặt món
           </UiButton>

@@ -1,5 +1,6 @@
 package com.foodordering.service;
 
+import com.foodordering.dto.OrderDtos.OrderItemRequest;
 import com.foodordering.dto.QuoteDtos.CartQuote;
 import com.foodordering.entity.CartItem;
 import com.foodordering.entity.Food;
@@ -35,13 +36,12 @@ public class CartService {
     }
 
     /**
-     * Báo giá giỏ hàng. Client không tự tính giảm giá nữa; mọi con số hiển thị ở đây đều
-     * do server tính và cũng chính là con số dùng lúc tạo đơn.
+     * Báo giá đúng danh sách dòng client đang hiển thị. Client không tự tính giảm giá nữa;
+     * mọi con số hiển thị ở đây đều do server tính và cũng chính là con số dùng lúc tạo đơn.
+     * Không đọc lại giỏ DB vì state client có thể mới hơn lần ghi gần nhất.
      */
-    public CartQuote quote(String email) {
-        User user = userRepo.findByEmail(email).orElseThrow();
-        return pricing.toQuote(pricing.priceCart(
-                itemRepo.findByUserIdOrderByIdAsc(user.getId())));
+    public CartQuote quote(List<OrderItemRequest> items) {
+        return pricing.toQuote(pricing.priceOrder(items));
     }
 
     @Transactional
@@ -57,6 +57,9 @@ public class CartService {
             CartItem created = new CartItem();
             created.setUser(user);
             created.setFood(food);
+            // Entity mặc định quantity = 1; dòng mới phải bắt đầu từ 0 rồi cộng quantity,
+            // nếu không mỗi lần thêm món đầu tiên sẽ dư 1 phần so với số khách chọn.
+            created.setQuantity(0);
             return created;
         });
         item.setQuantity(item.getQuantity() + quantity);
