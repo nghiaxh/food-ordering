@@ -84,14 +84,26 @@ chat bình thường. Khóa có mà gọi lỗi thì chỉ fallback, không noti
   Token sinh bằng `JwtUtil`, lọc bằng `JwtFilter` (tra CSDL mỗi request để tài khoản bị
   khoá mất quyền ngay). CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
-- **Tiền chỉ tính ở `PricingService`**: `POST /api/cart/quote` và lúc tạo đơn dùng chung một
-  service. Client không nhân phần trăm hay trừ khuyến mãi, chỉ hiện lại `QuoteLine.lineDiscount`
-  (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một khuyến mãi tự động tốt nhất.
+- **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; nút thêm món bị khoá kèm tooltip
+  "Đăng nhập để thêm món vào giỏ" (`components/LoginTooltip.tsx`), `/cart` nằm trong `RequireAuth`,
+  `cartStore.add` trả `Promise<boolean>` và từ chối khi chưa đăng nhập. Store thay dòng optimistic
+  bằng `CartItem` server trả để món thêm từ chatbot có đủ field và giá đúng; response chỉ được áp
+  theo số thứ tự request của từng món. `CartItem.quantity` mặc định `1`, nên `CartService.add` phải
+  tạo dòng mới với `quantity = 0` trước khi cộng, không thì lần thêm đầu tiên dư 1 phần.
+- **Tiền chỉ tính ở `PricingService`**: `POST /api/cart/quote` nhận `{ items }` đúng danh sách dòng
+  client đang hiển thị và tính bằng `priceOrder`; lúc tạo đơn dùng chung service này. Quote **không
+  đọc lại giỏ DB** để response cũ không ghi đè giỏ mới. Client không nhân phần trăm hay trừ khuyến
+  mãi, chỉ hiện lại `QuoteLine.lineDiscount` (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một
+  khuyến mãi tự động tốt nhất.
 - **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`OrderService.canEditItems`);
   đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (`requireEditable`); các
   trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `AdminOrderRequest.items`
   được phép null, còn `adminCreate` tự kiểm danh sách món không rỗng. Khách cũng chỉ hủy được đơn
-  `PENDING` + chưa thanh toán.
+  `PENDING` + chưa thanh toán; client ẩn nút bằng `canCancelOrder` trong `client/src/utils/orders.ts`.
+
+- **Nhãn PREPARING là "Đang vận chuyển"**: mã trạng thái trong DB không đổi, chỉ đổi nhãn hiển thị
+  (`ORDER_STATUS_LABEL`, `OrderService.label`, thông báo "đang được vận chuyển"); nút admin
+  `CONFIRMED → PREPARING` là "Giao hàng", nút **Đặt lại** ở `/orders` chỉ hiện khi `COMPLETED`.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
   trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
   từng mục nằm trong `TEST.md`.
@@ -104,7 +116,8 @@ chat bình thường. Khóa có mà gọi lỗi thì chỉ fallback, không noti
   không cần sửa nginx.
 - **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, chi tiết món là **route con** `/foods/:id`,
   hiện thành Drawer phủ (không phải trang riêng) để không rời bảng món và dùng chung bố cục. Bộ lọc của trang này nằm trên URL (`category`, `keyword`,
-  `min`, `max`), đọc bằng `useSearchParams`.
+  `min`, `max`), đọc bằng `useSearchParams`. Lưới món 2 cột dưới `md` và 4 cột từ `md`; thanh lọc
+  gộp chip danh mục với dải giá trên một hàng từ `md`, dưới `md` dải giá xuống dòng.
 - **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
   `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
   viết class nút mới. **Đừng ghi đè kích thước bằng class.** Hai class `!h-*` có cùng độ ưu

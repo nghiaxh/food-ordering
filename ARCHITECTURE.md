@@ -60,11 +60,13 @@ Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm so�
 
 Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique theo user + món):
 
-- Khách đã đăng nhập: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác thực); giỏ
-  được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
-- Khách vãng lai: giỏ nằm trong bộ nhớ của Zustand (không phải `localStorage` bền); khi
-  đăng nhập, hệ thống đẩy bản nháp lên server rồi tải giỏ chính thức về. Khi đăng xuất,
-  state giỏ của tài khoản được xóa khỏi client.
+- Chỉ khách đã đăng nhập mới có giỏ: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác
+  thực), giỏ được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
+- Khách vãng lai **không có giỏ local**: nút "Thêm vào giỏ" bị khoá, hover hoặc focus hiện
+  tooltip "Đăng nhập để thêm món vào giỏ". `/cart` nằm trong `RequireAuth`, nên bấm nút giỏ trên
+  header hoặc mở thẳng đường dẫn đều bị đưa sang `/login` và quay lại đúng trang sau khi đăng
+  nhập. `cartStore.add` trả `false` khi chưa đăng nhập như lớp phòng thủ thứ hai.
+- Đăng xuất thì `CartSync` gọi `resetLocal` để xoá state giỏ của tài khoản khỏi client.
 - Giá món hiển thị từ dữ liệu trả về khi duyệt món.
 
 ### 4. Đặt món (giá lấy từ DB)
@@ -74,8 +76,9 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 2. `OrderService.create` set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
 3. Mỗi đơn được ghi một giao dịch thanh toán (`payment_transactions`: phương thức, số tiền,
    trạng thái PENDING/PAID) và tạo thông báo xác nhận cho khách (`notifications`).
-4. Trạng thái đơn dùng các giá trị `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`;
-   trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
+4. Trạng thái đơn dùng các giá trị `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`
+   — `PREPARING` có nghĩa là đang vận chuyển, nhãn hiển thị "Đang vận chuyển" ở cả client lẫn
+   thông báo server (mã trong DB không đổi); trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
 5. **Trạng thái đi đúng một chiều**: `PENDING → CONFIRMED → PREPARING → COMPLETED`, được canh
    trong `OrderService.isValidTransition`. Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
    thái được. `CANCELLED` được phép từ mọi trạng thái chưa chốt. Client cũng lọc danh sách trạng
@@ -96,7 +99,7 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
    dòng giải thích khi đơn đã xác nhận hoặc đã thu tiền.
 9. Ghi chú `note` chỉ ghi lúc tạo đơn, không sửa được về sau. Nơi đọc: dòng "Lưu ý cho quán"
    trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
-   Nút "Đặt lại" chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
+   Nút "Đặt lại" chỉ hiện ở đơn `COMPLETED`, chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
 10. Mã đơn hiển thị cho khách và quản trị viên là `FO-xxxx` (tiền tố `FO` + id đệm 4 chữ số),
     sinh bởi `orderCode` trong `client/src/utils/orders.ts` để hai bên không lệch nhau. Id do
     server cấp nên đổi tiền tố không cần sửa dữ liệu; mã QR vẫn giữ `FOOD-{id}-{tổng tiền}`.
@@ -119,9 +122,23 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 ### 4c. Khuyến mãi tự động
 
 Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `service/PricingService`.
-Client không tự nhân phần trăm, không tự trừ voucher; nó gọi `POST /api/cart/quote` và hiện
-lại đúng những gì server trả. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
+Client không tự nhân phần trăm, không tự trừ voucher; nó gửi `POST /api/cart/quote` kèm
+`{ items }` đúng danh sách dòng đang hiển thị và hiện lại đúng những gì server trả. Quote tính
+bằng `priceOrder` trên danh sách đó, **không đọc lại giỏ trong DB**, nên thêm món xong không bị
+response của giỏ cũ ghi đè. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
 lệch nhau.
+
+- **Đồng bộ báo giá ở client**: mỗi lần `items` đổi, `CartPage` abort request quote cũ và xoá
+  quote hiện tại trước khi gọi lại. Trong lúc chờ hoặc khi lỗi, khối tổng hiện "Đang cập nhật
+  giá..." và nút "Xác nhận đặt món" bị khoá; dòng món vẫn tạm hiện giá gốc từ cart item.
+- **Dòng optimistic**: `cartStore.add` và `setQuantity` thay dòng tạm bằng `CartItem` server trả
+  (food đầy đủ field, giá là số, `available` đúng), nên món thêm từ chatbot không còn dòng
+  "Hết món" giả. Mỗi món có số thứ tự request riêng; chỉ response của request mới nhất được ghi
+  vào giỏ, nên response về muộn không đè lần bấm sau dù số lượng server trả khác dòng đang hiển
+  thị. Xoá sạch giỏ hoặc đăng xuất thì tăng "thế hệ" giỏ để response đang bay không dựng lại dòng
+  vừa xoá.
+- **Số lượng dòng mới**: `CartService.add` tạo `CartItem` với `quantity = 0` trước khi cộng,
+  vì entity mặc định 1; thiếu bước này thì lần thêm đầu tiên dư 1 phần so với số khách chọn.
 
 - **Một dòng, một khoản giảm.** `QuoteLine.lineDiscount` và `OrderItem.discountAmount` là số
   tiền giảm của **cả dòng** (đã nhân số lượng), không phải của một phần.
@@ -241,18 +258,38 @@ dạng "N món, tổng ... trong ngân sách ...".
 
 - Khách chỉ được đánh giá món có trong **đơn hoàn thành** của chính mình
   (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
+- Nội dung nhận xét **không bắt buộc**: khách có thể chỉ chọn số sao. `ReviewController` chuẩn hóa
+  chuỗi rỗng hoặc chỉ khoảng trắng thành `null` ở cả tạo và sửa; cột `comment` vốn đã nullable nên
+  không cần đổi CSDL.
 - `GET /api/reviews/food/{foodId}` trả kèm cờ `mine` để client biết đánh giá nào của chính
   mình và chỉ hiện nút Sửa/Xóa ở đúng đánh giá đó. `PUT` và `DELETE /api/reviews/{id}` đều kiểm
   tra chủ sở hữu ở server, không tin cờ `mine` từ client.
-- Trang lịch sử đơn có nút **Đặt lại**: đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ,
-  món ngừng phục vụ bị bỏ qua kèm cảnh báo.
+- Trang lịch sử đơn có nút **Đặt lại** (chỉ render khi đơn `COMPLETED` theo điều kiện trong
+  `OrdersPage`): đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ, món ngừng phục vụ bị bỏ qua
+  kèm cảnh báo. Nút **Hủy đơn** đi qua helper `canCancelOrder` (`client/src/utils/orders.ts`)
+  cùng ràng buộc với `OrderService.cancel`: đơn `PENDING` chưa thanh toán; đơn `PENDING` đã
+  `PAID` thay nút bằng gợi ý gọi hotline.
+
+### 7. Thông báo
+
+- Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `OrderService.notify` set. Cột mới
+  được `ddl-auto=update` tự thêm; thông báo tạo trước thay đổi này có `orderId = null`.
+- Các thao tác giữ nguyên một bộ endpoint: `POST /api/notifications/read-all`,
+  `POST /api/notifications/{id}/read`, `DELETE /api/notifications/read` (xóa các thông báo đã đọc)
+  và `DELETE /api/notifications/{id}`. Endpoint thao tác một thông báo kiểm tra chủ sở hữu như
+  xóa: 404 khi không tồn tại, 403 khi của người khác.
+- Bấm vào thân thông báo: đánh dấu đã đọc, đóng popover, và nếu có `orderId` thì điều hướng
+  `/orders?orderId=...`; trang đơn cuộn tới thẻ `order-{id}` và tô ring để chỉ đúng đơn. Thông báo
+  cũ không có `orderId` chỉ mark read rồi đóng popover.
+- Nút "Xóa đã đọc" xóa mọi thông báo `read = true` của chính người dùng. Nút xóa từng thông báo
+  luôn hiện trên mobile, còn desktop chỉ hiện khi hover hoặc focus.
 
 ## Giao diện khách hàng và giao diện quản trị
 
 Hai nhóm dùng hai layout riêng, đúng yêu cầu "tách riêng trang quản trị với trang khách hàng":
 
 - `DefaultLayout` bọc route khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân
-  trang. Trang bảng món tự khoá chiều cao `100dvh - 4rem` và cuộn trong vùng riêng.
+  trang. Trang bảng món tự khoá chiều cao `100dvh - 3.25rem` và cuộn trong vùng riêng.
 - `AdminLayout` bọc `/admin/*`: menu trái chia nhóm Bán hàng (Tổng quan, Đơn hàng, Khách hàng),
   Thực đơn (Món ăn, Danh mục), Marketing (Khuyến mãi), Hệ thống (Chatbot, Báo cáo);
   thu gọn thành drawer ở màn hình nhỏ. Vào `/admin` mặc định mở `/admin/dashboard`. Route admin
@@ -280,20 +317,30 @@ màn hình:
   trên giao diện khách.
 - Thẻ món gắn nhãn ưu đãi tự động (`Hôm nay`, `Cuối tuần`, `Dịp lễ`) cạnh nhãn `-N%`, lấy từ
   `discountLabel` do server điền theo `Promotion.occasion`.
-- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Dải giá nằm **hàng riêng
-  bên dưới** dải danh mục, cả hai cùng dính đầu vùng lưới (`sticky top-0`), nên mỗi hàng vẫn
-  cuộn ngang được trên màn hẹp thay vì cắt mất nút. Mục đầu ghi "Mọi giá" chứ không phải "Tất cả"
+- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Từ `md` trở lên dải giá
+  nằm **cùng hàng** với chip danh mục: danh mục co giãn và cuộn ngang, dải giá giữ nguyên một
+  hàng không rơi xuống. Dưới `md` dải giá `flex-wrap` xuống nhiều dòng nên không bị cắt. Cả thanh
+  dính đầu vùng lưới (`sticky top-0`), chip thấp 32px (`py-1.5`, `text-xs`) để không chiếm chỗ.
+  Mục đầu ghi "Mọi giá" chứ không phải "Tất cả"
   vì hàng trên đã có "Tất cả", hai chữ giống nhau cạnh nhau dễ bị hiểu là một bộ lọc.
-- Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang. Số cột đổi theo bề rộng
-  (`grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`).
+- Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang (`PAGE_SIZE` chia hết cho cả
+  2 và 4 nên không trang nào lẻ hàng). Số cột: 2 cột dưới `md`, 4 cột từ `md`
+  (`grid-cols-2 md:grid-cols-4`), không còn 3 hay 5 cột.
 - Thanh giỏ ghim đáy hiện khi giỏ có món, chứa tổng tiền và nút "Xem giỏ và đặt món".
 - Toàn bộ bộ lọc nằm trên URL (`category`, `keyword`, `min`, `max`) nên người dùng chia sẻ
   được đường dẫn đã lọc và ô tìm kiếm trên thanh điều hướng điều khiển được trang này.
+- Tìm kiếm khớp **không dấu, không phân biệt hoa thường**: server bỏ điều kiện `LIKE` khỏi
+  Specification và lọc từ khoá bằng Java qua `TextNormalizer` (NFD bỏ dấu, đ/Đ → d) sau
+  `findAll` — không cầu extension `unaccent` của PostgreSQL. Enter trong ô tìm kiếm áp dụng
+  ngay qua `commitSearch` dùng chung với debounce: ở `/` giữ nguyên `category`/`min`/`max`,
+  ở trang khác thì về `/` kèm từ khoá thay vì làm rỗng bộ lọc.
 
 Thẻ món được nén để nhìn thấy được nhiều món hơn trên một màn hình: ảnh cắt theo 16:10 (thay
-4:3), đệm `p-3`, tối đa 2 nhãn, chữ giá `text-lg`. Hàng giá và nút dùng `flex-wrap` nên thẻ hẹp
-sẽ xuống dòng thay vì tràn. Đo ở cửa sổ 848×670: chiều cao thẻ 444px xuống 285px, vùng lưới
-tăng từ 546px lên 614px.
+4:3), đệm `p-2.5` trên mobile và `p-3` từ `sm`, tối đa 2 nhãn, giá `text-base` trên mobile và
+`text-lg` từ `sm`. Dưới `sm` giá và nút xếp dọc, nút "Thêm vào giỏ" dùng `size="small"` chữ
+`text-xs` và rộng hết thẻ; từ `sm` chúng quay lại một hàng. Ở 360px thẻ rộng khoảng 162px, phần
+nội dung 142px, đủ chỗ cho ảnh, giá và nút nên không tràn ngang. Đo ở cửa sổ 848×670: chiều cao
+thẻ 444px xuống 285px, vùng lưới tăng từ 546px lên 614px.
 
 `/foods/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`) chứ không phải trang
 riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật để thẻ món trong

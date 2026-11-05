@@ -42,15 +42,20 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-AUTH-09 | Cập nhật hồ sơ cá nhân | Đã đăng nhập | Vào `/profile`, sửa họ tên, SĐT, địa chỉ mặc định | HTTP 200, thông tin được cập nhật chính xác vào CSDL | | |
 | TC-AUTH-10 | Đổi mật khẩu hợp lệ | Đã đăng nhập | Nhập mật khẩu hiện tại đúng và mật khẩu mới ≥ 8 ký tự | HTTP 200, mật khẩu mới có hiệu lực ngay | | |
 | TC-AUTH-11 | Đổi mật khẩu với pass cũ sai | Đã đăng nhập | Nhập mật khẩu cũ sai | HTTP 400, thông báo "Mật khẩu hiện tại không đúng", giữ nguyên pass cũ | | |
-| TC-AUTH-12 | Đăng xuất | Đã đăng nhập | Nhấn nút "Đăng xuất" trên menu | Xoá token khỏi storage, giỏ hàng sync về trạng thái ẩn danh/trống, bảo vệ các route yêu cầu đăng nhập | | |
+| TC-AUTH-12 | Đăng xuất | Đã đăng nhập | Nhấn nút "Đăng xuất" trên menu | Xoá token khỏi storage, giỏ hàng về rỗng (không còn giỏ local), bảo vệ các route yêu cầu đăng nhập | | |
+| TC-AUTH-13 | Khách mở giỏ khi chưa đăng nhập | Chưa đăng nhập | Bấm nút giỏ trên header hoặc mở thẳng `/cart` | Chuyển sang `/login`; sau khi đăng nhập quay lại đúng `/cart` | | |
 
 ### 1.2.2. Khám phá Thực đơn, Combo & Tìm kiếm (UC06 – UC08)
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
-| TC-MENU-01 | Xem danh sách món & Phân trang | Trang chủ `/` | Cuộn danh sách món | Hiển thị dạng lưới thẻ món (12 món/trang), kèm nhãn giá, tag ăn kiêng, độ cay | | |
+| TC-MENU-01 | Xem danh sách món & Phân trang | Trang chủ `/` | Cuộn danh sách món | Hiển thị dạng lưới thẻ món (12 món/trang, 2 cột trên mobile, 4 cột từ 768px), kèm nhãn giá, tag ăn kiêng, độ cay | | |
 | TC-MENU-02 | Lọc theo danh mục | Trang chủ `/` | Bấm chọn danh mục "Món Việt" | URL cập nhật `?category=Mon+Viet`, chỉ hiển thị các món thuộc danh mục đã chọn | | |
 | TC-MENU-03 | Tìm kiếm theo từ khóa & Giá | Trang chủ `/` | Nhập từ khóa "bún", lọc khoảng giá 50.000đ - 100.000đ | Lưới món lọc đúng các món chứa từ khóa trong tên và nằm trong khoảng giá | | |
+| TC-MENU-05 | Tìm không dấu & không phân biệt hoa thường | Trang chủ `/` | Gõ "pho bo", "ca phe", "do uong" vào ô tìm kiếm | Lần lượt ra "Phở bò", "Cà phê sữa đá", các món Đồ uống; server lọc qua `TextNormalizer` (không cần PostgreSQL `unaccent`) | | |
+| TC-MENU-07 | Enter giữ bộ lọc hiện tại | Đang lọc theo danh mục + khoảng giá trên `/` | Gõ từ khóa mới rồi nhấn Enter | URL giữ nguyên `category`/`min`/`max` và cập nhật `keyword` tức thì (không đợi debounce), lưới món lọc theo cả bộ lọc cũ + từ khóa mới | | |
+| TC-MENU-08 | Enter khi đang ở trang khác | Đang ở `/orders` hoặc `/cart` | Gõ từ khóa trong ô tìm kiếm rồi nhấn Enter | Quay về `/` kèm `?keyword=...`; không mất dữ liệu trang đang xem khi dùng nút Quay lại | | |
+| TC-MENU-09 | Bố cục lưới và thanh lọc theo bề rộng | Trang chủ `/` | Thu hẹp/phóng cửa sổ lần lượt 360px, 768px, 1024px, 1280px rồi cuộn lưới món | 360px: 2 cột, chip giá xuống dòng, không có thanh cuộn ngang; từ 768px: 4 cột, chip danh mục và dải giá nằm cùng một hàng, thanh lọc vẫn dính khi cuộn | | |
 | TC-MENU-04 | Xem chi tiết món ăn | Có món "Phở bò" | Bấm vào thẻ "Phở bò" | Mở Drawer chi tiết món (`/foods/:id`), hiện mô tả, thành phần, cảnh báo dị ứng, đánh giá sao | | |
 | TC-MENU-06 | Món ngừng phục vụ | Món có `available = false` | Xem món trên thực đơn | Thẻ món hiển thị nhãn "Hết món", nút "Thêm vào giỏ" bị vô hiệu hoá | | |
 
@@ -58,10 +63,13 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
-| TC-CART-01 | Thêm món vào giỏ | Món còn phục vụ | Bấm "Thêm vào giỏ" món Phở bò | Giỏ tăng 1, thanh Bottom Cart Bar hiển thị tổng tiền cập nhật đúng | | |
-| TC-CART-02 | Tăng số lượng món trùng | Giỏ đã có Phở bò (1) | Bấm thêm Phở bò lần nữa | Giỏ cập nhật dòng Phở bò thành số lượng 2 (không tạo dòng trùng lặp) | | |
-| TC-CART-04 | Cập nhật số lượng / Xoá dòng | Giỏ có món | Tăng/giảm số lượng hoặc bấm xoá dòng | Tổng tiền giỏ hàng cập nhật tương ứng theo thời gian thực | | |
-| TC-CART-05 | Khuyến mãi tự động (Auto-promo) | Thứ Bảy/Chủ Nhật, có CT "Cuối tuần mát lạnh" (-20% đồ uống) | Thêm 1 đồ uống và 1 món ăn vào giỏ | Đồ uống được giảm 20%, món ăn giữ nguyên giá; chiết khấu hiển thị theo dòng | | |
+| TC-CART-01 | Thêm món vào giỏ | Đã đăng nhập, món còn phục vụ | Bấm "Thêm vào giỏ" món Phở bò | Giỏ tăng 1, thanh Bottom Cart Bar hiển thị tổng tiền cập nhật đúng | | |
+| TC-CART-02 | Tăng số lượng món trùng | Đã đăng nhập, giỏ đã có Phở bò (1) | Bấm thêm Phở bò lần nữa | Giỏ cập nhật dòng Phở bò thành số lượng 2 (không tạo dòng trùng lặp) | | |
+| TC-CART-04 | Cập nhật số lượng / Xoá dòng | Đã đăng nhập, giỏ có món | Tăng/giảm số lượng hoặc bấm xoá dòng | Tổng tiền cập nhật theo báo giá mới nhất sau khi server trả lời; không nhấp nháy số của giỏ trước, nút xác nhận bị khoá trong lúc "Đang cập nhật giá..." | | |
+| TC-CART-05 | Khuyến mãi tự động (Auto-promo) | Đã đăng nhập, thứ Bảy/Chủ Nhật, có CT "Cuối tuần mát lạnh" (-20% đồ uống) | Thêm 1 đồ uống và 1 món ăn vào giỏ | Đồ uống được giảm 20%, món ăn giữ nguyên giá; chiết khấu hiển thị theo dòng | | |
+| TC-CART-06 | Khách chưa đăng nhập không thêm được món | Chưa đăng nhập | Hover/focus (Tab) nút "Thêm vào giỏ" rồi bấm | Nút mờ kèm tooltip "Đăng nhập để thêm món vào giỏ"; bấm không thêm món và không mở chi tiết món; giỏ header vẫn 0 | | |
+| TC-CART-07 | Món hết khi chưa đăng nhập | Chưa đăng nhập, món có `available = false` | Xem thẻ món | Nút hiện "Hết món", bị vô hiệu hoá và **không** có tooltip đăng nhập | | |
+| TC-CART-08 | Báo giá khớp giỏ khi thêm từ chatbot | Đã đăng nhập, giỏ có 1 món có khuyến mãi | Mở chatbot, thêm món thứ hai bằng nút giỏ trên thẻ món, rồi tăng/giảm số lượng liên tục | Không có dòng "Hết món" giả; thành tiền từng dòng, tổng giảm và tổng thanh toán khớp báo giá mới nhất; request quote cũ bị abort, không ghi đè số mới | | |
 
 ### 1.2.4. Đặt hàng & Vòng đời Đơn hàng (UC12 – UC16, UC30 – UC31)
 
@@ -74,9 +82,13 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-ORD-05 | Khách thanh toán đơn QR | Có đơn QR `PENDING` + `UNPAID` | Bấm "Thanh toán", xác nhận | Đơn chuyển sang `PAID`, sinh thời gian `paidAt`, gửi thông báo cho khách | | |
 | TC-ORD-06 | Khách tự huỷ đơn hợp lệ | Đơn `PENDING` **và** `UNPAID` | Bấm "Huỷ đơn" trong `/orders` | HTTP 200, đơn chuyển thành `CANCELLED`, gửi thông báo huỷ đơn | | |
 | TC-ORD-07 | Chặn huỷ đơn đã thanh toán | Đơn `PENDING` nhưng đã `PAID` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách tự huỷ đơn đã thu tiền | | |
-| TC-ORD-08 | Chặn huỷ đơn đã xác nhận/chế biến | Đơn `CONFIRMED` hoặc `PREPARING` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách huỷ khi quán đã tiếp nhận chế biến | | |
+| TC-ORD-08 | Chặn huỷ đơn đã xác nhận/đang vận chuyển | Đơn `CONFIRMED` hoặc `PREPARING` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách huỷ khi quán đã tiếp nhận/đang vận chuyển | | |
 | TC-ORD-09 | Đặt lại đơn hàng cũ | Đơn cũ `COMPLETED` | Bấm nút "Đặt lại" | Tự động thêm các món còn bán vào giỏ, loại bỏ món ngừng phục vụ, không mang theo ghi chú cũ | | |
 | TC-ORD-10 | Bảo mật dữ liệu đơn hàng | Có 2 tài khoản khách A và B | Khách B cố truy vấn đơn hàng của khách A | API chặn trả về dữ liệu (chỉ xem được đơn của chính mình) | | |
+| TC-ORD-11 | Nút Huỷ đơn chỉ ở đơn hợp lệ | Đơn `CONFIRMED` hoặc `PREPARING` | Mở `/orders` và xem thẻ đơn | Không hiển thị nút "Huỷ đơn" (điều kiện theo `canCancelOrder`), server vẫn chặn nếu gọi thẳng API | | |
+| TC-ORD-12 | PENDING đã thanh toán hướng hotline | Đơn `PENDING` + `PAID` | Mở `/orders` và xem thẻ đơn | Không có nút "Huỷ đơn", hiện gợi ý gọi hotline 0246.888.9999 để hủy/hoàn tiền | | |
+| TC-ORD-13 | Nhãn Đang vận chuyển | Đơn `PREPARING` | Xem danh sách đơn ở `/orders`, Steps, trang admin và thông báo | Nhãn/Thông báo ghi "Đang vận chuyển" (không còn "Đang chế biến"); nút admin từ `CONFIRMED` ghi "Giao hàng" | | |
+| TC-ORD-14 | Nút Đặt lại chỉ ở đơn giao xong | Đơn `PENDING`/`CONFIRMED`/`PREPARING` | Mở `/orders` và xem thẻ đơn | Không hiển thị nút "Đặt lại"; đơn `COMPLETED` vẫn có nút | | |
 
 ### 1.2.5. Chatbot Tư vấn Món ăn AI & Nhánh Dự phòng (UC21 – UC25)
 
@@ -116,6 +128,21 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-ADM-07 | Bảo vệ tài khoản Quản trị | Tài khoản mục tiêu là `ADMIN` | Cố gắng khoá hoặc xoá admin khác | HTTP 400, hệ thống từ chối thao tác trên tài khoản quản trị | | |
 | TC-ADM-08 | Quản lý khuyến mãi tự động | Đăng nhập Admin | Tạo/sửa chương trình khuyến mãi tự động | CSDL cập nhật, áp dụng chuẩn xác ngay trong các lượt tính giá tiếp theo | | |
 | TC-ADM-09 | Báo cáo doanh thu & Xuất file | Đăng nhập Admin | Vào `/admin/reports`, chọn khoảng ngày và bấm "Xuất Excel" | Tải về file `.xlsx` thống kê đúng doanh thu, số đơn và top món bán chạy | | |
+
+### 1.2.7. Đánh giá và Thông báo
+
+| Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
+|-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
+| TC-REVIEW-01 | Đánh giá chỉ bằng số sao | Đã đăng nhập, có đơn `COMPLETED` chứa món | Chọn 5 sao, để trống nội dung, bấm "Gửi đánh giá" | Gửi thành công, thẻ đánh giá hiện 5 sao và không có dòng nhận xét | | |
+| TC-REVIEW-02 | Sửa đánh giá xóa hết nội dung | Đã có đánh giá kèm nội dung | Bấm "Sửa", xóa trắng ô nhận xét, bấm "Lưu thay đổi" | Cập nhật thành công, CSDL lưu `comment = null`, giao diện không hiện dòng nhận xét | | |
+| TC-REVIEW-03 | Nội dung chỉ có khoảng trắng | Đã đăng nhập, có đơn `COMPLETED` chứa món | Gửi đánh giá với nội dung chỉ gồm dấu cách | Server chuẩn hóa thành `null`, đánh giá vẫn được lưu | | |
+| TC-REVIEW-04 | Chặn đánh giá món chưa mua | Đã đăng nhập, chưa có đơn `COMPLETED` chứa món | Gửi đánh giá cho món đó | HTTP 403, không tạo đánh giá (giữ nguyên ràng buộc cũ) | | |
+| TC-NOTIFY-01 | Mở đơn từ thông báo | Có thông báo gắn đơn, đang đăng nhập | Bấm vào thân thông báo | Popover đóng, chuyển tới `/orders?orderId={id}`, đúng thẻ đơn được cuộn tới và tô ring, thông báo chuyển đã đọc, badge giảm 1 | | |
+| TC-NOTIFY-02 | Thông báo cũ không có `orderId` | Thông báo tạo trước khi thêm `orderId` | Bấm vào thân thông báo | Thông báo chuyển đã đọc, popover đóng, không điều hướng | | |
+| TC-NOTIFY-03 | Xóa thông báo đã đọc | Có cả thông báo đã đọc và chưa đọc | Bấm "Xóa đã đọc" | Chỉ các thông báo `read = true` biến mất, thông báo chưa đọc còn nguyên | | |
+| TC-NOTIFY-04 | Xóa một thông báo | Có ít nhất một thông báo | Trên desktop hover thông báo, trên mobile xem trực tiếp, bấm nút xóa | Nút xóa hiện đúng trên cả hai cỡ màn hình, xóa đúng thông báo, không mở đơn hay đóng popover | | |
+| TC-NOTIFY-05 | Chặn thao tác thông báo người khác | Có 2 tài khoản khách A và B | Dùng token của B gọi `POST /api/notifications/{id}/read` hoặc `DELETE` thông báo của A | HTTP 403, thông báo của A không đổi | | |
+| TC-NOTIFY-06 | `orderId` không còn tồn tại | Thông báo trỏ tới đơn đã bị xóa | Bấm vào thân thông báo | Vẫn đánh dấu đã đọc và mở `/orders`, trang không lỗi và bỏ qua việc cuộn | | |
 
 ---
 

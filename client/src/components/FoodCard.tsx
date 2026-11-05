@@ -1,9 +1,11 @@
 ﻿import { message } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Food } from '../types'
+import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
 import { foodChips } from '../utils/food-tags'
+import LoginTooltip from './LoginTooltip'
 import UiImg from './UiImg'
 import UiButton from './UiButton'
 
@@ -16,11 +18,15 @@ const MAX_CHIPS = 2
  * "Hết món" và nút ở trạng thái không bấm được.
  *
  * Ảnh cắt theo 16:10 thay cho 4:3 để thẻ thấp hơn, nhìn thấy được nhiều món hơn trên
- * cùng một màn hình. Hàng giá và nút dùng `flex-wrap` nên thẻ hẹp sẽ xuống dòng thay vì tràn.
+ * cùng một màn hình. Dưới `sm` (thẻ ~150px ở màn 360px) giá và nút xếp dọc, nút rộng hết
+ * thẻ để không tràn ngang; từ `sm` trở lên chúng quay lại một hàng.
  */
 export default function FoodCard({ food }: { food: Food }) {
   const add = useCartStore((s) => s.add)
+  const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
+  // Khách vãng lai không có giỏ: nút bị khoá và tooltip giải thích thay vì thêm món.
+  const canAdd = user !== null
 
   return (
     <div
@@ -63,14 +69,14 @@ export default function FoodCard({ food }: { food: Food }) {
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col p-3">
+      <div className="flex flex-1 flex-col p-2.5 sm:p-3">
         <Link to={`/foods/${food.id}`} className="min-h-0">
-          <h3 className="truncate text-sm font-semibold text-stone-900 group-hover:text-amber-700">
+          <h3 className="truncate text-[13px] font-semibold text-stone-900 group-hover:text-amber-700 sm:text-sm">
             {food.name}
           </h3>
         </Link>
 
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        <div className="mt-1 flex flex-wrap gap-1 sm:mt-1.5">
           {foodChips(food)
             .slice(0, MAX_CHIPS)
             .map((chip) => (
@@ -83,18 +89,23 @@ export default function FoodCard({ food }: { food: Food }) {
             ))}
         </div>
 
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-2 pt-2.5">
+        <div className="mt-auto flex flex-col gap-1.5 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2 sm:pt-2.5">
           {food.discountedPrice != null && food.discountedPrice < food.price ? (
             <div className="min-w-0">
-              <div className="text-lg font-bold tabular-nums text-amber-700">{formatVND(food.discountedPrice)}</div>
+              <div className="text-base font-bold tabular-nums text-amber-700 sm:text-lg">
+                {formatVND(food.discountedPrice)}
+              </div>
               <div className="text-xs tabular-nums text-stone-400 line-through">{formatVND(food.price)}</div>
             </div>
           ) : (
-            <div className="text-lg font-bold tabular-nums text-amber-700">{formatVND(food.price)}</div>
+            <div className="text-base font-bold tabular-nums text-amber-700 sm:text-lg">
+              {formatVND(food.price)}
+            </div>
           )}
           <UiButton
             kind="primary"
-            className="!px-3 !text-sm"
+            size="small"
+            className="!px-2.5 !text-xs w-full sm:w-auto"
             disabled={!food.available}
             onClick={() => {
               add(food)

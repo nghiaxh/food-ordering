@@ -6,6 +6,7 @@ import { chat } from '../api/api'
 import type { ChatMessage, Food, FoodCard } from '../types'
 import { formatVND } from '../utils/format'
 import { useHasCartBar } from '../hooks/useCartBar'
+import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { useAuthStore } from '../store/authStore'
 import UiButton from './UiButton'
@@ -57,6 +58,7 @@ export default function ChatbotWidget() {
   }, [messages, loading])
 
   const isAdmin = location.pathname.startsWith('/admin')
+  const user = useAuthStore((s) => s.user)
   const addToCart = useCartStore((s) => s.add)
   const user = useAuthStore((s) => s.user)
   // Chưa đăng nhập vẫn xem được gợi ý nhưng không thêm được vào giỏ (giỏ cần token).

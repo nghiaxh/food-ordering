@@ -16,6 +16,7 @@ import ReviewSection from '../components/ReviewSection'
 import UiButton from '../components/UiButton'
 import UiIcon from '../components/UiIcon'
 import UiImg from '../components/UiImg'
+import LoginTooltip from '../components/LoginTooltip'
 
 /**
  * Chi tiết món dạng panel phủ trên bảng món, không phải trang riêng: người dùng không
@@ -34,6 +35,8 @@ export default function FoodDetailPage() {
   // Đóng bằng state để Drawer chạy animation đóng rồi mới rời route; unmount ngay sẽ mất hiệu ứng.
   const [open, setOpen] = useState(true)
   const user = useAuthStore((s) => s.user)
+  // Khách chưa đăng nhập không có giỏ: nút khoá và tooltip hướng dẫn đăng nhập.
+  const canAdd = user !== null
   const add = useCartStore((s) => s.add)
 
   const close = () => setOpen(false)
@@ -52,22 +55,24 @@ export default function FoodDetailPage() {
   } = useAsyncData((signal) => getReviews(foodId, signal), [foodId])
 
   const { run: submitReview, pending: reviewPending } = useAsyncAction(
-    (payload: { foodId: number; rating: number; comment: string }) => createReview(payload),
+    (payload: { foodId: number; rating: number; comment?: string }) => createReview(payload),
   )
   const { run: editReview, pending: editPending } = useAsyncAction(
-    (payload: { id: number; rating: number; comment: string }) =>
+    (payload: { id: number; rating: number; comment?: string }) =>
       updateReview(payload.id, { rating: payload.rating, comment: payload.comment }),
   )
   const { run: removeReview } = useAsyncAction((id: number) => deleteReview(id))
 
-  const addToCart = () => {
-    if (!food) return
-    add(food, qty)
-    message.success(`Đã thêm ${qty} phần ${food.name} vào giỏ`)
-    close()
+  const addToCart = async () => {
+    if (!food || !user || !food.available) return
+    const ok = await add(food, qty)
+    if (ok) {
+      message.success(`Đã thêm ${qty} phần ${food.name} vào giỏ`)
+      close()
+    }
   }
 
-  const onReview = async (payload: { foodId: number; rating: number; comment: string }) => {
+  const onReview = async (payload: { foodId: number; rating: number; comment?: string }) => {
     if (!user) {
       message.warning('Vui lòng đăng nhập để đánh giá')
       return { ok: false as const, error: new Error('Chưa đăng nhập') }
@@ -82,7 +87,7 @@ export default function FoodDetailPage() {
     return res
   }
 
-  const onEditReview = async (id: number, payload: { rating: number; comment: string }) => {
+  const onEditReview = async (id: number, payload: { rating: number; comment?: string }) => {
     const res = await editReview({ id, ...payload })
     if (res.ok) {
       message.success('Đã cập nhật đánh giá!')
@@ -240,14 +245,16 @@ export default function FoodDetailPage() {
             <p className="min-w-0 flex-1 text-sm font-semibold tabular-nums text-stone-700">
               {formatVND(Number(food.price) * qty)}
             </p>
-            <UiButton
-              kind="primary-lg"
-              disabled={unavailable}
-              onClick={addToCart}
-              className="shrink-0"
-            >
-              {unavailable ? 'Hết món' : 'Thêm vào giỏ'}
-            </UiButton>
+            <LoginTooltip active={!canAdd && !unavailable}>
+              <UiButton
+                kind="primary-lg"
+                disabled={unavailable || !canAdd}
+                onClick={() => void addToCart()}
+                className="shrink-0"
+              >
+                {unavailable ? 'Hết món' : 'Thêm vào giỏ'}
+              </UiButton>
+            </LoginTooltip>
           </div>
 
           <ReviewSection

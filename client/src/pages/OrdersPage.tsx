@@ -1,22 +1,32 @@
 import { useEffect, useState } from 'react'
 import { Alert, Empty, Modal, QRCode, Select, Skeleton, Steps, Tag, message } from 'antd'
 import { QrcodeOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '../utils/orders'
+import { canCancelOrder, ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '../utils/orders'
 import { formatVND } from '../utils/format'
 import type { Order, OrderStatus } from '../types'
 import UiButton from '../components/UiButton'
 
 export default function OrdersPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const { data: orders, loading, error, refresh } = useAsyncData((signal) => getMyOrders(signal), [])
   const addToCart = useCartStore((s) => s.add)
   const [reorderingId, setReorderingId] = useState<number | null>(null)
   const [filter, setFilter] = useState<OrderStatus | 'ALL'>('ALL')
   const [paying, setPaying] = useState<Order | null>(null)
+
+  // Thông báo dẫn tới `/orders?orderId=...`: cuộn tới đúng đơn sau khi dữ liệu tải xong.
+  const parsed = Number(params.get('orderId'))
+  const highlightId = Number.isInteger(parsed) && parsed > 0 ? parsed : null
+
+  useEffect(() => {
+    if (loading || highlightId === null) return
+    document.getElementById(`order-${highlightId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [loading, highlightId])
 
   useEffect(() => {
     if (error) message.error('Không tải được danh sách đơn hàng')
@@ -117,7 +127,13 @@ export default function OrdersPage() {
               {visible.map((o) => {
                 const step = ORDER_FLOW.indexOf(o.status)
                 return (
-                  <div key={o.id} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200/60">
+                  <div
+                    key={o.id}
+                    id={`order-${o.id}`}
+                    className={`scroll-mt-20 rounded-2xl bg-white p-6 shadow-sm ${
+                      o.id === highlightId ? 'ring-2 ring-amber-400' : 'ring-1 ring-stone-200/60'
+                    }`}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-semibold text-stone-900">
                         Đơn #{orderCode(o.id)}
@@ -184,15 +200,18 @@ export default function OrdersPage() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <UiButton kind="default" onClick={() => void reorder(o)} loading={reorderingId === o.id}>
-                        Đặt lại
-                      </UiButton>
+                      {/* Chỉ hiện ở đơn COMPLETED; đơn đang đi mà đặt lại sẽ trộn đồ cũ vào giỏ gây nhầm lẫn. */}
+                      {o.status === 'COMPLETED' && (
+                        <UiButton kind="default" onClick={() => void reorder(o)} loading={reorderingId === o.id}>
+                          Đặt lại
+                        </UiButton>
+                      )}
                       {o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED' && (
                         <UiButton kind="default" icon={<QrcodeOutlined />} onClick={() => setPaying(o)}>
                           Thanh toán
                         </UiButton>
                       )}
-                      {o.status === 'PENDING' && o.paymentStatus !== 'PAID' && (
+                      {canCancelOrder(o) && (
                         <UiButton
                           kind="danger"
                           onClick={() =>

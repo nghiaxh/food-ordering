@@ -100,13 +100,16 @@ export interface NotificationItem {
   content: string
   read: boolean
   createdAt: string
+  /** Đơn liên quan; null với thông báo cũ nên chỉ đánh dấu đã đọc, không điều hướng. */
+  orderId: number | null
 }
 
 export interface Review {
   id: number
   userName: string
   rating: number
-  comment: string
+  /** Nhận xét không bắt buộc, khách có thể chỉ chấm sao. */
+  comment: string | null
   createdAt: string
   /** Đánh giá do chính người đang đăng nhập viết thì mới hiện nút Sửa/Xóa. */
   mine: boolean
