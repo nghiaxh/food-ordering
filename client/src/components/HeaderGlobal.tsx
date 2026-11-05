@@ -127,12 +127,120 @@ export default function HeaderGlobal() {
     },
   }
 
+  // Responsive layout: bỏ flex-wrap trên desktop, giữ header một hàng.
+  // Dưới md, chuông + đơn hàng xuống hàng thứ hai để ô tìm kiếm không bị bóp.
+  const notificationsButton = (
+    <>
+      {user && (
+        <Popover
+          trigger="click"
+          placement="bottomRight"
+          arrow={false}
+          open={notifOpen}
+          onOpenChange={(open) => {
+            setNotifOpen(open)
+            if (open) getNotifications().then(setNotifications).catch(() => setNotifications([]))
+          }}
+          content={
+            <div style={{ width: 'min(320px, calc(100vw - 2rem))' }}>
+              <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                <span className="text-sm font-semibold text-stone-800">Thông báo</span>
+                <div className="flex items-center gap-2">
+                  {unread > 0 && (
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-amber-700 hover:underline"
+                      onClick={() => void markAllRead()}
+                    >
+                      Đã đọc
+                    </button>
+                  )}
+                  {notifications.some((n) => n.read) && (
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-stone-400 hover:text-rose-600 hover:underline"
+                      onClick={() => void clearRead()}
+                      title="Xóa các thông báo đã đọc"
+                    >
+                      Xóa đã đọc
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-stone-400">Chưa có thông báo nào.</p>
+                ) : (
+                  notifications.slice(0, 10).map((n) => (
+                    <div
+                      key={n.id}
+                      className={`group relative rounded-lg text-sm ${
+                        n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-amber-50/70 font-medium text-stone-800'
+                      }`}
+                    >
+                      {/* Vùng bấm chính là button riêng, không lồng nút xóa bên trong. */}
+                      <button
+                        type="button"
+                        onClick={() => void openNotification(n)}
+                        className="block w-full rounded-lg px-3 py-2 pr-8 text-left"
+                      >
+                        <span
+                          className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+                            n.read ? 'bg-stone-200' : 'bg-amber-500'
+                          }`}
+                        />
+                        {n.content}
+                        <span className="mt-0.5 block text-xs font-normal text-stone-400">
+                          {new Date(n.createdAt).toLocaleString('vi-VN')}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void removeOne(n.id)
+                        }}
+                        className="absolute right-2 top-2 text-stone-400 opacity-100 hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                        title="Xóa thông báo này"
+                      >
+                        <DeleteOutlined className="text-xs" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          }
+        >
+          <Badge count={unread} size="small" color="#d97706">
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label="Thông báo"
+              icon={<UiIcon name="bell" size={18} />}
+            />
+          </Badge>
+        </Popover>
+      )}
+
+      {user && (
+        <UiButton
+          kind="icon"
+          size="small"
+          aria-label="Đơn hàng"
+          icon={<UiIcon name="inbox" size={18} />}
+          onClick={() => navigate('/orders')}
+        />
+      )}
+    </>
+  )
+
   return (
     <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/95 backdrop-blur-xl">
-      <div className="mx-auto flex h-[3.25rem] max-w-[1600px] items-center gap-2 px-4 sm:gap-3 sm:px-5">
-        {/* Không đặt logo ở thanh điều hướng để dành chỗ cho ô tìm kiếm; thương hiệu hiện ở
-            các trang không có thanh này (đăng nhập, đăng ký). Nút trang chủ giữ đường về
-            bảng món cho những trang con như /cart, /orders, /profile. */}
+      {/* Desktop: một hàng, ô tìm kiếm flex-1. Mobile: hai hàng, tìm kiếm phía trái, phụ
+          phía phải hàng dưới. */}
+      <div className="mx-auto flex min-h-[3.25rem] max-w-[1600px] items-center gap-2 px-4 sm:gap-3 sm:px-5">
+        {/* Hàng chính desktop */}
         <UiButton
           kind="icon"
           size="small"
@@ -161,112 +269,13 @@ export default function HeaderGlobal() {
           placeholder="Tìm món theo tên..."
           allowClear
           aria-label="Tìm món"
-          className="min-w-0 flex-1 md:max-w-xl"
+          className="min-w-0 flex-1 lg:max-w-md"
         />
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          {user && (
-            <Popover
-              trigger="click"
-              placement="bottomRight"
-              arrow={false}
-              open={notifOpen}
-              onOpenChange={(open) => {
-                setNotifOpen(open)
-                if (open) getNotifications().then(setNotifications).catch(() => setNotifications([]))
-              }}
-              content={
-                <div style={{ width: 'min(320px, calc(100vw - 2rem))' }}>
-                  <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-                    <span className="text-sm font-semibold text-stone-800">Thông báo</span>
-                    <div className="flex items-center gap-2">
-                      {unread > 0 && (
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-amber-700 hover:underline"
-                          onClick={() => void markAllRead()}
-                        >
-                          Đã đọc
-                        </button>
-                      )}
-                      {notifications.some((n) => n.read) && (
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-stone-400 hover:text-rose-600 hover:underline"
-                          onClick={() => void clearRead()}
-                          title="Xóa các thông báo đã đọc"
-                        >
-                          Xóa đã đọc
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <p className="py-6 text-center text-sm text-stone-400">Chưa có thông báo nào.</p>
-                    ) : (
-                      notifications.slice(0, 10).map((n) => (
-                        <div
-                          key={n.id}
-                          className={`group relative rounded-lg text-sm ${
-                            n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-amber-50/70 font-medium text-stone-800'
-                          }`}
-                        >
-                          {/* Vùng bấm chính là button riêng, không lồng nút xóa bên trong. */}
-                          <button
-                            type="button"
-                            onClick={() => void openNotification(n)}
-                            className="block w-full rounded-lg px-3 py-2 pr-8 text-left"
-                          >
-                            <span
-                              className={`mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle ${
-                                n.read ? 'bg-stone-200' : 'bg-amber-500'
-                              }}`}
-                            />
-                            {n.content}
-                            <span className="mt-0.5 block text-xs font-normal text-stone-400">
-                              {new Date(n.createdAt).toLocaleString('vi-VN')}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              void removeOne(n.id)
-                            }}
-                            className="absolute right-2 top-2 text-stone-400 opacity-100 hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                            title="Xóa thông báo này"
-                          >
-                            <DeleteOutlined className="text-xs" />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              }
-            >
-              <Badge count={unread} size="small" color="#d97706">
-                <UiButton
-                  kind="icon"
-                  size="small"
-                  aria-label="Thông báo"
-                  icon={<UiIcon name="bell" size={18} />}
-                />
-              </Badge>
-            </Popover>
-          )}
-
-          {user && (
-            <UiButton
-              kind="icon"
-              size="small"
-              aria-label="Đơn hàng"
-              icon={<UiIcon name="inbox" size={18} />}
-              onClick={() => navigate('/orders')}
-            />
-          )}
-
+        {/* Cụm phải desktop: chuông, giỏ, đơn hàng, tài khoản. Thứ tự cố định để nhóm nút
+            không nhảy chỗ khi số thông báo hoặc giỏ đổi. */}
+        <div className="hidden shrink-0 items-center gap-2 md:ml-auto md:flex">
+          {notificationsButton}
           <Badge count={count} size="small" color="#d97706">
             <UiButton
               kind="icon"
@@ -276,7 +285,6 @@ export default function HeaderGlobal() {
               onClick={() => navigate('/cart')}
             />
           </Badge>
-
           {user ? (
             <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
               <button
@@ -300,7 +308,49 @@ export default function HeaderGlobal() {
             </>
           )}
         </div>
+
+        {/* Cụm phải mobile: giỏ + đăng nhập, gọn hơn để không bóp tìm kiếm */}
+        <div className="flex shrink-0 items-center gap-2 md:hidden">
+          <Badge count={count} size="small" color="#d97706">
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label="Giỏ hàng"
+              icon={<UiIcon name="shopping-cart" size={18} />}
+              onClick={() => navigate('/cart')}
+            />
+          </Badge>
+          {user ? (
+            <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
+              <button
+                type="button"
+                aria-label="Menu tài khoản"
+                className="flex items-center gap-2 rounded-full p-1 transition hover:bg-amber-50"
+              >
+                <Avatar style={{ backgroundColor: '#d97706' }}>
+                  {user.fullName.charAt(0).toUpperCase()}
+                </Avatar>
+              </button>
+            </Dropdown>
+          ) : (
+            <>
+              <UiButton kind="default" size="small" onClick={() => navigate('/login')}>
+                Đăng nhập
+              </UiButton>
+              <UiButton kind="primary" size="small" onClick={() => navigate('/register')}>
+                Đăng ký
+              </UiButton>
+            </>
+          )}
+        </div>
+
+        {/* Mobile hàng thứ hai: chuông + đơn hàng */}
+        <div className="flex w-full items-center justify-end gap-2 md:hidden">
+          {notificationsButton}
+        </div>
       </div>
     </header>
   )
+
+
 }

@@ -206,7 +206,7 @@ export default function OrdersPage() {
                           Đặt lại
                         </UiButton>
                       )}
-                      {o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED' && (
+                      {o.status === 'PENDING' && o.paymentStatus !== 'PAID' && (
                         <UiButton kind="default" icon={<QrcodeOutlined />} onClick={() => setPaying(o)}>
                           Thanh toán
                         </UiButton>
