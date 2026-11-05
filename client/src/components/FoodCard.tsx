@@ -1,6 +1,7 @@
 ﻿import { message } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Food } from '../types'
+import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
 import { foodChips } from '../utils/food-tags'
@@ -21,7 +22,11 @@ const MAX_CHIPS = 2
  */
 export default function FoodCard({ food }: { food: Food }) {
   const add = useCartStore((s) => s.add)
+  const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
+
+  // Khách chưa đăng nhập thì ẩn nút thêm món; món hết vẫn hiện để báo trạng thái.
+  const canAdd = user !== null
 
   return (
     <div
@@ -51,14 +56,11 @@ export default function FoodCard({ food }: { food: Food }) {
               Hết món
             </span>
           )}
+          {/* Chỉ hiện phần trăm giảm: tên chương trình khuyến mãi dài, đè kín ảnh món.
+              Giá gạch ngang bên dưới đã cho biết món đang được giảm. */}
           {food.available && !!food.discountPercent && (
             <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[11px] font-semibold text-white">
               -{food.discountPercent}%
-            </span>
-          )}
-          {food.available && !!food.discountLabel && (
-            <span className="rounded-full bg-amber-50/95 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200 backdrop-blur">
-              {food.discountLabel}
             </span>
           )}
         </div>
@@ -97,18 +99,20 @@ export default function FoodCard({ food }: { food: Food }) {
               {formatVND(food.price)}
             </div>
           )}
-          <UiButton
-            kind="primary"
-            size="small"
-            className="!px-2.5 !text-xs w-full sm:w-auto"
-            disabled={!food.available}
-            onClick={() => {
-              add(food)
-              message.success(`Đã thêm ${food.name} vào giỏ`)
-            }}
-          >
-            {food.available ? 'Thêm vào giỏ' : 'Hết món'}
-          </UiButton>
+          {(canAdd || !food.available) && (
+            <UiButton
+              kind="primary"
+              size="small"
+              className="!px-2.5 !text-xs w-full sm:w-auto"
+              disabled={!food.available}
+              onClick={() => {
+                add(food)
+                message.success(`Đã thêm ${food.name} vào giỏ`)
+              }}
+            >
+              {food.available ? 'Thêm vào giỏ' : 'Hết món'}
+            </UiButton>
+          )}
         </div>
       </div>
     </div>

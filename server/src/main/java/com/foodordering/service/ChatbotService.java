@@ -5,7 +5,9 @@ import com.foodordering.entity.*;
 import com.foodordering.repository.*;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.text.Normalizer;
 import java.util.*;
@@ -21,9 +23,9 @@ public class ChatbotService {
     /** Số ứng viên rẻ nhất xét cho bộ chọn phẳng khi có ngân sách. */
     private static final int FLAT_CANDIDATES = 20;
 
-    /** Thông báo hiện cho khách khi server chưa cấu hình khóa AI. */
+    /** Câu báo cho khách khi server chưa cấu hình khóa AI; cũng là lý do từ chối chat. */
     private static final String MISSING_KEY_NOTICE =
-            "Trợ lý AI chưa được cấu hình khóa API. Đang gợi ý bằng bộ lọc.";
+            "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.";
 
     /**
 
@@ -105,13 +107,14 @@ public class ChatbotService {
 
     /**
      * Luồng cố định: lưu câu hỏi, AI trích tiêu chí, server lọc database, AI viết câu trả lời.
+     *
+     * <p>Chưa cấu hình khóa API thì từ chối ngay, không lưu lịch sử và không chạy nhánh code:
+     * trợ lý chỉ dùng được khi quản trị đã đặt khóa.
      */
     public ChatResponse chat(String email, ChatRequest req) {
+        requireConfigured();
         String sessionId = req.sessionId() == null ? UUID.randomUUID().toString() : req.sessionId();
         User user = email == null ? null : userRepo.findByEmail(email).orElse(null);
-        String configured = ai.isConfigured() ? "configured" : "not-configured";
-        // Thiếu khóa thì không gọi AI để tránh chờ timeout; khóa hỏng thì lời gọi lỗi rồi fallback.
-        boolean keyReady = ai.isConfigured();
         List<String> history = requestHistory(req.history());
         // Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại; khách vãng lai dùng history do client gửi.
         if (user != null) {
@@ -120,17 +123,27 @@ public class ChatbotService {
 
         String workingMessage = enrichWithLastPicked(sessionId, req.message());
 
-        Criteria rawCriteria = keyReady ? extractCriteria(workingMessage, history) : null;
-        Criteria criteria = rawCriteria == null ? null : normalizeCriteria(rawCriteria);
+        Criteria criteria;
+        List<Long> contextIds;
+        List<Picked> aiPicked;
+        String aiReply;
+        try {
+            Criteria rawCriteria = extractCriteria(workingMessage, history);
+            criteria = rawCriteria == null ? null : normalizeCriteria(rawCriteria);
 
-        // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
-        // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
-        List<Long> contextIds = contextIds(req, criteria);
-        List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria, contextIds);
-        String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
+            // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
+            // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
+            contextIds = contextIds(req, criteria);
+            aiPicked = criteria == null ? List.of() : selectFoods(criteria, contextIds);
+            aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
+        } catch (AiClient.AiKeyRejectedException e) {
+            // Khóa có nhưng bị nhà cung cấp từ chối (sai, hết hạn, chưa bật API): coi như chưa
+            // cấu hình, để khách nhận đúng câu báo và client khóa khung chat.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, MISSING_KEY_NOTICE, e);
+        }
 
-        // Không gọi được AI (thiếu khóa, khóa hỏng, JSON sai, hết thời gian chờ) thì trả lời
-        // bằng nhánh dự phòng: code chấm điểm và lọc món, vẫn ra thẻ món thật từ DB.
+        // Có khóa và gọi được AI nhưng không có câu trả lời (JSON sai, hết thời gian chờ) thì trả
+        // lời bằng nhánh dự phòng: code chấm điểm và lọc món, vẫn ra thẻ món thật từ DB.
         List<Picked> picked;
         String reply;
         if (aiReply != null) {
@@ -158,7 +171,22 @@ public class ChatbotService {
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = picked.stream().limit(maxSuggestions())
                 .map(p -> FoodCard.from(p.food(), p.portions(), p.totalPrice())).toList();
-        return new ChatResponse(reply, cards, keyReady ? null : MISSING_KEY_NOTICE);
+        return new ChatResponse(reply, cards);
+    }
+
+    /**
+     * Trạng thái sẵn dùng cho client; không trả giá trị khóa, chỉ boolean và câu thông báo.
+     * Gọi {@code verifyKey()} để khóa sai/hết hạn hiện thông báo ngay khi mở trang.
+     */
+    public ChatbotStatus status() {
+        boolean available = ai.verifyKey();
+        return new ChatbotStatus(available, available ? null : MISSING_KEY_NOTICE);
+    }
+
+    private void requireConfigured() {
+        if (!ai.isConfigured()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, MISSING_KEY_NOTICE);
+        }
     }
 
     /**
@@ -259,6 +287,9 @@ public class ChatbotService {
             json = json.replaceAll("```json|```", "").trim();
             return mapper.readValue(json, Criteria.class);
         } catch (Exception e) {
+            // Khóa bị từ chối thì dừng hẳn lượt này (chat() đổi thành 503) thay vì dựng tiêu chí
+            // bằng code, vì khách cần thấy thông báo chưa cấu hình.
+            if (e instanceof AiClient.AiKeyRejectedException rejected) throw rejected;
             // Lượt này không có tiêu chí đáng tin; chat() sẽ không gợi ý món cho câu hỏi này.
             return null;
         }
@@ -617,6 +648,8 @@ public class ChatbotService {
         try {
             return ai.generate(String.format(ANSWER_PROMPT, extraRules()), data.toString(), false);
         } catch (Exception e) {
+            // Khóa bị từ chối thì không rơi sang nhánh dự phòng; chat() đổi thành 503.
+            if (e instanceof AiClient.AiKeyRejectedException rejected) throw rejected;
             // Trả null để lớp gọi biết lượt này không có câu trả lời AI và rơi sang nhánh dự phòng.
             return null;
         }

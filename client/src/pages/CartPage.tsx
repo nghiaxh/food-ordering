@@ -60,8 +60,9 @@ export default function CartPage() {
 
   /**
    * Báo giá lại mỗi khi giỏ đổi, gửi đúng danh sách dòng đang hiển thị để server không đọc
-   * giỏ DB chậm hơn state. Abort request cũ để response về muộn không ghi đè số mới, và xoá
-   * quote ngay khi danh sách đổi để không hiện tiền của giỏ trước.
+   * giỏ DB chậm hơn state. Abort request cũ để response về muộn không ghi đè số mới.
+   * Giữ quote cũ trong lúc chờ thay vì xoá: xoá làm cả khối tổng tiền nhảy sang
+   * "Đang cập nhật giá..." rồi bật lại, mỗi lần tăng số lượng là một lần nháy.
    */
   useEffect(() => {
     if (items.length === 0) {
@@ -71,7 +72,6 @@ export default function CartPage() {
       return
     }
     const ctrl = new AbortController()
-    setQuote(null)
     setQuoteLoading(true)
     setQuoteError(false)
     quoteCart(
@@ -91,6 +91,9 @@ export default function CartPage() {
       })
     return () => ctrl.abort()
   }, [items])
+
+  // Đang chờ báo giá mới nhưng vẫn còn số cũ để hiện, chỉ thêm nhãn thay vì xoá trắng.
+  const quoteStale = quoteLoading && quote !== null
 
   const selectedAddress = addresses.find((a) => a.id === selectedId) ?? null
 
@@ -263,10 +266,12 @@ export default function CartPage() {
             )
           })}
 
-          {/* Tổng tiền và giảm giá tự động; chỉ hiện khi báo giá mới nhất đã về. */}
+          {/* Tổng tiền và giảm giá tự động; giữ số cũ trong lúc báo giá lại để không nháy. */}
           <div className="border-t border-stone-100 bg-stone-50/60 p-4 sm:p-5">
-            {quoteLoading || quoteError || !quote ? (
-              <p className="text-sm text-stone-500">Đang cập nhật giá...</p>
+            {!quote ? (
+              <p className="text-sm text-stone-500">
+                {quoteError ? 'Không tính được giá, thử lại sau.' : 'Đang cập nhật giá...'}
+              </p>
             ) : (
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between text-stone-600">
@@ -283,6 +288,10 @@ export default function CartPage() {
                   <span>Tổng thanh toán</span>
                   <span className="text-lg tabular-nums text-amber-700">{formatVND(quote.total)}</span>
                 </div>
+                {/* Chỗ cố định để nhãn hiện/ẩn không làm khối tổng tiền nhảy chiều cao. */}
+                <p className="h-4 text-xs text-stone-400" aria-live="polite">
+                  {quoteStale ? 'Đang cập nhật giá...' : ''}
+                </p>
               </div>
             )}
           </div>
@@ -440,8 +449,10 @@ export default function CartPage() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200/70 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <div className="text-sm text-stone-600">
-            {quoteLoading || quoteError || !quote ? (
-              <span className="font-medium text-stone-500">Đang cập nhật giá...</span>
+            {!quote ? (
+              <span className="font-medium text-stone-500">
+                {quoteError ? 'Không tính được giá' : 'Đang cập nhật giá...'}
+              </span>
             ) : (
               <>
                 <span className="font-semibold text-stone-900">Tổng cộng: </span>
@@ -449,6 +460,7 @@ export default function CartPage() {
                 {quote.discountTotal > 0 && (
                   <span className="ml-2 text-xs text-stone-400 line-through tabular-nums">{formatVND(quote.subtotal)}</span>
                 )}
+                {quoteStale && <span className="ml-2 text-xs text-stone-400">Đang cập nhật...</span>}
               </>
             )}
           </div>

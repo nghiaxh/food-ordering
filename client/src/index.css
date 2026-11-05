@@ -83,6 +83,15 @@ html:has(.profile-page)::-webkit-scrollbar {
   display: none;
 }
 
+/*
+  Trang thực đơn tự cuộn trong vùng riêng. Khoá cuộn tài liệu để không hiện thêm scrollbar
+  của html: chiều cao `calc(100dvh - header)` lẻ vài phần mười px nên html vẫn đủ điều kiện
+  cuộn, sinh scrollbar thứ hai và kéo lệch header.
+*/
+html:has(.kiosk-scroll) {
+  overflow-y: hidden;
+}
+
 /* Biểu mẫu đăng nhập và đăng ký: ẩn gợi ý dưới ô nhập vì đã có thông báo riêng
    khi bấm nút, tránh mỗi lần gõ lại thấy hai lớp thông báo trùng nhau. */
 .auth-form .ant-form-item {

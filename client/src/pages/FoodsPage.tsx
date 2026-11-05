@@ -82,20 +82,21 @@ export default function FoodsPage() {
   const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
 
   // Chip thấp (32px) để thanh lọc không chiếm chỗ của lưới; vẫn đủ vùng chạm.
+  // Danh mục luôn flex-wrap: chip tràn xuống hàng thay vì cắt hoặc hiện scrollbar.
   const chipBtn = (active: boolean) =>
     `inline-flex min-h-8 cursor-pointer items-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
       active ? 'bg-amber-600 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
     }`
 
   return (
-    <div className="h-[calc(100dvh-3.25rem)] overflow-y-auto">
+    <div className="kiosk-scroll h-[calc(100dvh-3.25rem)] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
       <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-6">
         <section id="thuc-don" className="py-3 sm:py-4">
           <div className="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-1.5 backdrop-blur sm:-mx-6 sm:px-6 sm:py-2">
-            {/* Từ `md`: danh mục và dải giá cùng một hàng, danh mục co giãn và cuộn ngang,
-                dải giá giữ nguyên không rơi xuống. Dưới `md` dải giá xuống dòng thay vì bị cắt. */}
+            {/* Từ `md`: danh mục và dải giá cùng một hàng, danh mục co giãn, dải giá giữ nguyên
+                không rơi xuống. Dưới `md` dải giá xuống dòng thay vì bị cắt. */}
             <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">
-              <div className="flex min-w-0 gap-2 overflow-x-auto md:flex-1">
+              <div className="flex min-w-0 flex-wrap gap-2 md:flex-1">
                 <button
                   type="button"
                   onClick={() => pickCategory()}

@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -39,6 +40,25 @@ public class AiClient {
     private final AiSettingRepository settingRepo;
     private final RestClient http;
     private final ObjectMapper mapper = new ObjectMapper();
+    /** Nhà cung cấp đã từ chối khóa ở một lượt trước; giữ lại để các lượt sau báo như thiếu khóa. */
+    private volatile boolean credentialsRejected = false;
+    /** Kết quả kiểm tra khóa với nhà cung cấp; null là chưa kiểm tra lần nào. */
+    private volatile Boolean keyAccepted = null;
+    /** Lần thử gần nhất không kết luận được (mạng, quota), dùng để giãn nhịp thử lại. */
+    private volatile long probeFailedAt = 0;
+
+    /** Câu thử tối giản để biết nhà cung cấp có chấp nhận khóa không. */
+    private static final String PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
+    private static final String PROBE_USER = "ping";
+    /** Chờ ngần này trước khi thử lại sau một lần không kết luận được, tránh gọi mạng mỗi lần mở trang. */
+    private static final long PROBE_RETRY_MS = 5 * 60 * 1000L;
+
+    /** Khóa API bị nhà cung cấp từ chối (sai, hết hạn, chưa bật API) - không phải lỗi tạm thời. */
+    public static class AiKeyRejectedException extends RuntimeException {
+        AiKeyRejectedException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 
     public AiClient(AppProperties props, AiSettingRepository settingRepo) {
         this.props = props;
@@ -50,12 +70,35 @@ public class AiClient {
     }
 
     /**
-     * Khóa API đã được cấu hình chưa. Chatbot dùng cờ này để bỏ qua lời gọi mạng khi thiếu
-     * khóa, tránh chờ hết timeout rồi mới rơi sang nhánh dự phòng. Không trả về hay log giá trị khóa.
+     * Trợ lý có dùng được không: khóa API đã được cấu hình và chưa bị nhà cung cấp từ chối.
+     * Chatbot dùng cờ này để bỏ qua lời gọi mạng khi thiếu/hỏng khóa, tránh chờ hết timeout rồi
+     * mới rơi sang nhánh dự phòng. Không trả về hay log giá trị khóa.
      */
     public boolean isConfigured() {
         String apiKey = props.getAi().getApiKey();
-        return apiKey != null && !apiKey.isBlank();
+        return apiKey != null && !apiKey.isBlank() && !credentialsRejected;
+    }
+
+    /**
+     * Khóa có được nhà cung cấp chấp nhận không. Lần đầu gọi thử một câu tối giản rồi giữ kết
+     * quả, nhờ vậy mở trang là biết ngay khóa sai thay vì đợi tới lượt chat đầu tiên. Lỗi
+     * mạng/quota không kết luận được thì coi như dùng được và chỉ thử lại sau một lúc.
+     */
+    public synchronized boolean verifyKey() {
+        if (!isConfigured()) return false;
+        if (keyAccepted != null) return keyAccepted;
+        if (System.currentTimeMillis() - probeFailedAt < PROBE_RETRY_MS) return true;
+        try {
+            generate(PROBE_SYSTEM, PROBE_USER, false);
+            keyAccepted = true;
+            return true;
+        } catch (AiKeyRejectedException e) {
+            credentialsRejected = true;
+            return false;
+        } catch (RuntimeException e) {
+            probeFailedAt = System.currentTimeMillis();
+            return true;
+        }
     }
 
     public String generate(String systemPrompt, String userPrompt, boolean jsonMode) {
@@ -73,9 +116,32 @@ public class AiClient {
                     : callGemini(apiKey, model, systemPrompt, userPrompt, jsonMode);
             return text(provider, raw);
         } catch (Exception e) {
-            // Chuẩn hóa lỗi tích hợp để service chatbot có thể áp dụng fallback phù hợp.
+            // Khóa sai/hết hạn: đánh dấu để các lượt sau báo "chưa cấu hình" thay vì dự phòng.
+            if (isKeyRejected(e)) {
+                credentialsRejected = true;
+                throw new AiKeyRejectedException("Khóa API của dịch vụ AI bị từ chối", e);
+            }
+            // Lỗi tạm thời (mạng, hết thời gian chờ, JSON hỏng): service chatbot tự dự phòng.
             throw new RuntimeException("Không gọi được dịch vụ AI: " + e.getMessage(), e);
         }
+    }
+
+    private static boolean isKeyRejected(Exception e) {
+        if (!(e instanceof HttpClientErrorException err)) return false;
+        return looksLikeKeyRejection(err.getStatusCode().value(), err.getResponseBodyAsString());
+    }
+
+    /**
+     * Nhà cung cấp trả 401/403 khi khóa sai hoặc hết hạn; riêng Gemini báo khóa sai bằng 400 kèm
+     * {@code API_KEY_INVALID} trong body. Phân biệt với 429/5xx để còn dùng được nhánh dự phòng.
+     */
+    static boolean looksLikeKeyRejection(int status, String body) {
+        if (status == 401 || status == 403) return true;
+        if (body == null || body.isEmpty()) return false;
+        return body.contains("API_KEY_INVALID")
+                || body.contains("API key not valid")
+                || body.contains("invalid_api_key")
+                || body.contains("Incorrect API key");
     }
 
     private String callGemini(String apiKey, String model, String systemPrompt,

@@ -194,11 +194,19 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
 - Lỗi AI/JSON sai thì xử lý bằng `try/catch` → hệ thống vẫn chạy bình thường. JSON AI trả về có
   thể có thêm trường lạ; mapper bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường
   thừa không làm mất gợi ý.
-- **Thiếu khóa API**: `AiClient.isConfigured()` kiểm tra `app.ai.api-key`; nếu rỗng, `chat()`
-  không gọi AI (tránh chờ timeout) mà đi thẳng nhánh dự phòng và trả `notice = "Trợ lý AI
-  chưa được cấu hình khóa API. Đang gợi ý bằng bộ lọc."`. Client hiện banner hổ phách ở đầu
-  khung chat nhưng vẫn cho chat bình thường. Khóa có nhưng gọi lỗi thì chỉ fallback, không notice.
-- **Nhánh dự phòng khi không gọi được AI** (thiếu khóa, khóa hỏng, hết thời gian chờ): `chat()`
+- **Thiếu hoặc hỏng khóa API**: `AiClient.isConfigured()` kiểm tra `app.ai.api-key`; nếu rỗng,
+  `chat()` ném `503 SERVICE_UNAVAILABLE` với câu "Trợ lý AI chưa được cấu hình, vui lòng thử
+  lại sau." ngay trước khi lưu câu hỏi, nên không có lịch sử rác và không tốn thời gian chờ
+  timeout. `GET /api/chatbot/status` trả `{ available, notice }` để client biết trước: khung chat
+  hiện banner đúng câu trên, ô nhập và nút gửi bị khóa.
+- **Khóa bị nhà cung cấp từ chối** (401/403, hoặc 400 kèm `API_KEY_INVALID` của Gemini) cũng bị
+  coi là chưa cấu hình. `AiClient.verifyKey()` (được `/status` gọi) thử một câu tối giản ở lần
+  đầu rồi nhớ kết quả, nên mở trang là banner hiện ngay; lỗi mạng/quota thì coi như dùng được và
+  chỉ thử lại sau 5 phút. Khi bị từ chối, `AiClient` bật cờ dính (`credentialsRejected`, giữ tới
+  khi khởi động lại) và `AiKeyRejectedException` được đẩy xuyên qua
+  `extractCriteria`/`generateReply` để `chat()` đổi thành 503 thay vì dựng câu trả lời dự phòng.
+  Lỗi 429/5xx, hết thời gian chờ mới đi nhánh dự phòng.
+- **Nhánh dự phòng khi không gọi được AI** (429/5xx, JSON sai, hết thời gian chờ): `chat()`
   rơi sang `ChatbotService.selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code
   theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm
   tên danh mục, rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải
@@ -395,8 +403,10 @@ Bố cục khung chat:
   chat không dồn thẻ và khách không tưởng món của lượt cũ là gợi ý hiện tại.
 - Nút thêm vào giỏ trong thẻ yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip
   "Đăng nhập để thêm món vào giỏ" và bấm vào không điều hướng theo link của thẻ.
-- Khi server trả `notice` (ví dụ thiếu khóa AI), khung chat hiện banner hổ phách nhỏ ngay dưới
-  thanh tiêu đề nhưng không chặn chat. `ChatResponse` gồm `reply` + `foods` + `notice`.
+- Khi server thiếu khóa AI, `GET /api/chatbot/status` trả `available = false`; khung chat hiện
+  banner hổ phách ngay dưới thanh tiêu đề, khóa ô nhập, nút gửi và các chip gợi ý. `ChatResponse`
+  chỉ còn `reply` + `foods`. Nếu vẫn nhận 503 lúc gửi (trạng thái đổi sau khi mở khung), client
+  báo đúng câu đó và khóa khung chat thay vì mời thử lại.
 - Nút gửi nằm trong ô nhập (`suffix`) thay vì một nút tròn riêng, nên khung chat đỡ một phần
   tử và ô nhập không bị bó hẹp.
 - Ba chấm "đang trả lời" cũng nằm trong bong bóng trắng cùng kiểu để khung nhìn nhất quán.
