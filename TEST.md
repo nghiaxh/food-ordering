@@ -123,6 +123,21 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-ADM-08 | Quản lý khuyến mãi tự động | Đăng nhập Admin | Tạo/sửa chương trình khuyến mãi tự động | CSDL cập nhật, áp dụng chuẩn xác ngay trong các lượt tính giá tiếp theo | | |
 | TC-ADM-09 | Báo cáo doanh thu & Xuất file | Đăng nhập Admin | Vào `/admin/reports`, chọn khoảng ngày và bấm "Xuất Excel" | Tải về file `.xlsx` thống kê đúng doanh thu, số đơn và top món bán chạy | | |
 
+### 1.2.7. Đánh giá và Thông báo
+
+| Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
+|-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
+| TC-REVIEW-01 | Đánh giá chỉ bằng số sao | Đã đăng nhập, có đơn `COMPLETED` chứa món | Chọn 5 sao, để trống nội dung, bấm "Gửi đánh giá" | Gửi thành công, thẻ đánh giá hiện 5 sao và không có dòng nhận xét | | |
+| TC-REVIEW-02 | Sửa đánh giá xóa hết nội dung | Đã có đánh giá kèm nội dung | Bấm "Sửa", xóa trắng ô nhận xét, bấm "Lưu thay đổi" | Cập nhật thành công, CSDL lưu `comment = null`, giao diện không hiện dòng nhận xét | | |
+| TC-REVIEW-03 | Nội dung chỉ có khoảng trắng | Đã đăng nhập, có đơn `COMPLETED` chứa món | Gửi đánh giá với nội dung chỉ gồm dấu cách | Server chuẩn hóa thành `null`, đánh giá vẫn được lưu | | |
+| TC-REVIEW-04 | Chặn đánh giá món chưa mua | Đã đăng nhập, chưa có đơn `COMPLETED` chứa món | Gửi đánh giá cho món đó | HTTP 403, không tạo đánh giá (giữ nguyên ràng buộc cũ) | | |
+| TC-NOTIFY-01 | Mở đơn từ thông báo | Có thông báo gắn đơn, đang đăng nhập | Bấm vào thân thông báo | Popover đóng, chuyển tới `/orders?orderId={id}`, đúng thẻ đơn được cuộn tới và tô ring, thông báo chuyển đã đọc, badge giảm 1 | | |
+| TC-NOTIFY-02 | Thông báo cũ không có `orderId` | Thông báo tạo trước khi thêm `orderId` | Bấm vào thân thông báo | Thông báo chuyển đã đọc, popover đóng, không điều hướng | | |
+| TC-NOTIFY-03 | Xóa thông báo đã đọc | Có cả thông báo đã đọc và chưa đọc | Bấm "Xóa đã đọc" | Chỉ các thông báo `read = true` biến mất, thông báo chưa đọc còn nguyên | | |
+| TC-NOTIFY-04 | Xóa một thông báo | Có ít nhất một thông báo | Trên desktop hover thông báo, trên mobile xem trực tiếp, bấm nút xóa | Nút xóa hiện đúng trên cả hai cỡ màn hình, xóa đúng thông báo, không mở đơn hay đóng popover | | |
+| TC-NOTIFY-05 | Chặn thao tác thông báo người khác | Có 2 tài khoản khách A và B | Dùng token của B gọi `POST /api/notifications/{id}/read` hoặc `DELETE` thông báo của A | HTTP 403, thông báo của A không đổi | | |
+| TC-NOTIFY-06 | `orderId` không còn tồn tại | Thông báo trỏ tới đơn đã bị xóa | Bấm vào thân thông báo | Vẫn đánh dấu đã đọc và mở `/orders`, trang không lỗi và bỏ qua việc cuộn | | |
+
 ---
 
 # Phần 2. Kiểm thử tự động (Automated Testing)
