@@ -3,7 +3,6 @@ package com.foodordering.service;
 import com.foodordering.dto.OrderDtos.OrderItemRequest;
 import com.foodordering.dto.QuoteDtos.CartQuote;
 import com.foodordering.dto.QuoteDtos.QuoteLine;
-import com.foodordering.entity.CartItem;
 import com.foodordering.entity.Food;
 import com.foodordering.entity.Promotion;
 import com.foodordering.repository.FoodRepository;
@@ -71,15 +70,6 @@ public class PricingService {
 
     public record PricedCart(List<Line> lines, BigDecimal subtotal, BigDecimal discountTotal,
                              BigDecimal total, List<Promotion> appliedPromotions) {}
-
-    public PricedCart priceCart(List<CartItem> items) {
-        List<OrderItemRequest> inputs = items.stream()
-                .map(i -> new OrderItemRequest(
-                        i.getFood() != null ? i.getFood().getId() : null,
-                        i.getQuantity()))
-                .toList();
-        return priceOrder(inputs);
-    }
 
     public PricedCart priceOrder(List<OrderItemRequest> items) {
         LocalDateTime now = LocalDateTime.now(clock);

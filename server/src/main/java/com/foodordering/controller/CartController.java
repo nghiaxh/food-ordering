@@ -2,6 +2,7 @@ package com.foodordering.controller;
 
 import com.foodordering.dto.CartDtos.*;
 import com.foodordering.dto.QuoteDtos.CartQuote;
+import com.foodordering.dto.QuoteDtos.QuoteRequest;
 import com.foodordering.entity.CartItem;
 import com.foodordering.service.CartService;
 import jakarta.validation.Valid;
@@ -45,9 +46,9 @@ public class CartController {
         cartService.clear(auth.getName());
     }
 
-    /** Trả báo giá kèm khuyến mãi tự động đã áp cho từng dòng. */
+    /** Trả báo giá cho đúng danh sách dòng client gửi kèm khuyến mãi tự động của từng dòng. */
     @PostMapping("/quote")
-    public CartQuote quote(Authentication auth) {
-        return cartService.quote(auth.getName());
+    public CartQuote quote(@Valid @RequestBody QuoteRequest req) {
+        return cartService.quote(req.items());
     }
 }

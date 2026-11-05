@@ -1,5 +1,9 @@
 package com.foodordering.dto;
 
+import com.foodordering.dto.OrderDtos.OrderItemRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -9,6 +13,12 @@ import java.util.List;
  * hàm này nên số khách thấy và số ghi vào đơn không thể lệch nhau.
  */
 public class QuoteDtos {
+    /**
+     * Danh sách dòng client đang hiển thị. Quote tính trên chính danh sách này thay vì đọc
+     * lại giỏ trong DB, nhờ vậy thêm món xong không bị response cũ của giỏ ghi đè.
+     */
+    public record QuoteRequest(@Valid @NotEmpty List<OrderItemRequest> items) {}
+
     /** Một dòng hàng. Giảm giá là số tiền của cả dòng, khớp với OrderItem.discountAmount. */
     public record QuoteLine(
             Long foodId,
