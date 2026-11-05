@@ -26,22 +26,32 @@ export default function HeaderGlobal() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
 
   // Ô tìm kiếm ghi thẳng vào URL để trang thực đơn đọc được và người dùng chia sẻ
-  // được đường dẫn đã lọc. `replace` tránh mỗi ký tự lại thêm một mục lịch sử.
+  // được đường dẫn đã lọc.
   const keyword = params.get('keyword') ?? ''
   const [draft, setDraft] = useState(keyword)
 
   useEffect(() => setDraft(keyword), [keyword])
 
+  // Ghi từ khoá vào URL: đang ở trang chủ thì đè lên bộ lọc hiện có (category, min, max),
+  // đang ở trang khác thì quay về "/" kèm từ khoá. Debounce và Enter cùng gọi hàm này
+  // nên hai lối vào không lệch nhau; Enter áp dụng tức thì, không đợi debounce.
+  const commitSearch = (draftValue: string) => {
+    const next = new URLSearchParams(params)
+    const value = draftValue.trim()
+    if (value) next.set('keyword', value)
+    else next.delete('keyword')
+    if (location.pathname === '/') {
+      setParams(next, { replace: true })
+    } else {
+      navigate(next.size > 0 ? `/?${next.toString()}` : '/')
+    }
+  }
+
   useEffect(() => {
     if (draft === keyword) return
-    const timer = window.setTimeout(() => {
-      const next = new URLSearchParams(params)
-      if (draft.trim()) next.set('keyword', draft.trim())
-      else next.delete('keyword')
-      setParams(next, { replace: true })
-    }, 300)
+    const timer = window.setTimeout(() => commitSearch(draft), 300)
     return () => window.clearTimeout(timer)
-  }, [draft, keyword, params, setParams])
+  }, [draft, keyword, params, setParams, navigate, location.pathname])
 
   useEffect(() => {
     if (!user) {
@@ -131,7 +141,7 @@ export default function HeaderGlobal() {
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onPressEnter={() => navigate('/')}
+          onPressEnter={() => commitSearch(draft)}
           prefix={<SearchOutlined style={{ color: '#a8a29e' }} />}
           placeholder="Tìm món theo tên..."
           allowClear
