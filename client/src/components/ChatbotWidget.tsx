@@ -228,19 +228,6 @@ export default function ChatbotWidget() {
                       </div>
                     )}
 
-                    {/* Bot không gợi ý được món nào thì chỉ ra lối ra: xem thẳng thực đơn.
-                        Áp dụng cho cả lỗi, cả "không có món phù hợp" lẫn câu hỏi ngoài lề. */}
-                    {isBot && foods.length === 0 && index === lastBotIndex && !loading && (
-                      <Link
-                        to="/"
-                        onClick={handleClose}
-                        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2.5 text-xs font-medium text-amber-700 ring-1 ring-stone-200 transition hover:bg-amber-50"
-                      >
-                        <MessageOutlined />
-                        Xem thực đơn
-                      </Link>
-                    )}
-
                     {isBot && index === 0 && showSuggestions && !loading && (
                       <div className="mt-2.5 flex flex-wrap gap-1.5">
                         {SUGGESTIONS.map((s) => (
