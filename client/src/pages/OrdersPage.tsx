@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { cancelOrder, getMyOrders, payOrder } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import { ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '../utils/orders'
+import { canCancelOrder, ORDER_FLOW, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '../utils/orders'
 import { formatVND } from '../utils/format'
 import type { Order, OrderStatus } from '../types'
 import UiButton from '../components/UiButton'
@@ -184,15 +184,18 @@ export default function OrdersPage() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <UiButton kind="default" onClick={() => void reorder(o)} loading={reorderingId === o.id}>
-                        Đặt lại
-                      </UiButton>
+                      {/* Chỉ hiện ở đơn COMPLETED; đơn đang đi mà đặt lại sẽ trộn đồ cũ vào giỏ gây nhầm lẫn. */}
+                      {o.status === 'COMPLETED' && (
+                        <UiButton kind="default" onClick={() => void reorder(o)} loading={reorderingId === o.id}>
+                          Đặt lại
+                        </UiButton>
+                      )}
                       {o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED' && (
                         <UiButton kind="default" icon={<QrcodeOutlined />} onClick={() => setPaying(o)}>
                           Thanh toán
                         </UiButton>
                       )}
-                      {o.status === 'PENDING' && o.paymentStatus !== 'PAID' && (
+                      {canCancelOrder(o) && (
                         <UiButton
                           kind="danger"
                           onClick={() =>
