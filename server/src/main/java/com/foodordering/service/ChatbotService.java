@@ -18,7 +18,15 @@ import java.util.stream.Collectors;
 @Service
 public class ChatbotService {
 
+    /** Số ứng viên rẻ nhất xét cho bộ chọn phẳng khi có ngân sách. */
+    private static final int FLAT_CANDIDATES = 20;
+
+    /** Thông báo hiện cho khách khi server chưa cấu hình khóa AI. */
+    private static final String MISSING_KEY_NOTICE =
+            "Trợ lý AI chưa được cấu hình khóa API. Đang gợi ý bằng bộ lọc.";
+
     /**
+
      * Số món ứng viên giữ lại cho mỗi loại món khi ghép tổ hợp. Giữ nhỏ để việc dò tổ hợp
      * không bị nổ, đồng thời vẫn đủ để có lựa chọn thay thế trong tầm ngân sách.
      */
@@ -101,18 +109,23 @@ public class ChatbotService {
     public ChatResponse chat(String email, ChatRequest req) {
         String sessionId = req.sessionId() == null ? UUID.randomUUID().toString() : req.sessionId();
         User user = email == null ? null : userRepo.findByEmail(email).orElse(null);
-        // Luu lich su cho ca khach vang lai (user = null) de phien chat co ngu canh.
-        save(user, sessionId, ChatMessage.Sender.USER, req.message());
+        String configured = ai.isConfigured() ? "configured" : "not-configured";
+        // Thiếu khóa thì không gọi AI để tránh chờ timeout; khóa hỏng thì lời gọi lỗi rồi fallback.
+        boolean keyReady = ai.isConfigured();
+        List<String> history = requestHistory(req.history());
+        // Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại; khách vãng lai dùng history do client gửi.
+        if (user != null) {
+            save(user, sessionId, ChatMessage.Sender.USER, req.message());
+        }
 
         String workingMessage = enrichWithLastPicked(sessionId, req.message());
 
-        Criteria rawCriteria = extractCriteria(workingMessage);
+        Criteria rawCriteria = keyReady ? extractCriteria(workingMessage, history) : null;
         Criteria criteria = rawCriteria == null ? null : normalizeCriteria(rawCriteria);
-        // Câu hỏi tiếp theo về món vừa gợi ý cần nhớ lượt trước, nên đưa lịch sử phiên vào ngữ cảnh.
-        List<String> history = recentTurns(sessionId);
 
         // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
         // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
+        List<Long> contextIds = contextIds(req, criteria);
         List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria, contextIds);
         String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
 
@@ -125,10 +138,16 @@ public class ChatbotService {
             reply = aiReply;
         } else {
             Filters filters = readFilters(req.message());
-            picked = aiPicked.isEmpty() ? selectFoodsByCode(workingMessage, filters) : aiPicked;
-            reply = fallbackReply(req.message(), picked, filters);
+            if (contextIds != null) {
+                picked = selectContextByCode(contextIds, filters);
+            } else {
+                picked = aiPicked.isEmpty() ? selectFoodsByCode(workingMessage, filters) : aiPicked;
+            }
+            reply = fallbackReply(picked, filters);
         }
-        save(user, sessionId, ChatMessage.Sender.BOT, reply);
+        if (user != null) {
+            save(user, sessionId, ChatMessage.Sender.BOT, reply);
+        }
 
         if (!picked.isEmpty()) {
             lastPickedBySession.put(sessionId, picked.stream().map(p -> p.food().getName()).toList());
@@ -139,7 +158,7 @@ public class ChatbotService {
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = picked.stream().limit(maxSuggestions())
                 .map(p -> FoodCard.from(p.food(), p.portions(), p.totalPrice())).toList();
-        return new ChatResponse(reply, cards, configured ? null : MISSING_KEY_NOTICE);
+        return new ChatResponse(reply, cards, keyReady ? null : MISSING_KEY_NOTICE);
     }
 
     /**
@@ -297,12 +316,13 @@ public class ChatbotService {
         return "Dựa trên các món vừa gợi ý: " + String.join(", ", last) + ". " + message;
     }
 
-    private List<Picked> selectFoods(Criteria c) {
+    private List<Picked> selectFoods(Criteria c, List<Long> restrictIds) {
         // Bước 1: lọc thuộc tính của món. Danh mục và giá để dành cho bước 2 vì cách tính
         // tổng tiền phụ thuộc vào việc khách muốn một nhóm hay nhiều nhóm món.
         List<Food> pool = new ArrayList<>();
         for (Food f : foodRepo.findAll()) {
             if (!f.isAvailable()) continue;
+            if (restrictIds != null && !restrictIds.contains(f.getId())) continue;
             if (c.maxSpicyLevel() != null && f.getSpicyLevel() > c.maxSpicyLevel()) continue;
             if (hasAny(f.getAllergens(), c.excludeAllergens())) continue;
             if (hasAny(f.getIngredients(), c.excludeAllergens())) continue;
