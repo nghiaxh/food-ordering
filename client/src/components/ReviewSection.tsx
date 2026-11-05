@@ -17,8 +17,8 @@ interface ReviewSectionProps {
   user: AuthUser | null
   submitting?: boolean
   onRefresh: () => void
-  onSubmit: (payload: { foodId: number; rating: number; comment: string }) => Promise<AsyncActionResult<Review>>
-  onUpdate: (id: number, payload: { rating: number; comment: string }) => Promise<AsyncActionResult<Review>>
+  onSubmit: (payload: { foodId: number; rating: number; comment?: string }) => Promise<AsyncActionResult<Review>>
+  onUpdate: (id: number, payload: { rating: number; comment?: string }) => Promise<AsyncActionResult<Review>>
   onDelete: (id: number) => Promise<AsyncActionResult<unknown>>
 }
 
@@ -45,7 +45,8 @@ export default function ReviewSection({
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const stats = reviewStats(reviews)
-  const canSubmit = rating > 0 && comment.trim().length > 0 && !submitting
+  // Nội dung nhận xét không bắt buộc, chỉ cần chọn số sao.
+  const canSubmit = rating > 0 && !submitting
 
   const resetForm = () => {
     setRating(0)
@@ -61,9 +62,10 @@ export default function ReviewSection({
 
   const submit = async () => {
     if (!canSubmit) return
+    const text = comment.trim()
     const res = editingId === null
-      ? await onSubmit({ foodId, rating, comment: comment.trim() })
-      : await onUpdate(editingId, { rating, comment: comment.trim() })
+      ? await onSubmit({ foodId, rating, comment: text || undefined })
+      : await onUpdate(editingId, { rating, comment: text || undefined })
     if (res.ok) resetForm()
   }
 
@@ -125,7 +127,7 @@ export default function ReviewSection({
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
                 maxLength={500}
-                placeholder="Chia sẻ cảm nhận của bạn..."
+                placeholder="Chia sẻ cảm nhận của bạn (không bắt buộc)..."
                 className="mt-2.5 w-full resize-none rounded-xl border border-stone-200 bg-stone-50/50 px-3.5 py-2.5 text-sm leading-relaxed text-stone-800 placeholder:text-stone-400 transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
               <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">

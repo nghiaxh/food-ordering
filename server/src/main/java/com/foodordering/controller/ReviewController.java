@@ -50,7 +50,7 @@ public class ReviewController {
         r.setUser(user);
         r.setFood(foodRepo.findById(req.foodId()).orElseThrow());
         r.setRating(req.rating());
-        r.setComment(req.comment());
+        r.setComment(normalizeComment(req.comment()));
         reviewRepo.save(r);
         return toResponse(r, user.getId());
     }
@@ -59,7 +59,7 @@ public class ReviewController {
     public ReviewResponse update(Authentication auth, @PathVariable Long id, @Valid @RequestBody UpdateReviewRequest req) {
         Review r = ownReview(auth, id);
         r.setRating(req.rating());
-        r.setComment(req.comment());
+        r.setComment(normalizeComment(req.comment()));
         reviewRepo.save(r);
         return toResponse(r, r.getUser().getId());
     }
@@ -78,6 +78,13 @@ public class ReviewController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chỉ có thể sửa hoặc xóa đánh giá của mình");
         }
         return r;
+    }
+
+    /** Nhận xét không bắt buộc: chuỗi rỗng hoặc chỉ khoảng trắng được lưu thành null. */
+    private static String normalizeComment(String comment) {
+        if (comment == null) return null;
+        String trimmed = comment.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private ReviewResponse toResponse(Review r, Long currentUserId) {
