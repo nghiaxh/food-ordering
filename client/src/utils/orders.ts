@@ -1,9 +1,9 @@
-import type { OrderStatus } from '../types'
+import type { Order, OrderStatus } from '../types'
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
-  PREPARING: 'Đang chế biến',
+  PREPARING: 'Đang vận chuyển',
   COMPLETED: 'Đã giao',
   CANCELLED: 'Đã hủy',
 }
@@ -46,4 +46,12 @@ export function nextStatus(status: OrderStatus): OrderStatus | null {
 export function allowedNextStatuses(status: OrderStatus): OrderStatus[] {
   const next = nextStatus(status)
   return next ? [next, 'CANCELLED'] : []
+}
+
+/**
+ * Khách tự hủy được đơn chỉ khi còn chờ xác nhận và chưa thanh toán; true khi đủ điều kiện.
+ * OrderService.cancel áp cùng ràng buộc ở server nên client chỉ ẩn nút UX, không quyết định riêng.
+ */
+export function canCancelOrder(order: Pick<Order, 'status' | 'paymentStatus'>): boolean {
+  return order.status === 'PENDING' && order.paymentStatus !== 'PAID'
 }

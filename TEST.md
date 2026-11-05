@@ -77,9 +77,13 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-ORD-05 | Khách thanh toán đơn QR | Có đơn QR `PENDING` + `UNPAID` | Bấm "Thanh toán", xác nhận | Đơn chuyển sang `PAID`, sinh thời gian `paidAt`, gửi thông báo cho khách | | |
 | TC-ORD-06 | Khách tự huỷ đơn hợp lệ | Đơn `PENDING` **và** `UNPAID` | Bấm "Huỷ đơn" trong `/orders` | HTTP 200, đơn chuyển thành `CANCELLED`, gửi thông báo huỷ đơn | | |
 | TC-ORD-07 | Chặn huỷ đơn đã thanh toán | Đơn `PENDING` nhưng đã `PAID` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách tự huỷ đơn đã thu tiền | | |
-| TC-ORD-08 | Chặn huỷ đơn đã xác nhận/chế biến | Đơn `CONFIRMED` hoặc `PREPARING` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách huỷ khi quán đã tiếp nhận chế biến | | |
+| TC-ORD-08 | Chặn huỷ đơn đã xác nhận/đang vận chuyển | Đơn `CONFIRMED` hoặc `PREPARING` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách huỷ khi quán đã tiếp nhận/đang vận chuyển | | |
 | TC-ORD-09 | Đặt lại đơn hàng cũ | Đơn cũ `COMPLETED` | Bấm nút "Đặt lại" | Tự động thêm các món còn bán vào giỏ, loại bỏ món ngừng phục vụ, không mang theo ghi chú cũ | | |
 | TC-ORD-10 | Bảo mật dữ liệu đơn hàng | Có 2 tài khoản khách A và B | Khách B cố truy vấn đơn hàng của khách A | API chặn trả về dữ liệu (chỉ xem được đơn của chính mình) | | |
+| TC-ORD-11 | Nút Huỷ đơn chỉ ở đơn hợp lệ | Đơn `CONFIRMED` hoặc `PREPARING` | Mở `/orders` và xem thẻ đơn | Không hiển thị nút "Huỷ đơn" (điều kiện theo `canCancelOrder`), server vẫn chặn nếu gọi thẳng API | | |
+| TC-ORD-12 | PENDING đã thanh toán hướng hotline | Đơn `PENDING` + `PAID` | Mở `/orders` và xem thẻ đơn | Không có nút "Huỷ đơn", hiện gợi ý gọi hotline 0246.888.9999 để hủy/hoàn tiền | | |
+| TC-ORD-13 | Nhãn Đang vận chuyển | Đơn `PREPARING` | Xem danh sách đơn ở `/orders`, Steps, trang admin và thông báo | Nhãn/Thông báo ghi "Đang vận chuyển" (không còn "Đang chế biến"); nút admin từ `CONFIRMED` ghi "Giao hàng" | | |
+| TC-ORD-14 | Nút Đặt lại chỉ ở đơn giao xong | Đơn `PENDING`/`CONFIRMED`/`PREPARING` | Mở `/orders` và xem thẻ đơn | Không hiển thị nút "Đặt lại"; đơn `COMPLETED` vẫn có nút | | |
 
 ### 1.2.5. Chatbot Tư vấn Món ăn AI & Nhánh Dự phòng (UC21 – UC25)
 
