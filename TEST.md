@@ -42,7 +42,8 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-AUTH-09 | Cập nhật hồ sơ cá nhân | Đã đăng nhập | Vào `/profile`, sửa họ tên, SĐT, địa chỉ mặc định | HTTP 200, thông tin được cập nhật chính xác vào CSDL | | |
 | TC-AUTH-10 | Đổi mật khẩu hợp lệ | Đã đăng nhập | Nhập mật khẩu hiện tại đúng và mật khẩu mới ≥ 8 ký tự | HTTP 200, mật khẩu mới có hiệu lực ngay | | |
 | TC-AUTH-11 | Đổi mật khẩu với pass cũ sai | Đã đăng nhập | Nhập mật khẩu cũ sai | HTTP 400, thông báo "Mật khẩu hiện tại không đúng", giữ nguyên pass cũ | | |
-| TC-AUTH-12 | Đăng xuất | Đã đăng nhập | Nhấn nút "Đăng xuất" trên menu | Xoá token khỏi storage, giỏ hàng sync về trạng thái ẩn danh/trống, bảo vệ các route yêu cầu đăng nhập | | |
+| TC-AUTH-12 | Đăng xuất | Đã đăng nhập | Nhấn nút "Đăng xuất" trên menu | Xoá token khỏi storage, giỏ hàng về rỗng (không còn giỏ local), bảo vệ các route yêu cầu đăng nhập | | |
+| TC-AUTH-13 | Khách mở giỏ khi chưa đăng nhập | Chưa đăng nhập | Bấm nút giỏ trên header hoặc mở thẳng `/cart` | Chuyển sang `/login`; sau khi đăng nhập quay lại đúng `/cart` | | |
 
 ### 1.2.2. Khám phá Thực đơn, Combo & Tìm kiếm (UC06 – UC08)
 
@@ -61,10 +62,13 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
-| TC-CART-01 | Thêm món vào giỏ | Món còn phục vụ | Bấm "Thêm vào giỏ" món Phở bò | Giỏ tăng 1, thanh Bottom Cart Bar hiển thị tổng tiền cập nhật đúng | | |
-| TC-CART-02 | Tăng số lượng món trùng | Giỏ đã có Phở bò (1) | Bấm thêm Phở bò lần nữa | Giỏ cập nhật dòng Phở bò thành số lượng 2 (không tạo dòng trùng lặp) | | |
-| TC-CART-04 | Cập nhật số lượng / Xoá dòng | Giỏ có món | Tăng/giảm số lượng hoặc bấm xoá dòng | Tổng tiền giỏ hàng cập nhật tương ứng theo thời gian thực | | |
-| TC-CART-05 | Khuyến mãi tự động (Auto-promo) | Thứ Bảy/Chủ Nhật, có CT "Cuối tuần mát lạnh" (-20% đồ uống) | Thêm 1 đồ uống và 1 món ăn vào giỏ | Đồ uống được giảm 20%, món ăn giữ nguyên giá; chiết khấu hiển thị theo dòng | | |
+| TC-CART-01 | Thêm món vào giỏ | Đã đăng nhập, món còn phục vụ | Bấm "Thêm vào giỏ" món Phở bò | Giỏ tăng 1, thanh Bottom Cart Bar hiển thị tổng tiền cập nhật đúng | | |
+| TC-CART-02 | Tăng số lượng món trùng | Đã đăng nhập, giỏ đã có Phở bò (1) | Bấm thêm Phở bò lần nữa | Giỏ cập nhật dòng Phở bò thành số lượng 2 (không tạo dòng trùng lặp) | | |
+| TC-CART-04 | Cập nhật số lượng / Xoá dòng | Đã đăng nhập, giỏ có món | Tăng/giảm số lượng hoặc bấm xoá dòng | Tổng tiền cập nhật theo báo giá mới nhất sau khi server trả lời; không nhấp nháy số của giỏ trước, nút xác nhận bị khoá trong lúc "Đang cập nhật giá..." | | |
+| TC-CART-05 | Khuyến mãi tự động (Auto-promo) | Đã đăng nhập, thứ Bảy/Chủ Nhật, có CT "Cuối tuần mát lạnh" (-20% đồ uống) | Thêm 1 đồ uống và 1 món ăn vào giỏ | Đồ uống được giảm 20%, món ăn giữ nguyên giá; chiết khấu hiển thị theo dòng | | |
+| TC-CART-06 | Khách chưa đăng nhập không thêm được món | Chưa đăng nhập | Hover/focus (Tab) nút "Thêm vào giỏ" rồi bấm | Nút mờ kèm tooltip "Đăng nhập để thêm món vào giỏ"; bấm không thêm món và không mở chi tiết món; giỏ header vẫn 0 | | |
+| TC-CART-07 | Món hết khi chưa đăng nhập | Chưa đăng nhập, món có `available = false` | Xem thẻ món | Nút hiện "Hết món", bị vô hiệu hoá và **không** có tooltip đăng nhập | | |
+| TC-CART-08 | Báo giá khớp giỏ khi thêm từ chatbot | Đã đăng nhập, giỏ có 1 món có khuyến mãi | Mở chatbot, thêm món thứ hai bằng nút giỏ trên thẻ món, rồi tăng/giảm số lượng liên tục | Không có dòng "Hết món" giả; thành tiền từng dòng, tổng giảm và tổng thanh toán khớp báo giá mới nhất; request quote cũ bị abort, không ghi đè số mới | | |
 
 ### 1.2.4. Đặt hàng & Vòng đời Đơn hàng (UC12 – UC16, UC30 – UC31)
 
