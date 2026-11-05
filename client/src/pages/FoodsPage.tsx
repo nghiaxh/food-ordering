@@ -20,7 +20,8 @@ const PRICE_BANDS = [
   { label: 'Trên 150k', min: 150000, max: undefined },
 ]
 
-const GRID_COLS = 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+/** 2 cột trên mobile, 4 cột từ `md`; PAGE_SIZE 12 chia hết cho cả hai nên không trang nào lẻ hàng. */
+const GRID_COLS = 'grid-cols-2 md:grid-cols-4'
 
 function num(value: string | null): number | undefined {
   if (value === null) return undefined
@@ -131,7 +132,7 @@ export default function FoodsPage() {
           <div className="mt-4">
             {loading ? (
               <div className={`grid gap-3 ${GRID_COLS}`}>
-                {Array.from({ length: 10 }).map((_, i) => (
+                {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/60">
                     <div className="aspect-[16/10] animate-pulse bg-stone-200/70" />
                     <div className="space-y-2 p-3">
