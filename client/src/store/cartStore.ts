@@ -8,7 +8,7 @@ interface CartState {
   items: CartItem[]
   loaded: boolean
   load: () => Promise<void>
-  add: (food: Food, quantity?: number) => Promise<void>
+  add: (food: Food, quantity?: number) => Promise<boolean>
   setQuantity: (foodId: number, quantity: number) => Promise<void>
   remove: (foodId: number) => Promise<void>
   clear: () => Promise<void>
@@ -17,7 +17,7 @@ interface CartState {
   total: () => number
 }
 
-// Khi đã đăng nhập, server là nguồn giỏ hàng chính thức; local chỉ là bản nháp cho khách.
+/** Giỏ chỉ tồn tại cho tài khoản đã đăng nhập; khách vãng lai không có giỏ local. */
 function loggedIn(): boolean {
   return useAuthStore.getState().user !== null
 }
@@ -31,15 +31,6 @@ export const useCartStore = create<CartState>((set, get) => ({
       set({ items: [], loaded: true })
       return
     }
-    // Hợp nhất bản nháp của khách vào tài khoản trước khi đọc lại giỏ từ server.
-    const local = get().items
-    for (const item of local) {
-      try {
-        if (item.food) await addCartItem(item.food.id, item.quantity)
-      } catch {
-        /* giỏ local chỉ là bản nháp; server là nguồn chính thức */
-      }
-    }
     try {
       set({ items: await getCart(), loaded: true })
     } catch {
@@ -49,15 +40,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   add: async (food, quantity = 1) => {
-    if (!loggedIn()) {
-      const existing = get().items.find((i) => i.food?.id === food.id)
-      set({
-        items: existing
-          ? get().items.map((i) => (i.food?.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
-          : [...get().items, { food, quantity }],
-      })
-      return
-    }
+    // UI đã chặn khách; store vẫn kiểm tra lần nữa để không ai tạo được giỏ local.
+    if (!loggedIn()) return false
     const before = get().items
     const existing = before.find((i) => i.food?.id === food.id)
     set({
@@ -67,16 +51,18 @@ export const useCartStore = create<CartState>((set, get) => ({
     })
     try {
       await addCartItem(food.id, quantity)
+      return true
     } catch {
       set({ items: before })
       message.error('Không thêm được món vào giỏ. Vui lòng thử lại.')
+      return false
     }
   },
 
   setQuantity: async (foodId, quantity) => {
+    if (!loggedIn()) return
     const before = get().items
     set({ items: before.map((i) => (i.food?.id === foodId ? { ...i, quantity } : i)) })
-    if (!loggedIn()) return
     try {
       await setCartItemQuantity(foodId, quantity)
     } catch {
@@ -86,9 +72,9 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   remove: async (foodId) => {
+    if (!loggedIn()) return
     const before = get().items
     set({ items: before.filter((i) => i.food?.id !== foodId) })
-    if (!loggedIn()) return
     try {
       await removeCartItem(foodId)
     } catch {
@@ -98,9 +84,9 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   clear: async () => {
+    if (!loggedIn()) return
     const before = get().items
     set({ items: [] })
-    if (!loggedIn()) return
     try {
       await clearCart()
     } catch {

@@ -1,9 +1,11 @@
 ﻿import { message } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
 import type { Food } from '../types'
+import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
 import { foodChips } from '../utils/food-tags'
+import LoginTooltip from './LoginTooltip'
 import UiImg from './UiImg'
 import UiButton from './UiButton'
 
@@ -20,7 +22,10 @@ const MAX_CHIPS = 2
  */
 export default function FoodCard({ food }: { food: Food }) {
   const add = useCartStore((s) => s.add)
+  const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
+  // Khách vãng lai không có giỏ: nút bị khoá và tooltip giải thích thay vì thêm món.
+  const canAdd = user !== null
 
   return (
     <div
@@ -92,17 +97,19 @@ export default function FoodCard({ food }: { food: Food }) {
           ) : (
             <div className="text-lg font-bold tabular-nums text-amber-700">{formatVND(food.price)}</div>
           )}
-          <UiButton
-            kind="primary"
-            className="!px-3 !text-sm"
-            disabled={!food.available}
-            onClick={() => {
-              add(food)
-              message.success(`Đã thêm ${food.name} vào giỏ`)
-            }}
-          >
-            {food.available ? 'Thêm vào giỏ' : 'Hết món'}
-          </UiButton>
+          <LoginTooltip active={!canAdd && food.available}>
+            <UiButton
+              kind="primary"
+              className="!px-3 !text-sm"
+              disabled={!food.available || !canAdd}
+              onClick={async () => {
+                const ok = await add(food)
+                if (ok) message.success(`Đã thêm ${food.name} vào giỏ`)
+              }}
+            >
+              {food.available ? 'Thêm vào giỏ' : 'Hết món'}
+            </UiButton>
+          </LoginTooltip>
         </div>
       </div>
     </div>

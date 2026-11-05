@@ -40,7 +40,8 @@ function RequireAuth({ children, admin = false }: { children: ReactNode; admin?:
 }
 
 /**
- * Đồng bộ giỏ khi đổi trạng thái đăng nhập: đã đăng nhập thì tải server, đăng xuất thì xóa giỏ của tài khoản khỏi state.
+ * Đồng bộ giỏ khi đổi trạng thái đăng nhập: đã đăng nhập thì tải giỏ từ server,
+ * đăng xuất thì xoá giỏ của tài khoản khỏi state. Khách vãng lai không có giỏ.
  */
 function CartSync() {
   const user = useAuthStore((s) => s.user)
@@ -48,7 +49,6 @@ function CartSync() {
   const resetLocal = useCartStore((s) => s.resetLocal)
 
   useEffect(() => {
-    // `load` sẽ hợp nhất bản nháp local trước khi tải giỏ chính thức từ server.
     if (user) {
       void load()
     } else {
@@ -69,7 +69,14 @@ function AppRoutes() {
           <Route path="foods/:id" element={<FoodDetailPage />} />
         </Route>
         <Route path="/foods" element={<Navigate to="/" replace />} />
-        <Route path="/cart" element={<CartPage />} />
+        <Route
+          path="/cart"
+          element={
+            <RequireAuth>
+              <CartPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/orders"
           element={
