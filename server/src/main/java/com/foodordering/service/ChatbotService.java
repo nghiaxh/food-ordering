@@ -45,6 +45,14 @@ public class ChatbotService {
               "keywords": string[]              // tên món hoặc nguyên liệu khách nhắc tới
             }
 
+            CÂU HỎI TRƯỚC CỦA KHÁCH (chỉ để hiểu đại từ; không phải câu cần phân tích):
+            %s
+
+            Nếu câu hiện tại hỏi tiếp bằng đại từ hoặc cụm như "món đó", "cái đó", "món này",
+            "món vừa gợi ý", "mấy món trên", "trong số đó" thì chỉ trả các ràng buộc MỚI
+            (độ cay, ngân sách, số người); để trống categories, keywords, dietaryTags và
+            excludeAllergens. Chỉ điền các trường đó khi khách nêu chủ đề mới.
+
             Danh mục hiện có: %s
             Chỉ trả về JSON hợp lệ.
             """;
@@ -105,7 +113,7 @@ public class ChatbotService {
 
         // Không phân tích được câu hỏi thì không gợi ý món. Tiêu chí rỗng sẽ khớp mọi món
         // và danh sách trả về chỉ là vài món rẻ nhất, hoàn toàn không liên quan tới câu hỏi.
-        List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria);
+        List<Picked> aiPicked = criteria == null ? List.of() : selectFoods(criteria, contextIds);
         String aiReply = criteria == null ? null : generateReply(req.message(), criteria, aiPicked, history);
 
         // Không gọi được AI (thiếu khóa, khóa hỏng, JSON sai, hết thời gian chờ) thì trả lời
@@ -131,7 +139,75 @@ public class ChatbotService {
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = picked.stream().limit(maxSuggestions())
                 .map(p -> FoodCard.from(p.food(), p.portions(), p.totalPrice())).toList();
-        return new ChatResponse(reply, cards);
+        return new ChatResponse(reply, cards, configured ? null : MISSING_KEY_NOTICE);
+    }
+
+    /**
+     * ID các món được dùng làm ngữ cảnh cho lượt này, hoặc null nếu phải tìm trên toàn thực đơn.
+     * Điều kiện: câu có đại từ tham chiếu, client có gửi lastFoodIds, và tiêu chí không mở
+     * chủ đề mới (danh mục, từ khóa, nhãn ăn kiêng, thành phần loại trừ).
+     */
+    private List<Long> contextIds(ChatRequest req, Criteria criteria) {
+        if (!isFollowUp(req.message()) || req.lastFoodIds() == null || req.lastFoodIds().isEmpty()) {
+            return null;
+        }
+        boolean newTopic = criteria != null ? hasNewTopic(criteria) : hasNewTopicByCode(req.message());
+        return newTopic ? null : req.lastFoodIds();
+    }
+
+    /** Câu hỏi có đại từ/tham chiếu rõ tới lượt gợi ý trước không. */
+    private boolean isFollowUp(String message) {
+        String plain = plain(message);
+        return FOLLOW_UP_PHRASES.stream().anyMatch(plain::contains);
+    }
+
+    /**
+     * Tiêu chí có mở chủ đề mới không. Cay, ngân sách và số người không tính vì chúng vẫn áp
+     * được lên đúng các món vừa gợi ý.
+     */
+    private boolean hasNewTopic(Criteria c) {
+        if (c.categories() != null && !c.categories().isEmpty()) return true;
+        if (c.dietaryTags() != null && !c.dietaryTags().isEmpty()) return true;
+        if (c.excludeAllergens() != null && !c.excludeAllergens().isEmpty()) return true;
+        return c.keywords() != null && c.keywords().stream().anyMatch(k -> !isReferenceKeyword(k));
+    }
+
+    /**
+     * Từ khóa AI có thể trả cho câu hỏi tiếp ("món đó", "trên"...). Chúng không phải chủ đề
+     * mới, nếu tính là chủ đề mới thì mọi câu hỏi tiếp đều mất ngữ cảnh.
+     */
+    private boolean isReferenceKeyword(String keyword) {
+        String plain = plain(keyword).trim();
+        if (plain.isEmpty()) return true;
+        return FOLLOW_UP_PHRASES.stream().anyMatch(plain::contains)
+                || Arrays.stream(plain.split("\\s+")).allMatch(REFERENCE_TOKENS::contains);
+    }
+
+    /** Bản dùng cho nhánh dự phòng, khi không có tiêu chí do AI trích xuất. */
+    private boolean hasNewTopicByCode(String question) {
+        Filters filters = readFilters(question);
+        if (filters.chay() || filters.excludeSeafood()) return true;
+        String plain = plain(question);
+        return categoryRepo.findAll().stream()
+                .map(Category::getName)
+                .filter(Objects::nonNull)
+                .map(this::plain)
+                .filter(name -> !name.isBlank())
+                .anyMatch(plain::contains);
+    }
+
+    /**
+     * Câu hỏi trước do client gửi kèm. Giới hạn 3 câu để prompt không phình và không phụ
+     * thuộc vào độ dài hội thoại trên giao diện.
+     */
+    private List<String> requestHistory(List<String> history) {
+        if (history == null) return List.of();
+        return history.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .limit(3)
+                .toList();
     }
 
     /**
@@ -140,20 +216,27 @@ public class ChatbotService {
      */
     private record Picked(Food food, int portions, long totalPrice) {}
 
-    /** Lấy lượt hỏi gần nhất của phiên, bỏ qua lượt hỏi hiện tại để không lặp nội dung. */
-    private List<String> recentTurns(String sessionId) {
-        return chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(sessionId).stream()
+    /**
+     * Lấy lượt hỏi gần nhất của phiên, bỏ qua lượt hỏi hiện tại để không lặp nội dung.
+     * Trả theo thứ tự thời gian để AI đọc mạch hội thoại.
+     */
+    private List<String> recentTurns(String sessionId, String current) {
+        List<String> turns = chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(sessionId).stream()
                 .filter(m -> m.getSender() == ChatMessage.Sender.USER)
                 .map(ChatMessage::getContent)
+                .filter(c -> c != null && !c.equals(current))
                 .limit(3)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.reverse(turns);
+        return turns;
     }
 
-    private Criteria extractCriteria(String message) {
+    private Criteria extractCriteria(String message, List<String> history) {
         String categories = categoryRepo.findAll().stream().map(Category::getName)
                 .collect(Collectors.joining(", "));
+        String previous = history.isEmpty() ? "(không có)" : String.join("\n", history);
         try {
-            String json = ai.generate(String.format(EXTRACT_PROMPT, categories), message, true);
+            String json = ai.generate(String.format(EXTRACT_PROMPT, previous, categories), message, true);
             json = json.replaceAll("```json|```", "").trim();
             return mapper.readValue(json, Criteria.class);
         } catch (Exception e) {
@@ -243,50 +326,89 @@ public class ChatbotService {
         }
         if (pool.isEmpty()) return List.of();
 
-        // Gom món theo từng loại khách muốn. Loại không có món nào khớp bị bỏ qua, không làm
-        // hỏng cả yêu cầu vì AI có thể gọi tên loại món không tồn tại trong thực đơn.
-        List<List<Picked>> byGroup = new ArrayList<>();
-        List<CategoryNeed> groups = new ArrayList<>();
-        for (CategoryNeed g : wantedGroups(c)) {
-            List<Picked> inGroup = pool.stream()
-                    .filter(f -> inCategory(f, g.name()))
-                    .map(f -> picked(f, c.people()))
-                    .sorted(Comparator.comparingLong(Picked::totalPrice))
-                    .limit(CANDIDATES_PER_GROUP)
-                    .toList();
-            if (inGroup.isEmpty()) continue;
-            byGroup.add(inGroup);
-            groups.add(g);
-        }
+        // Câu hỏi tiếp không mở chủ đề mới nên không gom lại theo danh mục.
+        List<CategoryNeed> groups = restrictIds == null ? wantedGroups(c) : List.of();
 
         // Bước 2a: khách muốn kết hợp nhiều loại món ("một món chính và một món uống").
         // Ghép từ hợp tổng tiền của các món chọn phải nằm trong ngân sách.
         if (groups.size() >= 2) {
-            List<Picked> combo = combine(byGroup, groups, c.maxBudget());
+            List<List<Picked>> byGroup = new ArrayList<>();
+            List<CategoryNeed> found = new ArrayList<>();
+            for (CategoryNeed g : groups) {
+                List<Picked> inGroup = pool.stream()
+                        .filter(f -> inCategory(f, g.name()))
+                        .map(f -> picked(f, c.people()))
+                        .sorted(Comparator.comparingLong(Picked::totalPrice))
+                        .limit(CANDIDATES_PER_GROUP)
+                        .toList();
+                if (inGroup.isEmpty()) continue;
+                byGroup.add(inGroup);
+                found.add(g);
+            }
+            List<Picked> combo = combine(byGroup, found, c.maxBudget());
             if (!combo.isEmpty()) return combo;
-            // Không dựng được tổ hợp nào vừa ngân sách thì rơi xuống nhóm đơn bên dưới.
+            // Có ngân sách mà không ghép được đủ số món mỗi nhóm thì trả rỗng, không lấy
+            // lệch loại món khách yêu cầu chỉ để có vài thẻ.
+            if (c.maxBudget() != null) return List.of();
+            // Không ngân sách và thiếu loại: rơi xuống chọn phẳng như cũ.
         }
 
-        // Bước 2b: một loại món, hoặc khách không nói rõ loại nào. Lọc theo tổng ngân sách
-        // rồi lấy các món rẻ nhất, cùng thứ tự như trước.
+        // Bước 2b: một loại món, hoặc khách không nói rõ loại nào.
         List<Picked> candidates = groups.size() == 1
                 ? pool.stream().filter(f -> inCategory(f, groups.get(0).name()))
-                        .map(f -> picked(f, c.people()))
-                        .sorted(Comparator.comparingLong(Picked::totalPrice)).toList()
-                : pool.stream().map(f -> picked(f, c.people()))
-                        .sorted(Comparator.comparingLong(Picked::totalPrice)).toList();
-        List<Picked> withinBudget = withinBudget(candidates, c.maxBudget());
-        if (withinBudget.isEmpty() && c.people() != null) {
-            // Số người AI đoán ra quá lớn khiến ngân sách không đủ cho món nào; thử lại
-            // bỏ yếu tố số người để lượt hỏi này vẫn gợi ý được món. Vẫn giữ lọc theo
-            // loại món của khách, không mở rộng sang loại khác.
-            List<Picked> single = candidates.stream()
-                    .map(p -> new Picked(p.food(), 1, p.food().getPrice().longValue()))
-                    .sorted(Comparator.comparingLong(Picked::totalPrice)).toList();
-            withinBudget = withinBudget(single, c.maxBudget());
+                        .map(f -> picked(f, c.people())).toList()
+                : pool.stream().map(f -> picked(f, c.people())).toList();
+
+        if (c.maxBudget() != null) {
+            return pickWithinTotalBudget(candidates, c.maxBudget());
         }
-        withinBudget.sort(Comparator.comparingLong(p -> p.food().getPrice().longValue()));
-        return withinBudget;
+        // Không có ngân sách: giữ hành vi cũ, chat() cắt còn tối đa 5 lựa chọn.
+        return candidates.stream()
+                .sorted(Comparator.comparingLong(p -> p.food().getPrice().longValue()))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /** Lọc thuộc tính món theo tiêu chí, không xét danh mục hay tổng ngân sách. */
+    private boolean passesCriteria(Food f, Criteria c) {
+        if (!f.isAvailable()) return false;
+        if (c.maxSpicyLevel() != null && f.getSpicyLevel() > c.maxSpicyLevel()) return false;
+        if (hasAny(f.getAllergens(), c.excludeAllergens())) return false;
+        if (hasAny(f.getIngredients(), c.excludeAllergens())) return false;
+        if (c.dietaryTags() != null && !c.dietaryTags().isEmpty()
+                && !containsAll(f.getDietaryTags(), c.dietaryTags())) return false;
+        return c.keywords() == null || c.keywords().isEmpty() || matchKeyword(f, c.keywords());
+    }
+
+    /**
+     * Chọn 1..maxSuggestions món sao cho TỔNG tiền không vượt ngân sách và tổng tiền là lớn
+     * nhất có thể. Chỉ dò trên 20 món rẻ nhất, đã bỏ trùng theo ID món.
+     */
+    private List<Picked> pickWithinTotalBudget(List<Picked> candidates, long limit) {
+        Map<Long, Picked> byId = new LinkedHashMap<>();
+        candidates.forEach(p -> byId.putIfAbsent(p.food().getId(), p));
+        List<Picked> cheapest = byId.values().stream()
+                .sorted(Comparator.comparingLong(Picked::totalPrice))
+                .limit(FLAT_CANDIDATES)
+                .toList();
+        List<Picked> best = new FlatBudgetPicker(cheapest, limit, maxSuggestions()).find();
+        return best.stream()
+                .sorted(Comparator.comparingLong(p -> p.food().getPrice().longValue()))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /** Câu hỏi tiếp ở nhánh dự phòng: chỉ xét các món vừa gợi ý và áp ràng buộc đọc được. */
+    private List<Picked> selectContextByCode(List<Long> ids, Filters filters) {
+        List<Picked> kept = foodRepo.findAllById(ids).stream()
+                .filter(Food::isAvailable)
+                .filter(f -> passesFilters(f, filters))
+                .map(f -> picked(f, filters.people()))
+                .toList();
+        if (filters.budget() != null) {
+            return pickWithinTotalBudget(kept, filters.budget());
+        }
+        return kept.stream()
+                .sorted(Comparator.comparingLong(p -> p.food().getPrice().longValue()))
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /** Các loại món khách muốn, đã bỏ trùng và ép số lượng tối thiểu là 1. */
@@ -317,17 +439,6 @@ public class ChatbotService {
     private Picked picked(Food f, Integer people) {
         int portions = portionsFor(f, people);
         return new Picked(f, portions, f.getPrice().longValue() * portions);
-    }
-
-    /**
-     * Lọc theo tổng ngân sách. Trả về list có thể sắp xếp lại được vì kết quả còn được
-     * đảo thứ tự theo giá một phần trước khi trả ra client.
-     */
-    private List<Picked> withinBudget(List<Picked> candidates, Long maxBudget) {
-        if (maxBudget == null) return new ArrayList<>(candidates);
-        return candidates.stream()
-                .filter(p -> p.totalPrice() <= maxBudget)
-                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**
@@ -394,6 +505,45 @@ public class ChatbotService {
         }
     }
 
+    /**
+     * Bộ chọn phẳng cho trường hợp 0/1 nhóm món: chọn không quá {@code maxItems} món sao cho
+     * tổng tiền không vượt hạn mức và lớn nhất có thể. Hoà tổng thì ưu tiên nhiều món hơn.
+     */
+    private static final class FlatBudgetPicker {
+        private final List<Picked> candidates;
+        private final long limit;
+        private final int maxItems;
+        private List<Picked> best = List.of();
+        private long bestTotal = -1;
+
+        FlatBudgetPicker(List<Picked> candidates, long limit, int maxItems) {
+            this.candidates = candidates;
+            this.limit = limit;
+            this.maxItems = maxItems;
+        }
+
+        List<Picked> find() {
+            search(0, new ArrayList<>(), 0L);
+            return best;
+        }
+
+        private void search(int from, List<Picked> acc, long total) {
+            if (!acc.isEmpty()
+                    && (total > bestTotal || (total == bestTotal && acc.size() > best.size()))) {
+                bestTotal = total;
+                best = List.copyOf(acc);
+            }
+            if (acc.size() >= maxItems) return;
+            for (int i = from; i < candidates.size(); i++) {
+                long next = total + candidates.get(i).totalPrice();
+                if (next > limit) continue;
+                acc.add(candidates.get(i));
+                search(i + 1, acc, next);
+                acc.remove(acc.size() - 1);
+            }
+        }
+    }
+
     private boolean hasAny(String field, List<String> words) {
         if (field == null || words == null) return false;
         String lower = field.toLowerCase();
@@ -435,6 +585,13 @@ public class ChatbotService {
                     f.getSpicyLevel(), nz(f.getIngredients()), nz(f.getAllergens()),
                     nz(f.getDietaryTags()), nz(f.getDescription())));
         }
+        // Tổng bộ gợi ý do server cộng sẵn để AI không nói sai ngân sách, nhất là khi ngân
+        // sách là tổng của nhiều món chứ không phải giá từng món.
+        long total = foods.stream().mapToLong(Picked::totalPrice).sum();
+        data.append("\nTỔNG BỘ GỢI Ý: ").append(total).append(" VND\n");
+        if (c.maxBudget() != null) {
+            data.append("NGÂN SÁCH: ").append(c.maxBudget()).append(" VND\n");
+        }
         data.append("\nCÂU HỎI CỦA KHÁCH: ").append(question);
 
         try {
@@ -448,6 +605,19 @@ public class ChatbotService {
     // ---------------------------------------------------------------------------------------
     // Nhánh dự phòng: không gọi được AI thì lấy món bằng code và dựng câu trả lời từ dữ liệu món thật.
     // ---------------------------------------------------------------------------------------
+
+    /**
+     * Cụm tham chiếu rõ tới lượt gợi ý trước, đã bỏ dấu. Chỉ những cụm này mới coi là câu hỏi
+     * tiếp; không dùng độ dài câu để đoán vì "món chay" cũng ngắn.
+     */
+    private static final List<String> FOLLOW_UP_PHRASES = List.of(
+            "mon do", "cai do", "mon nay", "cai nay", "mon vua goi y", "mon vua roi",
+            "may mon tren", "trong so do", "cac mon do", "nhung mon do", "mon tren");
+
+    /** Từ đơn không đủ để coi là chủ đề mới khi AI trả về trong {@code keywords} của câu hỏi tiếp. */
+    private static final Set<String> REFERENCE_TOKENS = Set.of(
+            "mon", "cai", "do", "nay", "vua", "goi", "y", "tren", "may", "trong", "so",
+            "cac", "nhung", "roi", "vay");
 
     /** Từ khóa bỏ qua khi chấm điểm món: chúng nói về cách hỏi chứ không nói về món. */
     private static final Set<String> STOP_WORDS = Set.of(
@@ -535,25 +705,40 @@ public class ChatbotService {
         }
         kept.sort(Comparator.comparingInt(Scored::score).reversed()
                 .thenComparingLong(s -> s.food().getPrice().longValue()));
-        return kept.stream().limit(maxSuggestions()).map(s -> picked(s.food(), filters.people())).toList();
+        List<Picked> picked = kept.stream().map(s -> picked(s.food(), filters.people())).toList();
+        // Ngân sách là tổng cả bộ gợi ý, kể cả ở nhánh dự phòng.
+        if (filters.budget() != null) {
+            return pickWithinTotalBudget(picked, filters.budget());
+        }
+        return picked.stream().limit(maxSuggestions()).toList();
     }
 
     /**
      * Câu trả lời dựng bằng code khi không gọi được AI. Chỉ tóm tắt ngắn gọn vì thẻ món ngay
      * dưới đã hiện tên, giá và số phần của từng món, không cần liệt kê lại trong chữ.
      */
-    private String fallbackReply(String question, List<Picked> dishes, Filters filters) {
+    private String fallbackReply(List<Picked> dishes, Filters filters) {
         if (dishes.isEmpty()) {
+            if (filters.budget() != null) {
+                return "Mình chưa tìm được món nào trong ngân sách " + vnd(filters.budget())
+                        + ". Bạn thử nới ngân sách hoặc bỏ bớt điều kiện nhé!";
+            }
             return "Mình chỉ tư vấn được về món ăn của quán. Bạn xem thực đơn bên dưới nhé!";
         }
 
-        long minPrice = dishes.stream().mapToLong(p -> p.food().getPrice().longValue()).min().orElse(0);
+        long total = dishes.stream().mapToLong(Picked::totalPrice).sum();
         String described = filters.describe();
         StringBuilder sb = new StringBuilder("Mình tìm được ").append(dishes.size()).append(" món");
         if (!described.isEmpty()) {
             sb.append(" ").append(described);
         }
-        sb.append(", giá từ ").append(vnd(minPrice)).append(".");
+        if (filters.budget() != null) {
+            // "trong ngân sách X" đã nằm trong describe(); chỉ cần thêm tổng thực tế.
+            sb.append(", tổng ").append(vnd(total)).append(".");
+        } else {
+            long minPrice = dishes.stream().mapToLong(p -> p.food().getPrice().longValue()).min().orElse(0);
+            sb.append(", giá từ ").append(vnd(minPrice)).append(".");
+        }
         sb.append("\n\nBấm vào thẻ món bên dưới để xem chi tiết và đặt món nhé!");
         return sb.toString();
     }
@@ -649,13 +834,17 @@ public class ChatbotService {
         return best;
     }
 
-    /** Bỏ dấu tiếng Việt và chuyển chữ thường để so khớp không phân biệt dấu. */
+    /**
+     * Bỏ dấu tiếng Việt và chuyển chữ thường để so khớp không phân biệt dấu. "đ" không có
+     * dạng NFD nên phải đổi riêng, nếu không "món đó" sẽ không khớp cụm "mon do".
+     */
     private String plain(String text) {
         if (text == null) return "";
-        String stripped = Normalizer.normalize(text, Normalizer.Form.NFD)
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
+                .replace('đ', 'd')
+                .replace('Đ', 'd')
                 .toLowerCase();
-        return stripped;
     }
 
     /** Trường của món có chứa từ cần tìm không, so trên dạng bỏ dấu. */
@@ -673,8 +862,23 @@ public class ChatbotService {
                 .map(v -> "10. Quy tắc bổ sung của nhà hàng: " + v).orElse("");
     }
 
+    /**
+     * Số thẻ món tối đa mỗi lượt, luôn nằm trong 1..5 kể cả khi cấu hình cũ đang để 8/10.
+     * Giá trị hỏng được coi như mặc định 5 thay vì làm hỏng cả lượt chat.
+     */
     private int maxSuggestions() {
-        return settingRepo.findById("max_suggestions").map(s -> Integer.parseInt(s.getSettingValue())).orElse(5);
+        return settingRepo.findById("max_suggestions")
+                .map(AiSetting::getSettingValue)
+                .map(String::trim)
+                .map(v -> {
+                    try {
+                        return Integer.parseInt(v);
+                    } catch (NumberFormatException e) {
+                        return 5;
+                    }
+                })
+                .map(v -> Math.max(1, Math.min(5, v)))
+                .orElse(5);
     }
 
     private void save(User user, String sessionId, ChatMessage.Sender sender, String content) {
