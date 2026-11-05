@@ -36,18 +36,23 @@ public class FoodService {
 
     public List<Food> search(String keyword, Long categoryId, BigDecimal minPrice,
                              BigDecimal maxPrice, boolean onlyAvailable) {
+        // Chỉ lọc thuộc tính tới được trong DB (danh mục, giá, còn bán). Từ khoá lọc bằng Java
+        // bên dưới: bỏ dấu ở `TextNormalizer` để "pho bo" ra "Phở bò", và không phụ thuộc
+        // extension `unaccent` của PostgreSQL.
         Specification<Food> spec = (root, query, cb) -> {
             List<Predicate> ps = new ArrayList<>();
-            if (keyword != null && !keyword.isBlank()) {
-                ps.add(cb.like(cb.lower(root.get("name")), "%" + keyword.toLowerCase() + "%"));
-            }
             if (categoryId != null) ps.add(cb.equal(root.get("category").get("id"), categoryId));
             if (minPrice != null) ps.add(cb.greaterThanOrEqualTo(root.get("price"), minPrice));
             if (maxPrice != null) ps.add(cb.lessThanOrEqualTo(root.get("price"), maxPrice));
             if (onlyAvailable) ps.add(cb.isTrue(root.get("available")));
             return cb.and(ps.toArray(new Predicate[0]));
         };
-        List<Food> foods = foodRepo.findAll(spec);
+        // Bọc ArrayList để removeIf an toàn: kết quả của JPA không đảm bảo luôn là list sửa được.
+        List<Food> foods = new ArrayList<>(foodRepo.findAll(spec));
+        String plainKeyword = TextNormalizer.plain(keyword);
+        if (!plainKeyword.isEmpty()) {
+            foods.removeIf(f -> !TextNormalizer.plain(f.getName()).contains(plainKeyword));
+        }
         pricing.decorateFoods(foods);
         return foods;
     }
