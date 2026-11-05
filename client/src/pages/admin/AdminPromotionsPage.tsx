@@ -141,7 +141,6 @@ export default function AdminPromotionsPage() {
     <div>
       <PageHeader
         title="Khuyến mãi"
-        subtitle="Chương trình khuyến mãi tự động áp vào từng dòng món phù hợp."
         extra={
           <UiButton kind="primary" icon={<PlusOutlined />} onClick={openCreate}>
             Thêm khuyến mãi

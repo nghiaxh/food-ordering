@@ -2,6 +2,7 @@ package com.foodordering.service;
 
 import com.foodordering.dto.ChatbotDtos.ChatRequest;
 import com.foodordering.dto.ChatbotDtos.ChatResponse;
+import com.foodordering.dto.ChatbotDtos.ChatbotStatus;
 import com.foodordering.dto.ChatbotDtos.FoodCard;
 import com.foodordering.entity.Category;
 import com.foodordering.entity.Food;
@@ -13,6 +14,7 @@ import com.foodordering.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -37,6 +40,7 @@ class ChatbotServiceTest {
     private AiClient ai;
     private FoodRepository foodRepo;
     private CategoryRepository categoryRepo;
+    private ChatMessageRepository chatRepo;
     private ChatbotService service;
 
     private Category monChinh;
@@ -47,7 +51,7 @@ class ChatbotServiceTest {
         ai = mock(AiClient.class);
         foodRepo = mock(FoodRepository.class);
         categoryRepo = mock(CategoryRepository.class);
-        ChatMessageRepository chatRepo = mock(ChatMessageRepository.class);
+        chatRepo = mock(ChatMessageRepository.class);
         when(chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(anyString())).thenReturn(List.of());
         UserRepository userRepo = mock(UserRepository.class);
         AiSettingRepository settingRepo = mock(AiSettingRepository.class);
@@ -191,21 +195,42 @@ class ChatbotServiceTest {
     }
 
     @Test
-    @DisplayName("Thiếu khóa API: báo notice, không gọi AI và vẫn gợi ý bằng bộ lọc")
-    void thieuApiKeyThiBaoRo() {
+    @DisplayName("Thiếu khóa API: từ chối chat, không gọi AI và không lưu lịch sử")
+    void thieuApiKeyThiTuChoi() {
         when(ai.isConfigured()).thenReturn(false);
 
-        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s11", null, null));
+        assertThatThrownBy(() -> service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s11", null, null)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("chưa được cấu hình");
 
-        assertThat(res.notice()).contains("chưa được cấu hình khóa API");
-        assertThat(res.foods()).isNotEmpty();
-        assertThat(res.foods()).allSatisfy(c -> {
-            Food f = food(c.name());
-            assertThat(f.getDietaryTags().toLowerCase()).contains("chay");
-            assertThat(f.getSpicyLevel()).isZero();
-        });
-        // Không gọi mạng khi biết chắc thiếu khóa, tránh chờ hết timeout.
+        // Không có khóa thì không gọi mạng và không ghi tin nhắn nào vào CSDL.
         verify(ai, never()).generate(anyString(), anyString(), anyBoolean());
+        verify(chatRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Khóa API bị nhà cung cấp từ chối: báo 503 như thiếu khóa, không dựng nhánh dự phòng")
+    void khoaBiTuChoiThiTuChoi() {
+        when(ai.generate(anyString(), anyString(), anyBoolean()))
+                .thenThrow(new AiClient.AiKeyRejectedException("khóa bị từ chối", null));
+
+        assertThatThrownBy(() -> service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s12", null, null)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("chưa được cấu hình");
+    }
+
+    @Test
+    @DisplayName("Trạng thái trợ lý: chỉ báo boolean và câu nhắc, không trả khóa")
+    void trangThaiTheoKhoaApi() {
+        when(ai.verifyKey()).thenReturn(false);
+        ChatbotStatus missing = service.status();
+        assertThat(missing.available()).isFalse();
+        assertThat(missing.notice()).isEqualTo("Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.");
+
+        when(ai.verifyKey()).thenReturn(true);
+        ChatbotStatus ready = service.status();
+        assertThat(ready.available()).isTrue();
+        assertThat(ready.notice()).isNull();
     }
 
     @Test
@@ -215,7 +240,6 @@ class ChatbotServiceTest {
 
         ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món chay không cay", "s4", null, null));
 
-        assertThat(res.notice()).isNull();
         assertThat(res.foods()).isNotEmpty();
         assertThat(res.foods()).allSatisfy(c -> {
             Food f = food(c.name());

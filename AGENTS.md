@@ -50,7 +50,7 @@ là danh sách loại món kèm số lượng, dùng cho câu hỏi kiểu "mộ
 Mỗi lượt trả tối đa **5 thẻ**; `maxSuggestions()` kẹp cấu hình về 1..5 kể cả giá trị cũ 8/10.
 Số phần và tổng tiền phải tính ở server và gửi kèm thẻ món, không giao cho AI tự tính.
 
-**Nhánh dự phòng khi không gọi được AI** (thiếu/hỏng khóa, hết thời gian chờ):
+**Nhánh dự phòng khi không gọi được AI** (429/5xx, hết thời gian chờ, JSON hỏng):
 `chat()` rơi sang `selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code theo
 từ khóa trùng tên món/nguyên liệu/nhãn (không tính mô tả món, không tính từng từ của tên
 danh mục), rồi áp ràng buộc đọc chắc chắn từ câu: không cay, chay, loại trừ hải sản, ngân
@@ -66,9 +66,14 @@ gần nhất). Server chỉ dùng `lastFoodIds` khi câu có cụm tham chiếu 
 và áp ràng buộc mới. Không dùng độ dài câu để đoán hỏi tiếp. Nhánh dự phòng khi AI lỗi cũng
 bám context này.
 
-**Thiếu khóa AI**: `AiClient.isConfigured()` false thì `chat()` không gọi AI (tránh chờ
-timeout), đi thẳng nhánh dự phòng và trả `notice`; client hiện banner hổ phách nhưng vẫn
-chat bình thường. Khóa có mà gọi lỗi thì chỉ fallback, không notice.
+**Thiếu hoặc hỏng khóa AI**: `AiClient.isConfigured()` false khi `AI_API_KEY` rỗng **hoặc** nhà
+cung cấp đã từ chối khóa (401/403, hay 400 kèm `API_KEY_INVALID` của Gemini); cờ "bị từ chối"
+giữ tới khi khởi động lại server. `GET /api/chatbot/status` gọi `verifyKey()`: lần đầu thử một
+câu tối giản với nhà cung cấp rồi nhớ kết quả, nên mở trang là biết khóa sai ngay chứ không đợi
+lượt chat đầu tiên; lỗi mạng/quota thì coi như dùng được và chỉ thử lại sau 5 phút. Khi không
+dùng được, `chat()` ném `503 SERVICE_UNAVAILABLE` với câu "Trợ lý AI chưa được cấu hình, vui lòng
+thử lại sau." **trước khi** lưu câu hỏi hay chọn món, và status trả `available = false` (không
+bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm thời mới rơi sang nhánh code ở trên.
 
 ### Key wiring (không rõ từ tên file)
 
@@ -209,7 +214,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - `JwtFilter` nuốt exception không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
-- **`AI_API_KEY` trong `.env` phải là khóa thật.** Nếu sai hoặc hết hạn, mọi câu hỏi đều trả
-  thông báo dự phòng và **không có thẻ món nào**; đó là hành vi dự kiến chứ không phải lỗi
-  code. Muốn demo luồng có gợi ý món thì phải thay khoá thật trước.
+- **`AI_API_KEY` trong `.env` phải là khóa thật.** Để trống, sai hoặc hết hạn thì trợ lý bị khóa
+  hẳn ngay khi mở trang: `/api/chatbot/status` trả `available = false`, khung chat hiện banner và
+  khóa ô nhập. Đó là hành vi dự kiến chứ không phải lỗi code. Muốn demo luồng có gợi ý món thì
+  phải thay khoá thật rồi khởi động lại server (kết quả kiểm tra khóa cũ được giữ trong bộ nhớ).
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.

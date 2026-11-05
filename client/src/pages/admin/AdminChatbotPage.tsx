@@ -1,9 +1,9 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { Alert, Input, InputNumber, Select, Table, message } from 'antd'
-import { adminGetChatHistory, adminGetSettings, adminSaveSetting } from '../../api/api'
+import { adminGetChatHistory, adminGetSettings, adminSaveSetting, getChatbotStatus } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
-import type { ChatHistoryMessage } from '../../types'
+import type { ChatHistoryMessage, ChatbotStatus } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import { EmptyState, PageSection } from './shared'
 import UiButton from '../../components/UiButton'
@@ -65,15 +65,18 @@ export default function AdminChatbotPage() {
   const [extraRules, setExtraRules] = useState('')
   const [provider, setProvider] = useState('gemini')
   const [model, setModel] = useState('')
+  // Trạng thái sẵn dùng của trợ lý, để quản trị biết vì sao khung chat bên ngoài bị khóa.
+  const [status, setStatus] = useState<ChatbotStatus | null>(null)
 
   const { data, loading, error, refresh: fetchData } = useAsyncData(
-    () => Promise.all([adminGetChatHistory(), adminGetSettings()]),
+    () => Promise.all([adminGetChatHistory(), adminGetSettings(), getChatbotStatus()]),
     [],
   )
 
   useEffect(() => {
     if (!data) return
     setHistory(data[0])
+    setStatus(data[2])
     const settings = Object.fromEntries(data[1].map((item) => [item.settingKey, item.settingValue]))
     // Cấu hình cũ có thể đang để 8/10; giao diện chỉ cho tối đa 5 thẻ mỗi lượt.
     setMaxSuggestions(Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5)))
@@ -124,6 +127,24 @@ export default function AdminChatbotPage() {
           className="mb-6"
           message="Không tải được dữ liệu chatbot"
           description="Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang."
+        />
+      ) : null}
+
+      {/* Khóa AI chỉ đến từ biến môi trường nên quản trị không sửa được trong trang này;
+          cảnh báo để họ biết khung chat ngoài site đang tắt vì thiếu khóa. */}
+      {status && !status.available ? (
+        <Alert
+          type="warning"
+          showIcon
+          className="mb-6"
+          message="Chưa cấu hình trợ lý AI"
+          description={
+            <>
+              Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối.
+              Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi
+              khởi động lại máy chủ.
+            </>
+          }
         />
       ) : null}
 

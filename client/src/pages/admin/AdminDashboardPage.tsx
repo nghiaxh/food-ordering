@@ -56,7 +56,6 @@ export default function AdminDashboardPage() {
     <div>
       <PageHeader
         title="Tổng quan"
-        subtitle="Số liệu 30 ngày gần nhất, cập nhật theo từng đơn."
         extra={
           <Link to="/admin/reports">
             <UiButton kind="default">Xem báo cáo</UiButton>
