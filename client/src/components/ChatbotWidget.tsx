@@ -215,14 +215,28 @@ export default function ChatbotWidget() {
                                 ? formatVND(Number(f.totalPrice))
                                 : formatVND(Number(f.price))}
                             </span>
-                            <button
-                              type="button"
-                              onClick={(e) => void handleAddToCart(e, f)}
-                              title="Thêm vào giỏ"
-                              className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 transition hover:bg-amber-600 hover:text-white"
-                            >
-                              <ShoppingCartOutlined className="text-xs" />
-                            </button>
+                            {/* Bọc trong span để tooltip vẫn hiện khi nút bị disabled, và
+                                chặn link cha điều hướng khi khách vãng lai bấm vào. */}
+                            <Tooltip title={canAdd ? null : 'Đăng nhập để thêm món vào giỏ'}>
+                              <span
+                                className="ml-1 inline-flex shrink-0"
+                                onClick={(e) => {
+                                  if (canAdd) return
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  disabled={!canAdd}
+                                  onClick={(e) => void handleAddToCart(e, f)}
+                                  aria-label={`Thêm ${f.name} vào giỏ`}
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-700 transition hover:bg-amber-600 hover:text-white disabled:pointer-events-none disabled:bg-stone-100 disabled:text-stone-400"
+                                >
+                                  <ShoppingCartOutlined className="text-xs" />
+                                </button>
+                              </span>
+                            </Tooltip>
                           </Link>
                         ))}
                       </div>
