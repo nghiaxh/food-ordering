@@ -81,55 +81,60 @@ export default function FoodsPage() {
 
   const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
 
+  // Chip thấp (32px) để thanh lọc không chiếm chỗ của lưới; vẫn đủ vùng chạm.
   const chipBtn = (active: boolean) =>
-    `cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition sm:px-4 sm:py-2.5 sm:text-sm ${
+    `inline-flex min-h-8 cursor-pointer items-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
       active ? 'bg-amber-600 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
     }`
 
   return (
     <div className="h-[calc(100dvh-3.25rem)] overflow-y-auto">
       <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-6">
-        <section id="thuc-don" className="py-5">
-          <div className="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-            <div className="flex gap-2 overflow-x-auto">
-              <button
-                type="button"
-                onClick={() => pickCategory()}
-                className={chipBtn(categoryId === undefined)}
-              >
-                Tất cả
-              </button>
-              {(categories ?? []).map((c) => (
+        <section id="thuc-don" className="py-3 sm:py-4">
+          <div className="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-1.5 backdrop-blur sm:-mx-6 sm:px-6 sm:py-2">
+            {/* Từ `md`: danh mục và dải giá cùng một hàng, danh mục co giãn và cuộn ngang,
+                dải giá giữ nguyên không rơi xuống. Dưới `md` dải giá xuống dòng thay vì bị cắt. */}
+            <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">
+              <div className="flex min-w-0 gap-2 overflow-x-auto md:flex-1">
                 <button
-                  key={c.id}
                   type="button"
-                  onClick={() => pickCategory(c.id)}
-                  className={chipBtn(categoryId === c.id)}
+                  onClick={() => pickCategory()}
+                  className={chipBtn(categoryId === undefined)}
                 >
-                  {c.name}
+                  Tất cả
                 </button>
-              ))}
-            </div>
-            <div className="mt-2 flex gap-2 overflow-x-auto">
-              {PRICE_BANDS.map((band, i) => (
-                <button
-                  key={band.label}
-                  type="button"
-                  onClick={() =>
-                    patch({
-                      min: band.min?.toString(),
-                      max: band.max?.toString(),
-                    })
-                  }
-                  className={chipBtn(activePriceBand === i)}
-                >
-                  {band.label}
-                </button>
-              ))}
+                {(categories ?? []).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => pickCategory(c.id)}
+                    className={chipBtn(categoryId === c.id)}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5 md:shrink-0 md:flex-nowrap">
+                {PRICE_BANDS.map((band, i) => (
+                  <button
+                    key={band.label}
+                    type="button"
+                    onClick={() =>
+                      patch({
+                        min: band.min?.toString(),
+                        max: band.max?.toString(),
+                      })
+                    }
+                    className={chipBtn(activePriceBand === i)}
+                  >
+                    {band.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-3">
             {loading ? (
               <div className={`grid gap-3 ${GRID_COLS}`}>
                 {Array.from({ length: PAGE_SIZE }).map((_, i) => (
@@ -152,7 +157,7 @@ export default function FoodsPage() {
                   ))}
                 </div>
                 {totalPages > 1 && (
-                  <div className="mt-5 flex justify-center pb-2">
+                  <div className="mt-4 flex justify-center pb-2">
                     <Pagination
                       current={currentPage}
                       total={foods?.length ?? 0}
