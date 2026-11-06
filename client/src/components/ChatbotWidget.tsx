@@ -232,7 +232,7 @@ export default function ChatbotWidget() {
     <div
       className={`pointer-events-none fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 flex flex-col items-end justify-end gap-3 px-4 sm:px-5 ${
         // Thanh giỏ/checkout cao ~4.75rem; thanh thêm món của trang chi tiết chỉ có trên mobile.
-        bottomBar === 'detail' ? 'pb-[6.25rem] sm:pb-5' : bottomBar ? 'pb-[6.25rem]' : 'pb-4 sm:pb-5'
+        bottomBar === 'detail' ? 'pb-[6.25rem] sm:pb-3' : bottomBar ? 'pb-[6.25rem]' : 'pb-2 sm:pb-3'
       }`}
     >
       {open && (

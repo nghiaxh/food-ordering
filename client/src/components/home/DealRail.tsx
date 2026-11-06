@@ -23,9 +23,6 @@ export default function DealRail({ foods, from, onSeeAll }: DealRailProps) {
       <div className="flex items-end justify-between gap-3">
         <div className="flex items-baseline gap-2">
           <h2 className="text-base font-bold tracking-tight text-stone-900 sm:text-lg">Ưu đãi hôm nay</h2>
-          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-            Tự động
-          </span>
         </div>
         <button
           type="button"

@@ -11,21 +11,10 @@ export default function BrandMark({ className = '' }: { className?: string }) {
       aria-label="FoodOrdering, về trang chủ"
       className={`flex shrink-0 cursor-pointer items-center gap-2 ${className}`}
     >
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-700 text-white shadow-sm">
-        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none">
-          <path
-            d="M4 11h16a8 8 0 0 1-8 8 8 8 0 0 1-8-8Z"
-            fill="currentColor"
-            opacity=".95"
-          />
-          <path
-            d="M7 7c0-1.2 1-1.5 1-2.5M11 7c0-1.2 1-1.5 1-2.5M15 7c0-1.2 1-1.5 1-2.5"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-          <path d="M9 11c.6 2.4 5.4 2.4 6 0" stroke="#fef3c7" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-700 shadow-sm">
+        <span aria-hidden="true" className="text-xl leading-none">
+          🍜
+        </span>
       </span>
       <span className="hidden text-[15px] font-bold tracking-tight text-stone-900 sm:inline">
         FoodOrdering
