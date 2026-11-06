@@ -100,7 +100,7 @@ export default function ChatbotWidget() {
   const user = useAuthStore((s) => s.user)
   const addToCart = useCartStore((s) => s.add)
   // Chưa đăng nhập vẫn xem được gợi ý nhưng không thêm được vào giỏ (giỏ cần token).
-  const canAdd = user !== null
+  const canAdd = user !== null && user.role !== 'ADMIN'
 
   const handleAddToCart = async (e: React.MouseEvent, f: FoodCard) => {
     e.preventDefault()
@@ -290,7 +290,7 @@ export default function ChatbotWidget() {
                             </span>
                             {/* Bọc trong span để tooltip vẫn hiện khi nút bị disabled, và
                                 chặn link cha điều hướng khi khách vãng lai bấm vào. */}
-                            <Tooltip title={canAdd ? null : 'Đăng nhập để thêm món vào giỏ'}>
+                            <Tooltip title={canAdd ? null : (user?.role === 'ADMIN' ? 'Tài khoản quản trị không đặt món' : 'Đăng nhập để thêm món vào giỏ')}>
                               <span
                                 className="ml-1 inline-flex shrink-0"
                                 onClick={(e) => {

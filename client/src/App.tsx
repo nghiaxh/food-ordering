@@ -39,6 +39,15 @@ function RequireAuth({ children, admin = false }: { children: ReactNode; admin?:
   return <>{children}</>
 }
 
+/** Admin không dùng luồng khách: redirect mọi truy cập trang khách về khu vực quản trị. */
+function RequireCustomer({ children }: { children: ReactNode }) {
+  const user = useAuthStore((s) => s.user)
+  if (user?.role === 'ADMIN') {
+    return <Navigate to="/admin" replace />
+  }
+  return <>{children}</>
+}
+
 /**
  * Đồng bộ giỏ khi đổi trạng thái đăng nhập: đã đăng nhập thì tải giỏ từ server,
  * đăng xuất thì xoá giỏ của tài khoản khỏi state. Khách vãng lai không có giỏ.
@@ -65,24 +74,28 @@ function AppRoutes() {
       <Route element={<DefaultLayout />}>
         {/* Bảng món là trang chủ; chi tiết món là route con nên hiện thành panel phủ
             mà vẫn giữ URL thật để thẻ món trong chatbot liên kết được. */}
-        <Route path="/" element={<FoodsPage />}>
+        <Route path="/" element={<RequireCustomer><FoodsPage /></RequireCustomer>}>
           <Route path="foods/:id" element={<FoodDetailPage />} />
         </Route>
         <Route path="/foods" element={<Navigate to="/" replace />} />
         <Route
           path="/cart"
           element={
-            <RequireAuth>
-              <CartPage />
-            </RequireAuth>
+            <RequireCustomer>
+              <RequireAuth>
+                <CartPage />
+              </RequireAuth>
+            </RequireCustomer>
           }
         />
         <Route
           path="/orders"
           element={
-            <RequireAuth>
-              <OrdersPage />
-            </RequireAuth>
+            <RequireCustomer>
+              <RequireAuth>
+                <OrdersPage />
+              </RequireAuth>
+            </RequireCustomer>
           }
         />
         <Route

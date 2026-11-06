@@ -22,6 +22,7 @@ export default function HeaderGlobal() {
   const [params, setParams] = useSearchParams()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const isAdmin = user?.role === 'ADMIN'
   const count = useCartStore((s) => s.count())
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [notifOpen, setNotifOpen] = useState(false)
@@ -109,11 +110,10 @@ export default function HeaderGlobal() {
 
   const accountMenu: MenuProps = {
     items: [
-      { key: 'orders', label: 'Đơn hàng của tôi', icon: <UiIcon name="inbox" size={16} /> },
-      { key: 'account', label: 'Tài khoản', icon: <UiIcon name="user" size={16} /> },
-      ...(user?.role === 'ADMIN'
-        ? [{ key: 'admin', label: 'Trang quản trị', icon: <UiIcon name="th-large" size={16} /> }]
+      ...(!isAdmin
+        ? [{ key: 'orders', label: 'Đơn hàng của tôi', icon: <UiIcon name="inbox" size={16} /> }]
         : []),
+      { key: 'account', label: 'Tài khoản', icon: <UiIcon name="user" size={16} /> },
       { type: 'divider' as const },
       { key: 'logout', label: 'Đăng xuất', icon: <UiIcon name="sign-out" size={16} /> },
     ],
@@ -241,13 +241,15 @@ export default function HeaderGlobal() {
           phía phải hàng dưới. */}
       <div className="mx-auto flex min-h-[3.25rem] max-w-[1600px] flex-wrap items-center gap-1.5 px-3 sm:gap-2 sm:px-4 md:gap-3 md:flex-nowrap md:px-5">
         {/* Hàng chính desktop */}
-        <UiButton
-          kind="icon"
-          size="small"
-          aria-label="Trang chủ"
-          icon={<UiIcon name="home" size={18} />}
-          onClick={() => navigate('/')}
-        />
+        {!isAdmin && (
+          <UiButton
+            kind="icon"
+            size="small"
+            aria-label="Trang chủ"
+            icon={<UiIcon name="home" size={18} />}
+            onClick={() => navigate('/')}
+          />
+        )}
 
         {user?.role === 'ADMIN' && (
           <UiButton
@@ -261,30 +263,34 @@ export default function HeaderGlobal() {
 
         {/* Chặn bề rộng: không có `max-w` thì trên màn hình rộng ô tìm kiếm giãng hết
             chiều ngang còn lại, nhóm nút bên phải bị đẩy lệch ra rìa. */}
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onPressEnter={() => commitSearch(draft)}
-          prefix={<SearchOutlined style={{ color: '#a8a29e' }} />}
-          placeholder="Tìm món theo tên..."
-          allowClear
-          aria-label="Tìm món"
-          className="min-w-0 flex-1 md:max-w-sm lg:max-w-md"
-        />
+        {!isAdmin && (
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onPressEnter={() => commitSearch(draft)}
+            prefix={<SearchOutlined style={{ color: '#a8a29e' }} />}
+            placeholder="Tìm món theo tên..."
+            allowClear
+            aria-label="Tìm món"
+            className="min-w-0 flex-1 md:max-w-sm lg:max-w-md"
+          />
+        )}
 
         {/* Cụm phải desktop: chuông, giỏ, đơn hàng, tài khoản. Thứ tự cố định để nhóm nút
             không nhảy chỗ khi số thông báo hoặc giỏ đổi. */}
         <div className="hidden shrink-0 items-center gap-2 md:ml-auto md:flex">
-          {notificationsButton}
-          <Badge count={count} size="small" color="#d97706">
-            <UiButton
-              kind="icon"
-              size="small"
-              aria-label="Giỏ hàng"
-              icon={<UiIcon name="shopping-cart" size={18} />}
-              onClick={() => navigate('/cart')}
-            />
-          </Badge>
+          {!isAdmin && notificationsButton}
+          {!isAdmin && (
+            <Badge count={count} size="small" color="#d97706">
+              <UiButton
+                kind="icon"
+                size="small"
+                aria-label="Giỏ hàng"
+                icon={<UiIcon name="shopping-cart" size={18} />}
+                onClick={() => navigate('/cart')}
+              />
+            </Badge>
+          )}
           {user ? (
             <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
               <button
@@ -311,43 +317,72 @@ export default function HeaderGlobal() {
 
         {/* Cụm phải mobile: giỏ + đăng nhập, gọn hơn để không bóp tìm kiếm */}
         <div className="flex shrink-0 items-center gap-1.5 md:hidden">
-          <Badge count={count} size="small" color="#d97706">
-            <UiButton
-              kind="icon"
-              size="small"
-              aria-label="Giỏ hàng"
-              icon={<UiIcon name="shopping-cart" size={18} />}
-              onClick={() => navigate('/cart')}
-            />
-          </Badge>
-          {user ? (
-            <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
-              <button
-                type="button"
-                aria-label="Menu tài khoản"
-                className="flex items-center gap-2 rounded-full p-1 transition hover:bg-amber-50"
-              >
-                <Avatar style={{ backgroundColor: '#d97706' }}>
-                  {user.fullName.charAt(0).toUpperCase()}
-                </Avatar>
-              </button>
-            </Dropdown>
+          {isAdmin ? (
+            <>
+              <UiButton
+                kind="icon"
+                size="small"
+                aria-label="Trang quản trị"
+                icon={<UiIcon name="th-large" size={18} />}
+                onClick={() => navigate('/admin/foods')}
+              />
+              {user && (
+                <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
+                  <button
+                    type="button"
+                    aria-label="Menu tài khoản"
+                    className="flex items-center gap-2 rounded-full p-1 transition hover:bg-amber-50"
+                  >
+                    <Avatar style={{ backgroundColor: '#d97706' }}>
+                      {user.fullName.charAt(0).toUpperCase()}
+                    </Avatar>
+                  </button>
+                </Dropdown>
+              )}
+            </>
           ) : (
             <>
-              <UiButton kind="default" size="small" onClick={() => navigate('/login')}>
-                Đăng nhập
-              </UiButton>
-              <UiButton kind="primary" size="small" onClick={() => navigate('/register')}>
-                Đăng ký
-              </UiButton>
+              <Badge count={count} size="small" color="#d97706">
+                <UiButton
+                  kind="icon"
+                  size="small"
+                  aria-label="Giỏ hàng"
+                  icon={<UiIcon name="shopping-cart" size={18} />}
+                  onClick={() => navigate('/cart')}
+                />
+              </Badge>
+              {user ? (
+                <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
+                  <button
+                    type="button"
+                    aria-label="Menu tài khoản"
+                    className="flex items-center gap-2 rounded-full p-1 transition hover:bg-amber-50"
+                  >
+                    <Avatar style={{ backgroundColor: '#d97706' }}>
+                      {user.fullName.charAt(0).toUpperCase()}
+                    </Avatar>
+                  </button>
+                </Dropdown>
+              ) : (
+                <>
+                  <UiButton kind="default" size="small" onClick={() => navigate('/login')}>
+                    Đăng nhập
+                  </UiButton>
+                  <UiButton kind="primary" size="small" onClick={() => navigate('/register')}>
+                    Đăng ký
+                  </UiButton>
+                </>
+              )}
             </>
           )}
         </div>
 
         {/* Mobile hàng thứ hai: chuông + đơn hàng */}
-        <div className="flex w-full items-center justify-end gap-2 pt-1 md:hidden">
-          {notificationsButton}
-        </div>
+        {!isAdmin && (
+          <div className="flex w-full items-center justify-end gap-2 pt-1 md:hidden">
+            {notificationsButton}
+          </div>
+        )}
       </div>
     </header>
   )

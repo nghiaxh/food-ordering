@@ -36,7 +36,7 @@ export default function FoodDetailPage() {
   const [open, setOpen] = useState(true)
   const user = useAuthStore((s) => s.user)
   // Khách chưa đăng nhập không có giỏ: nút khoá và tooltip hướng dẫn đăng nhập.
-  const canAdd = user !== null
+  const canAdd = user !== null && user.role !== 'ADMIN'
   const add = useCartStore((s) => s.add)
 
   const close = () => setOpen(false)
@@ -246,7 +246,7 @@ export default function FoodDetailPage() {
             <p className="min-w-0 flex-1 text-sm font-semibold tabular-nums text-stone-700">
               {formatVND(Number(food.price) * qty)}
             </p>
-            <LoginTooltip active={!canAdd && !unavailable}>
+            <LoginTooltip active={!canAdd && !unavailable} hint={user?.role === 'ADMIN' ? 'Tài khoản quản trị không đặt món' : undefined}>
               <UiButton
                 kind="primary-lg"
                 disabled={unavailable || !canAdd}
