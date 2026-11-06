@@ -198,7 +198,19 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   nguồn dữ liệu, vòng đời state hoặc cách fallback; không lặp lại cú pháp hoặc từng dòng JSX.
 - Dùng `//` cho quyết định cục bộ, Javadoc/JSDoc cho hợp đồng hoặc ranh giới quan trọng.
 - Khi đổi endpoint, DTO, quy tắc domain hoặc luồng nghiệp vụ, cập nhật đồng bộ
-  `ARCHITECTURE.md`, `TEST.md` và tài liệu liên quan.
+  `ARCHITECTURE.md`, `TEST.md` và tài liệu liên quan. Khi đổi quy ước phân nhánh
+  hoặc commit, cập nhật đồng bộ `BRANCHING.md`.
+
+## Phân nhánh và Git
+
+- Không làm việc trực tiếp trên `main` (không commit, không push thẳng lên `main`).
+- Luôn đồng bộ trước khi tách branch: `git checkout main` rồi `git pull origin main`.
+- Mọi thay đổi tách từ `main` thành branch riêng: `feat/<ten>`, `fix/<ten>`,
+  `docs/<ten>`, `refactor/<ten>`, `test/<ten>`. Không dùng `dev` hay `draft`.
+- Mở PR ngược về `main`, merge bằng squash merge để lịch sử gọn. Chi tiết xem `BRANCHING.md`.
+- Commit theo Conventional Commits, dùng tiếng Anh: `<type>[optional scope]: <description>`,
+  lowercase, imperative, no period. Một commit một mục đích, một commit một loại thay đổi.
+- Không commit, push hay rewrite history trừ khi user yêu cầu rõ ràng.
 
 ## Gotchas
 
