@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import BrandMark from './BrandMark'
 import UiIcon from './UiIcon'
 import UiButton from './UiButton'
+import useMediaQuery from '../hooks/useMediaQuery'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { useNotificationStore } from '../store/notificationStore'
@@ -12,13 +13,15 @@ import { useUiStore } from '../store/uiStore'
 
 /**
  * Thanh điều hướng một hàng ở mọi kích thước: logo, ô tìm kiếm, đơn hàng, giỏ, tài khoản.
- * Chuông không còn là nút riêng; thông báo nằm trong menu tài khoản và mở drawer bên phải.
- * Nhờ vậy header luôn cao đúng `--header-h`, chatbot và vùng cuộn kiosk không bị lệch.
+ * Từ `lg` thông báo và đơn hàng có nút riêng trên header vì hai mục này khách bấm thường
+ * xuyên; dưới `lg` chúng nằm trong menu tài khoản để ô tìm kiếm còn chỗ.
+ * Header luôn cao đúng `--header-h`, chatbot và vùng cuộn kiosk không bị lệch.
  */
 export default function HeaderGlobal() {
   const navigate = useNavigate()
   const location = useLocation()
   const [params, setParams] = useSearchParams()
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const isAdmin = user?.role === 'ADMIN'
@@ -75,23 +78,32 @@ export default function HeaderGlobal() {
 
   const accountMenu: MenuProps = {
     items: [
-      {
-        key: 'notifications',
-        label: (
-          <span className="flex items-center gap-2">
-            Thông báo
-            {unread > 0 && (
-              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                {unread}
-              </span>
-            )}
-          </span>
-        ),
-        icon: <UiIcon name="bell" size={16} />,
-      },
-      ...(!isAdmin
-        ? [{ key: 'orders', label: 'Đơn hàng của tôi', icon: <UiIcon name="inbox" size={16} /> }]
-        : [{ key: 'admin', label: 'Trang quản trị', icon: <UiIcon name="th-large" size={16} /> }]),
+      // Màn hẹp: mọi mục nằm trong menu. Màn rộng: thông báo và đơn hàng đã có nút riêng
+      // trên header nên menu chỉ giữ những mục ít bấm.
+      ...(!isDesktop
+        ? [
+            {
+              key: 'notifications',
+              label: (
+                <span className="flex items-center gap-2">
+                  Thông báo
+                  {unread > 0 && (
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">
+                      {unread}
+                    </span>
+                  )}
+                </span>
+              ),
+              icon: <UiIcon name="bell" size={16} />,
+            },
+            isAdmin
+              ? { key: 'admin', label: 'Trang quản trị', icon: <UiIcon name="th-large" size={16} /> }
+              : { key: 'orders', label: 'Đơn hàng của tôi', icon: <UiIcon name="inbox" size={16} /> },
+          ]
+        : []),
+      ...(isAdmin && isDesktop
+        ? [{ key: 'admin', label: 'Trang quản trị', icon: <UiIcon name="th-large" size={16} /> }]
+        : []),
       { key: 'account', label: 'Tài khoản', icon: <UiIcon name="user" size={16} /> },
       { type: 'divider' as const },
       { key: 'logout', label: 'Đăng xuất', icon: <UiIcon name="sign-out" size={16} /> },
@@ -119,17 +131,6 @@ export default function HeaderGlobal() {
       <div className="mx-auto flex h-full max-w-[1600px] items-center gap-1.5 px-3 sm:gap-3 sm:px-5">
         <BrandMark />
 
-        {isAdmin && (
-          <UiButton
-            kind="icon"
-            size="small"
-            aria-label="Trang quản trị"
-            icon={<UiIcon name="th-large" size={18} />}
-            onClick={() => navigate('/admin/foods')}
-            className="hidden sm:inline-flex"
-          />
-        )}
-
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -142,14 +143,25 @@ export default function HeaderGlobal() {
         />
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          {user && !isAdmin && (
+          {user && isDesktop && (
+            <Badge dot={unread > 0} color="#b45309" offset={[-4, 4]}>
+              <UiButton
+                kind="icon"
+                size="small"
+                aria-label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
+                icon={<UiIcon name="bell" size={18} />}
+                onClick={() => openDrawer('notifications')}
+              />
+            </Badge>
+          )}
+
+          {user && isDesktop && (
             <UiButton
               kind="icon"
               size="small"
-              aria-label="Đơn hàng"
-              icon={<UiIcon name="inbox" size={18} />}
-              onClick={() => navigate('/orders')}
-              className="hidden md:inline-flex"
+              aria-label={isAdmin ? 'Trang quản trị' : 'Đơn hàng'}
+              icon={<UiIcon name={isAdmin ? 'th-large' : 'inbox'} size={18} />}
+              onClick={() => navigate(isAdmin ? '/admin/foods' : '/orders')}
             />
           )}
 
