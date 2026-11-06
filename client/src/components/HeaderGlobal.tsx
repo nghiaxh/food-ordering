@@ -239,7 +239,7 @@ export default function HeaderGlobal() {
     <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/95 backdrop-blur-xl">
       {/* Desktop: một hàng, ô tìm kiếm flex-1. Mobile: hai hàng, tìm kiếm phía trái, phụ
           phía phải hàng dưới. */}
-      <div className="mx-auto flex min-h-[3.25rem] max-w-[1600px] items-center gap-2 px-4 sm:gap-3 sm:px-5">
+      <div className="mx-auto flex min-h-[3.25rem] max-w-[1600px] flex-wrap items-center gap-2 px-4 sm:gap-3 sm:px-5 md:flex-nowrap">
         {/* Hàng chính desktop */}
         <UiButton
           kind="icon"
