@@ -272,7 +272,7 @@ export default function HeaderGlobal() {
             placeholder="Tìm món theo tên..."
             allowClear
             aria-label="Tìm món"
-            className="min-w-0 flex-1 md:max-w-sm lg:max-w-md"
+            className="min-w-0 flex-1 lg:max-w-md"
           />
         )}
 
