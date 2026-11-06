@@ -161,7 +161,6 @@ export default function FoodsPage() {
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const deals = (foods ?? []).filter((f) => (f.discountPercent ?? 0) > 0).slice(0, 8)
   const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
-  const from = `/${params.toString() ? `?${params.toString()}` : ''}`
 
   const chipClass = (active: boolean) =>
     `inline-flex min-h-10 cursor-pointer items-center whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium transition ${
@@ -219,7 +218,7 @@ export default function FoodsPage() {
 
         {deals.length > 0 && !onlyDeals && (
           <div className="mt-4 sm:mt-5">
-            <DealRail foods={deals} from={from} onSeeAll={() => patch({ deal: '1' })} />
+            <DealRail foods={deals} onSeeAll={() => patch({ deal: '1' })} />
           </div>
         )}
 

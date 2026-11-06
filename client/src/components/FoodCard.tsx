@@ -20,7 +20,7 @@ const MENU_SCROLL_KEY = 'menu-scroll'
  * Ảnh 16:10 giữ mật độ cũ (2 cột mobile, 4 cột từ `md`). Tên hai dòng thay vì cắt một dòng,
  * giá giảm đứng trước giá gốc để so sánh được ngay.
  */
-export default function FoodCard({ food }: { food: Food }) {
+export default function FoodCard({ food, className = '' }: { food: Food; className?: string }) {
   const add = useCartStore((s) => s.add)
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
@@ -49,7 +49,7 @@ export default function FoodCard({ food }: { food: Food }) {
 
   return (
     <div
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:-translate-y-0.5 hover:shadow-lg"
+      className={`group flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:-translate-y-0.5 hover:shadow-lg ${className}`}
       // Cả thẻ là vùng mở chi tiết; bỏ qua khi cú bấm rơi vào liên kết hoặc nút bên trong.
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('a, button')) return
@@ -92,7 +92,7 @@ export default function FoodCard({ food }: { food: Food }) {
           aria-label={food.available ? `Thêm ${food.name} vào giỏ` : `${food.name} tạm hết`}
           disabled={!food.available}
           onClick={() => void handleAdd()}
-          className="absolute right-2 top-2 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 text-white shadow-sm transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:bg-stone-400"
+          className="absolute right-2 top-2 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 text-white opacity-0 shadow-sm transition hover:bg-amber-800 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
         >
           <UiIcon name="plus" size={16} />
         </button>
