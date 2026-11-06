@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  Button, Checkbox, Form, Input, InputNumber, Select, Space, Table,
+  Checkbox, Form, Input, InputNumber, Select, Space, Table,
 } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { adminDeleteFood, adminSaveFood, getCategories, getFoods } from '../../api/api'
@@ -192,12 +192,12 @@ export default function AdminFoodsPage() {
                 width: 170,
                 render: (_, f) => (
                   <Space>
-                    <Button size="small" onClick={() => openEdit(f)}>
+                    <UiButton kind="default" size="small" onClick={() => openEdit(f)}>
                       Sửa
-                    </Button>
-                    <Button
+                    </UiButton>
+                    <UiButton
+                      kind="danger"
                       size="small"
-                      danger
                       icon={<DeleteOutlined />}
                       loading={busyIds.has(f.id)}
                       onClick={() =>
@@ -208,7 +208,7 @@ export default function AdminFoodsPage() {
                       }
                     >
                       Xóa
-                    </Button>
+                    </UiButton>
                   </Space>
                 ),
               },

@@ -257,34 +257,35 @@ export default function AdminOrdersPage() {
                   return (
                     <div className="flex items-center gap-1.5">
                       {primaryNext && (
-                        <Button
+                        <UiButton
+                          kind="primary"
                           size="small"
-                          type="primary"
-                          className="!h-7 !bg-amber-600 text-xs font-medium"
+                          className="text-xs font-medium"
                           loading={busyIds.has(o.id)}
                           onClick={() => void changeStatus(o.id, primaryNext)}
                         >
                           {primaryNext === 'CONFIRMED' && 'Duyệt đơn'}
                           {primaryNext === 'PREPARING' && 'Giao hàng'}
                           {primaryNext === 'COMPLETED' && 'Hoàn thành'}
-                        </Button>
+                        </UiButton>
                       )}
-                      <Button size="small" className="!h-7 text-xs" icon={<EyeOutlined />} onClick={() => setDetailId(o.id)}>
+                      <UiButton kind="default" size="small" className="text-xs" icon={<EyeOutlined />} onClick={() => setDetailId(o.id)}>
                         Chi tiết
-                      </Button>
-                      <Button
+                      </UiButton>
+                      <UiButton
+                        kind="default"
                         size="small"
-                        className="!h-7 text-xs"
+                        className="text-xs"
                         icon={<EditOutlined />}
                         disabled={finalState(o)}
                         title={finalState(o) ? 'Đơn đã chốt nên không sửa được' : undefined}
                         onClick={() => openEdit(o)}
                       >
                         Sửa
-                      </Button>
-                      <Button
+                      </UiButton>
+                      <UiButton
+                        kind="danger"
                         size="small"
-                        danger
                         icon={<DeleteOutlined />}
                         loading={busyIds.has(o.id)}
                         onClick={() =>
@@ -330,7 +331,8 @@ export default function AdminOrdersPage() {
                   value: s,
                 }))}
               />
-              <Button
+              <UiButton
+                kind="default"
                 size="small"
                 icon={<EditOutlined />}
                 disabled={finalState(detail)}
@@ -338,7 +340,7 @@ export default function AdminOrdersPage() {
                 onClick={() => openEdit(detail)}
               >
                 Sửa
-              </Button>
+              </UiButton>
             </div>
 
             <div>
@@ -364,24 +366,25 @@ export default function AdminOrdersPage() {
                     </b>
                   </span>
                   {detail.paymentStatus === 'PAID' ? (
-                    <Button
+                    <UiButton
+                      kind="default"
                       size="small"
                       loading={busyIds.has(detail.id)}
                       disabled={busyIds.has(detail.id)}
                       onClick={() => changePayment(detail.id, false)}
                     >
                       Hoàn tác
-                    </Button>
+                    </UiButton>
                   ) : (
-                    <Button
+                    <UiButton
+                      kind="primary"
                       size="small"
-                      type="primary"
                       loading={busyIds.has(detail.id)}
                       disabled={busyIds.has(detail.id)}
                       onClick={() => changePayment(detail.id, true)}
                     >
                       Đã thanh toán
-                    </Button>
+                    </UiButton>
                   )}
                 </div>
               </div>
@@ -541,8 +544,9 @@ export default function AdminOrdersPage() {
                     >
                       <InputNumber min={1} max={99} disabled={itemsLocked} style={{ width: 80 }} />
                     </Form.Item>
-                    <Button
-                      danger
+                    <UiButton
+                      kind="danger"
+                      size="small"
                       icon={<DeleteOutlined />}
                       disabled={itemsLocked}
                       aria-label="Bỏ món khỏi đơn"
