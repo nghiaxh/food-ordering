@@ -7,6 +7,7 @@ import useCartQuote from '../hooks/useCartQuote'
 import { useCartStore } from '../store/cartStore'
 import { useUiStore } from '../store/uiStore'
 import { formatVND } from '../utils/format'
+import { discountText } from '../utils/food-tags'
 import type { Food } from '../types'
 import QuantityStepper from './QuantityStepper'
 import UiButton from './UiButton'
@@ -179,7 +180,7 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
                 </p>
                 {lineDiscount > 0 && (
                   <p className="mt-0.5 text-xs font-medium text-emerald-600">
-                    {line?.discountLabel ? `${line.discountLabel} · ` : ''}-{formatVND(lineDiscount)}
+                    {discountText(line?.discountLabel) ? `${discountText(line?.discountLabel)} · ` : ''}-{formatVND(lineDiscount)}
                   </p>
                 )}
                 {!food.available && (

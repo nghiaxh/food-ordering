@@ -4,9 +4,9 @@ import type { Food } from '../types'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { formatVND } from '../utils/format'
-import { foodChips } from '../utils/food-tags'
+import { foodChips, discountText } from '../utils/food-tags'
 import UiImg from './UiImg'
-import UiButton from './UiButton'
+import UiIcon from './UiIcon'
 
 /** Chỉ hiện 2 nhãn đầu: thẻ món phải còn chỗ cho giá và nút, thêm nhãn chỉ làm loãng. */
 const MAX_CHIPS = 2
@@ -14,8 +14,8 @@ const MAX_CHIPS = 2
 const MENU_SCROLL_KEY = 'menu-scroll'
 
 /**
- * Thẻ món của bảng món kiosk. Cả thẻ mở trang chi tiết; nút "Thêm vào giỏ" luôn hiện để
- * khách vãng lai vẫn thấy hành động và được mời đăng nhập thay vì gặp một thẻ trống nút.
+ * Thẻ món của bảng món kiosk. Cả thẻ mở trang chi tiết; nút tròn dấu cộng trên ảnh thêm
+ * nhanh mà không chiếm chỗ giá, khách vãng lai vẫn được mời đăng nhập thay vì gặp thẻ trống nút.
  *
  * Ảnh 16:10 giữ mật độ cũ (2 cột mobile, 4 cột từ `md`). Tên hai dòng thay vì cắt một dòng,
  * giá giảm đứng trước giá gốc để so sánh được ngay.
@@ -87,6 +87,15 @@ export default function FoodCard({ food }: { food: Food }) {
             </span>
           )}
         </div>
+        <button
+          type="button"
+          aria-label={food.available ? `Thêm ${food.name} vào giỏ` : `${food.name} tạm hết`}
+          disabled={!food.available}
+          onClick={() => void handleAdd()}
+          className="absolute right-2 top-2 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 text-white shadow-sm transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:bg-stone-400"
+        >
+          <UiIcon name="plus" size={16} />
+        </button>
       </div>
 
       <div className="flex flex-1 flex-col p-2.5 sm:p-3">
@@ -110,39 +119,27 @@ export default function FoodCard({ food }: { food: Food }) {
             .map((chip) => (
               <span
                 key={chip.label}
-                className={`whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-medium ${chip.className}`}
+                className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${chip.className}`}
               >
                 {chip.label}
               </span>
             ))}
         </div>
 
-        <div className="mt-auto flex flex-col gap-1.5 pt-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-2 sm:pt-2.5">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className="text-base font-bold tabular-nums text-amber-800 sm:text-lg">
-                {formatVND(unit)}
+        <div className="mt-auto pt-2">
+          <div className="flex flex-wrap items-baseline gap-1.5">
+            <span className="text-base font-bold tabular-nums text-amber-800 sm:text-lg">
+              {formatVND(unit)}
+            </span>
+            {unit < food.price && (
+              <span className="text-xs tabular-nums text-stone-500 line-through">
+                {formatVND(food.price)}
               </span>
-              {unit < food.price && (
-                <span className="text-xs tabular-nums text-stone-500 line-through">
-                  {formatVND(food.price)}
-                </span>
-              )}
-            </div>
-            {food.discountLabel && unit < food.price && (
-              <p className="mt-0.5 truncate text-[11px] font-medium text-emerald-700">{food.discountLabel}</p>
             )}
           </div>
-
-          <UiButton
-            kind="primary"
-            size="small"
-            className="w-full !px-2.5 !text-xs sm:w-auto"
-            disabled={!food.available}
-            onClick={() => void handleAdd()}
-          >
-            {food.available ? 'Thêm vào giỏ' : 'Tạm hết'}
-          </UiButton>
+          <p className="mt-0.5 min-h-4 truncate text-[11px] font-medium text-emerald-700">
+            {unit < food.price ? discountText(food.discountLabel) ?? '' : ''}
+          </p>
         </div>
       </div>
     </div>

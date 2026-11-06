@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { useUiStore } from '../store/uiStore'
 import { formatVND } from '../utils/format'
-import { spicyLabel } from '../utils/food-tags'
+import { spicyLabel, discountText } from '../utils/food-tags'
 import { reviewStats } from '../utils/reviews'
 import { apiErrorMessage } from '../utils/api-error'
 import RatingStars from '../components/RatingStars'
@@ -200,25 +200,22 @@ export default function FoodDetailPage() {
             )}
           </div>
 
-          <div className="mt-5 rounded-2xl bg-white p-4 ring-1 ring-stone-200/60 sm:p-5">
+          <div className="mt-5">
             <h2 className="text-base font-bold text-stone-900">Thông tin món</h2>
-            <dl className="mt-3 grid grid-cols-2 gap-x-6">
+            <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {specs.map((spec) => (
-                <div key={spec.label} className="border-b border-stone-100 py-2.5">
-                  <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
-                    {spec.label}
-                  </dt>
-                  <dd className="mt-0.5 text-sm font-medium text-stone-800">{spec.value}</dd>
+                <div key={spec.label} className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-stone-200/60">
+                  <dt className="text-xs text-stone-500">{spec.label}</dt>
+                  <dd className="mt-0.5 text-sm font-semibold text-stone-800">{spec.value}</dd>
                 </div>
               ))}
-              <div className="col-span-2 py-2.5">
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
-                  Thành phần
-                </dt>
-                <dd className="mt-0.5 text-sm font-medium leading-relaxed text-stone-800">
-                  {food.ingredients || 'Chưa cập nhật'}
-                </dd>
-              </div>
+            </dl>
+
+            <dl className="mt-4">
+              <dt className="text-xs text-stone-500">Thành phần</dt>
+              <dd className="mt-0.5 text-sm leading-relaxed text-stone-800">
+                {food.ingredients || 'Chưa cập nhật'}
+              </dd>
             </dl>
 
             {allergens.length > 0 && (
@@ -234,21 +231,7 @@ export default function FoodDetailPage() {
 
         <aside className="lg:sticky lg:top-[calc(var(--header-h)+1rem)]">
           <div className="rounded-2xl bg-white p-4 ring-1 ring-stone-200/60 sm:p-5">
-            <div className="flex flex-wrap gap-1.5">
-              {food.category?.name && (
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-                  {food.category.name}
-                </span>
-              )}
-              <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
-                {spicyLabel(food.spicyLevel)}
-              </span>
-              <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
-                {food.servingSize} người
-              </span>
-            </div>
-
-            <h1 className="mt-2.5 text-2xl font-bold leading-tight tracking-tight text-stone-900 sm:text-[28px]">
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-stone-900 sm:text-[28px]">
               {food.name}
             </h1>
 
@@ -280,7 +263,7 @@ export default function FoodDetailPage() {
               )}
             </div>
             {food.discountLabel && saving > 0 && (
-              <p className="mt-1 text-xs font-medium text-emerald-700">{food.discountLabel}</p>
+              <p className="mt-1 text-xs font-medium text-emerald-700">{discountText(food.discountLabel)}</p>
             )}
 
             {food.description && (
