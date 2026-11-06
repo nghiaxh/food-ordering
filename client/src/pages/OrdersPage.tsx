@@ -353,6 +353,7 @@ export default function OrdersPage() {
       <Modal
         open={paying !== null}
         onCancel={() => setPaying(null)}
+        closeIcon={false}
         title={`Thanh toán đơn #${orderCode(paying?.id ?? 0)}`}
         footer={[
           <UiButton key="back" kind="default" onClick={() => setPaying(null)}>

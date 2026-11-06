@@ -219,10 +219,8 @@ export default function CheckoutPage() {
   )
 
   return (
-    <div className="mx-auto max-w-5xl px-3 py-6 pb-32 sm:px-6 lg:pb-10">
-      <h1 className="text-2xl font-bold tracking-tight text-stone-900">Đặt món</h1>
-
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
+    <div className="mx-auto max-w-5xl px-3 py-6 pb-32 sm:px-6 lg:pb-10">      
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
         <Form
           form={form}
           id={CHECKOUT_FORM_ID}
