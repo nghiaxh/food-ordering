@@ -26,7 +26,7 @@ export default function FoodCard({ food }: { food: Food }) {
   const navigate = useNavigate()
 
   // Khách chưa đăng nhập thì ẩn nút thêm món; món hết vẫn hiện để báo trạng thái.
-  const canAdd = user !== null
+  const canAdd = user !== null && user.role !== 'ADMIN'
 
   return (
     <div

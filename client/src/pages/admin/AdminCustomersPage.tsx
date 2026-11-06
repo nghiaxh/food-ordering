@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { Button, Form, Input, Modal, Select, Table, Tooltip, message } from 'antd'
+import { Form, Input, Modal, Select, Table, Tooltip, message } from 'antd'
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { adminDeleteUser, adminGetUsers, adminSaveUser, adminSetUserActive, type UserPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
@@ -232,13 +232,14 @@ export default function AdminCustomersPage() {
                 width: 250,
                 render: (_, u) => (
                   <div className="flex items-center gap-2">
-                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(u)}>
+                    <UiButton kind="default" size="small" icon={<EditOutlined />} onClick={() => openEdit(u)}>
                       Sửa
-                    </Button>
+                    </UiButton>
                     {/* Tài khoản quản trị không được khoá hay xoá, nên ẩn luôn hai nút này. */}
                     {u.role === 'CUSTOMER' ? (
                       <>
-                        <Button
+                        <UiButton
+                          kind="default"
                           size="small"
                           loading={busyIds.has(u.id)}
                           danger={u.active}
@@ -254,10 +255,10 @@ export default function AdminCustomersPage() {
                           }
                         >
                           {u.active ? 'Khóa' : 'Kích hoạt'}
-                        </Button>
-                        <Button
+                        </UiButton>
+                        <UiButton
+                          kind="danger"
                           size="small"
-                          danger
                           icon={<DeleteOutlined />}
                           loading={busyIds.has(u.id)}
                           onClick={() =>

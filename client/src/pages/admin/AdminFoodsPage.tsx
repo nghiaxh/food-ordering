@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  Button, Checkbox, Form, Input, InputNumber, Select, Space, Table,
+  Checkbox, Form, Input, InputNumber, Select, Space, Table,
 } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { adminDeleteFood, adminSaveFood, getCategories, getFoods } from '../../api/api'
@@ -68,7 +68,7 @@ export default function AdminFoodsPage() {
       servingSize: Number(v.servingSize),
     })
     await runAndMessage(res, {
-      success: editing ? 'Đã cập nhật món ăn!' : 'Đã tạo món ăn!',
+      success: editing ? 'Đã cập nhật món ăn!' : 'Đã thêm món ăn!',
       fallback: 'Lưu thất bại',
       onSuccess: () => {
         setModal(false)
@@ -94,7 +94,7 @@ export default function AdminFoodsPage() {
         title="Món ăn"
         extra={
           <UiButton kind="primary" onClick={openCreate}>
-            Tạo món
+            Thêm món
           </UiButton>
         }
       />
@@ -148,7 +148,7 @@ export default function AdminFoodsPage() {
                 <EmptyState
                   icon="inbox"
                   title="Không có món ăn nào."
-                  hint="Điều chỉnh bộ lọc hoặc tạo món mới."
+                  hint="Điều chỉnh bộ lọc hoặc thêm món mới."
                 />
               ),
             }}
@@ -192,12 +192,12 @@ export default function AdminFoodsPage() {
                 width: 170,
                 render: (_, f) => (
                   <Space>
-                    <Button size="small" onClick={() => openEdit(f)}>
+                    <UiButton kind="default" size="small" onClick={() => openEdit(f)}>
                       Sửa
-                    </Button>
-                    <Button
+                    </UiButton>
+                    <UiButton
+                      kind="danger"
                       size="small"
-                      danger
                       icon={<DeleteOutlined />}
                       loading={busyIds.has(f.id)}
                       onClick={() =>
@@ -208,7 +208,7 @@ export default function AdminFoodsPage() {
                       }
                     >
                       Xóa
-                    </Button>
+                    </UiButton>
                   </Space>
                 ),
               },
@@ -218,7 +218,7 @@ export default function AdminFoodsPage() {
       </PageCard>
 
       <FormModal
-        title={editing ? `Sửa món: ${editing.name}` : 'Tạo món mới'}
+        title={editing ? `Sửa món: ${editing.name}` : 'Thêm món mới'}
         open={modal}
         onClose={() => setModal(false)}
         onSubmit={() => form.submit()}

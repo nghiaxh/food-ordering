@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Avatar, Badge, Button, Drawer, Dropdown, type MenuProps } from 'antd'
+import { Avatar, Badge, Drawer, Dropdown, type MenuProps } from 'antd'
 import { MenuOutlined } from '@ant-design/icons'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { adminGetOrders } from '../api/api'
@@ -44,7 +44,6 @@ export default function AdminLayout() {
   const accountMenu: MenuProps = {
     items: [
       { key: 'account', label: 'Tài khoản', icon: <UiIcon name="user" size={16} /> },
-      { key: 'store', label: 'Xem trang khách', icon: <UiIcon name="home" size={16} /> },
       { key: 'logout', label: 'Đăng xuất', icon: <UiIcon name="sign-out" size={16} /> },
     ],
     onClick: ({ key }) => {
@@ -90,8 +89,9 @@ export default function AdminLayout() {
     <div className="flex min-h-dvh flex-col bg-stone-50">
       <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Button
-            type="text"
+          <UiButton
+            kind="icon"
+            size="small"
             aria-label="Mở menu quản trị"
             className="lg:hidden"
             icon={<MenuOutlined />}
@@ -101,13 +101,6 @@ export default function AdminLayout() {
           {current && <span className="text-sm font-medium text-stone-700">{current.label}</span>}
 
           <div className="ml-auto flex items-center gap-1.5">
-            <UiButton
-              kind="icon"
-              size="small"
-              aria-label="Xem trang khách"
-              icon={<UiIcon name="home" size={18} />}
-              onClick={() => navigate('/')}
-            />
             <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
               <button
                 type="button"

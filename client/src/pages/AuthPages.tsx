@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Button, Checkbox, Form, Input, message } from 'antd'
+import { Checkbox, Form, Input, message } from 'antd'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login, register } from '../api/api'
 import { useAuthStore } from '../store/authStore'
 import { apiErrorMessage } from '../utils/api-error'
 import AuthShell from '../components/AuthShell'
+import UiButton from '../components/UiButton'
 
 function showAuthValidationError(errorFields: { errors?: string[] }[]): void {
   const messages = errorFields.map((f) => f.errors?.[0]).filter((m): m is string => Boolean(m))
@@ -60,9 +61,9 @@ export default function LoginPage() {
             <span className="text-sm text-stone-600">Ghi nhớ đăng nhập</span>
           </Checkbox>
         </Form.Item>
-        <Button type="primary" size="large" htmlType="submit" block loading={loading}>
+        <UiButton kind="primary" size="large" htmlType="submit" block loading={loading}>
           Đăng nhập
-        </Button>
+        </UiButton>
       </Form>
 
       <div className="mt-4 text-center text-sm text-stone-500">
@@ -161,9 +162,9 @@ export function RegisterPage() {
         >
           <Input.Password size="middle" placeholder="••••••••" autoComplete="new-password" />
         </Form.Item>
-        <Button type="primary" size="large" htmlType="submit" block loading={loading}>
+        <UiButton kind="primary" size="large" htmlType="submit" block loading={loading}>
           Đăng ký
-        </Button>
+        </UiButton>
       </Form>
 
       <p className="mt-4 text-center text-sm text-stone-500">

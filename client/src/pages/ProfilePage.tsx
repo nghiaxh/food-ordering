@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Button, Form, Input, Modal, Skeleton, message } from 'antd'
+import { Form, Input, Modal, Skeleton, message } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { changePassword, getMe, updateMe } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useAuthStore } from '../store/authStore'
+import UiButton from '../components/UiButton'
 
 const PHONE_RULE = { pattern: /^0\d{9}$/, message: 'Số điện thoại phải gồm đúng 10 chữ số' }
 
@@ -83,10 +84,10 @@ export default function ProfilePage() {
             <Input />
           </Form.Item>
           <div className="mt-4 flex items-center gap-2">
-            <Button type="primary" htmlType="submit" loading={saving}>
+            <UiButton kind="primary" htmlType="submit" loading={saving}>
               Lưu thay đổi
-            </Button>
-            <Button onClick={() => setPasswordModal(true)}>Đổi mật khẩu</Button>
+            </UiButton>
+            <UiButton kind="default" onClick={() => setPasswordModal(true)}>Đổi mật khẩu</UiButton>
           </div>
         </Form>
       </div>

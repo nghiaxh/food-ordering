@@ -95,8 +95,8 @@ export default function FoodsPage() {
           <div className="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-1.5 backdrop-blur sm:-mx-6 sm:px-6 sm:py-2">
             {/* Từ `md`: danh mục và dải giá cùng một hàng, danh mục co giãn, dải giá giữ nguyên
                 không rơi xuống. Dưới `md` dải giá xuống dòng thay vì bị cắt. */}
-            <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">
-              <div className="flex min-w-0 flex-wrap gap-2 md:flex-1">
+            <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-3">
+              <div className="flex min-w-0 flex-wrap gap-2 lg:flex-1">
                 <button
                   type="button"
                   onClick={() => pickCategory()}
@@ -115,7 +115,7 @@ export default function FoodsPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1.5 md:shrink-0 md:flex-nowrap">
+              <div className="flex flex-wrap gap-1.5 lg:shrink-0 lg:flex-nowrap">
                 {PRICE_BANDS.map((band, i) => (
                   <button
                     key={band.label}
