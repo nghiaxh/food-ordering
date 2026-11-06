@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Empty, Form, Input, Radio, Skeleton, message } from 'antd'
-import { EditOutlined } from '@ant-design/icons'
+import { EditOutlined, BankOutlined, QrcodeOutlined, CheckOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { createOrder, getAddresses, saveAddress } from '../api/api'
 import useAsyncAction from '../hooks/useAsyncAction'
@@ -13,6 +13,7 @@ import { formatVND } from '../utils/format'
 import { PHONE_RULE } from '../utils/validators'
 import { apiErrorMessage } from '../utils/api-error'
 import UiButton from '../components/UiButton'
+import UiImg from '../components/UiImg'
 import FormModal from '../components/FormModal'
 
 const CHECKOUT_FORM_ID = 'checkout-form'
@@ -329,18 +330,42 @@ export default function CheckoutPage() {
                   value="COD"
                   className="!m-0 rounded-xl border p-3 transition hover:border-amber-500 [&.ant-radio-wrapper-checked]:border-amber-600 [&.ant-radio-wrapper-checked]:bg-amber-50/60"
                 >
-                  <span className="block text-sm font-semibold text-stone-900">Tiền mặt khi nhận</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-stone-500">
-                    Trả trực tiếp cho shipper khi nhận món.
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700">
+                      <BankOutlined style={{ fontSize: 18 }} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-stone-900">Tiền mặt khi nhận</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-stone-500">
+                        Trả trực tiếp cho shipper khi nhận món.
+                      </span>
+                    </span>
+                    {paymentMethod === 'COD' && (
+                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-600 text-white">
+                        <CheckOutlined style={{ fontSize: 11 }} />
+                      </span>
+                    )}
                   </span>
                 </Radio>
                 <Radio
                   value="QR"
                   className="!m-0 rounded-xl border p-3 transition hover:border-amber-500 [&.ant-radio-wrapper-checked]:border-amber-600 [&.ant-radio-wrapper-checked]:bg-amber-50/60"
                 >
-                  <span className="block text-sm font-semibold text-stone-900">Chuyển khoản VietQR</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-stone-500">
-                    Quét mã QR để điền sẵn số tiền và nội dung.
+                  <span className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-amber-700">
+                      <QrcodeOutlined style={{ fontSize: 18 }} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-stone-900">Chuyển khoản VietQR</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-stone-500">
+                        Quét mã QR để điền sẵn số tiền và nội dung.
+                      </span>
+                    </span>
+                    {paymentMethod === 'QR' && (
+                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-600 text-white">
+                        <CheckOutlined style={{ fontSize: 11 }} />
+                      </span>
+                    )}
                   </span>
                 </Radio>
               </Radio.Group>
@@ -349,18 +374,6 @@ export default function CheckoutPage() {
 
           <section className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200/60 sm:p-5">
             <h2 className="text-base font-bold text-stone-900">Lưu ý cho quán</h2>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {NOTE_SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => addNote(s)}
-                  className="cursor-pointer rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-amber-100 hover:text-amber-800"
-                >
-                  + {s}
-                </button>
-              ))}
-            </div>
             <Form.Item
               name="note"
               className="mt-3 !mb-0"
@@ -373,6 +386,21 @@ export default function CheckoutPage() {
                 placeholder="Ví dụ: ít cay, không hành, gọi trước 10 phút"
               />
             </Form.Item>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="shrink-0 text-xs text-stone-400">Gợi ý:</span>
+              <div className="flex min-w-0 flex-wrap gap-1.5">
+                {NOTE_SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => addNote(s)}
+                    className="cursor-pointer rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600 transition hover:bg-amber-100 hover:text-amber-800"
+                  >
+                    + {s}
+                  </button>
+                ))}
+              </div>
+            </div>
           </section>
         </Form>
 
@@ -394,12 +422,31 @@ export default function CheckoutPage() {
               </button>
             </div>
 
-            <div className="mt-3 rounded-xl bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-600">
-              {items
-                .slice(0, 3)
-                .map((i) => `${i.quantity}x ${i.food?.name ?? 'Món'}`)
-                .join(' · ')}
-              {items.length > 3 && ` · +${items.length - 3} món`}
+            <div className="mt-3 space-y-2.5">
+              {items.slice(0, 3).map((i) => {
+                const line = quote?.lines.find((l) => l.foodId === i.food?.id)
+                return (
+                  <div key={i.food?.id ?? i.quantity} className="flex items-center gap-2.5">
+                    <UiImg
+                      src={i.food?.imageUrl}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-lg"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-stone-700">
+                      <span className="font-semibold tabular-nums">{i.quantity}x</span>{' '}
+                      {i.food?.name ?? 'Món'}
+                    </span>
+                    {line && (
+                      <span className="shrink-0 text-sm font-semibold tabular-nums text-stone-900">
+                        {formatVND(line.lineTotal)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+              {items.length > 3 && (
+                <p className="text-xs text-stone-400">+{items.length - 3} món nữa</p>
+              )}
             </div>
 
             <div className="mt-3">{totals}</div>

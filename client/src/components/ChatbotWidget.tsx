@@ -231,8 +231,8 @@ export default function ChatbotWidget() {
     // `pointer-events-none` để vùng trống không chặn thao tác lên thẻ món phía sau.
     <div
       className={`pointer-events-none fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 flex flex-col items-end justify-end gap-3 px-4 sm:px-5 ${
-        // Thanh checkout cao ~4.75rem.
-        bottomBar ? 'pb-[6.25rem]' : 'pb-2 sm:pb-3'
+        // Thanh checkout cao ~4.75rem, chỉ trên mobile; desktop nút xuống góc.
+        bottomBar ? 'pb-[6.25rem] lg:pb-3' : 'pb-2 sm:pb-3'
       }`}
     >
       {open && (
