@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Avatar, Badge, Dropdown, Input, message, type MenuProps } from 'antd'
+import { Avatar, Badge, Dropdown, Input, Tooltip, message, type MenuProps } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import BrandMark from './BrandMark'
@@ -144,35 +144,41 @@ export default function HeaderGlobal() {
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {user && isDesktop && (
-            <Badge dot={unread > 0} color="#b45309" offset={[-4, 4]}>
+            <Tooltip title="Thông báo" placement="bottom">
+              <Badge dot={unread > 0} color="#b45309" offset={[-4, 4]}>
+                <UiButton
+                  kind="icon"
+                  size="small"
+                  aria-label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
+                  icon={<UiIcon name="bell" size={18} />}
+                  onClick={() => openDrawer('notifications')}
+                />
+              </Badge>
+            </Tooltip>
+          )}
+
+          <Tooltip title="Giỏ hàng" placement="bottom">
+            <Badge count={count} size="small" color="#b45309">
               <UiButton
                 kind="icon"
                 size="small"
-                aria-label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
-                icon={<UiIcon name="bell" size={18} />}
-                onClick={() => openDrawer('notifications')}
+                aria-label="Giỏ hàng"
+                icon={<UiIcon name="shopping-cart" size={18} />}
+                onClick={openCart}
               />
             </Badge>
-          )}
-
-          <Badge count={count} size="small" color="#b45309">
-            <UiButton
-              kind="icon"
-              size="small"
-              aria-label="Giỏ hàng"
-              icon={<UiIcon name="shopping-cart" size={18} />}
-              onClick={openCart}
-            />
-          </Badge>
+          </Tooltip>
 
           {user && isDesktop && (
-            <UiButton
-              kind="icon"
-              size="small"
-              aria-label={isAdmin ? 'Trang quản trị' : 'Đơn hàng'}
-              icon={<UiIcon name={isAdmin ? 'th-large' : 'inbox'} size={18} />}
-              onClick={() => navigate(isAdmin ? '/admin/foods' : '/orders')}
-            />
+            <Tooltip title={isAdmin ? 'Trang quản trị' : 'Đơn hàng'} placement="bottom">
+              <UiButton
+                kind="icon"
+                size="small"
+                aria-label={isAdmin ? 'Trang quản trị' : 'Đơn hàng'}
+                icon={<UiIcon name={isAdmin ? 'th-large' : 'inbox'} size={18} />}
+                onClick={() => navigate(isAdmin ? '/admin/foods' : '/orders')}
+              />
+            </Tooltip>
           )}
 
           {user ? (

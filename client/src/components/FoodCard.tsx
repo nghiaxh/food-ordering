@@ -1,4 +1,4 @@
-﻿import { message } from 'antd'
+﻿import { Tooltip, message } from 'antd'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Food } from '../types'
 import { useAuthStore } from '../store/authStore'
@@ -87,15 +87,19 @@ export default function FoodCard({ food, className = '' }: { food: Food; classNa
             </span>
           )}
         </div>
-        <button
-          type="button"
-          aria-label={food.available ? `Thêm ${food.name} vào giỏ` : `${food.name} tạm hết`}
-          disabled={!food.available}
-          onClick={() => void handleAdd()}
-          className="absolute right-2 top-2 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 text-white opacity-0 shadow-sm transition hover:bg-amber-800 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
-        >
-          <UiIcon name="plus" size={16} />
-        </button>
+        <Tooltip title={food.available ? `Thêm ${food.name} vào giỏ` : `${food.name} tạm hết`} placement="bottom">
+          <span className="absolute right-2 top-2 leading-none">
+            <button
+              type="button"
+              aria-label={food.available ? `Thêm ${food.name} vào giỏ` : `${food.name} tạm hết`}
+              disabled={!food.available}
+              onClick={() => void handleAdd()}
+              className="grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 text-white opacity-0 shadow-sm transition hover:bg-amber-800 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
+            >
+              <UiIcon name="plus" size={16} />
+            </button>
+          </span>
+        </Tooltip>
       </div>
 
       <div className="flex flex-1 flex-col p-2.5 sm:p-3">

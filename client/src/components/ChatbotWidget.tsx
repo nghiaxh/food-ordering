@@ -236,7 +236,7 @@ export default function ChatbotWidget() {
       }`}
     >
       {open && (
-        <div className="pointer-events-auto flex min-h-0 w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 max-h-[600px] max-sm:max-h-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
+        <div className="chat-open pointer-events-auto flex min-h-0 w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 max-h-[600px] max-sm:max-h-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
           <div className="flex shrink-0 items-center gap-2 bg-amber-600 px-3 py-2">
             {/* `m-0` vì reset của AntD cho `p` margin-bottom 14px, làm thanh tiêu đề cao
                 thêm 2px và đẩy chữ lệch lên so với nút đóng. */}
@@ -349,6 +349,23 @@ export default function ChatbotWidget() {
                       </div>
                     )}
 
+                    {/* Gợi ý nằm dưới tin chào đầu, chỉ ở hội thoại mới hoặc vừa làm mới. */}
+                    {index === 0 && !unavailable && messages.length <= 1 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {SUGGESTIONS.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            disabled={loading}
+                            className="cursor-pointer rounded-full bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 ring-1 ring-amber-200/70 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => handleSend(s)}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                   </div>
                 </div>
               )
@@ -372,26 +389,6 @@ export default function ChatbotWidget() {
               </button>
             )}
           </div>
-
-          {/* Gợi ý chỉ hiện khi mới mở chat hoặc vừa làm mới (chỉ còn câu chào),
-              gửi tin đầu tiên xong thì ẩn để khách tập trung vào hội thoại. */}
-          {!unavailable && messages.length <= 1 && (
-            <div className="shrink-0 overflow-x-auto border-t border-stone-100 bg-white px-2.5 pt-2">
-              <div className="flex w-max gap-1.5">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={loading}
-                    className="shrink-0 cursor-pointer rounded-full bg-amber-50 px-3 py-1.5 text-xs text-amber-800 ring-1 ring-amber-200/70 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={() => handleSend(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Nút gửi nằm trong ô nhập để khung chat đỡ một phần tử và không bó hẹp ô nhập. */}
           <div className="shrink-0 border-t border-stone-100 bg-white p-2.5">
