@@ -326,18 +326,18 @@ Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang
 màn hình. Cấu trúc từ trên xuống:
 
 - **Hero** (`components/home/HomeHero.tsx`) trải hết bề ngang vùng cuộn, chỉ hiện khi chưa có bộ
-  lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ nói địa bàn và số
-  món thật, không slogan. Cao 180/220/260px theo breakpoint.
+  lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ nói địa bàn, thời
+  gian giao và `Hôm nay ăn gì?`. Cao 180/220/260px theo breakpoint.
 - **Dải danh mục** (`CategoryRail`) là chip cao 36px có ảnh tròn 28px, cuộn ngang; chọn danh mục
   ghi `?category=` và cuộn tới lưới món.
 - **Ưu đãi hôm nay** (`DealRail`) là shelf cuộn ngang, lấy tối đa 8 món có `discountPercent > 0`
   do server tính, kèm nút "Xem tất cả" bật bộ lọc `deal=1`. Không tự đoán chương trình nào đang chạy.
 - **Sắp xếp** nằm ở hàng tiêu đề thực đơn dưới dạng nút `Sắp xếp: … ⌄` mở Dropdown radio, không
   còn Select full-width trong thanh sticky.
-- **Lưới món** 2 cột dưới `md`, 4 cột từ `md` (`grid-cols-2 md:grid-cols-4`), mỗi lượt 12 món
-  (`PAGE_SIZE` chia hết cho 2 và 4). Bấm "Tải thêm món" nối thêm 12 món thay vì phân trang rời.
+- **Lưới món** 2 cột dưới `md`, 4 cột từ `md` (`grid-cols-2 md:grid-cols-4`), phân trang 12 món
+  mỗi trang (`PAGE_SIZE` chia hết cho 2 và 4). Trang nằm trên URL (`page`), đổi bộ lọc về trang 1.
 - **Bộ lọc nằm trên URL**: `category`, `keyword`, `min`, `max`, `sort`, `diet`, `spicy`,
-  `available`, `deal`. Nhờ vậy chia sẻ được đường dẫn đã lọc, nút quay lại giữ nguyên trạng thái
+  `available`, `deal`, `page`. Nhờ vậy chia sẻ được đường dẫn đã lọc, nút quay lại giữ nguyên trạng thái
   và ô tìm kiếm trên header điều khiển được trang này. Bộ lọc nhanh (Còn món, Món chay, Không
   cay, Đang giảm) và 5 dải giá lọc trên danh sách đã tải; sắp xếp theo giá hoặc mức giảm chạy
   trên client vì dữ liệu từng món đã đủ.
@@ -383,7 +383,7 @@ Trang không lặp lại danh sách món sửa được (việc đó nằm trong
   đọc), dưới `lg` hai mục này nằm trong menu tài khoản; nút đơn hàng chỉ hiện khi đã đăng
   nhập vì `/orders` bắt buộc token. Không có menu điều hướng riêng; các đích còn lại nằm trong
   menu tài khoản và nút tắt sang khu quản trị nếu là admin.
-- **Giỏ hàng là drawer**, không phải trang: `CartDrawer` rộng `min(420px, 100vw)`, danh sách
+- **Giỏ hàng là drawer**, không phải trang: `CartDrawer` rộng `min(480px, 100vw)`, danh sách
   món sửa số lượng/xoá tại chỗ, footer sticky hiện tạm tính, giảm giá, tổng và nút sang
   `/checkout`. Xoá món có hoàn tác 5 giây; khi có món đồ uống/tráng miệng chưa trong giỏ thì
   hiện shelf "Thêm cho bữa này" với nút một chạm. Drawer chỉ mount nội dung khi mở nên không gọi

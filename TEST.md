@@ -49,7 +49,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
-| TC-MENU-01 | Xem danh sách món & Tải thêm | Trang chủ `/` | Cuộn danh sách món, bấm "Tải thêm món" | Lưới thẻ món 2 cột mobile / 4 cột từ 768px; mỗi lượt 12 món, bấm tải thêm nối tiếp chứ không chuyển trang; kèm giá, tag ăn kiêng, độ cay | | |
+| TC-MENU-01 | Xem danh sách món & phân trang | Trang chủ `/` | Cuộn danh sách món, bấm số trang | Lưới thẻ món 2 cột mobile / 4 cột từ 768px; 12 món mỗi trang, URL có `page`, đổi trang cuộn về đầu lưới; kèm giá, tag ăn kiêng, độ cay | | |
 | TC-MENU-02 | Lọc theo danh mục | Trang chủ `/` | Bấm ô danh mục có ảnh "Món Việt" trên dải danh mục | URL cập nhật `?category={id}`, ô danh mục được tô viền, lưới chỉ còn món thuộc danh mục đã chọn | | |
 | TC-MENU-03 | Tìm kiếm theo từ khóa & Giá | Trang chủ `/` | Nhập từ khóa "bún", bấm dải giá 50.000đ - 100.000đ | Lưới món lọc đúng các món chứa từ khóa trong tên và nằm trong khoảng giá; URL có `keyword`, `min`, `max` | | |
 | TC-MENU-05 | Tìm không dấu & không phân biệt hoa thường | Trang chủ `/` | Gõ "pho bo", "ca phe", "do uong" vào ô tìm kiếm | Lần lượt ra "Phở bò", "Cà phê sữa đá", các món Đồ uống; server lọc qua `TextNormalizer` (không cần PostgreSQL `unaccent`) | | |
@@ -90,7 +90,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-ORD-02 | Đặt hàng phương thức QR | Giỏ có món hợp lệ | Chọn phương thức QR, hoàn tất đặt | Tạo đơn với `payment_method = QR`, hiển thị mã QR mô phỏng chuẩn `FOOD-{id}-{total}` | | |
 | TC-ORD-03 | Giá luôn lấy từ DB | Khách gửi request API sửa đổi giá món = 1đ | Gọi `POST /api/orders` với payload can thiệp | Server tính lại toàn bộ theo giá CSDL, bỏ qua giá client gửi lên | | |
 | TC-ORD-04 | Chặn đặt món đã hết | Có món vừa chuyển `available = false` | Gửi request đặt đơn có món này | HTTP 400, thông báo món đã ngừng phục vụ, huỷ toàn bộ transaction đặt hàng | | |
-| TC-ORD-05 | Khách thanh toán đơn QR | Có đơn QR `PENDING` + `UNPAID` | Bấm "Thanh toán", xác nhận | Đơn chuyển sang `PAID`, sinh thời gian `paidAt`, gửi thông báo cho khách | | |
+| TC-ORD-05 | Khách thanh toán đơn QR | Có đơn QR `PENDING` + `UNPAID` | Bấm "Thanh toán", xác nhận | Mã QR đếm ngược 1 phút, hết hạn thì che QR và khoá nút xác nhận, bấm "Tạo mã mới" để đếm lại; xác nhận chuyển đơn sang `PAID`, sinh thời gian `paidAt`, gửi thông báo cho khách | | |
 | TC-ORD-06 | Khách tự huỷ đơn hợp lệ | Đơn `PENDING` **và** `UNPAID` | Bấm "Huỷ đơn" trong `/orders` | HTTP 200, đơn chuyển thành `CANCELLED`, gửi thông báo huỷ đơn | | |
 | TC-ORD-07 | Chặn huỷ đơn đã thanh toán | Đơn `PENDING` nhưng đã `PAID` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách tự huỷ đơn đã thu tiền | | |
 | TC-ORD-08 | Chặn huỷ đơn đã xác nhận/đang vận chuyển | Đơn `CONFIRMED` hoặc `PREPARING` | Cố gắng huỷ đơn | HTTP 400, không cho phép khách huỷ khi quán đã tiếp nhận/đang vận chuyển | | |
