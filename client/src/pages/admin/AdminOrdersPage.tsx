@@ -254,6 +254,8 @@ export default function AdminOrdersPage() {
                 render: (_, o) => {
                   const nexts = allowedNextStatuses(o.status)
                   const primaryNext = nexts.find((s) => s !== 'CANCELLED')
+                  // QR thanh toán trước nên phải đã thu tiền mới duyệt được; COD thu khi giao.
+                  const blockedByQr = primaryNext === 'CONFIRMED' && o.paymentMethod === 'QR' && o.paymentStatus === 'UNPAID'
                   return (
                     <div className="flex items-center gap-1.5">
                       {primaryNext && (
@@ -262,12 +264,17 @@ export default function AdminOrdersPage() {
                           size="small"
                           className="text-xs font-medium"
                           loading={busyIds.has(o.id)}
+                          disabled={blockedByQr}
+                          title={blockedByQr ? 'Khách chưa thanh toán' : undefined}
                           onClick={() => void changeStatus(o.id, primaryNext)}
                         >
                           {primaryNext === 'CONFIRMED' && 'Duyệt đơn'}
                           {primaryNext === 'PREPARING' && 'Giao hàng'}
                           {primaryNext === 'COMPLETED' && 'Hoàn thành'}
                         </UiButton>
+                      )}
+                      {blockedByQr && (
+                        <span className="text-xs text-stone-500">Chờ khách thanh toán</span>
                       )}
                       <UiButton kind="default" size="small" className="text-xs" icon={<EyeOutlined />} onClick={() => setDetailId(o.id)}>
                         Chi tiết
@@ -332,6 +339,7 @@ export default function AdminOrdersPage() {
                   ...allowedNextStatuses(detail.status).map((s) => ({
                     label: ORDER_STATUS_LABEL[s],
                     value: s,
+                    disabled: s === 'CONFIRMED' && detail.paymentMethod === 'QR' && detail.paymentStatus === 'UNPAID',
                   })),
                 ]}
               />
