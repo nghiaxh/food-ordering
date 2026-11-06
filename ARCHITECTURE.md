@@ -64,7 +64,7 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
   thực), giỏ được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
 - Khách vãng lai **không có giỏ local**: nút "Thêm vào giỏ" bị khoá, hover hoặc focus hiện
   tooltip "Đăng nhập để thêm món vào giỏ". Giỏ mở thành **drawer bên phải** từ nút giỏ trên
-  header hoặc thanh giỏ ghim đáy; khách chưa đăng nhập được đưa sang `/login` kèm cờ `openCart`
+  header; khách chưa đăng nhập được đưa sang `/login` kèm cờ `openCart`
   và quay lại đúng trang, mở sẵn drawer. `/checkout` nằm trong `RequireAuth`, còn `/cart` chỉ
   chuyển hướng về `/checkout`. `cartStore.add` trả `false` khi chưa đăng nhập như lớp phòng thủ
   thứ hai.
@@ -328,7 +328,7 @@ màn hình. Cấu trúc từ trên xuống:
 - **Hero** (`components/home/HomeHero.tsx`) trải hết bề ngang vùng cuộn, chỉ hiện khi chưa có bộ
   lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ nói địa bàn, thời
   gian giao và `Hôm nay ăn gì?`. Cao 180/220/260px theo breakpoint.
-- **Dải danh mục** (`CategoryRail`) là chip cao 36px có ảnh tròn 28px, cuộn ngang; chọn danh mục
+- **Dải danh mục** (`CategoryRail`) là chip cao 40px có ảnh tròn 32px, cuộn ngang; chọn danh mục
   ghi `?category=` và cuộn tới lưới món.
 - **Ưu đãi hôm nay** (`DealRail`) là shelf cuộn ngang, lấy tối đa 8 món có `discountPercent > 0`
   do server tính, kèm nút "Xem tất cả" bật bộ lọc `deal=1`. Không tự đoán chương trình nào đang chạy.
@@ -351,8 +351,9 @@ màn hình. Cấu trúc từ trên xuống:
 
 Thẻ món giữ mật độ cũ: ảnh 16:10, đệm `p-2.5` trên mobile và `p-3` từ `sm`, tối đa 2 nhãn.
 Giá dùng `food.discountedPrice ?? food.price` và hiện giá gốc gạch ngang khi đang giảm. Nút
-"Thêm vào giỏ" **luôn hiện**: khách đã đăng nhập thêm xong chỉ thấy toast và ở lại trang chủ;
-khách vãng lai được đưa sang `/login` rồi quay lại đúng bộ lọc. Cả thẻ mở trang chi tiết.
+tròn dấu cộng trên ảnh thêm nhanh: khách đã đăng nhập thêm xong chỉ thấy toast và ở lại trang chủ;
+khách vãng lai được đưa sang `/login` rồi quay lại đúng bộ lọc. Cả thẻ mở trang chi tiết. Nhãn
+ưu đãi viết gọn thành `Ưu đãi hôm nay` / `Ưu đãi cuối tuần` qua `discountText` dùng chung.
 
 `/foods/:id` là **trang độc lập** trong `DefaultLayout`, không còn là route con hay Drawer.
 Trang có hai cột từ `lg`: ảnh `4/3` (mobile) hoặc `2/1` (từ `sm`), khối thông tin món và đánh
@@ -409,8 +410,8 @@ Cụm widget bám trang: `fixed inset-x-0 bottom-0 top-[var(--header-h)]` cùng 
 chat `flex-1` nên tự co theo chiều cao màn hình thay vì hard-code. Vùng trống của cụm mang
 `pointer-events-none` nên không chặn thao tác lên thẻ món phía sau. Trạng thái mở/đóng nằm
 trong `store/uiStore.ts`, nhờ vậy hero và empty state mở chat được mà không cần đi qua nút nổi.
-Launcher là `UiButton` dạng `fab` 64px; `useHasBottomBar()` trả `cart | checkout | detail | null`
-để launcher nhường chỗ cho thanh giỏ, thanh đặt món hoặc thanh mua hàng của trang chi tiết.
+Launcher là `UiButton` dạng `fab` 64px; `useHasBottomBar()` trả `checkout | detail | null`
+để launcher nhường chỗ cho thanh đặt món hoặc thanh mua hàng của trang chi tiết.
 
 Bố cục khung chat:
 

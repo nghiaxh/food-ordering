@@ -43,7 +43,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-AUTH-10 | Đổi mật khẩu hợp lệ | Đã đăng nhập | Nhập mật khẩu hiện tại đúng và mật khẩu mới ≥ 8 ký tự | HTTP 200, mật khẩu mới có hiệu lực ngay | | |
 | TC-AUTH-11 | Đổi mật khẩu với pass cũ sai | Đã đăng nhập | Nhập mật khẩu cũ sai | HTTP 400, thông báo "Mật khẩu hiện tại không đúng", giữ nguyên pass cũ | | |
 | TC-AUTH-12 | Đăng xuất | Đã đăng nhập | Nhấn nút "Đăng xuất" trên menu | Xoá token khỏi storage, giỏ hàng về rỗng (không còn giỏ local), bảo vệ các route yêu cầu đăng nhập | | |
-| TC-AUTH-13 | Khách mở giỏ khi chưa đăng nhập | Chưa đăng nhập | Bấm nút giỏ trên header hoặc thanh giỏ ghim đáy | Chuyển sang `/login`; sau khi đăng nhập quay lại đúng trang đang xem và **drawer giỏ tự mở** | | |
+| TC-AUTH-13 | Khách mở giỏ khi chưa đăng nhập | Chưa đăng nhập | Bấm nút giỏ trên header | Chuyển sang `/login`; sau khi đăng nhập quay lại đúng trang đang xem và **drawer giỏ tự mở** | | |
 
 ### 1.2.2. Khám phá Thực đơn, Combo & Tìm kiếm (UC06 – UC08)
 
@@ -68,12 +68,12 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
-| TC-CART-01 | Thêm món vào giỏ | Đã đăng nhập, món còn phục vụ | Bấm "Thêm vào giỏ" trên thẻ món ở trang chủ | Toast "Đã thêm ... vào giỏ", badge giỏ tăng, thanh giỏ ghim đáy hiện số món/phần; **không** mở drawer và vẫn ở trang chủ | | |
+| TC-CART-01 | Thêm món vào giỏ | Đã đăng nhập, món còn phục vụ | Bấm nút dấu cộng trên ảnh thẻ món ở trang chủ | Toast "Đã thêm ... vào giỏ", badge giỏ tăng; **không** mở drawer và vẫn ở trang chủ | | |
 | TC-CART-02 | Tăng số lượng món trùng | Đã đăng nhập, giỏ đã có Phở bò (1) | Bấm thêm Phở bò lần nữa | Giỏ cập nhật dòng Phở bò thành số lượng 2 (không tạo dòng trùng lặp) | | |
 | TC-CART-04 | Cập nhật số lượng / Xoá dòng trong drawer | Đã đăng nhập, giỏ có món | Mở drawer giỏ, tăng/giảm số lượng hoặc bấm xoá dòng | Drawer trượt từ bên phải; tổng tiền cập nhật theo báo giá mới nhất; số cũ vẫn hiện kèm nhãn "Đang cập nhật giá..." thay vì nháy trắng | | |
 | TC-CART-05 | Khuyến mãi tự động (Auto-promo) | Đã đăng nhập, thứ Bảy/Chủ Nhật, có CT "Cuối tuần mát lạnh" (-20% đồ uống) | Thêm 1 đồ uống và 1 món ăn vào giỏ | Đồ uống được giảm 20%, món ăn giữ nguyên giá; chiết khấu hiển thị theo dòng | | |
-| TC-CART-06 | Khách chưa đăng nhập không thêm được món | Chưa đăng nhập | Hover/focus (Tab) nút "Thêm vào giỏ" rồi bấm | Nút mờ kèm tooltip "Đăng nhập để thêm món vào giỏ"; bấm không thêm món và không mở chi tiết món; giỏ header vẫn 0 | | |
-| TC-CART-07 | Món hết khi chưa đăng nhập | Chưa đăng nhập, món có `available = false` | Xem thẻ món | Nút hiện "Hết món", bị vô hiệu hoá và **không** có tooltip đăng nhập | | |
+| TC-CART-06 | Khách chưa đăng nhập không thêm được món | Chưa đăng nhập | Focus (Tab) nút dấu cộng rồi bấm | Nút vô hiệu hoá, bấm không thêm món và không mở chi tiết món; giỏ header vẫn 0 | | |
+| TC-CART-07 | Món hết khi chưa đăng nhập | Chưa đăng nhập, món có `available = false` | Xem thẻ món | Nút dấu cộng vô hiệu hoá, thẻ hiện nhãn "Hết món" trên ảnh | | |
 | TC-CART-08 | Báo giá khớp giỏ khi thêm từ chatbot | Đã đăng nhập, giỏ có 1 món có khuyến mãi | Mở chatbot, thêm món thứ hai bằng nút giỏ trên thẻ món, rồi tăng/giảm số lượng liên tục | Không có dòng "Hết món" giả; thành tiền từng dòng, tổng giảm và tổng thanh toán khớp báo giá mới nhất; request quote cũ bị abort, không ghi đè số mới | | |
 | TC-CART-09 | Thêm từ trang chi tiết mở drawer | Đã đăng nhập, đang ở `/foods/:id` | Chọn số lượng rồi bấm "Thêm vào giỏ" | Toast xác nhận và drawer giỏ **tự mở** để khách thấy món vừa thêm | | |
 | TC-CART-10 | Giỏ trống | Đã đăng nhập, giỏ rỗng | Bấm nút giỏ trên header | Drawer mở, hiện trạng thái rỗng với nút "Khám phá thực đơn"; không gọi quote | | |
@@ -703,11 +703,11 @@ test.describe('E2E - Luồng Đặt món & Thanh toán', () => {
   test('Thêm món vào giỏ và đặt hàng COD thành công', async ({ page }) => {
     // 1. Thêm món Phở bò vào giỏ từ thẻ ở trang chủ (chỉ hiện toast)
     const phoCard = page.locator('.food-card', { hasText: 'Phở bò' }).first();
-    await phoCard.locator('button', { hasText: 'Thêm vào giỏ' }).click();
+    await phoCard.locator('button[aria-label^="Thêm"]').first().click();
 
-    // 2. Mở drawer giỏ rồi sang trang đặt món
-    await page.click('button:has-text("Xem giỏ")');
-    await page.click('button:has-text("Tiến hành đặt món")');
+    // 2. Mở drawer giỏ từ nút giỏ trên header rồi sang trang đặt món
+    await page.click('header button[aria-label="Giỏ hàng"]');
+    await page.click('button:has-text("Đặt món")');
     await expect(page).toHaveURL('/checkout');
     await expect(page.locator('text=Phở bò')).toBeVisible();
 

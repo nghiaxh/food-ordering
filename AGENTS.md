@@ -126,9 +126,9 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
 - **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, có hero ngắn, dải danh mục ảnh và
   "Ưu đãi hôm nay" trước lưới món. Chi tiết món là **trang riêng** `/foods/:id` trong
   `DefaultLayout` (không còn Drawer hay route con). Bộ lọc của trang chủ nằm trên URL (`category`,
-  `keyword`, `min`, `max`, `sort`, `diet`, `spicy`, `available`, `deal`), đọc bằng
-  `useSearchParams`. Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi lượt 12 món và nút "Tải
-  thêm món" nối tiếp. Vị trí cuộn lưới lưu ở `sessionStorage['menu-scroll']`, nút quay lại của
+  `keyword`, `min`, `max`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`), đọc bằng
+  `useSearchParams`. Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi trang 12 món và phân trang
+  số trang. Vị trí cuộn lưới lưu ở `sessionStorage['menu-scroll']`, nút quay lại của
   trang chi tiết dùng `state.from` để giữ nguyên query.
 - **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
   `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
@@ -221,8 +221,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
   `AdminLayout` (menu trái 5 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
   báo trong `AdminLayout`, đừng gắn vào `DefaultLayout`.
-- **`useHasBottomBar` tính theo đường dẫn**: `/` có thanh giỏ khi giỏ không rỗng, `/checkout`
-  có thanh đặt món, `/foods/*` có thanh thêm món trên mobile. Trang mới có thanh cố định đáy
+- **`useHasBottomBar` tính theo đường dẫn**: `/checkout` có thanh đặt món,
+  `/foods/*` có thanh thêm món trên mobile. Trang mới có thanh cố định đáy
   thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh che. Hai drawer giỏ/thông báo
   dùng `activeDrawer` trong `uiStore` để không chồng mask.
 - `JwtFilter` nuốt exception không hợp lệ (coi như chưa đăng nhập) - đừng log token.
