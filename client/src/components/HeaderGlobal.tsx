@@ -239,7 +239,7 @@ export default function HeaderGlobal() {
     <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/95 backdrop-blur-xl">
       {/* Desktop: một hàng, ô tìm kiếm flex-1. Mobile: hai hàng, tìm kiếm phía trái, phụ
           phía phải hàng dưới. */}
-      <div className="mx-auto flex min-h-[3.25rem] max-w-[1600px] flex-wrap items-center gap-2 px-4 sm:gap-3 sm:px-5 md:flex-nowrap">
+      <div className="mx-auto flex min-h-[3.25rem] max-w-[1600px] flex-wrap items-center gap-1.5 px-3 sm:gap-2 sm:px-4 md:gap-3 md:flex-nowrap md:px-5">
         {/* Hàng chính desktop */}
         <UiButton
           kind="icon"
@@ -269,7 +269,7 @@ export default function HeaderGlobal() {
           placeholder="Tìm món theo tên..."
           allowClear
           aria-label="Tìm món"
-          className="min-w-0 flex-1 lg:max-w-md"
+          className="min-w-0 flex-1 md:max-w-sm lg:max-w-md"
         />
 
         {/* Cụm phải desktop: chuông, giỏ, đơn hàng, tài khoản. Thứ tự cố định để nhóm nút
@@ -310,7 +310,7 @@ export default function HeaderGlobal() {
         </div>
 
         {/* Cụm phải mobile: giỏ + đăng nhập, gọn hơn để không bóp tìm kiếm */}
-        <div className="flex shrink-0 items-center gap-2 md:hidden">
+        <div className="flex shrink-0 items-center gap-1.5 md:hidden">
           <Badge count={count} size="small" color="#d97706">
             <UiButton
               kind="icon"
@@ -345,7 +345,7 @@ export default function HeaderGlobal() {
         </div>
 
         {/* Mobile hàng thứ hai: chuông + đơn hàng */}
-        <div className="flex w-full items-center justify-end gap-2 md:hidden">
+        <div className="flex w-full items-center justify-end gap-2 pt-1 md:hidden">
           {notificationsButton}
         </div>
       </div>
