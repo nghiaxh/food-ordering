@@ -36,7 +36,7 @@ export default function FoodDetailPage() {
   const [open, setOpen] = useState(true)
   const user = useAuthStore((s) => s.user)
   // Khách chưa đăng nhập không có giỏ: nút khoá và tooltip hướng dẫn đăng nhập.
-  const canAdd = user !== null
+  const canAdd = user !== null && user.role !== 'ADMIN'
   const add = useCartStore((s) => s.add)
 
   const close = () => setOpen(false)
@@ -134,7 +134,6 @@ export default function FoodDetailPage() {
       // Không dùng `size` của Drawer: giá trị đó đè lên `width` và làm panel tràn hết
       // màn hình. Chỉ cần `width`, Drawer tự co về 100% khi cửa sổ hẹp hơn.
       width={720}
-      title={food ? food.name : 'Chi tiết món'}
       styles={{ body: { paddingTop: 16 } }}
     >
       {foodLoading ? (
@@ -163,7 +162,9 @@ export default function FoodDetailPage() {
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+          <h2 className="mt-4 text-xl font-bold tracking-tight text-stone-900">{food.name}</h2>
+
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               {stats.count > 0 && (
                 <div className="flex items-center gap-2 text-sm text-stone-500">
@@ -245,7 +246,7 @@ export default function FoodDetailPage() {
             <p className="min-w-0 flex-1 text-sm font-semibold tabular-nums text-stone-700">
               {formatVND(Number(food.price) * qty)}
             </p>
-            <LoginTooltip active={!canAdd && !unavailable}>
+            <LoginTooltip active={!canAdd && !unavailable} hint={user?.role === 'ADMIN' ? 'Tài khoản quản trị không đặt món' : undefined}>
               <UiButton
                 kind="primary-lg"
                 disabled={unavailable || !canAdd}

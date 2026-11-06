@@ -188,6 +188,18 @@ export default function CartPage() {
     )
   }
 
+  if (user?.role === 'ADMIN') {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+        <Empty description="Tài khoản quản trị không thể đặt món">
+          <Link to="/admin">
+            <UiButton kind="primary">Về trang quản trị</UiButton>
+          </Link>
+        </Empty>
+      </div>
+    )
+  }
+
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-20 text-center">

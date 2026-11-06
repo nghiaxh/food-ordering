@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from 'react'
-import { Button, Form, Input, Tooltip, message } from 'antd'
+import { Form, Input, Tooltip, message } from 'antd'
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { adminDeleteCategory, adminSaveCategory, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
@@ -161,13 +161,13 @@ export default function AdminCategoriesPage() {
                   </p>
                   <p className="mt-0.5 truncate text-xs text-stone-400">/{c.slug}</p>
                   <div className="mt-4 flex items-center gap-2">
-                    <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(c)} className="flex-1">
+                    <UiButton kind="default" size="small" icon={<EditOutlined />} onClick={() => openEdit(c)} className="flex-1">
                       Sửa
-                    </Button>
+                    </UiButton>
                     <Tooltip title={count > 0 ? `Còn ${count} món, không thể xóa` : undefined}>
-                      <Button
+                      <UiButton
+                        kind="danger"
                         size="small"
-                        danger
                         icon={<DeleteOutlined />}
                         loading={busyId === c.id}
                         disabled={count > 0}
@@ -179,7 +179,7 @@ export default function AdminCategoriesPage() {
                         }
                       >
                         Xóa
-                      </Button>
+                      </UiButton>
                     </Tooltip>
                   </div>
                 </div>
@@ -199,9 +199,9 @@ export default function AdminCategoriesPage() {
             }
             action={
               data?.length ? undefined : (
-                <Button type="primary" onClick={openCreate}>
+                <UiButton kind="primary" onClick={openCreate}>
                   Tạo danh mục
-                </Button>
+                </UiButton>
               )
             }
           />
