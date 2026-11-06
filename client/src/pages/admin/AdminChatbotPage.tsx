@@ -12,6 +12,12 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
 }
 
+const MODEL_OPTIONS = [
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+]
+
 /** Một tin trong luồng chat — cùng ngôn ngữ bong bóng với widget chat ngoài site. */
 function Bubble({ message }: { message: ChatHistoryMessage }) {
   const [expanded, setExpanded] = useState(false)
@@ -81,8 +87,10 @@ export default function AdminChatbotPage() {
     // Cấu hình cũ có thể đang để 8/10; giao diện chỉ cho tối đa 5 thẻ mỗi lượt.
     setMaxSuggestions(Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5)))
     setExtraRules(settings.extra_rules ?? '')
-    setProvider(settings.provider ?? 'gemini')
-    setModel(settings.model ?? '')
+    // Giao diện chỉ còn Gemini; cấu hình cũ đang là OpenAI thì chuyển về Gemini cho nhất quán.
+    // Server vẫn giữ nhánh OpenAI để cấu hình trong .env cũ không vỡ.
+    setProvider(settings.provider === 'gemini' ? 'gemini' : 'gemini')
+    setModel(settings.model ?? 'gemini-2.0-flash')
   }, [data])
 
   const sessions = useMemo(() => {
@@ -163,22 +171,23 @@ export default function AdminChatbotPage() {
               className="mt-2 w-full"
               value={provider}
               onChange={setProvider}
-              options={[
-                { label: 'Google Gemini', value: 'gemini' },
-                { label: 'OpenAI', value: 'openai' },
-              ]}
+              options={[{ label: 'Google Gemini', value: 'gemini' }]}
             />
           </div>
           <div>
             <label htmlFor="ai-model" className="block text-sm font-medium text-stone-700">
               Tên mô hình
             </label>
-            <Input
+            <Select
               id="ai-model"
-              className="mt-2"
+              className="mt-2 w-full"
               value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder={provider === 'openai' ? 'gpt-4o-mini' : 'gemini-2.0-flash'}
+              onChange={setModel}
+              options={
+                model && !MODEL_OPTIONS.some((o) => o.value === model)
+                  ? [...MODEL_OPTIONS, { value: model, label: model }]
+                  : MODEL_OPTIONS
+              }
             />
           </div>
           <div>
