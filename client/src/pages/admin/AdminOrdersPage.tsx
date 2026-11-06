@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Checkbox, Drawer, Form, Input, InputNumber, Segmented, Select, Table, message } from 'antd'
+import { Checkbox, Drawer, Form, Input, InputNumber, Segmented, Select, Table, Tooltip, message } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import { adminDeleteOrder, adminGetOrders, adminGetUsers, adminSaveOrder, adminUpdateOrderPayment, adminUpdateOrderStatus, getFoods, type AdminOrderPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
@@ -259,22 +259,22 @@ export default function AdminOrdersPage() {
                   return (
                     <div className="flex items-center gap-1.5">
                       {primaryNext && (
-                        <UiButton
-                          kind="primary"
-                          size="small"
-                          className="text-xs font-medium"
-                          loading={busyIds.has(o.id)}
-                          disabled={blockedByQr}
-                          title={blockedByQr ? 'Khách chưa thanh toán' : undefined}
-                          onClick={() => void changeStatus(o.id, primaryNext)}
-                        >
-                          {primaryNext === 'CONFIRMED' && 'Duyệt đơn'}
-                          {primaryNext === 'PREPARING' && 'Giao hàng'}
-                          {primaryNext === 'COMPLETED' && 'Hoàn thành'}
-                        </UiButton>
-                      )}
-                      {blockedByQr && (
-                        <span className="text-xs text-stone-500">Chờ khách thanh toán</span>
+                        <Tooltip title={blockedByQr ? 'Khách chưa thanh toán' : undefined}>
+                          <span className="inline-flex">
+                            <UiButton
+                              kind="primary"
+                              size="small"
+                              className="text-xs font-medium"
+                              loading={busyIds.has(o.id)}
+                              disabled={blockedByQr}
+                              onClick={() => void changeStatus(o.id, primaryNext)}
+                            >
+                              {primaryNext === 'CONFIRMED' && 'Duyệt đơn'}
+                              {primaryNext === 'PREPARING' && 'Giao hàng'}
+                              {primaryNext === 'COMPLETED' && 'Hoàn thành'}
+                            </UiButton>
+                          </span>
+                        </Tooltip>
                       )}
                       <UiButton kind="default" size="small" className="text-xs" icon={<EyeOutlined />} onClick={() => setDetailId(o.id)}>
                         Chi tiết
