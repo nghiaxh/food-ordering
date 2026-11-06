@@ -50,6 +50,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/reviews/**", "/api/uploads/**").permitAll()
                 .requestMatchers("/api/chatbot/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // Khách mới được thêm giỏ và đặt đơn; tài khoản quản trị dùng luồng /api/admin/orders.
+                .requestMatchers("/api/cart/**", "/api/orders", "/api/orders/**").hasRole("CUSTOMER")
                 .anyRequest().authenticated())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
