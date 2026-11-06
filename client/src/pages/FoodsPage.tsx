@@ -1,15 +1,25 @@
-import { useEffect, useState } from 'react'
-import { Empty, Pagination, message } from 'antd'
-import { useNavigate, Outlet, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Empty, Select, message } from 'antd'
+import { useSearchParams } from 'react-router-dom'
 import { getCategories, getFoods } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useCartStore } from '../store/cartStore'
-import { formatVND } from '../utils/format'
+import { useUiStore } from '../store/uiStore'
+import type { Food } from '../types'
 import FoodCard from '../components/FoodCard'
 import UiButton from '../components/UiButton'
+import UiIcon from '../components/UiIcon'
+import HomeHero from '../components/home/HomeHero'
+import CategoryRail from '../components/home/CategoryRail'
+import DealRail from '../components/home/DealRail'
 
-/** Số món mỗi trang. Thực đơn hiện vài chục món nên phân trang phía client là đủ. */
+/** Số món mỗi lượt. 12 chia hết cho 2 và 4 cột nên không lượt nào lẻ hàng. */
 const PAGE_SIZE = 12
+
+/** 2 cột trên mobile, 4 cột từ `md`, giữ đúng mật độ hiện tại. */
+const GRID_COLS = 'grid-cols-2 md:grid-cols-4'
+
+const MENU_SCROLL_KEY = 'menu-scroll'
 
 /** Khoảng giá dạng sẵn dễ chạm hơn hai ô nhập số, vẫn là "lọc khoảng giá" của Bảng 2.22. */
 const PRICE_BANDS = [
@@ -20,8 +30,12 @@ const PRICE_BANDS = [
   { label: 'Trên 150k', min: 150000, max: undefined },
 ]
 
-/** 2 cột trên mobile, 4 cột từ `md`; PAGE_SIZE 12 chia hết cho cả hai nên không trang nào lẻ hàng. */
-const GRID_COLS = 'grid-cols-2 md:grid-cols-4'
+const SORTS = [
+  { value: 'default', label: 'Mặc định' },
+  { value: 'price-asc', label: 'Giá thấp đến cao' },
+  { value: 'price-desc', label: 'Giá cao đến thấp' },
+  { value: 'discount', label: 'Giảm nhiều nhất' },
+]
 
 function num(value: string | null): number | undefined {
   if (value === null) return undefined
@@ -29,26 +43,51 @@ function num(value: string | null): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+function priceOf(food: Food): number {
+  return food.discountedPrice ?? food.price
+}
+
+function hasDietTag(food: Food, tag: string): boolean {
+  return food.dietaryTags
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .includes(tag)
+}
+
 /**
- * Trang chủ kiểu kiosk: combo tiết kiệm, chọn nhanh theo danh mục rồi mới tới thực đơn.
- * Bộ lọc của thực đơn nằm trên URL nên chia sẻ được đường dẫn và nút quay lại của trình duyệt
- * không mất trạng thái đang xem.
+ * Trang chủ kiểu kiosk: hero ngắn, danh mục có ảnh, ưu đãi thật từ server, rồi mới tới
+ * thực đơn. Bộ lọc nằm trên URL nên chia sẻ được và nút quay lại không mất trạng thái.
+ *
+ * Server lọc theo danh mục, khoảng giá và từ khóa; các bộ lọc nhanh còn lại (chay, không cay,
+ * còn món, đang giảm) lọc trên danh sách đã tải vì dữ liệu đã có đủ trong từng món.
  */
 export default function FoodsPage() {
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const [page, setPage] = useState(1)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const categoryId = num(params.get('category'))
   const keyword = params.get('keyword') ?? undefined
   const minPrice = num(params.get('min'))
   const maxPrice = num(params.get('max'))
+  const sort = params.get('sort') ?? 'default'
+  const diet = params.get('diet') ?? undefined
+  const noSpicy = params.get('spicy') === '0'
+  const onlyAvailable = params.get('available') === '1'
+  const onlyDeals = params.get('deal') === '1'
 
-  const count = useCartStore((s) => s.count())
-  const total = useCartStore((s) => s.total())
+  const itemCount = useCartStore((s) => s.items.length)
+  const portionCount = useCartStore((s) => s.count())
+  const openDrawer = useUiStore((s) => s.openDrawer)
+  const openChat = useUiStore((s) => s.openChat)
 
   const { data: categories } = useAsyncData((signal) => getCategories(signal), [])
-  const { data: foods, loading, error } = useAsyncData(
+  const {
+    data: foods,
+    loading,
+    error,
+    refresh,
+  } = useAsyncData(
     (signal) => getFoods({ categoryId, keyword, minPrice, maxPrice }, signal),
     [categoryId, keyword, minPrice, maxPrice],
   )
@@ -57,13 +96,6 @@ export default function FoodsPage() {
     if (error) message.error('Không tải được thực đơn')
   }, [error])
 
-  const totalPages = Math.max(1, Math.ceil((foods?.length ?? 0) / PAGE_SIZE))
-  const currentPage = Math.min(page, totalPages)
-  useEffect(() => {
-    if (page !== currentPage) setPage(currentPage)
-  }, [page, currentPage])
-  const visible = (foods ?? []).slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-
   const patch = (next: Record<string, string | undefined>) => {
     const merged = new URLSearchParams(params)
     for (const [key, value] of Object.entries(next)) {
@@ -71,51 +103,149 @@ export default function FoodsPage() {
       else merged.set(key, value)
     }
     setParams(merged)
-    setPage(1)
   }
+
+  const clearFilters = () => setParams(new URLSearchParams())
+
+  const filtersActive = Boolean(
+    categoryId !== undefined ||
+      keyword ||
+      minPrice !== undefined ||
+      maxPrice !== undefined ||
+      sort !== 'default' ||
+      diet ||
+      noSpicy ||
+      onlyAvailable ||
+      onlyDeals,
+  )
 
   const pickCategory = (id?: number) => {
     patch({ category: id?.toString() })
     document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
+  const filtered = useMemo(() => {
+    let list = foods ?? []
+    if (diet) list = list.filter((f) => hasDietTag(f, diet))
+    if (noSpicy) list = list.filter((f) => f.spicyLevel === 0)
+    if (onlyAvailable) list = list.filter((f) => f.available)
+    if (onlyDeals) list = list.filter((f) => (f.discountPercent ?? 0) > 0)
 
-  // Chip thấp (32px) để thanh lọc không chiếm chỗ của lưới; vẫn đủ vùng chạm.
-  // Danh mục luôn flex-wrap: chip tràn xuống hàng thay vì cắt hoặc hiện scrollbar.
-  const chipBtn = (active: boolean) =>
+    const sorted = [...list]
+    if (sort === 'price-asc') sorted.sort((a, b) => priceOf(a) - priceOf(b))
+    else if (sort === 'price-desc') sorted.sort((a, b) => priceOf(b) - priceOf(a))
+    else if (sort === 'discount') {
+      sorted.sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0))
+    }
+    return sorted
+  }, [foods, diet, noSpicy, onlyAvailable, onlyDeals, sort])
+
+  // Đổi bộ lọc thì quay về lượt đầu, tránh đang ở "Tải thêm" mà danh sách ngắn lại.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [categoryId, keyword, minPrice, maxPrice, sort, diet, noSpicy, onlyAvailable, onlyDeals])
+
+  // Quay lại từ trang chi tiết: trả đúng vị trí cuộn của bảng món sau khi dữ liệu đã về.
+  useEffect(() => {
+    if (loading || !foods) return
+    const saved = sessionStorage.getItem(MENU_SCROLL_KEY)
+    const scroller = scrollerRef.current
+    if (!saved || !scroller) return
+    sessionStorage.removeItem(MENU_SCROLL_KEY)
+    const top = Number(saved)
+    if (Number.isFinite(top)) requestAnimationFrame(() => scroller.scrollTo({ top }))
+  }, [loading, foods])
+
+  const visible = filtered.slice(0, visibleCount)
+  const deals = (foods ?? []).filter((f) => (f.discountPercent ?? 0) > 0).slice(0, 4)
+  const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
+  const from = `/${params.toString() ? `?${params.toString()}` : ''}`
+
+  const chipClass = (active: boolean) =>
     `inline-flex min-h-8 cursor-pointer items-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
-      active ? 'bg-amber-600 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
+      active
+        ? 'bg-amber-700 text-white'
+        : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
     }`
 
   return (
-    <div className="kiosk-scroll h-[calc(100dvh-3.25rem)] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
-      <div className="mx-auto max-w-[1600px] px-3 pb-8 sm:px-6">
-        <section id="thuc-don" className="py-3 sm:py-4">
-          <div className="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-1.5 backdrop-blur sm:-mx-6 sm:px-6 sm:py-2">
-            {/* Từ `md`: danh mục và dải giá cùng một hàng, danh mục co giãn, dải giá giữ nguyên
-                không rơi xuống. Dưới `md` dải giá xuống dòng thay vì bị cắt. */}
-            <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-3">
-              <div className="flex min-w-0 flex-wrap gap-2 lg:flex-1">
+    <div
+      ref={scrollerRef}
+      className="kiosk-scroll h-[calc(100dvh-var(--header-h))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+    >
+      <div className="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
+        {!filtersActive && (
+          <div className="pt-3 sm:pt-4">
+            <HomeHero
+              foodCount={foods?.length ?? 0}
+              categoryCount={categories?.length ?? 0}
+              onBrowse={() =>
+                document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+              onAsk={openChat}
+            />
+          </div>
+        )}
+
+        <div className="mt-3 sm:mt-4">
+          <CategoryRail categories={categories ?? []} activeId={categoryId} onPick={pickCategory} />
+        </div>
+
+        {deals.length > 0 && !onlyDeals && (
+          <div className="mt-4 sm:mt-5">
+            <DealRail foods={deals} from={from} onSeeAll={() => patch({ deal: '1' })} />
+          </div>
+        )}
+
+        <section id="thuc-don" className="scroll-mt-2 pt-4 sm:pt-5">
+          <div className="flex items-end justify-between gap-3">
+            <h2 className="text-lg font-bold tracking-tight text-stone-900">
+              {keyword ? `Kết quả cho “${keyword}”` : 'Thực đơn'}
+              <span className="ml-2 text-sm font-normal text-stone-500">{filtered.length} món</span>
+            </h2>
+            {filtersActive && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="shrink-0 cursor-pointer text-xs font-semibold text-amber-800 hover:underline"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
+          <div className="sticky top-0 z-10 -mx-3 mt-2 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                 <button
                   type="button"
-                  onClick={() => pickCategory()}
-                  className={chipBtn(categoryId === undefined)}
+                  className={chipClass(onlyAvailable)}
+                  onClick={() => patch({ available: onlyAvailable ? undefined : '1' })}
                 >
-                  Tất cả
+                  Còn món
                 </button>
-                {(categories ?? []).map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => pickCategory(c.id)}
-                    className={chipBtn(categoryId === c.id)}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-1.5 lg:shrink-0 lg:flex-nowrap">
+                <button
+                  type="button"
+                  className={chipClass(diet === 'chay')}
+                  onClick={() => patch({ diet: diet === 'chay' ? undefined : 'chay' })}
+                >
+                  Món chay
+                </button>
+                <button
+                  type="button"
+                  className={chipClass(noSpicy)}
+                  onClick={() => patch({ spicy: noSpicy ? undefined : '0' })}
+                >
+                  Không cay
+                </button>
+                <button
+                  type="button"
+                  className={chipClass(onlyDeals)}
+                  onClick={() => patch({ deal: onlyDeals ? undefined : '1' })}
+                >
+                  Đang giảm
+                </button>
+                <span className="mx-1 hidden w-px self-stretch bg-stone-200 sm:block" />
                 {PRICE_BANDS.map((band, i) => (
                   <button
                     key={band.label}
@@ -126,17 +256,35 @@ export default function FoodsPage() {
                         max: band.max?.toString(),
                       })
                     }
-                    className={chipBtn(activePriceBand === i)}
+                    className={chipClass(activePriceBand === i)}
                   >
                     {band.label}
                   </button>
                 ))}
               </div>
+
+              <Select
+                size="small"
+                value={sort}
+                aria-label="Sắp xếp thực đơn"
+                className="w-full shrink-0 lg:w-44"
+                options={SORTS}
+                onChange={(value) => patch({ sort: value === 'default' ? undefined : value })}
+              />
             </div>
           </div>
 
           <div className="mt-3">
-            {loading ? (
+            {error ? (
+              <div className="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center">
+                <UiIcon name="exclamation-circle" size={26} className="text-stone-300" />
+                <p className="mt-3 font-medium text-stone-900">Không tải được thực đơn</p>
+                <p className="mt-1 text-sm text-stone-500">Kiểm tra kết nối rồi thử lại.</p>
+                <UiButton kind="default" className="mt-4" onClick={() => void refresh()}>
+                  Thử lại
+                </UiButton>
+              </div>
+            ) : loading ? (
               <div className={`grid gap-3 ${GRID_COLS}`}>
                 {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/60">
@@ -148,25 +296,38 @@ export default function FoodsPage() {
                   </div>
                 ))}
               </div>
-            ) : visible.length === 0 ? (
-              <Empty description="Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc hoặc hỏi chatbot nhé!" />
+            ) : filtered.length === 0 ? (
+              <Empty description="Không tìm thấy món phù hợp">
+                <div className="flex flex-wrap justify-center gap-2">
+                  {filtersActive && (
+                    <UiButton kind="default" onClick={clearFilters}>
+                      Xóa bộ lọc
+                    </UiButton>
+                  )}
+                  <UiButton
+                    kind="primary"
+                    icon={<UiIcon name="message" size={16} />}
+                    onClick={openChat}
+                  >
+                    Hỏi trợ lý AI
+                  </UiButton>
+                </div>
+              </Empty>
             ) : (
               <>
                 <div className={`grid gap-3 ${GRID_COLS}`}>
-                  {visible.map((f) => (
-                    <FoodCard key={f.id} food={f} />
+                  {visible.map((food) => (
+                    <FoodCard key={food.id} food={food} />
                   ))}
                 </div>
-                {totalPages > 1 && (
-                  <div className="mt-4 flex justify-center pb-2">
-                    <Pagination
-                      current={currentPage}
-                      total={foods?.length ?? 0}
-                      pageSize={PAGE_SIZE}
-                      onChange={setPage}
-                      showSizeChanger={false}
-                      aria-label="Phân trang danh sách món"
-                    />
+                {visible.length < filtered.length && (
+                  <div className="mt-5 flex flex-col items-center gap-1.5 pb-2">
+                    <UiButton kind="default" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
+                      Tải thêm món
+                    </UiButton>
+                    <span className="text-xs text-stone-500">
+                      Đã hiện {visible.length}/{filtered.length} món
+                    </span>
                   </div>
                 )}
               </>
@@ -175,25 +336,21 @@ export default function FoodsPage() {
         </section>
       </div>
 
-      {/* Thanh giỏ ghim đáy: tổng tiền và bước tiếp theo luôn nhìn thấy. */}
-      {count > 0 && (
-        <div className="sticky bottom-0 z-20 border-t border-stone-200/70 bg-white px-4 py-3">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
-            <p className="text-sm text-stone-600">
-              <b className="font-semibold tabular-nums text-stone-900">{count} món</b>
-              <span className="mx-2 text-stone-300">·</span>
-              <b className="font-semibold tabular-nums text-amber-700">{formatVND(total)}</b>
+      {/* Thanh giỏ ghim đáy: mở drawer, không rời trang chủ. */}
+      {portionCount > 0 && (
+        <div className="sticky bottom-0 z-20 border-t border-stone-200/70 bg-white px-4 py-2.5">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3">
+            <p className="min-w-0 text-sm text-stone-600">
+              <b className="font-semibold text-stone-900">{itemCount} món</b>
+              <span className="mx-1.5 text-stone-400">·</span>
+              <span className="tabular-nums">{portionCount} phần</span>
             </p>
-            <UiButton kind="primary-lg" onClick={() => navigate('/cart')}>
-              Xem giỏ và đặt món
+            <UiButton kind="primary" onClick={() => openDrawer('cart')}>
+              Xem giỏ
             </UiButton>
           </div>
         </div>
       )}
-
-      {/* Route con /foods/:id hiện thành panel phủ nên có thể render ở đây. */}
-      <Outlet />
     </div>
   )
 }
-
