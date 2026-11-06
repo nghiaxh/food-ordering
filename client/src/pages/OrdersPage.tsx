@@ -406,11 +406,11 @@ export default function OrdersPage() {
             <Alert
               type="warning"
               showIcon
-              message="Lưu ý"
+              message="Thanh toán thử nghiệm"
               description={
                 paying.paymentMethod === 'QR'
-                  ? 'Đây là thanh toán thử nghiệm. Mã QR chỉ dùng để nhận dạng đơn, chưa chuyển tiền thật. Bấm "Xác nhận đã thanh toán" để ghi nhận trạng thái.'
-                  : 'Bạn trả tiền mặt khi nhận món. Bấm "Xác nhận đã thanh toán" để ghi nhận trạng thái.'
+                  ? 'Mã QR chỉ để nhận dạng đơn, chưa chuyển tiền thật. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.'
+                  : 'Bạn trả tiền mặt khi nhận món. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.'
               }
             />
           </div>
