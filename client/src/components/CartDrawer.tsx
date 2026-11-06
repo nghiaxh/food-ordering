@@ -154,10 +154,12 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
           const food = item.food
           if (!food) return null
           const line = quote?.lines.find((l) => l.foodId === food.id)
-          // Server trả `unitPrice` là giá gốc; giá sau giảm của một phần là thành tiền dòng chia cho số lượng.
+          // Server trả `unitPrice` là giá gốc; giá sau giảm của một phần là thành tiền dòng
+          // chia cho số lượng của CHÍNH dòng báo giá. Chia cho số lượng mới sẽ ra giá sai
+          // tạm thời khi đổi số lượng, chia cho số lượng cũ thì đúng và không chớp.
           const originalUnit = line?.unitPrice ?? food.price
           const discountedUnit = line
-            ? line.lineTotal / item.quantity
+            ? line.lineTotal / line.quantity
             : (food.discountedPrice ?? food.price)
           const lineTotal = line?.lineTotal ?? discountedUnit * item.quantity
           const lineDiscount = line?.lineDiscount ?? 0
