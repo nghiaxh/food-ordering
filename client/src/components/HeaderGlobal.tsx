@@ -375,7 +375,7 @@ export default function HeaderGlobal() {
 
         {/* Mobile hàng thứ hai: chuông + đơn hàng */}
         {!isAdmin && (
-          <div className="flex w-full items-center justify-end gap-2 pt-1 md:hidden">
+          <div className="flex w-full items-center justify-end gap-2 md:hidden">
             {notificationsButton}
           </div>
         )}
