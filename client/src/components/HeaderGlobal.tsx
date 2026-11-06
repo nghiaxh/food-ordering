@@ -251,15 +251,7 @@ export default function HeaderGlobal() {
           />
         )}
 
-        {user?.role === 'ADMIN' && (
-          <UiButton
-            kind="icon"
-            size="small"
-            aria-label="Trang quản trị"
-            icon={<UiIcon name="th-large" size={18} />}
-            onClick={() => navigate('/admin/foods')}
-          />
-        )}
+
 
         {/* Chặn bề rộng: không có `max-w` thì trên màn hình rộng ô tìm kiếm giãng hết
             chiều ngang còn lại, nhóm nút bên phải bị đẩy lệch ra rìa. */}
@@ -319,13 +311,6 @@ export default function HeaderGlobal() {
         <div className="flex shrink-0 items-center gap-1.5 md:hidden">
           {isAdmin ? (
             <>
-              <UiButton
-                kind="icon"
-                size="small"
-                aria-label="Trang quản trị"
-                icon={<UiIcon name="th-large" size={18} />}
-                onClick={() => navigate('/admin/foods')}
-              />
               {user && (
                 <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
                   <button

@@ -66,7 +66,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       set({ items: await getCart(), loaded: true })
     } catch {
-      message.error('Không tải được giỏ hàng từ máy chủ')
+      // Không cần báo lỗi; giỏ sẽ thử lại ở lần tải sau.
       set({ loaded: true })
     }
   },
