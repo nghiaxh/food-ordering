@@ -254,6 +254,8 @@ export default function AdminOrdersPage() {
                 render: (_, o) => {
                   const nexts = allowedNextStatuses(o.status)
                   const primaryNext = nexts.find((s) => s !== 'CANCELLED')
+                  // QR thanh toán trước nên phải đã thu tiền mới duyệt được; COD thu khi giao.
+                  const blockedByQr = primaryNext === 'CONFIRMED' && o.paymentMethod === 'QR' && o.paymentStatus === 'UNPAID'
                   return (
                     <div className="flex items-center gap-1.5">
                       {primaryNext && (
@@ -262,12 +264,17 @@ export default function AdminOrdersPage() {
                           size="small"
                           className="text-xs font-medium"
                           loading={busyIds.has(o.id)}
+                          disabled={blockedByQr}
+                          title={blockedByQr ? 'Khách chưa thanh toán' : undefined}
                           onClick={() => void changeStatus(o.id, primaryNext)}
                         >
                           {primaryNext === 'CONFIRMED' && 'Duyệt đơn'}
                           {primaryNext === 'PREPARING' && 'Giao hàng'}
                           {primaryNext === 'COMPLETED' && 'Hoàn thành'}
                         </UiButton>
+                      )}
+                      {blockedByQr && (
+                        <span className="text-xs text-stone-500">Chờ khách thanh toán</span>
                       )}
                       <UiButton kind="default" size="small" className="text-xs" icon={<EyeOutlined />} onClick={() => setDetailId(o.id)}>
                         Chi tiết
@@ -317,7 +324,8 @@ export default function AdminOrdersPage() {
                 color={STATUS_HEX[detail.status]}
                 label={ORDER_STATUS_LABEL[detail.status] ?? detail.status}
               />
-              {/* Chỉ hiện trạng thái kế tiếp hợp lệ: server cũng kiểm tra lại để không nhảy trạng thái. */}
+              {/* Chỉ hiện trạng thái kế tiếp hợp lệ: server cũng kiểm tra lại để không nhảy trạng thái.
+                  Trạng thái hiện tại đặt đầu list dạng disabled để không hiện mã thô như PENDING. */}
               <Select
                 size="small"
                 value={detail.status}
@@ -326,10 +334,14 @@ export default function AdminOrdersPage() {
                 onChange={(s) => changeStatus(detail.id, s)}
                 style={{ width: 150 }}
                 placeholder={allowedNextStatuses(detail.status).length === 0 ? 'Đã chốt đơn' : 'Cập nhật trạng thái'}
-                options={allowedNextStatuses(detail.status).map((s) => ({
-                  label: ORDER_STATUS_LABEL[s],
-                  value: s,
-                }))}
+                options={[
+                  { label: ORDER_STATUS_LABEL[detail.status], value: detail.status, disabled: true },
+                  ...allowedNextStatuses(detail.status).map((s) => ({
+                    label: ORDER_STATUS_LABEL[s],
+                    value: s,
+                    disabled: s === 'CONFIRMED' && detail.paymentMethod === 'QR' && detail.paymentStatus === 'UNPAID',
+                  })),
+                ]}
               />
               <UiButton
                 kind="default"

@@ -44,9 +44,9 @@ public class DataSeeder implements CommandLineRunner {
         if (userRepo.count() > 0) return;
 
         User admin = createUser("admin@demo.com", "admin123", "Quản trị viên", "0900000001",
-                "Số 1 Phố Ẩm Thực, Hà Nội", User.Role.ADMIN);
+                "Số 1 đường Hòa Bình, Ninh Kiều, Cần Thơ", User.Role.ADMIN);
         User khach = createUser("user@demo.com", "user1234", "Khách hàng Demo", "0900000002",
-                "12 Láng, Đống Đa, Hà Nội", User.Role.CUSTOMER);
+                "12 Nguyễn Văn Cừ, Ninh Kiều, Cần Thơ", User.Role.CUSTOMER);
 
         Category viet = cat("Món Việt", "mon-viet", "/images/categories/mon-viet.webp",
                 "Cơm, phở, bún, mì và các món Việt truyền thống");
@@ -113,7 +113,7 @@ public class DataSeeder implements CommandLineRunner {
                 khach.getAddress(), null, LocalDateTime.now().minusMinutes(20),
                 new Line(rau, 1), new Line(myY, 1));
 
-        review(khach, pho, 5, "Nước dùng ngon, phở đúng vị Hà Nội.");
+        review(khach, pho, 5, "Nước dùng ngon, đậm đà.");
         review(khach, bunCha, 4, "Nướng than rất thơm, chấm nước mắm vừa ăn.");
 
 

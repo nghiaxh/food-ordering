@@ -11,6 +11,18 @@ export function spicyLabel(level: number): string {
   return SPICY[Math.min(Math.max(level, 0), SPICY.length - 1)]
 }
 
+/**
+ * Tên nhãn ưu đãi từ server viết theo chương trình ("Món may mắn hôm nay", "Cuối tuần mát
+ * lạnh") nên dài và không đồng đều. Đổi sang cụm ngắn và nhất quán cho giao diện; chỉ ánh
+ * xạ hai dịp đã có, nhãn mới không khớp thì giữ nguyên.
+ */
+export function discountText(label?: string | null): string | null {
+  if (!label) return null
+  if (label.includes('may mắn')) return 'Ưu đãi hôm nay'
+  if (label.includes('Cuối tuần')) return 'Ưu đãi cuối tuần'
+  return label
+}
+
 const SPICY_CLASSES = [
   'bg-stone-100 text-stone-600',
   'bg-orange-50 text-orange-700',
