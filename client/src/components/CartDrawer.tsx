@@ -32,7 +32,7 @@ export default function CartDrawer() {
       open={open}
       onClose={close}
       placement="right"
-      size="min(420px, 100vw)"
+      size="min(480px, 100vw)"
       destroyOnHidden
       title={
         <div>
@@ -161,7 +161,7 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
           return (
             <div key={food.id} className="flex gap-3 border-b border-stone-100 py-3.5 last:border-0">
               <Link to={`/foods/${food.id}`} onClick={onClose} className="shrink-0 self-start">
-                <UiImg src={food.imageUrl} alt={food.name} className="h-14 w-14 rounded-xl" />
+                <UiImg src={food.imageUrl} alt={food.name} className="h-16 w-16 rounded-xl" />
               </Link>
 
               <div className="min-w-0 flex-1">
