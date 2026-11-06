@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { DatePicker, Form, Input, InputNumber, Select, Switch, Table } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
-import { adminDeletePromotion, adminGetPromotions, adminSavePromotion } from '../../api/api'
+import { adminDeletePromotion, adminGetPromotions, adminSavePromotion, getCategories, getFoods } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
 import type { Promotion } from '../../types'
@@ -30,7 +29,7 @@ interface PromotionFormValues {
   discountValue: number
   maxDiscount?: number | null
   scope: Promotion['scope']
-  targetIds?: string
+  targetIds?: number[]
   startsAt: Dayjs
   endsAt: Dayjs
   daysOfWeek?: string
@@ -49,6 +48,8 @@ function discountLabel(p: Promotion): string {
 
 export default function AdminPromotionsPage() {
   const { data: promotions, loading, error, refresh } = useAsyncData(() => adminGetPromotions(), [])
+  const { data: categories } = useAsyncData((signal) => getCategories(signal), [])
+  const { data: foods } = useAsyncData((signal) => getFoods(undefined, signal), [])
   const { run: save, pending: saving } = useAsyncAction(
     (payload: { id: number | null; data: Record<string, unknown> }) => adminSavePromotion(payload.id, payload.data),
   )
@@ -56,6 +57,7 @@ export default function AdminPromotionsPage() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Promotion | null>(null)
   const [form] = Form.useForm<PromotionFormValues>()
+  const scope = Form.useWatch('scope', form)
 
   const openCreate = () => {
     setEditing(null)
@@ -79,7 +81,7 @@ export default function AdminPromotionsPage() {
       discountValue: p.discountValue,
       maxDiscount: p.maxDiscount,
       scope: p.scope,
-      targetIds: p.targetIds?.join(', '),
+      targetIds: p.targetIds ?? [],
       startsAt: dayjs(p.startsAt),
       endsAt: dayjs(p.endsAt),
       daysOfWeek: p.daysOfWeek ?? undefined,
@@ -99,10 +101,7 @@ export default function AdminPromotionsPage() {
       discountValue: values.discountValue,
       maxDiscount: values.maxDiscount ?? null,
       scope: values.scope,
-      targetIds: (values.targetIds ?? '')
-        .split(',')
-        .map((x) => Number(x.trim()))
-        .filter((n) => Number.isFinite(n) && n > 0),
+      targetIds: values.targetIds ?? [],
       startsAt: values.startsAt.format('YYYY-MM-DDTHH:mm:ss'),
       endsAt: values.endsAt.format('YYYY-MM-DDTHH:mm:ss'),
       daysOfWeek: values.daysOfWeek?.trim() || null,
@@ -138,7 +137,7 @@ export default function AdminPromotionsPage() {
       <PageHeader
         title="Khuyến mãi"
         extra={
-          <UiButton kind="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          <UiButton kind="primary" onClick={openCreate}>
             Thêm khuyến mãi
           </UiButton>
         }
@@ -190,17 +189,12 @@ export default function AdminPromotionsPage() {
                 title: 'Thao tác',
                 render: (_, p: Promotion) => (
                   <div className="flex gap-2">
+                    <UiButton kind="default" size="small" onClick={() => openEdit(p)}>
+                      Sửa
+                    </UiButton>
                     <UiButton
-                      kind="icon"
-                      aria-label={`Sửa ${p.name}`}
-                      icon={<EditOutlined />}
-                      onClick={() => openEdit(p)}
-                    />
-                    <UiButton
-                      kind="icon"
-                      danger
-                      aria-label={`Xóa ${p.name}`}
-                      icon={<DeleteOutlined />}
+                      kind="danger"
+                      size="small"
                       onClick={() =>
                         confirmRemove({
                           title: `Xóa khuyến mãi "${p.name}"?`,
@@ -208,7 +202,9 @@ export default function AdminPromotionsPage() {
                           onOk: () => doRemove(p),
                         })
                       }
-                    />
+                    >
+                      Xóa
+                    </UiButton>
                   </div>
                 ),
               },
@@ -249,13 +245,24 @@ export default function AdminPromotionsPage() {
             <Form.Item name="scope" label="Phạm vi" rules={[{ required: true }]}>
               <Select options={SCOPES} />
             </Form.Item>
-            <Form.Item
-              name="targetIds"
-              label="ID mục tiêu"
-              extra="Chỉ dùng cho phạm vi danh mục, món; phân tách bằng dấu phẩy."
-            >
-              <Input placeholder="Ví dụ: 1, 3" />
-            </Form.Item>
+            {scope && scope !== 'GLOBAL' && (
+              <Form.Item
+                name="targetIds"
+                label={scope === 'CATEGORY' ? 'Danh mục áp dụng' : 'Món áp dụng'}
+                extra="Chọn các mục được giảm. Bỏ trống nếu áp dụng cho mọi mục cùng loại."
+              >
+                <Select
+                  mode="multiple"
+                  allowClear
+                  placeholder={`Chọn ${scope === 'CATEGORY' ? 'danh mục' : 'món'}`}
+                  options={
+                    scope === 'CATEGORY'
+                      ? (categories ?? []).map((c) => ({ label: c.name, value: c.id }))
+                      : (foods ?? []).map((f) => ({ label: f.name, value: f.id }))
+                  }
+                />
+              </Form.Item>
+            )}
           </div>
 
           <div className="grid gap-x-3 sm:grid-cols-2">

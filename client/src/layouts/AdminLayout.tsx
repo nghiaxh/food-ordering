@@ -5,7 +5,10 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { adminGetOrders } from '../api/api'
 import UiIcon from '../components/UiIcon'
 import UiButton from '../components/UiButton'
+import NotificationsDrawer from '../components/NotificationsDrawer'
 import { useAuthStore } from '../store/authStore'
+import { useNotificationStore } from '../store/notificationStore'
+import { useUiStore } from '../store/uiStore'
 
 interface NavItem {
   label: string
@@ -32,12 +35,22 @@ export default function AdminLayout() {
   const logout = useAuthStore((s) => s.logout)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0)
+  const notifications = useNotificationStore((s) => s.items)
+  const loadNotifications = useNotificationStore((s) => s.load)
+  const resetNotifications = useNotificationStore((s) => s.reset)
+  const openDrawer = useUiStore((s) => s.openDrawer)
+  const unread = notifications.filter((n) => !n.read).length
 
   useEffect(() => {
     adminGetOrders()
       .then((orders) => setPendingOrdersCount(orders.filter((o) => o.status === 'PENDING').length))
       .catch(() => {})
   }, [location.pathname])
+
+  useEffect(() => {
+    if (user) void loadNotifications()
+    else resetNotifications()
+  }, [user, location.pathname, loadNotifications, resetNotifications])
 
   const close = () => setDrawerOpen(false)
 
@@ -55,8 +68,6 @@ export default function AdminLayout() {
       }
     },
   }
-
-  const current = NAV_ITEMS.find((i) => i.to === location.pathname)
 
   const nav = (
     <nav className="space-y-0.5">
@@ -98,9 +109,16 @@ export default function AdminLayout() {
             onClick={() => setDrawerOpen(true)}
           />
 
-          {current && <span className="text-sm font-medium text-stone-700">{current.label}</span>}
-
           <div className="ml-auto flex items-center gap-1.5">
+            <Badge dot={unread > 0} color="#b45309" offset={[-4, 4]}>
+              <UiButton
+                kind="icon"
+                size="small"
+                aria-label={unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
+                icon={<UiIcon name="bell" size={18} />}
+                onClick={() => openDrawer('notifications')}
+              />
+            </Badge>
             <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">
               <button
                 type="button"
@@ -135,6 +153,8 @@ export default function AdminLayout() {
       >
         {nav}
       </Drawer>
+
+      <NotificationsDrawer />
     </div>
   )
 }
