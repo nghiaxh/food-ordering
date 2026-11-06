@@ -319,7 +319,7 @@ export default function CheckoutPage() {
             <h2 className="text-base font-bold text-stone-900">Thanh toán</h2>
             <Form.Item name="paymentMethod" className="mt-3 !mb-0">
               <Radio.Group
-                className="grid gap-2 sm:grid-cols-2"
+                className="grid gap-2"
                 value={paymentMethod}
                 onChange={(e) => {
                   setPaymentMethod(e.target.value)
@@ -364,7 +364,7 @@ export default function CheckoutPage() {
                       <QrcodeOutlined style={{ fontSize: 18 }} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-stone-900">Chuyển khoản VietQR</span>
+                      <span className="block text-sm font-semibold text-stone-900">Chuyển khoản QR</span>
                       <span className="mt-0.5 block text-xs leading-relaxed text-stone-500">
                         Quét mã QR để điền sẵn số tiền và nội dung.
                       </span>
