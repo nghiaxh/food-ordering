@@ -16,6 +16,26 @@
   --font-heading: "Be Vietnam Pro", Inter, sans-serif;
 }
 
+/*
+  Header là nguồn duy nhất của chiều cao; đổi header thì chatbot, vùng cuộn kiosk và
+  thanh đáy tự theo, không hard-code lại.
+*/
+:root {
+  --header-h: 3.25rem;
+}
+
+/* Người dùng tắt chuyển động thì bỏ mọi animation trang trí, vẫn giữ thay đổi trạng thái. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;

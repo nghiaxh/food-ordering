@@ -4,11 +4,12 @@ import viVN from 'antd/locale/vi_VN'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useCartStore } from './store/cartStore'
+import theme from './theme'
 import DefaultLayout from './layouts/DefaultLayout'
 import AdminLayout from './layouts/AdminLayout'
 import FoodsPage from './pages/FoodsPage'
 import FoodDetailPage from './pages/FoodDetailPage'
-import CartPage from './pages/CartPage'
+import CheckoutPage from './pages/CheckoutPage'
 import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
 import LoginPage, { RegisterPage } from './pages/AuthPages'
@@ -72,18 +73,18 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<DefaultLayout />}>
-        {/* Bảng món là trang chủ; chi tiết món là route con nên hiện thành panel phủ
-            mà vẫn giữ URL thật để thẻ món trong chatbot liên kết được. */}
-        <Route path="/" element={<RequireCustomer><FoodsPage /></RequireCustomer>}>
-          <Route path="foods/:id" element={<FoodDetailPage />} />
-        </Route>
+        {/* Bảng món là trang chủ, cuộn trong vùng riêng. Chi tiết món là trang độc lập
+            nên không còn lồng dưới "/" và không cần Outlet trong FoodsPage. */}
+        <Route path="/" element={<RequireCustomer><FoodsPage /></RequireCustomer>} />
+        <Route path="/foods/:id" element={<RequireCustomer><FoodDetailPage /></RequireCustomer>} />
         <Route path="/foods" element={<Navigate to="/" replace />} />
+        <Route path="/cart" element={<Navigate to="/checkout" replace />} />
         <Route
-          path="/cart"
+          path="/checkout"
           element={
             <RequireCustomer>
               <RequireAuth>
-                <CartPage />
+                <CheckoutPage />
               </RequireAuth>
             </RequireCustomer>
           }
@@ -137,21 +138,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ConfigProvider
-      locale={viVN}
-      theme={{
-        token: {
-          colorPrimary: '#d97706',
-          borderRadius: 10,
-          fontFamily: 'Inter Variable, sans-serif',
-          // Đồng bộ breakpoint AntD với Tailwind (640/768/1024/1280)
-          screenSM: 640,
-          screenMD: 768,
-          screenLG: 1024,
-          screenXL: 1280,
-        },
-      }}
-    >
+    <ConfigProvider locale={viVN} theme={theme}>
       <BrowserRouter>
         <ScrollManager />
         <CartSync />

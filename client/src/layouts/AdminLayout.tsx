@@ -77,7 +77,7 @@ export default function AdminLayout() {
             <UiIcon name={item.icon} size={16} />
             <span className="flex-1">{item.label}</span>
             {item.to === '/admin/orders' && pendingOrdersCount > 0 && (
-              <Badge count={pendingOrdersCount} size="small" color="#d97706" />
+              <Badge count={pendingOrdersCount} size="small" color="#b45309" />
             )}
           </Link>
         )
@@ -107,7 +107,7 @@ export default function AdminLayout() {
                 aria-label="Menu tài khoản"
                 className="flex cursor-pointer items-center gap-2 rounded-lg p-1 hover:bg-stone-50"
               >
-                <Avatar size={30} style={{ backgroundColor: '#d97706' }}>
+                <Avatar size={30} style={{ backgroundColor: '#b45309' }}>
                   {user?.fullName.charAt(0).toUpperCase()}
                 </Avatar>
                 <span className="hidden text-sm font-medium text-stone-700 sm:inline">{user?.fullName}</span>

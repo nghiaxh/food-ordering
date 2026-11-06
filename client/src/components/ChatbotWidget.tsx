@@ -1,14 +1,15 @@
 import { useRef, useState, useEffect } from 'react'
 import { Input, Tooltip, message } from 'antd'
-import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined, ReloadOutlined } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
 import { chat, getChatbotStatus } from '../api/api'
 import type { ChatMessage, ChatbotStatus, Food, FoodCard } from '../types'
 import { formatVND } from '../utils/format'
 import { apiErrorMessage } from '../utils/api-error'
-import { useHasCartBar } from '../hooks/useCartBar'
+import { useHasBottomBar } from '../hooks/useHasBottomBar'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import { useUiStore } from '../store/uiStore'
 import UiButton from './UiButton'
 import UiImg from './UiImg'
 
@@ -44,8 +45,10 @@ const STREAM_TICKS = 140
  */
 export default function ChatbotWidget() {
   const location = useLocation()
-  const hasCartBar = useHasCartBar()
-  const [open, setOpen] = useState(false)
+  const bottomBar = useHasBottomBar()
+  const open = useUiStore((s) => s.chatOpen)
+  const openChat = useUiStore((s) => s.openChat)
+  const closeChat = useUiStore((s) => s.closeChat)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -145,8 +148,12 @@ export default function ChatbotWidget() {
       const foods = res.foods.slice(0, 5)
       // Tin mới không có món thì clear ngữ cảnh, tránh "món đó" trỏ về lượt đã mất thẻ.
       lastFoodIdsRef.current = foods.map((f) => f.id)
-      // Chữ chạy dần thay vì bung cả khối; thẻ món chỉ hiện khi câu trả lời đã chạy xong.
-      setDraft({ content: res.reply, shown: 0, foods })
+      // Chữ chạy dần thay vì bung cả khối; người tắt chuyển động thì hiện ngay.
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        pushBotMessage(res.reply, foods)
+      } else {
+        setDraft({ content: res.reply, shown: 0, foods })
+      }
     } catch (e) {
       if (!activeRef.current) return
       // 503 là server báo chưa cấu hình khóa AI: khóa khung chat luôn thay vì mời thử lại,
@@ -174,20 +181,35 @@ export default function ChatbotWidget() {
 
   const handleClose = () => {
     activeRef.current = false
-    setOpen(false)
+    closeChat()
     setLoading(false)
   }
 
   const handleOpen = () => {
     activeRef.current = true
-    setOpen(true)
+    openChat()
   }
+
+  /** Làm mới hội thoại: bỏ ngữ cảnh cũ để câu hỏi tiếp không dính vào món của lượt trước. */
+  const resetChat = () => {
+    setMessages([{ sender: 'BOT', content: GREETING }])
+    setDraft(null)
+    setInput('')
+    setError(false)
+    setLoading(false)
+    sessionId.current = crypto.randomUUID()
+    lastUserRef.current = ''
+    lastFoodIdsRef.current = []
+    activeRef.current = true
+  }
+
+  // Hero và empty state mở chat bằng store, không đi qua nút nổi, nên phải bật lại cờ sống.
+  useEffect(() => {
+    if (open) activeRef.current = true
+  }, [open])
 
   // Chatbot không hiển thị trong khu vực quản trị để tránh che lấp giao diện admin.
   if (isAdmin) return null
-
-  // Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào; sau tin nhắn đầu tiên thì thôi.
-  const showSuggestions = messages.length <= 1
 
   // Thiếu khóa AI thì khung chat không có gì để nói: ẩn cả câu chào lẫn gợi ý, chỉ còn banner
   // và ô nhập đã khóa. Nếu khách đang chat dở mà server mất khóa giữa chừng thì giữ hội thoại.
@@ -208,9 +230,9 @@ export default function ChatbotWidget() {
     // khung chat tự co giãn theo chiều cao màn hình thay vì phải hard-code một chiều cao.
     // `pointer-events-none` để vùng trống không chặn thao tác lên thẻ món phía sau.
     <div
-      className={`pointer-events-none fixed inset-x-0 bottom-0 top-[3.25rem] z-40 flex flex-col items-end justify-end gap-3 px-4 sm:px-5 ${
-        // Thanh giỏ ghim đáy cao ~4.75rem, launcher phải nằm cao hơn để không bị che.
-        hasCartBar ? 'pb-[6.25rem]' : 'pb-4 sm:pb-5'
+      className={`pointer-events-none fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 flex flex-col items-end justify-end gap-3 px-4 sm:px-5 ${
+        // Thanh giỏ/checkout cao ~4.75rem; thanh thêm món của trang chi tiết chỉ có trên mobile.
+        bottomBar === 'detail' ? 'pb-[6.25rem] sm:pb-5' : bottomBar ? 'pb-[6.25rem]' : 'pb-4 sm:pb-5'
       }`}
     >
       {open && (
@@ -221,6 +243,15 @@ export default function ChatbotWidget() {
             <p className="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">
               Trợ lý gợi ý món ăn
             </p>
+            <button
+              type="button"
+              aria-label="Làm mới hội thoại"
+              title="Làm mới hội thoại"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
+              onClick={resetChat}
+            >
+              <ReloadOutlined />
+            </button>
             <button
               type="button"
               aria-label="Đóng trợ lý"
@@ -315,21 +346,6 @@ export default function ChatbotWidget() {
                       </div>
                     )}
 
-                    {isBot && index === 0 && showSuggestions && !loading && (
-                      <div className="mt-2.5 flex flex-wrap gap-1.5">
-                        {SUGGESTIONS.map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            disabled={unavailable}
-                            className="rounded-full bg-white px-3 py-2.5 text-xs text-amber-700 ring-1 ring-stone-200 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:text-stone-400 disabled:hover:bg-white"
-                            onClick={() => handleSend(s)}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               )
@@ -353,6 +369,25 @@ export default function ChatbotWidget() {
               </button>
             )}
           </div>
+
+          {/* Gợi ý luôn nằm trên ô nhập, không biến mất sau tin đầu, và cuộn ngang trên mobile. */}
+          {!unavailable && (
+            <div className="shrink-0 overflow-x-auto border-t border-stone-100 bg-white px-2.5 pt-2">
+              <div className="flex w-max gap-1.5">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={loading}
+                    className="shrink-0 cursor-pointer rounded-full bg-amber-50 px-3 py-1.5 text-xs text-amber-800 ring-1 ring-amber-200/70 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => handleSend(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Nút gửi nằm trong ô nhập để khung chat đỡ một phần tử và không bó hẹp ô nhập. */}
           <div className="shrink-0 border-t border-stone-100 bg-white p-2.5">
