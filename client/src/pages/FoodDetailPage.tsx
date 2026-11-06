@@ -169,7 +169,7 @@ export default function FoodDetailPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-4 pb-32 sm:px-6 lg:pb-10">
+    <div className="mx-auto max-w-6xl px-3 py-4 pb-10 sm:px-6">
       <button
         type="button"
         onClick={goBack}
@@ -290,26 +290,6 @@ export default function FoodDetailPage() {
           onDelete={onDeleteReview}
         />
       </div>
-
-      {/* Thanh mua hàng cố định trên mobile để nút thêm luôn trong tầm ngón tay. */}
-      {!unavailable && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 px-3 pt-2 backdrop-blur lg:hidden"
-          style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
-        >
-          <div className="mx-auto flex max-w-3xl items-center gap-2">
-            <QuantityStepper
-              value={qty}
-              onChange={setQty}
-              size="sm"
-              label={`Số lượng ${food.name}`}
-            />
-            <UiButton kind="primary" className="min-w-0 flex-1" onClick={() => void addToCart()}>
-              Thêm vào giỏ
-            </UiButton>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
