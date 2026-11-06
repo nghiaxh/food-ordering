@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Avatar, Badge, Button, Drawer, Dropdown, type MenuProps } from 'antd'
+import { Avatar, Badge, Drawer, Dropdown, type MenuProps } from 'antd'
 import { MenuOutlined } from '@ant-design/icons'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { adminGetOrders } from '../api/api'
@@ -90,8 +90,9 @@ export default function AdminLayout() {
     <div className="flex min-h-dvh flex-col bg-stone-50">
       <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Button
-            type="text"
+          <UiButton
+            kind="icon"
+            size="small"
             aria-label="Mở menu quản trị"
             className="lg:hidden"
             icon={<MenuOutlined />}

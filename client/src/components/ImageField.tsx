@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Button, Input, Upload, message } from 'antd'
+import { Input, Upload, message } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 import { adminUploadImage } from '../api/api'
 import { apiErrorMessage } from '../utils/api-error'
 import UiImg from './UiImg'
+import UiButton from './UiButton'
 
 interface ImageFieldProps {
   value?: string
@@ -51,9 +52,9 @@ export default function ImageField({ value, onChange, label = 'URL Ảnh' }: Ima
             return false
           }}
         >
-          <Button icon={<UploadOutlined />} loading={uploading}>
+          <UiButton kind="default" icon={<UploadOutlined />} loading={uploading}>
             Chọn ảnh
-          </Button>
+          </UiButton>
         </Upload>
       </div>
       <div className="mt-2">
