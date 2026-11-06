@@ -169,7 +169,7 @@ export default function FoodDetailPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-4xl px-3 py-4 pb-32 sm:px-6 lg:pb-10">
+    <div className="mx-auto max-w-6xl px-3 py-4 pb-32 sm:px-6 lg:pb-10">
       <button
         type="button"
         onClick={goBack}
@@ -179,12 +179,13 @@ export default function FoodDetailPage() {
         Quay lại thực đơn
       </button>
 
-      <div className="mt-3">
-        <div className="relative overflow-hidden rounded-2xl bg-stone-100">
+      <div className="mt-3 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start lg:gap-8">
+        <div className="relative overflow-hidden rounded-2xl bg-stone-100 lg:sticky lg:top-[calc(var(--header-h)+1rem)]">
           <UiImg
             src={food.imageUrl}
             alt={food.name}
-            className="aspect-[16/10] w-full"
+            preview
+            className="aspect-[16/10] w-full cursor-zoom-in"
           />
           {!!food.discountPercent && food.available && (
             <span className="absolute left-3 top-3 rounded-full bg-amber-700 px-2.5 py-1 text-xs font-semibold text-white">
@@ -193,7 +194,7 @@ export default function FoodDetailPage() {
           )}
         </div>
 
-        <div className="mt-4">
+        <div>
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-stone-900 sm:text-3xl">
             {food.name}
           </h1>
@@ -244,34 +245,34 @@ export default function FoodDetailPage() {
               </UiButton>
             </div>
           )}
-        </div>
 
-        <div className="mt-8">
-          <h2 className="text-base font-bold text-stone-900">Thông tin món</h2>
-          <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {specs.map((spec) => (
-              <div key={spec.label} className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-stone-200/60">
-                <dt className="text-xs text-stone-500">{spec.label}</dt>
-                <dd className="mt-0.5 text-sm font-semibold text-stone-800">{spec.value}</dd>
+          <div className="mt-8">
+            <h2 className="text-base font-bold text-stone-900">Thông tin món</h2>
+            <dl className="mt-3 grid grid-cols-2 gap-2">
+              {specs.map((spec) => (
+                <div key={spec.label} className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-stone-200/60">
+                  <dt className="text-xs text-stone-500">{spec.label}</dt>
+                  <dd className="mt-0.5 text-sm font-semibold text-stone-800">{spec.value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <dl className="mt-4">
+              <dt className="text-xs text-stone-500">Thành phần</dt>
+              <dd className="mt-0.5 text-sm leading-relaxed text-stone-800">
+                {food.ingredients || 'Chưa cập nhật'}
+              </dd>
+            </dl>
+
+            {allergens.length > 0 && (
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-red-50/70 px-3.5 py-3 ring-1 ring-red-100">
+                <UiIcon name="exclamation-circle" size={16} className="mt-0.5 shrink-0 text-red-500" />
+                <p className="text-sm leading-relaxed text-red-800">
+                  <span className="font-semibold">Lưu ý dị ứng:</span> {allergens.join(', ')}
+                </p>
               </div>
-            ))}
-          </dl>
-
-          <dl className="mt-4">
-            <dt className="text-xs text-stone-500">Thành phần</dt>
-            <dd className="mt-0.5 text-sm leading-relaxed text-stone-800">
-              {food.ingredients || 'Chưa cập nhật'}
-            </dd>
-          </dl>
-
-          {allergens.length > 0 && (
-            <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-red-50/70 px-3.5 py-3 ring-1 ring-red-100">
-              <UiIcon name="exclamation-circle" size={16} className="mt-0.5 shrink-0 text-red-500" />
-              <p className="text-sm leading-relaxed text-red-800">
-                <span className="font-semibold">Lưu ý dị ứng:</span> {allergens.join(', ')}
-              </p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
