@@ -2,73 +2,68 @@
 
 ## Mô hình
 
+Mô hình đơn giản, chỉ có một nhánh chính. Mọi thay đổi tách từ `main`,
+làm việc trên branch riêng, rồi mở PR ngược về `main`.
+
 ```
-main  ───────────────────────────────────────●  (production, chỉ merge từ dev khi release)
-  │                                          │
-dev  ───────────────────●────────●───────────●  (integration, mọi feature nhập vào đây)
-  │                    │        │
-  feat/tim-kiem-món    │        │             (feature branch)
-  fix/cart             │
-  ...
+main  ───────────────────────────────────────●  (production, luôn chay duoc)
+  │            │           │
+  feat/...     fix/...     docs/...           (working branch, tach tu main)
 ```
+
+Không dùng các tầng trung gian như `dev` hay `draft`.
 
 ## Quy tắc
 
-| Branch          | Vai trò                     | Quy tắc                                                         |
-| --------------- | --------------------------- | --------------------------------------------------------------- |
-| `main`          | Production-ready            | **Không commit trực tiếp** ngoài scaffolding ban đầu. Chỉ nhận merge từ `dev` khi release |
-| `dev`           | Integration                 | Branch phát triển chính, mọi feature/fix gộp về đây qua PR       |
-| `draft`         | Working branch              | Tự do, dùng để triển khai chi tiết, có thể rebase/cherry-pick vào `dev` |
-| `feat/<ten>`    | Tính năng mới               | Nhánh ra từ `dev`, merge vào `dev`                              |
-| `fix/<ten>`     | Sửa lỗi                     | Nhánh ra từ `dev`, merge vào `dev`                              |
-| `refactor/<ten>`| Refactor giữ nguyên hành vi | Nhánh ra từ `dev`                                               |
-| `docs/<ten>`    | Tài liệu                    | Nhánh ra từ `dev`                                               |
+| Branch          | Vai trò                     | Quy tắc                                             |
+| --------------- | --------------------------- | --------------------------------------------------- |
+| `main`          | Production-ready            | **Không làm việc trực tiếp**, không commit và không push thẳng lên đây |
+| `feat/<ten>`    | Tính năng mới               | Tách từ `main`, PR về `main`                        |
+| `fix/<ten>`     | Sửa lỗi                     | Tách từ `main`, PR về `main`                        |
+| `refactor/<ten>`| Refactor giữ nguyên hành vi | Tách từ `main`, PR về `main`                        |
+| `test/<ten>`    | Bổ sung hoặc sửa test       | Tách từ `main`, PR về `main`                        |
+| `docs/<ten>`    | Tài liệu                    | Tách từ `main`, PR về `main`                        |
 
 ## Workflow
 
-### 1. Tạo feature branch từ dev
+### 1. Đồng bộ `main` rồi tách branch
+
+Luôn `git pull` trước khi tách branch để code up to date.
 
 ```bash
-git checkout dev
-git pull
+git checkout main
+git pull origin main
 git checkout -b feat/ten-feature
 ```
 
 ### 2. Làm việc và commit
 
 Commit theo **Conventional Commits**: lowercase, dạng mệnh lệnh, không dấu chấm cuối.
-Commit message có thể dùng tiếng Anh hoặc tiếng Việt.
+Commit message dùng tiếng Anh.
 
 ```
-feat: them bo loc gia mon an
-fix: xu ly loi vuot ton kho khi them gio
-refactor: tach ChatbotService thanh cac buoc nho
-test: them unit test cho cartStore
-docs: cap nhat huong dan chay test
-style: can chinh khoang cach nut chinh sua
+feat: add price filter for menu items
+fix: prevent negative stock when adding to cart
+refactor: split ChatbotService into small steps
+test: add unit test for cartStore
+docs: update test setup guide
+style: align edit button spacing
 ```
 
 Các type chính: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `build`, `ci`, `chore`, `revert`.
-Commit nhỏ, một commit một mục đích.
+Commit nhỏ, một commit một mục đích, một commit một loại thay đổi.
 
 ### 3. Đẩy lên và tạo PR
 
 ```bash
 git push -u origin feat/ten-feature
-# Tạo PR: feat/ten-feature → dev (GitHub UI hoặc: gh pr create)
+# Tao PR: feat/ten-feature -> main (GitHub UI hoac: gh pr create)
 ```
 
-Merge PR vào `dev` bằng **squash merge** để lịch sử dev gọn.
-
-### 4. Release
-
-```bash
-# Sau khi dev ổn định:
-# Tạo PR: dev → main, merge khi test (client + server + e2e) đều xanh.
-```
+Merge PR vào `main` bằng **squash merge** để lịch sử gọn.
 
 ## Lưu ý
 
-- Không push trực tiếp lên `main` (ngoài commit scaffolding ban đầu).
-- Luôn `git pull` nhánh `dev` trước khi tạo branch mới để tránh conflict.
-- Không nhầm lẫn: cấu trúc nhánh là `dev → feat/ten-feature`, không tách branch trực tiếp từ `main`.
+- Không làm việc trên `main`. Mọi thay đổi bắt đầu từ branch tách từ `main`.
+- Luôn `git pull origin main` trước khi tạo branch mới để tránh conflict.
+- Không push trực tiếp lên `main`.
