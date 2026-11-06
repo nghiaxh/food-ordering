@@ -9,7 +9,7 @@ interface CategoryRailProps {
 }
 
 /**
- * Dải danh mục dạng chip có ảnh tròn: cao 36px, cuộn ngang trên mobile. Cùng ngôn ngữ với
+ * Dải danh mục dạng chip có ảnh tròn: cao 40px, cuộn ngang trên mobile. Cùng ngôn ngữ với
  * hàng chip bộ lọc bên dưới nên trang chỉ còn hai hàng điều khiển thay vì ba, và ảnh danh
  * mục trong DB vẫn được dùng làm điểm nhận diện.
  */
@@ -17,7 +17,7 @@ export default function CategoryRail({ categories, activeId, onPick }: CategoryR
   if (categories.length === 0) return null
 
   const chip = (active: boolean) =>
-    `inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full py-1 pl-1 pr-3 text-[13px] font-medium transition ${
+    `inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full py-1 pl-1 pr-3.5 text-[13px] font-medium transition ${
       active ? 'bg-amber-700 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
     }`
 
@@ -25,7 +25,7 @@ export default function CategoryRail({ categories, activeId, onPick }: CategoryR
     <div className="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <button type="button" onClick={() => onPick()} className={chip(activeId === undefined)}>
         <span
-          className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
             activeId === undefined ? 'bg-white/15 text-white' : 'bg-stone-100 text-stone-500'
           }`}
         >
@@ -45,7 +45,7 @@ export default function CategoryRail({ categories, activeId, onPick }: CategoryR
             aria-pressed={active}
             className={chip(active)}
           >
-            <UiImg src={category.imageUrl} alt="" className="h-7 w-7 rounded-full" />
+            <UiImg src={category.imageUrl} alt="" className="h-8 w-8 rounded-full" />
             {category.name}
           </button>
         )

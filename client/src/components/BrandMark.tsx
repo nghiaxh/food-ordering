@@ -11,7 +11,7 @@ export default function BrandMark({ className = '' }: { className?: string }) {
       aria-label="FoodOrdering, về trang chủ"
       className={`flex shrink-0 cursor-pointer items-center gap-2 ${className}`}
     >
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-700 shadow-sm">
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-stone-100 ring-1 ring-stone-200">
         <span aria-hidden="true" className="text-xl leading-none">
           🍜
         </span>

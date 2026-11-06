@@ -4,7 +4,6 @@ import { DownOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { getCategories, getFoods } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
-import { useCartStore } from '../store/cartStore'
 import { useUiStore } from '../store/uiStore'
 import type { Food } from '../types'
 import FoodCard from '../components/FoodCard'
@@ -78,9 +77,6 @@ export default function FoodsPage() {
   const onlyAvailable = params.get('available') === '1'
   const onlyDeals = params.get('deal') === '1'
 
-  const itemCount = useCartStore((s) => s.items.length)
-  const portionCount = useCartStore((s) => s.count())
-  const openDrawer = useUiStore((s) => s.openDrawer)
   const openChat = useUiStore((s) => s.openChat)
 
   const { data: categories } = useAsyncData((signal) => getCategories(signal), [])
@@ -168,7 +164,7 @@ export default function FoodsPage() {
   const from = `/${params.toString() ? `?${params.toString()}` : ''}`
 
   const chipClass = (active: boolean) =>
-    `inline-flex min-h-8 cursor-pointer items-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
+    `inline-flex min-h-10 cursor-pointer items-center whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium transition ${
       active
         ? 'bg-amber-700 text-white'
         : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
@@ -195,7 +191,7 @@ export default function FoodsPage() {
   })()
 
   const pageButtonClass = (active: boolean) =>
-    `inline-flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full px-2 text-sm tabular-nums transition ${
+    `inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center rounded-full px-2 text-sm tabular-nums transition ${
       active
         ? 'bg-amber-700 font-semibold text-white'
         : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
@@ -398,9 +394,6 @@ export default function FoodsPage() {
                         Sau
                       </button>
                     </nav>
-                    <span className="text-xs text-stone-500">
-                      Trang {currentPage}/{pageCount} · {filtered.length} món
-                    </span>
                   </div>
                 )}
               </>
@@ -408,22 +401,6 @@ export default function FoodsPage() {
           </div>
         </section>
       </div>
-
-      {/* Thanh giỏ ghim đáy: mở drawer, không rời trang chủ. */}
-      {portionCount > 0 && (
-        <div className="sticky bottom-0 z-20 border-t border-stone-200/70 bg-white px-4 py-2.5">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3">
-            <p className="min-w-0 text-sm text-stone-600">
-              <b className="font-semibold text-stone-900">{itemCount} món</b>
-              <span className="mx-1.5 text-stone-400">·</span>
-              <span className="tabular-nums">{portionCount} phần</span>
-            </p>
-            <UiButton kind="primary" onClick={() => openDrawer('cart')}>
-              Xem giỏ
-            </UiButton>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
