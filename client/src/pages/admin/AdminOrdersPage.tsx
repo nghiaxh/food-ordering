@@ -317,7 +317,8 @@ export default function AdminOrdersPage() {
                 color={STATUS_HEX[detail.status]}
                 label={ORDER_STATUS_LABEL[detail.status] ?? detail.status}
               />
-              {/* Chỉ hiện trạng thái kế tiếp hợp lệ: server cũng kiểm tra lại để không nhảy trạng thái. */}
+              {/* Chỉ hiện trạng thái kế tiếp hợp lệ: server cũng kiểm tra lại để không nhảy trạng thái.
+                  Trạng thái hiện tại đặt đầu list dạng disabled để không hiện mã thô như PENDING. */}
               <Select
                 size="small"
                 value={detail.status}
@@ -326,10 +327,13 @@ export default function AdminOrdersPage() {
                 onChange={(s) => changeStatus(detail.id, s)}
                 style={{ width: 150 }}
                 placeholder={allowedNextStatuses(detail.status).length === 0 ? 'Đã chốt đơn' : 'Cập nhật trạng thái'}
-                options={allowedNextStatuses(detail.status).map((s) => ({
-                  label: ORDER_STATUS_LABEL[s],
-                  value: s,
-                }))}
+                options={[
+                  { label: ORDER_STATUS_LABEL[detail.status], value: detail.status, disabled: true },
+                  ...allowedNextStatuses(detail.status).map((s) => ({
+                    label: ORDER_STATUS_LABEL[s],
+                    value: s,
+                  })),
+                ]}
               />
               <UiButton
                 kind="default"
