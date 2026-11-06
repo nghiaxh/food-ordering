@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Empty, Form, Input, Radio, Skeleton, message } from 'antd'
-import { EditOutlined, BankOutlined, QrcodeOutlined, CheckOutlined } from '@ant-design/icons'
+import { EditOutlined, BankOutlined, QrcodeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { createOrder, getAddresses, saveAddress } from '../api/api'
 import useAsyncAction from '../hooks/useAsyncAction'
@@ -319,23 +319,16 @@ export default function CheckoutPage() {
             <h2 className="text-base font-bold text-stone-900">Thanh toán</h2>
             <Form.Item name="paymentMethod" className="mt-3 !mb-0">
               <Radio.Group
-                className="grid gap-2"
+                className="grid divide-y divide-stone-100"
                 value={paymentMethod}
                 onChange={(e) => {
                   setPaymentMethod(e.target.value)
                   form.setFieldValue('paymentMethod', e.target.value)
                 }}
               >
-                <Radio
-                  value="COD"
-                  className="!m-0 rounded-xl border p-3 transition hover:border-amber-500 [&.ant-radio-wrapper-checked]:border-amber-600 [&.ant-radio-wrapper-checked]:bg-amber-50/60 [&_.ant-radio]:hidden"
-                >
-                  <span className="flex w-full items-center gap-3">
-                    <span
-                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${
-                        paymentMethod === 'COD' ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-500'
-                      }`}
-                    >
+                <Radio value="COD" className="!m-0 w-full py-3">
+                  <span className="flex items-center gap-3">
+                    <span className="text-stone-500">
                       <BankOutlined style={{ fontSize: 18 }} />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -344,23 +337,11 @@ export default function CheckoutPage() {
                         Trả trực tiếp cho shipper khi nhận món.
                       </span>
                     </span>
-                    {paymentMethod === 'COD' && (
-                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-600 text-white">
-                        <CheckOutlined style={{ fontSize: 11 }} />
-                      </span>
-                    )}
                   </span>
                 </Radio>
-                <Radio
-                  value="QR"
-                  className="!m-0 rounded-xl border p-3 transition hover:border-amber-500 [&.ant-radio-wrapper-checked]:border-amber-600 [&.ant-radio-wrapper-checked]:bg-amber-50/60 [&_.ant-radio]:hidden"
-                >
-                  <span className="flex w-full items-center gap-3">
-                    <span
-                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full transition ${
-                        paymentMethod === 'QR' ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-500'
-                      }`}
-                    >
+                <Radio value="QR" className="!m-0 w-full py-3">
+                  <span className="flex items-center gap-3">
+                    <span className="text-stone-500">
                       <QrcodeOutlined style={{ fontSize: 18 }} />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -369,11 +350,6 @@ export default function CheckoutPage() {
                         Quét mã QR để điền sẵn số tiền và nội dung.
                       </span>
                     </span>
-                    {paymentMethod === 'QR' && (
-                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-600 text-white">
-                        <CheckOutlined style={{ fontSize: 11 }} />
-                      </span>
-                    )}
                   </span>
                 </Radio>
               </Radio.Group>

@@ -36,10 +36,6 @@
   }
 }
 
-/* Checkout dùng thẻ tự chọn, ẩn chấm radio mặc định của AntD để tránh hai tín hiệu chọn. */
-#paymentMethod .ant-radio {
-  display: none !important;
-}
 
 /* Khung chat nở lên từ góc dưới phải khi mở: nhanh, nhỏ và không đẩy nội dung. */
 @keyframes chat-in {
