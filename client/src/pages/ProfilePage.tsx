@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Form, Input, Modal, Skeleton, message } from 'antd'
-import { UserOutlined } from '@ant-design/icons'
 import { changePassword, getMe, updateMe } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
 import { useAuthStore } from '../store/authStore'
@@ -56,40 +55,63 @@ export default function ProfilePage() {
     }
   }
 
-  return (
-    <div className="profile-page mx-auto max-w-2xl px-4 py-10">
-      <div className="mt-6 flex flex-col items-center rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-stone-200/60">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-3xl text-amber-700">
-          <UserOutlined />
-        </span>
-        <div className="mt-3">
-          <div className="text-lg font-semibold text-stone-900">{user?.fullName}</div>
-          <div className="text-sm text-stone-500">{user?.email}</div>
-          <div className="mt-0.5 text-xs uppercase tracking-wide text-stone-400">
-            {user?.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng'}
-          </div>
-        </div>
-      </div>
+  const initial = user?.fullName.charAt(0).toUpperCase() ?? '?'
+  const joined = me?.createdAt ? new Date(me.createdAt) : null
+  const joinedLabel =
+    joined && !Number.isNaN(joined.getTime())
+      ? `Tham gia từ ${joined.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })}`
+      : null
 
-      <div className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200/60">
-        <h2 className="text-base font-semibold text-stone-900">Thông tin cá nhân</h2>
-        <Form form={form} layout="vertical" className="mt-4" onFinish={submit}>
-          <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="phone" label="Số điện thoại" rules={[PHONE_RULE]}>
-            <Input placeholder="0900000000" />
-          </Form.Item>
-          <Form.Item name="address" label="Địa chỉ">
-            <Input />
-          </Form.Item>
-          <div className="mt-4 flex items-center gap-2">
-            <UiButton kind="primary" htmlType="submit" loading={saving}>
-              Lưu thay đổi
+  return (
+    <div className="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-8">
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">Hồ sơ cá nhân</h1>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+        <section className="rounded-2xl bg-white p-5 text-center ring-1 ring-stone-200/60">
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-amber-700 text-2xl font-bold text-white">
+            {initial}
+          </span>
+          <p className="mt-3 text-base font-semibold text-stone-900">{user?.fullName}</p>
+          <p className="mt-0.5 break-all text-sm text-stone-500">{user?.email}</p>
+          <span className="mt-2 inline-block rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+            {user?.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng'}
+          </span>
+          {joinedLabel && <p className="mt-2 text-xs text-stone-400">{joinedLabel}</p>}
+        </section>
+
+        <div className="space-y-5">
+          <section className="rounded-2xl bg-white p-5 ring-1 ring-stone-200/60 sm:p-6">
+            <h2 className="text-base font-semibold text-stone-900">Thông tin cá nhân</h2>
+            <Form form={form} layout="vertical" className="mt-4" onFinish={submit}>
+              <div className="grid gap-x-4 sm:grid-cols-2">
+                <Form.Item name="fullName" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
+                  <Input />
+                </Form.Item>
+                <Form.Item name="phone" label="Số điện thoại" rules={[PHONE_RULE]}>
+                  <Input placeholder="0900000000" />
+                </Form.Item>
+              </div>
+              <Form.Item name="address" label="Địa chỉ">
+                <Input />
+              </Form.Item>
+              <div className="flex justify-end">
+                <UiButton kind="primary" htmlType="submit" loading={saving}>
+                  Lưu thay đổi
+                </UiButton>
+              </div>
+            </Form>
+          </section>
+
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-5 ring-1 ring-stone-200/60 sm:p-6">
+            <div>
+              <h2 className="text-base font-semibold text-stone-900">Bảo mật</h2>
+              <p className="mt-0.5 text-sm text-stone-500">Đổi mật khẩu đăng nhập của bạn.</p>
+            </div>
+            <UiButton kind="default" onClick={() => setPasswordModal(true)}>
+              Đổi mật khẩu
             </UiButton>
-            <UiButton kind="default" onClick={() => setPasswordModal(true)}>Đổi mật khẩu</UiButton>
-          </div>
-        </Form>
+          </section>
+        </div>
       </div>
 
       <Modal

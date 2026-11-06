@@ -31,7 +31,7 @@ export default function DealRail({ foods, onSeeAll }: DealRailProps) {
 
       <div className="-mx-1 mt-2 flex snap-x gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {foods.map((food) => (
-          <div key={food.id} className="w-[200px] shrink-0 snap-start sm:w-[220px]">
+          <div key={food.id} className="w-[240px] shrink-0 snap-start sm:w-[280px]">
             <FoodCard food={food} />
           </div>
         ))}

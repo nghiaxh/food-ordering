@@ -26,7 +26,6 @@ export default function CartDrawer() {
   const open = useUiStore((s) => s.activeDrawer === 'cart')
   const close = useUiStore((s) => s.closeDrawer)
   const items = useCartStore((s) => s.items)
-  const portions = items.reduce((n, i) => n + i.quantity, 0)
 
   return (
     <Drawer
@@ -36,14 +35,14 @@ export default function CartDrawer() {
       size="min(480px, 100vw)"
       destroyOnHidden
       title={
-        <div>
-          <span className="block text-[15px] font-semibold text-stone-900">Giỏ hàng</span>
+        <span className="flex items-center gap-2">
+          <span className="text-base font-semibold text-stone-900">Giỏ hàng</span>
           {items.length > 0 && (
-            <span className="mt-0.5 block text-xs font-normal text-stone-500">
-              {items.length} món · {portions} phần
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-800">
+              {items.length}
             </span>
           )}
-        </div>
+        </span>
       }
       styles={{
         body: { padding: 0, overflow: 'hidden' },
@@ -179,9 +178,10 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
                   {item.quantity > 1 ? ' / phần' : ''}
                 </p>
                 {lineDiscount > 0 && (
-                  <p className="mt-0.5 text-xs font-medium text-emerald-600">
-                    {discountText(line?.discountLabel) ? `${discountText(line?.discountLabel)} · ` : ''}-{formatVND(lineDiscount)}
-                  </p>
+                  <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    {discountText(line?.discountLabel) ?? 'Ưu đãi'}
+                    <span className="tabular-nums">-{formatVND(lineDiscount)}</span>
+                  </span>
                 )}
                 {!food.available && (
                   <p className="mt-0.5 text-xs font-medium text-red-600">Món đã ngừng phục vụ</p>
@@ -313,7 +313,7 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
               navigate('/checkout')
             }}
           >
-            {quote ? `Đặt món · ${formatVND(quote.total)}` : 'Đặt món'}
+            Đặt món
           </UiButton>
           {/* Nhãn cập nhật giá và lối quay lại thực đơn dùng chung một hàng cho đỡ cao. */}
           <div className="mt-1 flex items-center justify-between gap-2">
