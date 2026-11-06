@@ -155,16 +155,6 @@ export default function HeaderGlobal() {
             </Badge>
           )}
 
-          {user && isDesktop && (
-            <UiButton
-              kind="icon"
-              size="small"
-              aria-label={isAdmin ? 'Trang quản trị' : 'Đơn hàng'}
-              icon={<UiIcon name={isAdmin ? 'th-large' : 'inbox'} size={18} />}
-              onClick={() => navigate(isAdmin ? '/admin/foods' : '/orders')}
-            />
-          )}
-
           <Badge count={count} size="small" color="#b45309">
             <UiButton
               kind="icon"
@@ -174,6 +164,16 @@ export default function HeaderGlobal() {
               onClick={openCart}
             />
           </Badge>
+
+          {user && isDesktop && (
+            <UiButton
+              kind="icon"
+              size="small"
+              aria-label={isAdmin ? 'Trang quản trị' : 'Đơn hàng'}
+              icon={<UiIcon name={isAdmin ? 'th-large' : 'inbox'} size={18} />}
+              onClick={() => navigate(isAdmin ? '/admin/foods' : '/orders')}
+            />
+          )}
 
           {user ? (
             <Dropdown menu={accountMenu} trigger={['click']} placement="bottomRight">

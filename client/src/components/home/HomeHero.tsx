@@ -23,8 +23,7 @@ export default function HomeHero({ onBrowse, onAsk }: HomeHeroProps) {
       <div className="absolute inset-0 bg-gradient-to-r from-stone-950/85 via-stone-950/55 to-stone-950/10" />
 
       <div className="relative mx-auto flex h-[180px] max-w-[1600px] flex-col justify-center px-4 sm:h-[220px] sm:px-6 lg:h-[260px]">
-        <p className="text-xs font-medium text-amber-100">Cần Thơ · giao 20-30 phút</p>
-        <h1 className="mt-1.5 max-w-lg text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
+        <h1 className="max-w-lg text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
           Hôm nay ăn gì?
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
