@@ -27,9 +27,9 @@ export default function AuthShell({ title, maxWidth = 'max-w-[400px]', children 
       <button
         type="button"
         onClick={() => navigate('/')}
-        className="absolute left-4 top-4 z-20 rounded-full bg-white/80 px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm backdrop-blur transition hover:bg-white"
+        className="absolute left-4 top-4 z-20 cursor-pointer rounded-full bg-white/80 px-3 py-1.5 text-sm font-medium text-stone-700 shadow-sm backdrop-blur transition hover:bg-white"
       >
-        ← Trang chủ
+        Trang chủ
       </button>
 
       <div
