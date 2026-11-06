@@ -96,8 +96,8 @@ export default function ChatbotWidget() {
     return () => window.clearTimeout(timer)
   }, [draft])
 
-  const isAdmin = location.pathname.startsWith('/admin')
   const user = useAuthStore((s) => s.user)
+  const isAdmin = location.pathname.startsWith('/admin') || user?.role === 'ADMIN'
   const addToCart = useCartStore((s) => s.add)
   // Chưa đăng nhập vẫn xem được gợi ý nhưng không thêm được vào giỏ (giỏ cần token).
   const canAdd = user !== null && user.role !== 'ADMIN'

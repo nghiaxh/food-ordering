@@ -241,7 +241,15 @@ export default function HeaderGlobal() {
           phía phải hàng dưới. */}
       <div className="mx-auto flex min-h-[3.25rem] max-w-[1600px] flex-wrap items-center gap-1.5 px-3 sm:gap-2 sm:px-4 md:gap-3 md:flex-nowrap md:px-5">
         {/* Hàng chính desktop */}
-        {!isAdmin && (
+        {isAdmin ? (
+          <UiButton
+            kind="icon"
+            size="small"
+            aria-label="Về trang quản trị"
+            icon={<UiIcon name="arrow-left" size={18} />}
+            onClick={() => navigate('/admin')}
+          />
+        ) : (
           <UiButton
             kind="icon"
             size="small"
