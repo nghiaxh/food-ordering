@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Dropdown, Empty, message } from 'antd'
 import { DownOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
@@ -65,12 +65,12 @@ function hasDietTag(food: Food, tag: string): boolean {
 export default function FoodsPage() {
   const [params, setParams] = useSearchParams()
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const categoryId = num(params.get('category'))
   const keyword = params.get('keyword') ?? undefined
   const minPrice = num(params.get('min'))
   const maxPrice = num(params.get('max'))
+  const pageParam = num(params.get('page'))
   const sort = params.get('sort') ?? 'default'
   const sortLabel = SORTS.find((s) => s.value === sort)?.label ?? 'Mặc định'
   const diet = params.get('diet') ?? undefined
@@ -142,9 +142,11 @@ export default function FoodsPage() {
     return sorted
   }, [foods, diet, noSpicy, onlyAvailable, onlyDeals, sort])
 
-  // Đổi bộ lọc thì quay về lượt đầu, tránh đang ở "Tải thêm" mà danh sách ngắn lại.
+  // Đổi bộ lọc thì về trang đầu, tránh đang ở trang 3 mà danh sách ngắn lại.
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE)
+    if (params.get('page') !== null) patch({ page: undefined })
+    // Chỉ phụ thuộc bộ lọc, không phụ thuộc chính page để không vòng lặp.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId, keyword, minPrice, maxPrice, sort, diet, noSpicy, onlyAvailable, onlyDeals])
 
   // Quay lại từ trang chi tiết: trả đúng vị trí cuộn của bảng món sau khi dữ liệu đã về.
@@ -158,7 +160,9 @@ export default function FoodsPage() {
     if (Number.isFinite(top)) requestAnimationFrame(() => scroller.scrollTo({ top }))
   }, [loading, foods])
 
-  const visible = filtered.slice(0, visibleCount)
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(Math.max(1, pageParam ?? 1), pageCount)
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const deals = (foods ?? []).filter((f) => (f.discountPercent ?? 0) > 0).slice(0, 8)
   const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
   const from = `/${params.toString() ? `?${params.toString()}` : ''}`
@@ -170,6 +174,33 @@ export default function FoodsPage() {
         : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
     }`
 
+  // Đổi trang thì ghi vào URL và đưa đầu lưới vào tầm nhìn, giữ nguyên bộ lọc.
+  const goToPage = (next: number) => {
+    const target = Math.min(Math.max(1, next), pageCount)
+    patch({ page: target === 1 ? undefined : target.toString() })
+    document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Danh sách trang gọn: đủ ít thì hiện hết, nhiều thì rút gọn quanh trang hiện tại.
+  const pageItems: Array<number | '…'> = (() => {
+    if (pageCount <= 7) return Array.from({ length: pageCount }, (_, i) => i + 1)
+    const around = new Set([1, currentPage - 1, currentPage, currentPage + 1, pageCount])
+    const sorted = [...around].filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b)
+    const out: Array<number | '…'> = []
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i] - sorted[i - 1] > 1) out.push('…')
+      out.push(sorted[i])
+    }
+    return out
+  })()
+
+  const pageButtonClass = (active: boolean) =>
+    `inline-flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-full px-2 text-sm tabular-nums transition ${
+      active
+        ? 'bg-amber-700 font-semibold text-white'
+        : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
+    }`
+
   return (
     <div
       ref={scrollerRef}
@@ -178,7 +209,6 @@ export default function FoodsPage() {
       {/* Hero trải hết bề ngang vùng cuộn; phần còn lại vẫn bó trong 1600px. */}
       {!filtersActive && (
         <HomeHero
-          foodCount={foods?.length ?? 0}
           onBrowse={() =>
             document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }
@@ -330,13 +360,46 @@ export default function FoodsPage() {
                     <FoodCard key={food.id} food={food} />
                   ))}
                 </div>
-                {visible.length < filtered.length && (
-                  <div className="mt-5 flex flex-col items-center gap-1.5 pb-2">
-                    <UiButton kind="default" onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}>
-                      Tải thêm món
-                    </UiButton>
+                {pageCount > 1 && (
+                  <div className="mt-5 flex flex-col items-center gap-2 pb-2">
+                    <nav className="flex flex-wrap items-center justify-center gap-1.5" aria-label="Phân trang thực đơn">
+                      <button
+                        type="button"
+                        disabled={currentPage === 1}
+                        onClick={() => goToPage(currentPage - 1)}
+                        className="inline-flex min-h-9 cursor-pointer items-center rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Trước
+                      </button>
+                      {pageItems.map((item, index) =>
+                        item === '…' ? (
+                          <span key={`gap-${index}`} className="px-1 text-sm text-stone-400">
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={item}
+                            type="button"
+                            aria-label={`Trang ${item}`}
+                            aria-current={item === currentPage ? 'page' : undefined}
+                            onClick={() => goToPage(item)}
+                            className={pageButtonClass(item === currentPage)}
+                          >
+                            {item}
+                          </button>
+                        ),
+                      )}
+                      <button
+                        type="button"
+                        disabled={currentPage === pageCount}
+                        onClick={() => goToPage(currentPage + 1)}
+                        className="inline-flex min-h-9 cursor-pointer items-center rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Sau
+                      </button>
+                    </nav>
                     <span className="text-xs text-stone-500">
-                      Đã hiện {visible.length}/{filtered.length} món
+                      Trang {currentPage}/{pageCount} · {filtered.length} món
                     </span>
                   </div>
                 )}
