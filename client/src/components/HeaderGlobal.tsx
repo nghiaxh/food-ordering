@@ -319,7 +319,7 @@ export default function HeaderGlobal() {
         </div>
 
         {/* Cụm phải mobile: giỏ + đăng nhập, gọn hơn để không bóp tìm kiếm */}
-        <div className="flex shrink-0 items-center gap-1.5 md:hidden">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 md:hidden">
           {isAdmin ? (
             <>
               {user && (
