@@ -60,6 +60,9 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-MENU-06 | Món ngừng phục vụ | Món có `available = false` | Xem món trên thực đơn | Thẻ món hiển thị nhãn "Hết món", ảnh xám, nút "Tạm hết" bị vô hiệu hoá | | |
 | TC-MENU-10 | Quay lại giữ bộ lọc và vị trí cuộn | Đang lọc + đã cuộn sâu trong lưới món | Mở chi tiết một món rồi bấm "Quay lại thực đơn" | Trở về đúng URL có bộ lọc cũ và cuộn về đúng vị trí đã rời đi | | |
 | TC-MENU-11 | Danh mục, ưu đãi và hero | Trang chủ `/`, chưa có bộ lọc | Xem phần đầu trang | Hero ghi địa bàn Cần Thơ, số món/danh mục thật; dải danh mục có ảnh; "Ưu đãi hôm nay" chỉ gồm món có `discountPercent > 0`, bấm "Xem tất cả" bật lọc `deal=1`; có bộ lọc thì hero ẩn | | |
+| TC-MENU-12 | Hero full-bleed | Trang chủ `/`, chưa có bộ lọc | Xem phần đầu trang | Hero trải hết bề ngang vùng cuộn, cao 180/220/260px theo breakpoint, chữ trắng đạt AA, không còn slogan; hero biến mất khi có bộ lọc | | |
+| TC-MENU-13 | Chip danh mục | Trang chủ `/` | Cuộn dải danh mục | Chip cao 36px, ảnh tròn 28px, active nền amber đậm chữ trắng; dải cùng ngôn ngữ với hàng chip lọc | | |
+| TC-MENU-14 | Sắp xếp bằng dropdown | Trang chủ `/` | Bấm "Sắp xếp: Mặc định" | Dropdown radio hiện 4 lựa chọn, chọn xong URL có `sort`, thanh sticky chỉ còn chip lọc | | |
 
 ### 1.2.3. Giỏ hàng & Định giá Khuyến mãi (UC09 – UC12, PricingService)
 
@@ -75,6 +78,9 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-CART-09 | Thêm từ trang chi tiết mở drawer | Đã đăng nhập, đang ở `/foods/:id` | Chọn số lượng rồi bấm "Thêm vào giỏ" | Toast xác nhận và drawer giỏ **tự mở** để khách thấy món vừa thêm | | |
 | TC-CART-10 | Giỏ trống | Đã đăng nhập, giỏ rỗng | Bấm nút giỏ trên header | Drawer mở, hiện trạng thái rỗng với nút "Khám phá thực đơn"; không gọi quote | | |
 | TC-CART-11 | `/cart` chuyển hướng | Đã đăng nhập | Mở thẳng `/cart` | Chuyển về `/checkout`; không còn trang giỏ riêng | | |
+| TC-CART-12 | Hoàn tác khi xoá món | Đã đăng nhập, giỏ có món | Bấm `Xóa` trên một dòng | Dòng biến mất, toast "Đã xóa …" hiện 5 giây kèm nút "Hoàn tác"; bấm hoàn tác đưa lại đúng món và số phần | | |
+| TC-CART-13 | Gợi ý món liên quan | Đã đăng nhập, giỏ chưa có đồ uống/tráng miệng | Mở drawer giỏ | Shelf "Thêm cho bữa này" hiện tối đa 3 món đồ uống/tráng miệng; bấm `+` thêm vào giỏ ngay và shelf cập nhật | | |
+| TC-CART-14 | Footer compact khi có/không giảm giá | Đã đăng nhập, giỏ có món | Mở drawer giỏ | Có giảm giá thì hiện Tạm tính + Giảm giá + Tổng; không giảm giá thì chỉ Tổng; footer không quá 210px cao | | |
 
 ### 1.2.4. Đặt hàng & Vòng đời Đơn hàng (UC12 – UC16, UC30 – UC31)
 

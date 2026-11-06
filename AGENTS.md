@@ -139,11 +139,11 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
 - **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
   sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
 - **Thanh điều hướng một hàng ở mọi kích thước**: logo (`BrandMark`, bấm về `/`), ô tìm kiếm
-  co giãn, nút đơn hàng, nút giỏ, avatar/nút đăng nhập. Chuông **không** còn là nút riêng:
-  mục "Thông báo" nằm trong menu tài khoản và mở `NotificationsDrawer`; avatar có chấm đỏ khi
-  chưa đọc. Nút đơn hàng (icon `inbox`) chỉ hiện từ `md` khi đã đăng nhập vì `/orders` cần token;
-  đừng thêm menu điều hướng, các trang con còn lại nằm trong menu tài khoản. Trang
-  đăng nhập/đăng ký (`AuthShell`) không hiển thị thương hiệu/link về bảng món.
+  co giãn, nút đơn hàng, nút giỏ, avatar/nút đăng nhập. Từ `lg` chuông và đơn hàng có nút riêng
+  trên header (chuông mang chấm đỏ chưa đọc); dưới `lg` hai mục này nằm trong menu tài khoản
+  và mở drawer tương ứng. Nút đơn hàng (icon `inbox`) chỉ hiện từ `lg` khi đã đăng nhập vì
+  `/orders` cần token; đừng thêm menu điều hướng, các trang con còn lại nằm trong menu tài khoản.
+  Trang đăng nhập/đăng ký (`AuthShell`) không hiển thị thương hiệu/link về bảng món.
 - **Chiều cao header là `--header-h` (`3.25rem`)** trong `index.css`; khối chatbot dùng
   `top-[var(--header-h)]`, vùng cuộn của `FoodsPage` dùng `calc(100dvh-var(--header-h))`. Đổi
   chiều cao chỉ sửa biến, đừng hard-code lại ở ba nơi. Trang chi tiết và checkout cũng dùng

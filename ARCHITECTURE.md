@@ -325,12 +325,15 @@ từ `/api/admin/reports/*` tính trong 30 ngày gần nhất. Doanh thu trên t
 Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang chủ / Thực đơn" làm một
 màn hình. Cấu trúc từ trên xuống:
 
-- **Hero ngắn** (`components/home/HomeHero.tsx`) chỉ hiện khi chưa có bộ lọc: địa bàn Cần Thơ,
-  số món và số danh mục thật, hai nút "Xem thực đơn" và "Hỏi trợ lý AI" (mở chat qua `uiStore`).
-- **Dải danh mục có ảnh** (`CategoryRail`) dùng `Category.imageUrl` sẵn có trong DB, cuộn ngang
-  trên mobile; chọn danh mục ghi `?category=` và cuộn tới lưới món.
-- **Ưu đãi hôm nay** (`DealRail`) lấy tối đa 4 món có `discountPercent > 0` do server tính, kèm
-  nút "Xem tất cả" bật bộ lọc `deal=1`. Không tự đoán chương trình nào đang chạy.
+- **Hero** (`components/home/HomeHero.tsx`) trải hết bề ngang vùng cuộn, chỉ hiện khi chưa có bộ
+  lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ nói địa bàn và số
+  món thật, không slogan. Cao 180/220/260px theo breakpoint.
+- **Dải danh mục** (`CategoryRail`) là chip cao 36px có ảnh tròn 28px, cuộn ngang; chọn danh mục
+  ghi `?category=` và cuộn tới lưới món.
+- **Ưu đãi hôm nay** (`DealRail`) là shelf cuộn ngang, lấy tối đa 8 món có `discountPercent > 0`
+  do server tính, kèm nút "Xem tất cả" bật bộ lọc `deal=1`. Không tự đoán chương trình nào đang chạy.
+- **Sắp xếp** nằm ở hàng tiêu đề thực đơn dưới dạng nút `Sắp xếp: … ⌄` mở Dropdown radio, không
+  còn Select full-width trong thanh sticky.
 - **Lưới món** 2 cột dưới `md`, 4 cột từ `md` (`grid-cols-2 md:grid-cols-4`), mỗi lượt 12 món
   (`PAGE_SIZE` chia hết cho 2 và 4). Bấm "Tải thêm món" nối thêm 12 món thay vì phân trang rời.
 - **Bộ lọc nằm trên URL**: `category`, `keyword`, `min`, `max`, `sort`, `diet`, `spicy`,
@@ -376,15 +379,15 @@ Trang không lặp lại danh sách món sửa được (việc đó nằm trong
 - Thanh điều hướng **một hàng ở mọi kích thước**: logo (`BrandMark`, bấm về `/`), ô tìm kiếm
   co giãn (`flex-1`), nút đơn hàng, nút giỏ, avatar hoặc nút đăng nhập. Chiều cao cố định
   `--header-h = 3.25rem`; chatbot, vùng cuộn kiosk và thanh đáy đều đọc biến này, không
-  hard-code lại. Nút đơn hàng (icon `inbox`) chỉ hiện từ `md` khi đã đăng nhập vì `/orders` bắt
-  buộc token. Không có menu điều hướng riêng; các đích còn lại nằm trong menu tài khoản (Thông
-  báo, Đơn hàng của tôi, Tài khoản, Đăng xuất) và nút tắt sang khu quản trị nếu là admin.
-- **Chuông không còn trên header**: mục "Thông báo" trong menu tài khoản mở
-  `NotificationsDrawer`; avatar có chấm đỏ khi còn thông báo chưa đọc. Nhờ vậy header giữ được
-  một hàng và ô tìm kiếm có đủ chỗ trên mobile.
+  hard-code lại. Từ `lg` chuông và đơn hàng có nút riêng trên header (chuông mang chấm đỏ chưa
+  đọc), dưới `lg` hai mục này nằm trong menu tài khoản; nút đơn hàng chỉ hiện khi đã đăng
+  nhập vì `/orders` bắt buộc token. Không có menu điều hướng riêng; các đích còn lại nằm trong
+  menu tài khoản và nút tắt sang khu quản trị nếu là admin.
 - **Giỏ hàng là drawer**, không phải trang: `CartDrawer` rộng `min(420px, 100vw)`, danh sách
   món sửa số lượng/xoá tại chỗ, footer sticky hiện tạm tính, giảm giá, tổng và nút sang
-  `/checkout`. Drawer chỉ mount nội dung khi mở nên không gọi báo giá ở mọi trang.
+  `/checkout`. Xoá món có hoàn tác 5 giây; khi có món đồ uống/tráng miệng chưa trong giỏ thì
+  hiện shelf "Thêm cho bữa này" với nút một chạm. Drawer chỉ mount nội dung khi mở nên không gọi
+  báo giá ở mọi trang. `useCartQuote` debounce 250ms và cho phép thử lại khi lỗi.
 - Trang `/login` và `/register` (`AuthShell`) không còn hiển thị thương hiệu/link về bảng món;
   trang quản trị có logo riêng trong `AdminLayout`.
 - `components/UiButton.tsx` là nút dùng chung, chỉ 6 dạng: `primary` (44px), `primary-lg`
