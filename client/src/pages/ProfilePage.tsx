@@ -63,10 +63,8 @@ export default function ProfilePage() {
       : null
 
   return (
-    <div className="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-8">
-      <h1 className="text-2xl font-bold tracking-tight text-stone-900">Hồ sơ cá nhân</h1>
-
-      <div className="mt-5 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+    <div className="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-8">      
+      <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
         <section className="rounded-2xl bg-white p-5 text-center ring-1 ring-stone-200/60">
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-amber-700 text-2xl font-bold text-white">
             {initial}
