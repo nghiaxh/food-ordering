@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { DatePicker, Form, Input, InputNumber, Select, Switch, Table } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Dayjs } from 'dayjs'
@@ -48,7 +48,7 @@ function discountLabel(p: Promotion): string {
 }
 
 export default function AdminPromotionsPage() {
-  const { data: promotions, loading, refresh } = useAsyncData(() => adminGetPromotions(), [])
+  const { data: promotions, loading, error, refresh } = useAsyncData(() => adminGetPromotions(), [])
   const { run: save, pending: saving } = useAsyncAction(
     (payload: { id: number | null; data: Record<string, unknown> }) => adminSavePromotion(payload.id, payload.data),
   )
@@ -56,10 +56,6 @@ export default function AdminPromotionsPage() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Promotion | null>(null)
   const [form] = Form.useForm<PromotionFormValues>()
-
-  useEffect(() => {
-    if (!promotions && !loading) void refresh()
-  }, [promotions, loading, refresh])
 
   const openCreate = () => {
     setEditing(null)
@@ -150,6 +146,17 @@ export default function AdminPromotionsPage() {
       <PageCard>
         {loading && !promotions ? (
           <TableSkeleton />
+        ) : error ? (
+          <EmptyState
+            icon="tag"
+            title="Không tải được danh sách khuyến mãi"
+            hint="Kiểm tra kết nối rồi thử lại."
+            action={
+              <UiButton kind="default" onClick={() => void refresh()}>
+                Thử lại
+              </UiButton>
+            }
+          />
         ) : (
           <Table
             rowKey="id"
