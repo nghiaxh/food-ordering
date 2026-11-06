@@ -1,13 +1,20 @@
-import { Drawer, Skeleton } from 'antd'
+import { useCallback, useMemo, useRef } from 'react'
+import { Drawer, Skeleton, message } from 'antd'
 import { Link, useNavigate } from 'react-router-dom'
+import { getFoods } from '../api/api'
+import useAsyncData from '../hooks/useAsyncData'
 import useCartQuote from '../hooks/useCartQuote'
 import { useCartStore } from '../store/cartStore'
 import { useUiStore } from '../store/uiStore'
 import { formatVND } from '../utils/format'
+import type { Food } from '../types'
 import QuantityStepper from './QuantityStepper'
 import UiButton from './UiButton'
 import UiIcon from './UiIcon'
 import UiImg from './UiImg'
+
+/** Chỉ gợi ý nhóm dễ ghép thêm vào bữa, không đẩy món chính trùng với giỏ. */
+const RELATED_CATEGORIES = ['Đồ uống', 'Tráng miệng']
 
 /**
  * Giỏ hàng dạng drawer bên phải. Không đổi URL nên khách xem lại thực đơn ngay khi đóng,
@@ -18,6 +25,7 @@ export default function CartDrawer() {
   const open = useUiStore((s) => s.activeDrawer === 'cart')
   const close = useUiStore((s) => s.closeDrawer)
   const items = useCartStore((s) => s.items)
+  const portions = items.reduce((n, i) => n + i.quantity, 0)
 
   return (
     <Drawer
@@ -27,14 +35,19 @@ export default function CartDrawer() {
       size="min(420px, 100vw)"
       destroyOnHidden
       title={
-        <div className="flex items-baseline gap-2">
-          <span>Giỏ hàng</span>
+        <div>
+          <span className="block text-[15px] font-semibold text-stone-900">Giỏ hàng</span>
           {items.length > 0 && (
-            <span className="text-xs font-normal text-stone-500">{items.length} món</span>
+            <span className="mt-0.5 block text-xs font-normal text-stone-500">
+              {items.length} món · {portions} phần
+            </span>
           )}
         </div>
       }
-      styles={{ body: { padding: 0, overflow: 'hidden' } }}
+      styles={{
+        body: { padding: 0, overflow: 'hidden' },
+        header: { paddingBottom: 12, borderBottom: '1px solid #e7e5e4' },
+      }}
     >
       <CartDrawerContent onClose={close} />
     </Drawer>
@@ -45,11 +58,60 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const items = useCartStore((s) => s.items)
   const loaded = useCartStore((s) => s.loaded)
+  const add = useCartStore((s) => s.add)
   const setQuantity = useCartStore((s) => s.setQuantity)
   const remove = useCartStore((s) => s.remove)
-  const { quote, quoteLoading, quoteError, quoteStale } = useCartQuote(items)
+  const { quote, quoteLoading, quoteError, quoteStale, retry } = useCartQuote(items)
 
-  const portions = items.reduce((n, i) => n + i.quantity, 0)
+  // Món gợi ý lấy một lần khi mở drawer; lọc lại theo giỏ hiện tại để vừa thêm xong là biến mất.
+  const related = useAsyncData((signal) => getFoods(undefined, signal), [])
+  const suggestions = useMemo(() => {
+    const inCart = new Set(items.map((i) => i.food?.id))
+    return (related.data ?? [])
+      .filter(
+        (f) =>
+          f.available &&
+          !inCart.has(f.id) &&
+          f.category !== null &&
+          RELATED_CATEGORIES.includes(f.category.name),
+      )
+      .sort((a, b) => (a.discountedPrice ?? a.price) - (b.discountedPrice ?? b.price))
+      .slice(0, 3)
+  }, [related.data, items])
+
+  const hideToast = useRef<(() => void) | null>(null)
+
+  /**
+   * Xoá thẳng không hỏi lại, nhưng để đường lùi trong 5 giây: khách bấm nhầm vẫn lấy lại
+   * được đúng món và đúng số phần, không phải mở thực đơn tìm lại.
+   */
+  const removeLine = useCallback(
+    (food: Food, quantity: number) => {
+      void remove(food.id)
+      hideToast.current?.()
+      const hide = message.open({
+        type: 'success',
+        duration: 5,
+        content: (
+          <span className="flex items-center gap-3">
+            <span className="min-w-0 truncate">Đã xóa {food.name}</span>
+            <button
+              type="button"
+              className="shrink-0 cursor-pointer border-0 bg-transparent p-0 font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900"
+              onClick={() => {
+                hide()
+                void add(food, quantity)
+              }}
+            >
+              Hoàn tác
+            </button>
+          </span>
+        ),
+      })
+      hideToast.current = hide
+    },
+    [add, remove],
+  )
 
   if (!loaded) {
     return (
@@ -61,13 +123,13 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
 
   if (items.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
-        <span className="grid h-16 w-16 place-items-center rounded-full bg-stone-100 text-stone-300">
-          <UiIcon name="shopping-cart" size={28} />
+      <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-stone-100 text-stone-300">
+          <UiIcon name="shopping-cart" size={24} />
         </span>
         <p className="text-base font-semibold text-stone-900">Giỏ hàng đang trống</p>
         <p className="text-sm leading-relaxed text-stone-500">
-          Chọn vài món từ thực đơn, hoặc hỏi trợ lý AI để được gợi ý theo khẩu vị.
+          Chọn vài món từ thực đơn, hoặc hỏi trợ lý AI để được gợi ý.
         </p>
         <UiButton
           kind="primary"
@@ -77,39 +139,47 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
             navigate('/')
           }}
         >
-          Khám phá thực đơn
+          Xem thực đơn
         </UiButton>
       </div>
     )
   }
 
+  const discountTotal = quote?.discountTotal ?? 0
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 divide-y divide-stone-100 overflow-y-auto px-4">
+      <div className="flex-1 overflow-y-auto px-4 pb-3">
         {items.map((item) => {
           const food = item.food
           if (!food) return null
           const line = quote?.lines.find((l) => l.foodId === food.id)
-          const unit = line?.unitPrice ?? food.price
+          const unit = line?.unitPrice ?? (food.discountedPrice ?? food.price)
           const lineTotal = line?.lineTotal ?? unit * item.quantity
+          const lineDiscount = line?.lineDiscount ?? 0
+
           return (
-            <div key={food.id} className="flex gap-3 py-4">
-              <Link to={`/foods/${food.id}`} onClick={onClose} className="shrink-0">
-                <UiImg src={food.imageUrl} alt={food.name} className="h-16 w-16 rounded-xl" />
+            <div key={food.id} className="flex gap-3 border-b border-stone-100 py-3.5 last:border-0">
+              <Link to={`/foods/${food.id}`} onClick={onClose} className="shrink-0 self-start">
+                <UiImg src={food.imageUrl} alt={food.name} className="h-14 w-14 rounded-xl" />
               </Link>
 
               <div className="min-w-0 flex-1">
                 <Link
                   to={`/foods/${food.id}`}
                   onClick={onClose}
-                  className="block truncate text-sm font-semibold text-stone-900 hover:text-amber-700"
+                  className="line-clamp-2 block text-sm font-semibold leading-snug text-stone-900 hover:text-amber-700"
                 >
                   {food.name}
                 </Link>
-                <p className="mt-0.5 text-xs text-stone-500">{formatVND(unit)} / phần</p>
-                {line && line.lineDiscount > 0 && (
+                {/* Chỉ nói "/phần" khi khách đã tăng số lượng, một phần thì đơn giá đã rõ. */}
+                <p className="mt-0.5 text-xs text-stone-500">
+                  {formatVND(unit)}
+                  {item.quantity > 1 ? ' / phần' : ''}
+                </p>
+                {lineDiscount > 0 && (
                   <p className="mt-0.5 text-xs font-medium text-emerald-600">
-                    {line.discountLabel ? `${line.discountLabel} · ` : ''}-{formatVND(line.lineDiscount)}
+                    {line?.discountLabel ? `${line.discountLabel} · ` : ''}-{formatVND(lineDiscount)}
                   </p>
                 )}
                 {!food.available && (
@@ -117,75 +187,151 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
                 )}
 
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <QuantityStepper
-                    value={item.quantity}
-                    size="sm"
-                    label={`Số lượng ${food.name}`}
-                    onChange={(value) => void setQuantity(food.id, value)}
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold tabular-nums text-stone-900">
-                      {formatVND(lineTotal)}
-                    </span>
-                    <UiButton
-                      kind="icon"
-                      size="small"
-                      aria-label={`Xóa ${food.name}`}
-                      icon={<UiIcon name="delete" size={14} />}
-                      onClick={() => void remove(food.id)}
+                  <div className="flex min-w-0 items-center gap-1">
+                    <QuantityStepper
+                      value={item.quantity}
+                      size="sm"
+                      disabled={!food.available}
+                      label={`Số lượng ${food.name}`}
+                      onChange={(value) => void setQuantity(food.id, value)}
                     />
+                    <button
+                      type="button"
+                      aria-label={`Xóa ${food.name}`}
+                      className="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-medium text-stone-500 transition hover:bg-stone-100 hover:text-red-600"
+                      onClick={() => removeLine(food, item.quantity)}
+                    >
+                      Xóa
+                    </button>
                   </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-stone-900">
+                    {formatVND(lineTotal)}
+                  </span>
                 </div>
               </div>
             </div>
           )
         })}
+
+        {suggestions.length > 0 && (
+          <div className="mt-1 border-t border-stone-100 pt-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+              Thêm cho bữa này
+            </p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {suggestions.map((food) => (
+                <div key={food.id} className="min-w-0">
+                  <div className="relative">
+                    <Link to={`/foods/${food.id}`} onClick={onClose} className="block">
+                      <UiImg
+                        src={food.imageUrl}
+                        alt={food.name}
+                        className="aspect-square w-full rounded-lg"
+                      />
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label={`Thêm ${food.name} vào giỏ`}
+                      className="absolute -bottom-1 -right-1 grid h-7 w-7 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 text-white shadow-sm ring-2 ring-white transition hover:bg-amber-800"
+                      onClick={() => void add(food, 1)}
+                    >
+                      <UiIcon name="plus" size={13} />
+                    </button>
+                  </div>
+                  <Link
+                    to={`/foods/${food.id}`}
+                    onClick={onClose}
+                    className="mt-1.5 line-clamp-2 block text-[11px] leading-snug text-stone-700 hover:text-amber-800"
+                  >
+                    {food.name}
+                  </Link>
+                  <p className="text-[11px] font-semibold tabular-nums text-stone-900">
+                    {formatVND(food.discountedPrice ?? food.price)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div
-        className="shrink-0 border-t border-stone-200 bg-white p-4"
-        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
-      >
-        <div className="space-y-1.5 text-sm">
+      <div className="shrink-0 border-t border-stone-200 bg-white">
+        <div className="bg-stone-50/70 px-4 py-2.5">
           {quote ? (
             <>
-              <div className="flex justify-between text-stone-600">
-                <span>Tạm tính</span>
-                <span className="tabular-nums">{formatVND(quote.subtotal)}</span>
-              </div>
-              {quote.discountTotal > 0 && (
-                <div className="flex justify-between text-emerald-600">
-                  <span>Giảm giá</span>
-                  <span className="tabular-nums">-{formatVND(quote.discountTotal)}</span>
-                </div>
+              {/* Không có giảm giá thì tạm tính trùng tổng, in hai lần chỉ làm rối. */}
+              {discountTotal > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-stone-600">
+                    <span>Tạm tính</span>
+                    <span className="tabular-nums">{formatVND(quote.subtotal)}</span>
+                  </div>
+                  <div className="mt-0.5 flex justify-between text-sm text-emerald-600">
+                    <span>Giảm giá</span>
+                    <span className="tabular-nums">-{formatVND(discountTotal)}</span>
+                  </div>
+                </>
               )}
-              <div className="flex items-center justify-between border-t border-dashed border-stone-200 pt-2 text-base font-bold text-stone-900">
-                <span>Tổng thanh toán</span>
-                <span className="text-lg tabular-nums text-amber-700">{formatVND(quote.total)}</span>
+              <div className="mt-1 flex items-baseline justify-between border-t border-stone-200 pt-1.5">
+                <span className="text-sm font-semibold text-stone-900">Tổng thanh toán</span>
+                <span
+                  className={`text-lg font-bold tabular-nums text-amber-800 transition-opacity ${
+                    quoteStale ? 'opacity-60' : ''
+                  }`}
+                >
+                  {formatVND(quote.total)}
+                </span>
               </div>
             </>
+          ) : quoteError ? (
+            <div className="flex min-h-14 items-center justify-between gap-2 text-sm text-stone-600">
+              <span>Không tính được giá.</span>
+              <button
+                type="button"
+                className="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+                onClick={retry}
+              >
+                Thử lại
+              </button>
+            </div>
           ) : (
-            <p className="text-sm text-stone-500">
-              {quoteError ? 'Không tính được giá, thử lại sau.' : 'Đang cập nhật giá...'}
-            </p>
+            <p className="flex min-h-14 items-center text-sm text-stone-500">Đang cập nhật giá…</p>
           )}
-          {/* Chỗ cố định để nhãn cập nhật hiện/ẩn không làm khối tiền nhảy chiều cao. */}
-          <p className="h-4 text-xs text-stone-500" aria-live="polite">
-            {quoteStale ? 'Đang cập nhật giá...' : ''}
-          </p>
         </div>
 
-        <UiButton
-          kind="primary-lg"
-          className="mt-1 w-full"
-          disabled={quoteLoading || quoteError || !quote}
-          onClick={() => {
-            onClose()
-            navigate('/checkout')
-          }}
+        <div
+          className="px-4 pt-2"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
-          Tiến hành đặt món · {portions} phần
-        </UiButton>
+          <UiButton
+            kind="primary-lg"
+            className="w-full"
+            disabled={!quote || quoteLoading || quoteError}
+            onClick={() => {
+              onClose()
+              navigate('/checkout')
+            }}
+          >
+            {quote ? `Đặt món · ${formatVND(quote.total)}` : 'Đặt món'}
+          </UiButton>
+          {/* Nhãn cập nhật giá và lối quay lại thực đơn dùng chung một hàng cho đỡ cao. */}
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <span className="min-h-4 min-w-0 truncate text-xs text-stone-500" aria-live="polite">
+              {quoteStale || !quote
+                ? 'Đang cập nhật giá…'
+                : discountTotal > 0
+                  ? 'Đã áp khuyến mãi tốt nhất cho từng món'
+                  : ''}
+            </span>
+            <button
+              type="button"
+              className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent px-1 py-1 text-xs font-medium text-stone-500 transition hover:text-stone-800"
+              onClick={onClose}
+            >
+              Chọn thêm món
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
