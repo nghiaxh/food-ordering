@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Empty, Select, message } from 'antd'
+import { Dropdown, Empty, message } from 'antd'
+import { DownOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import { getCategories, getFoods } from '../api/api'
 import useAsyncData from '../hooks/useAsyncData'
@@ -71,6 +72,7 @@ export default function FoodsPage() {
   const minPrice = num(params.get('min'))
   const maxPrice = num(params.get('max'))
   const sort = params.get('sort') ?? 'default'
+  const sortLabel = SORTS.find((s) => s.value === sort)?.label ?? 'Mặc định'
   const diet = params.get('diet') ?? undefined
   const noSpicy = params.get('spicy') === '0'
   const onlyAvailable = params.get('available') === '1'
@@ -157,7 +159,7 @@ export default function FoodsPage() {
   }, [loading, foods])
 
   const visible = filtered.slice(0, visibleCount)
-  const deals = (foods ?? []).filter((f) => (f.discountPercent ?? 0) > 0).slice(0, 4)
+  const deals = (foods ?? []).filter((f) => (f.discountPercent ?? 0) > 0).slice(0, 8)
   const activePriceBand = PRICE_BANDS.findIndex((b) => b.min === minPrice && b.max === maxPrice)
   const from = `/${params.toString() ? `?${params.toString()}` : ''}`
 
@@ -173,20 +175,18 @@ export default function FoodsPage() {
       ref={scrollerRef}
       className="kiosk-scroll h-[calc(100dvh-var(--header-h))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
     >
-      <div className="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
-        {!filtersActive && (
-          <div className="pt-3 sm:pt-4">
-            <HomeHero
-              foodCount={foods?.length ?? 0}
-              categoryCount={categories?.length ?? 0}
-              onBrowse={() =>
-                document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }
-              onAsk={openChat}
-            />
-          </div>
-        )}
+      {/* Hero trải hết bề ngang vùng cuộn; phần còn lại vẫn bó trong 1600px. */}
+      {!filtersActive && (
+        <HomeHero
+          foodCount={foods?.length ?? 0}
+          onBrowse={() =>
+            document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+          onAsk={openChat}
+        />
+      )}
 
+      <div className="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
         <div className="mt-3 sm:mt-4">
           <CategoryRail categories={categories ?? []} activeId={categoryId} onPick={pickCategory} />
         </div>
@@ -198,79 +198,89 @@ export default function FoodsPage() {
         )}
 
         <section id="thuc-don" className="scroll-mt-2 pt-4 sm:pt-5">
-          <div className="flex items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
             <h2 className="text-lg font-bold tracking-tight text-stone-900">
               {keyword ? `Kết quả cho “${keyword}”` : 'Thực đơn'}
               <span className="ml-2 text-sm font-normal text-stone-500">{filtered.length} món</span>
             </h2>
-            {filtersActive && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="shrink-0 cursor-pointer text-xs font-semibold text-amber-800 hover:underline"
+            <div className="flex shrink-0 items-center gap-3">
+              {filtersActive && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-amber-800 hover:underline"
+                >
+                  Xóa bộ lọc
+                </button>
+              )}
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: SORTS.map((s) => ({ key: s.value, label: s.label })),
+                  selectable: true,
+                  selectedKeys: [sort],
+                  onClick: ({ key }) => patch({ sort: key === 'default' ? undefined : key }),
+                }}
               >
-                Xóa bộ lọc
-              </button>
-            )}
+                <button
+                  type="button"
+                  aria-label={`Sắp xếp thực đơn, đang chọn ${sortLabel}`}
+                  className="-mr-1 inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+                >
+                  Sắp xếp: {sortLabel}
+                  <DownOutlined style={{ fontSize: 9 }} />
+                </button>
+              </Dropdown>
+            </div>
           </div>
 
           <div className="sticky top-0 z-10 -mx-3 mt-2 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
-              <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+            <div className="flex min-w-0 flex-wrap gap-1.5">
+              <button
+                type="button"
+                className={chipClass(onlyAvailable)}
+                onClick={() => patch({ available: onlyAvailable ? undefined : '1' })}
+              >
+                Còn món
+              </button>
+              <button
+                type="button"
+                className={chipClass(diet === 'chay')}
+                onClick={() => patch({ diet: diet === 'chay' ? undefined : 'chay' })}
+              >
+                Món chay
+              </button>
+              <button
+                type="button"
+                className={chipClass(noSpicy)}
+                onClick={() => patch({ spicy: noSpicy ? undefined : '0' })}
+              >
+                Không cay
+              </button>
+              <button
+                type="button"
+                className={chipClass(onlyDeals)}
+                onClick={() => patch({ deal: onlyDeals ? undefined : '1' })}
+              >
+                Đang giảm
+              </button>
+              <span className="mx-1 hidden w-px self-stretch bg-stone-200 sm:block" />
+              {PRICE_BANDS.map((band, i) => (
                 <button
+                  key={band.label}
                   type="button"
-                  className={chipClass(onlyAvailable)}
-                  onClick={() => patch({ available: onlyAvailable ? undefined : '1' })}
+                  onClick={() =>
+                    patch({
+                      min: band.min?.toString(),
+                      max: band.max?.toString(),
+                    })
+                  }
+                  className={chipClass(activePriceBand === i)}
                 >
-                  Còn món
+                  {band.label}
                 </button>
-                <button
-                  type="button"
-                  className={chipClass(diet === 'chay')}
-                  onClick={() => patch({ diet: diet === 'chay' ? undefined : 'chay' })}
-                >
-                  Món chay
-                </button>
-                <button
-                  type="button"
-                  className={chipClass(noSpicy)}
-                  onClick={() => patch({ spicy: noSpicy ? undefined : '0' })}
-                >
-                  Không cay
-                </button>
-                <button
-                  type="button"
-                  className={chipClass(onlyDeals)}
-                  onClick={() => patch({ deal: onlyDeals ? undefined : '1' })}
-                >
-                  Đang giảm
-                </button>
-                <span className="mx-1 hidden w-px self-stretch bg-stone-200 sm:block" />
-                {PRICE_BANDS.map((band, i) => (
-                  <button
-                    key={band.label}
-                    type="button"
-                    onClick={() =>
-                      patch({
-                        min: band.min?.toString(),
-                        max: band.max?.toString(),
-                      })
-                    }
-                    className={chipClass(activePriceBand === i)}
-                  >
-                    {band.label}
-                  </button>
-                ))}
-              </div>
-
-              <Select
-                size="small"
-                value={sort}
-                aria-label="Sắp xếp thực đơn"
-                className="w-full shrink-0 lg:w-44"
-                options={SORTS}
-                onChange={(value) => patch({ sort: value === 'default' ? undefined : value })}
-              />
+              ))}
             </div>
           </div>
 

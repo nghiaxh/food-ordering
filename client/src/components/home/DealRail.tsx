@@ -10,27 +10,33 @@ interface DealRailProps {
   onSeeAll: () => void
 }
 
-/** Ưu đãi lấy từ `discountPercent` server đã tính, không tự đoán khuyến mãi nào đang chạy. */
+/**
+ * Ưu đãi lấy từ `discountPercent` server đã tính, không tự đoán khuyến mãi nào đang chạy.
+ * Hiển thị thành dải cuộn ngang để đọc ra là gợi ý, không phải lưới món thứ hai giống hệt
+ * phần thực đơn bên dưới.
+ */
 export default function DealRail({ foods, from, onSeeAll }: DealRailProps) {
   if (foods.length === 0) return null
 
   return (
     <section>
       <div className="flex items-end justify-between gap-3">
-        <div>
+        <div className="flex items-baseline gap-2">
           <h2 className="text-base font-bold tracking-tight text-stone-900 sm:text-lg">Ưu đãi hôm nay</h2>
-          <p className="mt-0.5 text-xs text-stone-500">Giảm tự động, không cần nhập mã.</p>
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+            Tự động
+          </span>
         </div>
         <button
           type="button"
           onClick={onSeeAll}
-          className="shrink-0 cursor-pointer text-xs font-semibold text-amber-800 hover:underline"
+          className="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-amber-800 hover:underline"
         >
           Xem tất cả
         </button>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <div className="-mx-1 mt-2 flex snap-x gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {foods.map((food) => {
           const unit = food.discountedPrice ?? food.price
           return (
@@ -38,7 +44,7 @@ export default function DealRail({ foods, from, onSeeAll }: DealRailProps) {
               key={food.id}
               to={`/foods/${food.id}`}
               state={{ from }}
-              className="group overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70 transition hover:shadow-md"
+              className="group w-[200px] shrink-0 snap-start overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70 transition hover:shadow-md sm:w-[220px]"
             >
               <div className="relative aspect-[16/10] overflow-hidden">
                 <UiImg
