@@ -54,7 +54,8 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold tracking-tight text-stone-900">Tổng quan</h2>
         <Link to="/admin/reports">
           <UiButton kind="default">Xem báo cáo</UiButton>
         </Link>
