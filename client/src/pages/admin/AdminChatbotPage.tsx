@@ -156,11 +156,7 @@ export default function AdminChatbotPage() {
         />
       ) : null}
 
-      <PageSection
-        className="mb-6"
-        title="Cấu hình AI tư vấn"
-        subtitle="Mô hình, số gợi ý và quy tắc trả lời."
-      >
+      <PageSection className="mb-6" title="Cấu hình AI tư vấn">
         <div className="grid gap-6 sm:grid-cols-2">
           <div>
             <label htmlFor="ai-provider" className="block text-sm font-medium text-stone-700">
