@@ -17,9 +17,9 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 - **MT4 — Phân quyền & Bảo mật:** Kiểm soát quyền hạn chặt chẽ ở cấp API backend (`SecurityConfig`), không phụ thuộc việc ẩn/hiện UI. Tài khoản bị khoá mất quyền tức thời.
 
 ### Môi trường và Dữ liệu mẫu (DataSeeder)
-- **Tài khoản quản trị:** `admin@demo.com` / `admin123` (vai trò `ADMIN`)
-- **Tài khoản khách hàng:** `user@demo.com` / `user1234` (vai trò `CUSTOMER`)
-- **Dữ liệu nạp sẵn:** 5 danh mục, 16 món ăn, 2 chương trình khuyến mãi tự động ("Cuối tuần mát lạnh", "Món may mắn hôm nay"), 3 đơn hàng mẫu (`COMPLETED`, `PREPARING`, `PENDING`), 2 đánh giá mẫu.
+- **Tài khoản quản trị:** `namnguyen@demo.com` / `namnguyen` (Nguyễn Hoàng Nam, vai trò `ADMIN`), `huongtran@demo.com` / `huongtran` (Trần Thu Hương, vai trò `ADMIN`)
+- **Tài khoản khách hàng:** `tuanpham@demo.com` / `tuanpham` (Phạm Văn Tuấn), `khangnguyen@demo.com` / `khangnguyen` (Nguyễn Minh Khang), `thaotran@demo.com` / `thaotran` (Trần Phương Thảo), `linhduong@demo.com` / `linhduong` (Dương Ngọc Linh), `sonnguyen@demo.com` / `sonnguyen` (Nguyễn Thanh Sơn), `trungdang@demo.com` / `trungdang` (Đặng Quốc Trung), `duchoang@demo.com` / `duchoang` (Hoàng Minh Đức), `tunghoang@demo.com` / `tunghoang` (Hoàng Thanh Tùng). Mật khẩu bằng phần trước dấu `@` trong email.
+- **Dữ liệu nạp sẵn:** 5 danh mục, 32 món ăn (28 còn phục vụ, 4 ngừng phục vụ), 4 chương trình khuyến mãi tự động ("Cuối tuần mát lạnh", "Món may mắn hôm nay", "Giảm 10k cho đơn từ 100k", "Ưu đãi buổi trưa"), 15 đơn hàng mẫu đủ 5 trạng thái (`PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`), 12 đánh giá mẫu, 5 thông báo và 4 dòng giỏ mẫu.
 
 ---
 
@@ -31,14 +31,14 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
-| TC-AUTH-01 | Đăng nhập thành công | Tài khoản `user@demo.com` tồn tại | Nhập `user@demo.com` / `user1234` | Đăng nhập thành công, điều hướng về trang chủ, thanh header chuyển sang menu tài khoản | | |
-| TC-AUTH-02 | Đăng nhập sai mật khẩu | Tài khoản `user@demo.com` tồn tại | Nhập `user@demo.com` / `sai_mat_khau` | HTTP 401, thông báo "Mật khẩu không đúng", không cấp token | | |
-| TC-AUTH-03 | Đăng nhập email không tồn tại | — | Nhập `nonexistent@demo.com` / `user1234` | HTTP 401, thông báo "Email không tồn tại" | | |
+| TC-AUTH-01 | Đăng nhập thành công | Tài khoản `tuanpham@demo.com` tồn tại | Nhập `tuanpham@demo.com` / `tuanpham` | Đăng nhập thành công, điều hướng về trang chủ, thanh header chuyển sang menu tài khoản | | |
+| TC-AUTH-02 | Đăng nhập sai mật khẩu | Tài khoản `tuanpham@demo.com` tồn tại | Nhập `tuanpham@demo.com` / `sai_mat_khau` | HTTP 401, thông báo "Mật khẩu không đúng", không cấp token | | |
+| TC-AUTH-03 | Đăng nhập email không tồn tại | — | Nhập `nonexistent@demo.com` / `tuanpham` | HTTP 401, thông báo "Email không tồn tại" | | |
 | TC-AUTH-04 | Đăng ký thành công | Email chưa đăng ký | Nhập email mới, pass `matkhau123`, SĐT `0901234567`, họ tên | Tạo tài khoản thành công, tự động tặng voucher `WELCOME` vào ví, cấp token | | |
-| TC-AUTH-05 | Đăng ký trùng email | Đã có `user@demo.com` | Đăng ký với email `user@demo.com` | HTTP 400, thông báo lỗi email đã tồn tại | | |
+| TC-AUTH-05 | Đăng ký trùng email | Đã có `tuanpham@demo.com` | Đăng ký với email `tuanpham@demo.com` | HTTP 400, thông báo lỗi email đã tồn tại | | |
 | TC-AUTH-06 | Đăng ký mật khẩu < 8 ký tự | — | Nhập mật khẩu `1234567` (7 ký tự) | Báo lỗi validation phía client và backend HTTP 400 | | |
 | TC-AUTH-07 | Đăng ký SĐT không hợp lệ | — | Nhập SĐT `12345` hoặc `01234567891` | Báo lỗi SĐT phải đúng định dạng 10 chữ số (bắt đầu bằng 0) | | |
-| TC-AUTH-08 | Đăng nhập tài khoản bị khoá | Admin đã khoá `user@demo.com` | Đăng nhập bằng `user@demo.com` / `user1234` | HTTP 403, thông báo "Tài khoản đã bị khóa" | | |
+| TC-AUTH-08 | Đăng nhập tài khoản bị khoá | Admin đã khoá `tuanpham@demo.com` | Đăng nhập bằng `tuanpham@demo.com` / `tuanpham` | HTTP 403, thông báo "Tài khoản đã bị khóa" | | |
 | TC-AUTH-09 | Cập nhật hồ sơ cá nhân | Đã đăng nhập | Vào `/profile`, sửa họ tên, SĐT, địa chỉ mặc định | HTTP 200, thông tin được cập nhật chính xác vào CSDL | | |
 | TC-AUTH-10 | Đổi mật khẩu hợp lệ | Đã đăng nhập | Nhập mật khẩu hiện tại đúng và mật khẩu mới ≥ 8 ký tự | HTTP 200, mật khẩu mới có hiệu lực ngay | | |
 | TC-AUTH-11 | Đổi mật khẩu với pass cũ sai | Đã đăng nhập | Nhập mật khẩu cũ sai | HTTP 400, thông báo "Mật khẩu hiện tại không đúng", giữ nguyên pass cũ | | |
@@ -666,18 +666,18 @@ import { test, expect } from '@playwright/test';
 test.describe('E2E - Xác thực người dùng', () => {
   test('Đăng nhập thành công với tài khoản demo', async ({ page }) => {
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'user@demo.com');
-    await page.fill('input[type="password"]', 'user1234');
+    await page.fill('input[type="email"]', 'tuanpham@demo.com');
+    await page.fill('input[type="password"]', 'tuanpham');
     await page.click('button[type="submit"]');
 
     // Chuyển hướng về trang chủ và menu người dùng xuất hiện
     await expect(page).toHaveURL('/');
-    await expect(page.locator('header')).toContainText('user@demo.com');
+    await expect(page.locator('header')).toContainText('tuanpham@demo.com');
   });
 
   test('Hiển thị lỗi khi sai mật khẩu', async ({ page }) => {
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'user@demo.com');
+    await page.fill('input[type="email"]', 'tuanpham@demo.com');
     await page.fill('input[type="password"]', 'sai_mat_khau');
     await page.click('button[type="submit"]');
 
@@ -694,8 +694,8 @@ test.describe('E2E - Luồng Đặt món & Thanh toán', () => {
   test.beforeEach(async ({ page }) => {
     // Đăng nhập trước khi thực hiện đặt hàng
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'user@demo.com');
-    await page.fill('input[type="password"]', 'user1234');
+    await page.fill('input[type="email"]', 'tuanpham@demo.com');
+    await page.fill('input[type="password"]', 'tuanpham');
     await page.click('button[type="submit"]');
     await page.waitForURL('/');
   });
@@ -764,8 +764,8 @@ test.describe('E2E - Phân quyền Quản trị viên', () => {
   test('Khách hàng thường bị chặn khi truy cập trang Quản trị', async ({ page }) => {
     // Đăng nhập tài khoản khách thường
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'user@demo.com');
-    await page.fill('input[type="password"]', 'user1234');
+    await page.fill('input[type="email"]', 'tuanpham@demo.com');
+    await page.fill('input[type="password"]', 'tuanpham');
     await page.click('button[type="submit"]');
     await page.waitForURL('/');
 
@@ -778,8 +778,8 @@ test.describe('E2E - Phân quyền Quản trị viên', () => {
 
   test('Admin đăng nhập vào Dashboard và cập nhật trạng thái đơn', async ({ page }) => {
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'admin@demo.com');
-    await page.fill('input[type="password"]', 'admin123');
+    await page.fill('input[type="email"]', 'namnguyen@demo.com');
+    await page.fill('input[type="password"]', 'namnguyen');
     await page.click('button[type="submit"]');
 
     await page.goto('/admin/orders');

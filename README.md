@@ -15,33 +15,24 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 
 ## Tính năng
 
-### Khách hàng
-- Đăng ký / đăng nhập, phiên dùng JWT
-- Duyệt danh mục, tìm kiếm và lọc món theo tên, loại, khoảng giá
-- Chi tiết món: thành phần, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, đánh giá
-- Giỏ hàng lưu theo tài khoản (đăng nhập mọi nơi vẫn còn giỏ) và đặt món
-  (thanh toán giả lập: COD / QR VietQR)
-- Theo dõi trạng thái đơn hàng, trạng thái thanh toán và nhận thông báo xác nhận
-- Lịch sử đặt món với nút đặt lại chỉ một chạm và tự hủy đơn khi còn chờ xác nhận
-- Đánh giá sao + nhận xét cho món đã ăn (chỉ món trong đơn hoàn thành)
-- Chatbot tư vấn món ăn (widget góc phải màn hình): hỏi bằng tự nhiên, nhận gợi ý
-  kèm thẻ món có link đặt món. Tư vấn được theo nhu cầu, theo khẩu vị, theo số người ăn
-  (tính số phần theo khẩu phần món) và theo tổ hợp món trong một ngân sách chung.
+**Khách hàng**
 
-### Quản trị
-- Tổng quan nhanh (doanh thu, đơn chờ, món bán chạy), duyệt đơn ngay trên dashboard
-- Quản lý món ăn, danh mục, đơn hàng (cập nhật tiến độ + ghi nhận thanh toán), người dùng
-- Quản lý khuyến mãi tự động (giảm theo toàn thực đơn, danh mục hoặc món; theo dịp, ngày trong tuần và khung giờ)
-- Cấu hình chatbot (nhà cung cấp AI, mô hình, số món gợi ý, quy tắc bổ sung) và xem lịch sử hội thoại
-- Báo cáo doanh thu có biểu đồ, top món và xuất Excel
-- Tải ảnh món / danh mục lên server (JPG/PNG/WEBP ≤ 2 MB)
+- Đăng ký, đăng nhập bằng JWT, xem thực đơn theo danh mục, tìm kiếm và lọc theo tên, loại, giá, ăn kiêng, độ cay.
+- Xem chi tiết món, thêm vào giỏ theo tài khoản, đặt món COD hoặc QR, theo dõi đơn và thanh toán.
+- Đánh giá sao cho món trong đơn hoàn thành, nhận thông báo, đặt lại đơn cũ, hủy đơn chờ xác nhận.
+- Chatbot tư vấn theo khẩu vị, dị ứng, số người và ngân sách, gợi ý món kèm thẻ đặt món.
+
+**Quản trị viên**
+
+- Tổng quan doanh thu, đơn chờ, món bán chạy, duyệt đơn, quản lý món, danh mục, đơn hàng, người dùng.
+- Quản lý khuyến mãi tự động theo toàn thực đơn, danh mục hoặc món, theo ngày và khung giờ.
+- Cấu hình chatbot, xem hội thoại, báo cáo doanh thu và xuất Excel, tải ảnh món lên server.
 
 ## Bắt đầu nhanh
 
-### Yêu cầu
-- Docker + Docker Compose (hoặc Node.js 20.19+ / 22.12+ + JDK 25 + Maven để chạy riêng lẻ)
+Yêu cầu: Docker + Docker Compose, hoặc Node.js và JDK cùng Maven để chạy riêng lẻ.
 
-### 1. Tạo file `.env` từ mẫu
+Tạo file `.env` từ mẫu rồi điền `AI_API_KEY` và `JWT_SECRET`.
 
 ```bash
 cp .env.example .env
@@ -53,62 +44,60 @@ Windows (PowerShell):
 Copy-Item .env.example .env
 ```
 
-Điền giá trị thực cho `AI_API_KEY` (Google AI Studio) và đổi `JWT_SECRET` thành
-một chuỗi dài bí mật.
-
-### 2. Chạy bằng Docker Compose (đơn giản nhất)
-
-Chế độ phát triển (client HMR và server dev):
+Chạy bằng Docker Compose:
 
 ```bash
+# Phát triển
 docker compose --profile dev up --build
-```
 
-> Với profile `dev`, client có hot reload. Server container cần chạy thêm compiler watcher ở terminal khác để `spring-boot-devtools` restart khi mã Java được biên dịch:
->
-> ```bash
-> docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"
-> ```
-
-Chế độ demo / production (bản build tối ưu):
-
-```bash
+# Demo hoặc production
 docker compose --profile prod up --build -d
 ```
 
 | Thành phần | Profile dev | Profile prod |
-|------------|-------------|--------------|
-| Client     | http://localhost:5173 | http://localhost |
+|---|---|---|
+| Client | http://localhost:5173 | http://localhost |
 | Server API | http://localhost:8080/api | http://localhost:8080/api |
-| Database   | localhost:5432 | localhost:5432 |
+| Database | localhost:5432 | localhost:5432 |
 
-> Không chạy dev và prod cùng lúc vì trùng cổng 8080 và 5432.
-> `docker compose up` (không kèm profile) chỉ khởi động Postgres.
+Profile dev cần chạy thêm watcher biên dịch để server tự restart, và không chạy dev cùng prod vì trùng cổng.
+
+```bash
+docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"
+```
 
 ## Tài khoản demo
 
-Server tự tạo dữ liệu mẫu khi bảng người dùng còn trống. Nếu đã có dữ liệu user, toàn bộ seed được bỏ qua nên không nhân đôi dữ liệu demo khi chạy lại.
+Server tự tạo dữ liệu mẫu khi bảng người dùng còn trống: 5 danh mục, 32 món, 4 khuyến mãi, 15 đơn, 12 đánh giá. Đã có người dùng thì toàn bộ seed bị bỏ qua nên không nhân đôi dữ liệu.
 
-| Vai trò | Email | Mật khẩu |
-|---------|-------|----------|
-| ADMIN   | `admin@demo.com` | `admin123` |
-| Customer | `user@demo.com` | `user1234` |
+Mật khẩu của mỗi tài khoản bằng phần trước dấu `@` trong email.
+
+| Vai trò | Tên | Email | Mật khẩu |
+|---|---|---|---|
+| ADMIN | Nguyễn Hoàng Nam | namnguyen@demo.com | namnguyen |
+| ADMIN | Trần Thu Hương | huongtran@demo.com | huongtran |
+| Customer | Phạm Văn Tuấn | tuanpham@demo.com | tuanpham |
+| Customer | Nguyễn Minh Khang | khangnguyen@demo.com | khangnguyen |
+| Customer | Trần Phương Thảo | thaotran@demo.com | thaotran |
+| Customer | Dương Ngọc Linh | linhduong@demo.com | linhduong |
+| Customer | Nguyễn Thanh Sơn | sonnguyen@demo.com | sonnguyen |
+| Customer | Đặng Quốc Trung | trungdang@demo.com | trungdang |
+| Customer | Hoàng Minh Đức | duchoang@demo.com | duchoang |
+| Customer | Hoàng Thanh Tùng | tunghoang@demo.com | tunghoang |
 
 Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại.
 
 ## Công nghệ
 
 | Tầng | Công nghệ |
-|------|-----------|
-| Client | React 19 + TypeScript 7, Vite 8, Ant Design 6, Zustand 5, Axios, React Router 7 |
-| Server | Spring Boot 3.5 (Java 25), Spring Security + JWT, Spring Data JPA |
+|---|---|
+| Client | React 19, TypeScript 7, Vite 8, Ant Design 6, Zustand 5, Axios, React Router 7 |
+| Server | Spring Boot 3.5, Java 25, Spring Security + JWT, Spring Data JPA |
 | Database | PostgreSQL 18 |
-| AI | Gemini / OpenAI API (gọi qua REST, class `AiClient`) |
-| Hạ tầng | Docker Compose (1 file, 2 profile: `dev` / `prod`) |
+| AI | Gemini hoặc OpenAI qua REST, class `AiClient` |
+| Hạ tầng | Docker Compose, 1 file 2 profile dev và prod |
 
 ## Kiểm tra nhanh
-
-Server có vài test tự động cho logic pricing, chatbot và validation DTO (`server/src/test/java`). Lệnh kiểm tra có sẵn:
 
 ```bash
 # Client
@@ -121,8 +110,6 @@ cd ../server
 mvn test
 mvn package
 ```
-
-`npm test`, thư mục `e2e/` và framework Vitest/JUnit nâng cao/Playwright là phạm vi kế hoạch trong [TEST.md](TEST.md).
 
 ## Tài liệu
 
