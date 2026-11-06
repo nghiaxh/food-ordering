@@ -12,7 +12,7 @@ import type { Order } from '../../types'
 import { orderCode } from '../../utils/orders'
 import { formatVND, formatRelativeTime } from '../../utils/format'
 import UiButton from '../../components/UiButton'
-import { PageCard, PageHeader } from './shared'
+import { PageCard } from './shared'
 
 /**
  * Tổng quan dành cho quản trị: chỉ số chính, đơn đang chờ và món bán chạy. Trang này cố ý
@@ -54,14 +54,11 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Tổng quan"
-        extra={
-          <Link to="/admin/reports">
-            <UiButton kind="default">Xem báo cáo</UiButton>
-          </Link>
-        }
-      />
+      <div className="mb-4 flex justify-end">
+        <Link to="/admin/reports">
+          <UiButton kind="default">Xem báo cáo</UiButton>
+        </Link>
+      </div>
 
       <div className="grid grid-cols-2 divide-stone-200 rounded-xl border border-stone-200 bg-white sm:grid-cols-4 sm:divide-x">
         {metrics.map((m, i) => (

@@ -99,7 +99,7 @@ export default function AdminLayout() {
   return (
     <div className="flex min-h-dvh flex-col bg-stone-50">
       <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
+        <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
           <UiButton
             kind="icon"
             size="small"
@@ -135,7 +135,7 @@ export default function AdminLayout() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-6 px-4 py-6 sm:px-6">
+      <div className="flex w-full flex-1 gap-6 px-4 py-6 sm:px-6">
         <aside className="hidden w-56 shrink-0 lg:block">
           <div className="sticky top-20 rounded-xl border border-stone-200/70 bg-white p-2.5">{nav}</div>
         </aside>
