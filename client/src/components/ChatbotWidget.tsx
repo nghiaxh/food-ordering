@@ -243,23 +243,26 @@ export default function ChatbotWidget() {
             <p className="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">
               Trợ lý gợi ý món ăn
             </p>
-            <button
-              type="button"
-              aria-label="Làm mới hội thoại"
-              title="Làm mới hội thoại"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
-              onClick={resetChat}
-            >
-              <ReloadOutlined />
-            </button>
-            <button
-              type="button"
-              aria-label="Đóng trợ lý"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
-              onClick={handleClose}
-            >
-              <CloseOutlined />
-            </button>
+            <Tooltip title="Làm mới hội thoại" placement="bottom">
+              <button
+                type="button"
+                aria-label="Làm mới hội thoại"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
+                onClick={resetChat}
+              >
+                <ReloadOutlined />
+              </button>
+            </Tooltip>
+            <Tooltip title="Đóng trợ lý" placement="bottom">
+              <button
+                type="button"
+                aria-label="Đóng trợ lý"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
+                onClick={handleClose}
+              >
+                <CloseOutlined />
+              </button>
+            </Tooltip>
           </div>
 
           {unavailable ? (
@@ -370,8 +373,9 @@ export default function ChatbotWidget() {
             )}
           </div>
 
-          {/* Gợi ý luôn nằm trên ô nhập, không biến mất sau tin đầu, và cuộn ngang trên mobile. */}
-          {!unavailable && (
+          {/* Gợi ý chỉ hiện khi mới mở chat hoặc vừa làm mới (chỉ còn câu chào),
+              gửi tin đầu tiên xong thì ẩn để khách tập trung vào hội thoại. */}
+          {!unavailable && messages.length <= 1 && (
             <div className="shrink-0 overflow-x-auto border-t border-stone-100 bg-white px-2.5 pt-2">
               <div className="flex w-max gap-1.5">
                 {SUGGESTIONS.map((s) => (
