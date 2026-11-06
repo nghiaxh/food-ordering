@@ -30,10 +30,16 @@ export default function LoginPage() {
       const data = await login(v.email, v.password)
       setUser(data, remember)
       const isAdmin = data.role === 'ADMIN'
-      const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
-      const target = isAdmin ? '/admin' : from && from !== '/login' ? from : '/'
+      const state = location.state as
+        | { from?: { pathname?: string; search?: string }; openCart?: boolean }
+        | null
+      const from = state?.from
+      // Giữ cả query để quay lại đúng bộ lọc thực đơn, và giữ cờ mở giỏ nếu khách bấm giỏ trước.
+      const returnTo =
+        from?.pathname && from.pathname !== '/login' ? `${from.pathname}${from.search ?? ''}` : '/'
+      const target = isAdmin ? '/admin' : returnTo
       message.success('Đăng nhập thành công!')
-      navigate(target, { replace: true })
+      navigate(target, { replace: true, state: state?.openCart ? { openCart: true } : null })
     } catch (error) {
       message.error(apiErrorMessage(error) ?? 'Đăng nhập thất bại')
     } finally {

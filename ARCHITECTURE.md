@@ -63,9 +63,11 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 - Chỉ khách đã đăng nhập mới có giỏ: thêm/sửa/xóa/clear món qua `/api/cart/**` (yêu cầu xác
   thực), giỏ được lưu trong database và còn nguyên khi đăng nhập lại từ thiết bị khác.
 - Khách vãng lai **không có giỏ local**: nút "Thêm vào giỏ" bị khoá, hover hoặc focus hiện
-  tooltip "Đăng nhập để thêm món vào giỏ". `/cart` nằm trong `RequireAuth`, nên bấm nút giỏ trên
-  header hoặc mở thẳng đường dẫn đều bị đưa sang `/login` và quay lại đúng trang sau khi đăng
-  nhập. `cartStore.add` trả `false` khi chưa đăng nhập như lớp phòng thủ thứ hai.
+  tooltip "Đăng nhập để thêm món vào giỏ". Giỏ mở thành **drawer bên phải** từ nút giỏ trên
+  header; khách chưa đăng nhập được đưa sang `/login` kèm cờ `openCart`
+  và quay lại đúng trang, mở sẵn drawer. `/checkout` nằm trong `RequireAuth`, còn `/cart` chỉ
+  chuyển hướng về `/checkout`. `cartStore.add` trả `false` khi chưa đăng nhập như lớp phòng thủ
+  thứ hai.
 - Đăng xuất thì `CartSync` gọi `resetLocal` để xoá state giỏ của tài khoản khỏi client.
 - Giá món hiển thị từ dữ liệu trả về khi duyệt món.
 
@@ -128,9 +130,10 @@ bằng `priceOrder` trên danh sách đó, **không đọc lại giỏ trong DB*
 response của giỏ cũ ghi đè. Nhờ vậy báo giá trong giỏ và tổng tiền của đơn đã tạo không thể
 lệch nhau.
 
-- **Đồng bộ báo giá ở client**: mỗi lần `items` đổi, `CartPage` abort request quote cũ và xoá
-  quote hiện tại trước khi gọi lại. Trong lúc chờ hoặc khi lỗi, khối tổng hiện "Đang cập nhật
-  giá..." và nút "Xác nhận đặt món" bị khoá; dòng món vẫn tạm hiện giá gốc từ cart item.
+- **Đồng bộ báo giá ở client**: `useCartQuote(items)` dùng chung cho drawer giỏ và trang
+  `/checkout`. Mỗi lần `items` đổi, hook abort request cũ, gọi lại `POST /api/cart/quote` và giữ
+  số cũ trong lúc chờ để khối tổng tiền không nháy. Chỉ khi chưa có quote mới hiện "Đang cập nhật
+  giá..." và khoá nút đặt món; dòng món tạm hiện giá gốc từ cart item.
 - **Dòng optimistic**: `cartStore.add` và `setQuantity` thay dòng tạm bằng `CartItem` server trả
   (food đầy đủ field, giá là số, `available` đúng), nên món thêm từ chatbot không còn dòng
   "Hết món" giả. Mỗi món có số thứ tự request riêng; chỉ response của request mới nhất được ghi
@@ -274,21 +277,25 @@ dạng "N món, tổng ... trong ngân sách ...".
   tra chủ sở hữu ở server, không tin cờ `mine` từ client.
 - Trang lịch sử đơn có nút **Đặt lại** (chỉ render khi đơn `COMPLETED` theo điều kiện trong
   `OrdersPage`): đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ, món ngừng phục vụ bị bỏ qua
-  kèm cảnh báo. Nút **Hủy đơn** đi qua helper `canCancelOrder` (`client/src/utils/orders.ts`)
-  cùng ràng buộc với `OrderService.cancel`: đơn `PENDING` chưa thanh toán; đơn `PENDING` đã
-  `PAID` thay nút bằng gợi ý gọi hotline.
+  kèm cảnh báo, rồi mở drawer giỏ tại chỗ. Nút **Hủy đơn** đi qua helper `canCancelOrder`
+  (`client/src/utils/orders.ts`) cùng ràng buộc với `OrderService.cancel`: đơn `PENDING` chưa
+  thanh toán; đơn `PENDING` đã `PAID` thay nút bằng gợi ý gọi hotline.
 
 ### 7. Thông báo
 
+- Chuông không còn là nút riêng trên header: mục "Thông báo" nằm trong menu tài khoản và mở
+  `NotificationsDrawer` bên phải. Avatar có chấm đỏ khi còn thông báo chưa đọc; số chưa đọc
+  cũng hiện cạnh nhãn trong menu. `store/notificationStore.ts` là nguồn dữ liệu chung cho cả
+  header và drawer, trước đây hai nơi gọi API riêng nên dễ lệch số.
 - Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `OrderService.notify` set. Cột mới
   được `ddl-auto=update` tự thêm; thông báo tạo trước thay đổi này có `orderId = null`.
 - Các thao tác giữ nguyên một bộ endpoint: `POST /api/notifications/read-all`,
   `POST /api/notifications/{id}/read`, `DELETE /api/notifications/read` (xóa các thông báo đã đọc)
   và `DELETE /api/notifications/{id}`. Endpoint thao tác một thông báo kiểm tra chủ sở hữu như
   xóa: 404 khi không tồn tại, 403 khi của người khác.
-- Bấm vào thân thông báo: đánh dấu đã đọc, đóng popover, và nếu có `orderId` thì điều hướng
+- Bấm vào thân thông báo: đánh dấu đã đọc, đóng drawer, và nếu có `orderId` thì điều hướng
   `/orders?orderId=...`; trang đơn cuộn tới thẻ `order-{id}` và tô ring để chỉ đúng đơn. Thông báo
-  cũ không có `orderId` chỉ mark read rồi đóng popover.
+  cũ không có `orderId` chỉ mark read rồi đóng drawer.
 - Nút "Xóa đã đọc" xóa mọi thông báo `read = true` của chính người dùng. Nút xóa từng thông báo
   luôn hiện trên mobile, còn desktop chỉ hiện khi hover hoặc focus.
 
@@ -296,8 +303,10 @@ dạng "N món, tổng ... trong ngân sách ...".
 
 Hai nhóm dùng hai layout riêng, đúng yêu cầu "tách riêng trang quản trị với trang khách hàng":
 
-- `DefaultLayout` bọc route khách: chỉ có thanh điều hướng và khung chatbot nổi, không có chân
-  trang. Trang bảng món tự khoá chiều cao `100dvh - 3.25rem` và cuộn trong vùng riêng.
+- `DefaultLayout` bọc route khách: thanh điều hướng, `CartDrawer`, `NotificationsDrawer` và
+  khung chatbot nổi, không có chân trang. Chiều cao header nằm ở biến `--header-h`; trang thực
+  đơn khoá `calc(100dvh - var(--header-h))` và cuộn trong vùng riêng, các trang còn lại cuộn
+  theo tài liệu.
 - `AdminLayout` bọc `/admin/*`: menu trái chia nhóm Bán hàng (Tổng quan, Đơn hàng, Khách hàng),
   Thực đơn (Món ăn, Danh mục), Marketing (Khuyến mãi), Hệ thống (Chatbot, Báo cáo);
   thu gọn thành drawer ở màn hình nhỏ. Vào `/admin` mặc định mở `/admin/dashboard`. Route admin
@@ -311,63 +320,78 @@ ngay tại chỗ, và món bán chạy với thanh một màu. Việc cần làm
 từ `/api/admin/reports/*` tính trong 30 ngày gần nhất. Doanh thu trên trang này là doanh thu
 **sau giảm giá**, khớp với trang Báo cáo, nên hai nơi không bao giờ lệch nhau.
 
-### Bảng món kiểu kiosk
+### Trang thực đơn kiểu kiosk
 
 Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang chủ / Thực đơn" làm một
-màn hình:
+màn hình. Cấu trúc từ trên xuống:
 
-- **Không còn khối danh mục riêng**: danh mục hiện là chip lọc ngang trên bảng món, còn toàn bộ
-  món hiển thị trong một lưới chung với phân trang 12 món mỗi trang.
-- Panel chi tiết món dùng ảnh `4/3` trên mobile, `2/1` từ `sm` để không chiếm gần hết
-  chiều cao Drawer trên desktop.
-- **Không còn khối voucher trên trang chủ**: voucher chào mừng tự vào ví, mã đã nhận chọn ở bước
-  thanh toán trong giỏ. API nhận voucher và quà may mắn vẫn còn ở server nhưng hiện không có nút
-  trên giao diện khách.
-- Thẻ món gắn nhãn ưu đãi tự động (`Hôm nay`, `Cuối tuần`, `Dịp lễ`) cạnh nhãn `-N%`, lấy từ
-  `discountLabel` do server điền theo `Promotion.occasion`.
-- Lọc khoảng giá bằng 5 dải giá dạng sẵn (dễ chạm hơn hai ô nhập số). Từ `md` trở lên dải giá
-  nằm **cùng hàng** với chip danh mục: danh mục co giãn và cuộn ngang, dải giá giữ nguyên một
-  hàng không rơi xuống. Dưới `md` dải giá `flex-wrap` xuống nhiều dòng nên không bị cắt. Cả thanh
-  dính đầu vùng lưới (`sticky top-0`), chip thấp 32px (`py-1.5`, `text-xs`) để không chiếm chỗ.
-  Mục đầu ghi "Mọi giá" chứ không phải "Tất cả"
-  vì hàng trên đã có "Tất cả", hai chữ giống nhau cạnh nhau dễ bị hiểu là một bộ lọc.
-- Lưới thẻ món cuộn trong vùng riêng, phân trang 12 món mỗi trang (`PAGE_SIZE` chia hết cho cả
-  2 và 4 nên không trang nào lẻ hàng). Số cột: 2 cột dưới `md`, 4 cột từ `md`
-  (`grid-cols-2 md:grid-cols-4`), không còn 3 hay 5 cột.
-- Thanh giỏ ghim đáy hiện khi giỏ có món, chứa tổng tiền và nút "Xem giỏ và đặt món".
-- Toàn bộ bộ lọc nằm trên URL (`category`, `keyword`, `min`, `max`) nên người dùng chia sẻ
-  được đường dẫn đã lọc và ô tìm kiếm trên thanh điều hướng điều khiển được trang này.
+- **Hero** (`components/home/HomeHero.tsx`) trải hết bề ngang vùng cuộn, chỉ hiện khi chưa có bộ
+  lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ nói địa bàn, thời
+  gian giao và `Hôm nay ăn gì?`. Cao 180/220/260px theo breakpoint.
+- **Dải danh mục** (`CategoryRail`) là chip cao 40px có ảnh tròn 32px, cuộn ngang; chọn danh mục
+  ghi `?category=` và cuộn tới lưới món.
+- **Ưu đãi hôm nay** (`DealRail`) là shelf cuộn ngang dùng chung `FoodCard` với lưới thực đơn,
+  lấy tối đa 8 món có `discountPercent > 0` do server tính, kèm nút "Xem tất cả" bật bộ lọc
+  `deal=1`. Không tự đoán chương trình nào đang chạy. Nút cộng trên ảnh chỉ hiện khi hover
+  (hoặc luôn hiện trên màn không có hover).
+- **Sắp xếp** nằm ở hàng tiêu đề thực đơn dưới dạng nút `Sắp xếp: … ⌄` mở Dropdown radio, không
+  còn Select full-width trong thanh sticky.
+- **Lưới món** 2 cột dưới `md`, 4 cột từ `md` (`grid-cols-2 md:grid-cols-4`), phân trang 12 món
+  mỗi trang (`PAGE_SIZE` chia hết cho 2 và 4). Trang nằm trên URL (`page`), đổi bộ lọc về trang 1.
+- **Bộ lọc nằm trên URL**: `category`, `keyword`, `min`, `max`, `sort`, `diet`, `spicy`,
+  `available`, `deal`, `page`. Nhờ vậy chia sẻ được đường dẫn đã lọc, nút quay lại giữ nguyên trạng thái
+  và ô tìm kiếm trên header điều khiển được trang này. Bộ lọc nhanh (Còn món, Món chay, Không
+  cay, Đang giảm) và 5 dải giá lọc trên danh sách đã tải; sắp xếp theo giá hoặc mức giảm chạy
+  trên client vì dữ liệu từng món đã đủ.
+- **Thanh giỏ ghim đáy** hiện khi giỏ có món, ghi số món và số phần, nút "Xem giỏ" mở drawer
+  chứ không rời trang.
 - Tìm kiếm khớp **không dấu, không phân biệt hoa thường**: server bỏ điều kiện `LIKE` khỏi
   Specification và lọc từ khoá bằng Java qua `TextNormalizer` (NFD bỏ dấu, đ/Đ → d) sau
   `findAll` — không cầu extension `unaccent` của PostgreSQL. Enter trong ô tìm kiếm áp dụng
   ngay qua `commitSearch` dùng chung với debounce: ở `/` giữ nguyên `category`/`min`/`max`,
   ở trang khác thì về `/` kèm từ khoá thay vì làm rỗng bộ lọc.
 
-Thẻ món được nén để nhìn thấy được nhiều món hơn trên một màn hình: ảnh cắt theo 16:10 (thay
-4:3), đệm `p-2.5` trên mobile và `p-3` từ `sm`, tối đa 2 nhãn, giá `text-base` trên mobile và
-`text-lg` từ `sm`. Dưới `sm` giá và nút xếp dọc, nút "Thêm vào giỏ" dùng `size="small"` chữ
-`text-xs` và rộng hết thẻ; từ `sm` chúng quay lại một hàng. Ở 360px thẻ rộng khoảng 162px, phần
-nội dung 142px, đủ chỗ cho ảnh, giá và nút nên không tràn ngang. Đo ở cửa sổ 848×670: chiều cao
-thẻ 444px xuống 285px, vùng lưới tăng từ 546px lên 614px.
+Thẻ món giữ mật độ cũ: ảnh 16:10, đệm `p-2.5` trên mobile và `p-3` từ `sm`, tối đa 2 nhãn.
+Giá dùng `food.discountedPrice ?? food.price` và hiện giá gốc gạch ngang khi đang giảm. Nút
+tròn dấu cộng trên ảnh thêm nhanh: khách đã đăng nhập thêm xong chỉ thấy toast và ở lại trang chủ;
+khách vãng lai được đưa sang `/login` rồi quay lại đúng bộ lọc. Cả thẻ mở trang chi tiết. Nhãn
+ưu đãi viết gọn thành `Ưu đãi hôm nay` / `Ưu đãi cuối tuần` qua `discountText` dùng chung.
 
-`/foods/:id` là **route con** của `/` và hiển thị thành panel phủ (`Drawer`) chứ không phải trang
-riêng. Nhờ vậy người dùng không rời bảng món khi xem chi tiết, URL vẫn thật để thẻ món trong
-chatbot liên kết được, và nút quay lại của trình duyệt đóng được panel. Panel dùng bố cục: ảnh
-4/3, giá và trạng thái, mô tả, lưới thông số, hàng số lượng + tổng tiền + nút thêm.
-URL cũ `/foods` chuyển hướng về `/`.
+`/foods/:id` là **trang độc lập** trong `DefaultLayout`, không còn là route con hay Drawer.
+Trang có hai cột từ `lg`: ảnh `4/3` (mobile) hoặc `2/1` (từ `sm`), khối thông tin món và đánh
+giá; cột phải sticky chứa giá, số lượng và nút thêm. Dưới `lg` có thanh mua hàng cố định đáy.
+Giá trên trang chi tiết dùng đúng một nguồn với thẻ món. Nút quay lại ưu tiên `state.from` do
+thẻ món truyền vào (kèm query bộ lọc); vị trí cuộn của lưới được lưu trong `sessionStorage`
+(`menu-scroll`) và khôi phục khi quay lại. Thêm món từ trang chi tiết mở drawer giỏ để khách
+thấy ngay món vừa thêm. URL cũ `/foods` chuyển hướng về `/`.
+
+### Trang đặt món
+
+`/checkout` là URL chính và là trang duy nhất để chốt đơn; `/cart` chỉ chuyển hướng về đây.
+Trang không lặp lại danh sách món sửa được (việc đó nằm trong drawer giỏ), chỉ còn:
+
+- Thẻ địa chỉ đã lưu (chọn nhanh, thêm/sửa qua modal) và ba trường người nhận, số điện thoại,
+  địa chỉ.
+- Phương thức thanh toán dạng thẻ chọn (`COD` / `QR`), ghi chú cho quán kèm chip gợi ý.
+- Cột tóm tắt sticky: số món, số phần, tạm tính, giảm giá, tổng thanh toán và nút xác nhận;
+  dưới `lg` thanh đáy chỉ giữ tổng tiền và một nút đặt món. Nút "Sửa giỏ" mở drawer tại chỗ.
+- Mọi con số vẫn lấy từ `useCartQuote`, nút xác nhận khoá khi quote đang tải hoặc lỗi.
 
 ### Thanh điều hướng và hệ nút
 
-- Thanh điều hướng có 5 thành phần Bảng 2.22: nút trang chủ, ô tìm kiếm, đơn hàng, giỏ hàng,
-  đăng nhập, cộng ô thông báo. Nút đơn hàng (icon `inbox`, cạnh nút giỏ hàng) chỉ hiện khi đã đăng
-  nhập vì route `/orders` bắt buộc token; khách vãng lai vẫn vào được `/orders` qua
-  `RequireAuth` nhưng không thấy nút này. Không có menu điều hướng tới các trang con; những
-  đích đó nằm trong menu tài khoản (Đơn hàng của tôi, Tài khoản, Trang quản trị nếu là admin,
-  Đăng xuất). Header cao `3.25rem`, các nút trong header dùng `size="small"` (36px). Ô tìm
-  kiếm có `md:max-w-xl`: không chặn bề rộng thì trên màn hình rộng nó giãng hết chỗ trống và
-  đẩy nhóm nút bên phải lệch ra rìa.
-- **Logo không nằm ở thanh điều hướng**: chỗ ấy để nút trang chủ (icon `home`) quay về bảng món.
-  Trang `/login` và `/register` (`AuthShell`) không còn hiển thị thương hiệu/link về bảng món;
+- Thanh điều hướng **một hàng ở mọi kích thước**: logo (`BrandMark`, bấm về `/`), ô tìm kiếm
+  co giãn (`flex-1`), nút đơn hàng, nút giỏ, avatar hoặc nút đăng nhập. Chiều cao cố định
+  `--header-h = 3.25rem`; chatbot, vùng cuộn kiosk và thanh đáy đều đọc biến này, không
+  hard-code lại. Từ `lg` chuông và đơn hàng có nút riêng trên header (chuông mang chấm đỏ chưa
+  đọc), dưới `lg` hai mục này nằm trong menu tài khoản; nút đơn hàng chỉ hiện khi đã đăng
+  nhập vì `/orders` bắt buộc token. Không có menu điều hướng riêng; các đích còn lại nằm trong
+  menu tài khoản và nút tắt sang khu quản trị nếu là admin.
+- **Giỏ hàng là drawer**, không phải trang: `CartDrawer` rộng `min(480px, 100vw)`, danh sách
+  món sửa số lượng/xoá tại chỗ, footer sticky hiện tạm tính, giảm giá, tổng và nút sang
+  `/checkout`. Xoá món có hoàn tác 5 giây; khi có món đồ uống/tráng miệng chưa trong giỏ thì
+  hiện shelf "Thêm cho bữa này" với nút một chạm. Drawer chỉ mount nội dung khi mở nên không gọi
+  báo giá ở mọi trang. `useCartQuote` debounce 250ms và cho phép thử lại khi lỗi.
+- Trang `/login` và `/register` (`AuthShell`) không còn hiển thị thương hiệu/link về bảng món;
   trang quản trị có logo riêng trong `AdminLayout`.
 - `components/UiButton.tsx` là nút dùng chung, chỉ 6 dạng: `primary` (44px), `primary-lg`
   (52px, đúng 1 nút mỗi màn hình), `default`, `danger`, `icon` (40px), `fab` (64px, nút mở
@@ -378,23 +402,31 @@ URL cũ `/foods` chuyển hướng về `/`.
   nhỏ lại phải truyền `size="small"`.
 - Thẻ món dùng nút "Thêm vào giỏ" **có nhãn** vì Bảng 2.22 ghi rõ tên thành phần này; món hết
   hiện nhãn "Hết món" và nút bị vô hiệu hoá. Nút chỉ có chữ, không kèm icon dấu "+".
+- Màu chính AntD là `#b45309` (`theme.ts`), chữ trắng trên nền này đạt tương phản AA; sắc sáng
+  hơn chỉ dùng cho logo và điểm nhấn lớn. `index.css` tôn trọng `prefers-reduced-motion` và giữ
+  biến `--header-h` làm nguồn duy nhất cho chiều cao header.
 
 ### Chatbot nổi
 
-Cụm widget bám trang: `fixed inset-x-0 bottom-0 top-14` cùng `justify-end`, khung chat `flex-1`
-nên tự co theo chiều cao màn hình thay vì hard-code. Vùng trống của cụm mang
-`pointer-events-none` nên không chặn thao tác lên thẻ món phía sau. Launcher là `UiButton`
-dạng `fab` 64px; nó tự nhảy lên cao hơn khi trang đang có thanh giỏ ghim đáy
-(`useHasCartBar`).
+Cụm widget bám trang: `fixed inset-x-0 bottom-0 top-[var(--header-h)]` cùng `justify-end`, khung
+chat `flex-1` nên tự co theo chiều cao màn hình thay vì hard-code. Vùng trống của cụm mang
+`pointer-events-none` nên không chặn thao tác lên thẻ món phía sau. Trạng thái mở/đóng nằm
+trong `store/uiStore.ts`, nhờ vậy hero và empty state mở chat được mà không cần đi qua nút nổi.
+Launcher là `UiButton` dạng `fab` 64px; `useHasBottomBar()` trả `checkout | detail | null`
+để launcher nhường chỗ cho thanh đặt món hoặc thanh mua hàng của trang chi tiết.
 
 Bố cục khung chat:
 
 - Tin bot và tin khách đều nằm trong bong bóng: bot là bong bóng trắng căn trái (`rounded-bl-md`,
   viền mảnh), khách là bong bóng hổ phách căn phải (`rounded-br-md`). Ô chữ của bot rộng tối đa
   92%, của khách 85%.
-- Ô gợi ý dính ngay dưới câu chào vì nó thuộc câu chào, và biến mất sau tin nhắn đầu tiên.
-  Bốn câu gợi ý đều chạy đúng bộ lọc thật: chế độ ăn + độ cay, ngân sách + số người
-  (số phần tính theo khẩu phần), thành phần loại trừ, và kết hợp món theo tổng ngân sách.
+- Bốn câu gợi ý là một dải chip **luôn nằm trên ô nhập**, cuộn ngang trên mobile, không biến
+  mất sau tin đầu tiên; chip bị khoá khi trợ lý chưa cấu hình hoặc đang chờ trả lời. Cả bốn
+  câu đều chạy đúng bộ lọc thật: chế độ ăn + độ cay, ngân sách + số người (số phần tính theo
+  khẩu phần), thành phần loại trừ, và kết hợp món theo tổng ngân sách.
+- Nút **Làm mới hội thoại** trên thanh tiêu đề xoá ngữ cảnh cũ (tin nhắn, `lastFoodIds`,
+  `sessionId` mới) để câu hỏi tiếp không dính vào món của lượt trước. Tin bot chạy chữ dần; ai
+  bật `prefers-reduced-motion` thì thấy ngay toàn bộ câu trả lời.
 - Thẻ món gộp trong **một khung trắng**, các dòng ngăn bằng đường kẻ, không viền riêng từng
   thẻ: ảnh 40px, tên một dòng, giá hổ phách căn phải. Cả dòng là liên kết tới `/foods/:id`.
   Khung này canh cùng mép trái với bong bóng của bot.

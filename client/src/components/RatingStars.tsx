@@ -20,9 +20,31 @@ export default function RatingStars({
   const interactive = Boolean(onChange) && !disabled
   const active = hovered > 0 ? hovered : Math.max(0, Math.min(5, value))
 
+  if (!interactive) {
+    // Chế độ chỉ đọc không dựng nút: tránh nút lồng trong nút khi đặt cạnh một liên kết
+    // hoặc tiêu đề bấm được, và sao hiển thị không nhận focus vô nghĩa.
+    return (
+      <span
+        role="img"
+        aria-label={`${active} trên 5 sao`}
+        className={`inline-flex items-center gap-0.5 ${className}`}
+      >
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span key={star} aria-hidden="true" className="leading-none">
+            {star <= active ? (
+              <StarFilled style={{ fontSize: size }} className="text-amber-500" />
+            ) : (
+              <StarOutlined style={{ fontSize: size }} className="text-stone-300" />
+            )}
+          </span>
+        ))}
+      </span>
+    )
+  }
+
   return (
     <div
-      role={interactive ? 'radiogroup' : undefined}
+      role="radiogroup"
       aria-label="Đánh giá sao"
       className={`inline-flex items-center gap-0.5 ${className}`}
     >
@@ -30,16 +52,13 @@ export default function RatingStars({
         <button
           key={star}
           type="button"
-          role={interactive ? 'radio' : undefined}
+          role="radio"
           aria-label={`${star} trên 5 sao`}
-          aria-checked={interactive ? value === star : undefined}
-          disabled={!interactive}
-          onMouseEnter={interactive ? () => setHovered(star) : undefined}
-          onMouseLeave={interactive ? () => setHovered(0) : undefined}
-          onClick={interactive ? () => onChange?.(star) : undefined}
-          className={`border-0 bg-transparent p-0 leading-none ${
-            interactive ? 'cursor-pointer transition-transform duration-150 hover:scale-110 active:scale-90' : 'cursor-default'
-          }`}
+          aria-checked={value === star}
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange?.(star)}
+          className="cursor-pointer border-0 bg-transparent p-0 leading-none transition-transform duration-150 hover:scale-110 active:scale-90"
         >
           {star <= active ? (
             <StarFilled style={{ fontSize: size }} className="text-amber-500" />

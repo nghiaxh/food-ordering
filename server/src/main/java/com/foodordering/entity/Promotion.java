@@ -37,7 +37,9 @@ public class Promotion {
     @Column(nullable = false)
     private Scope scope = Scope.GLOBAL;
 
-    @ElementCollection
+    // Danh sách ID nhỏ nên tải sẵn; lazy sẽ lỗi khi serialize entity ngoài session
+    // vì `open-in-view` đang tắt.
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "promotion_targets", joinColumns = @JoinColumn(name = "promotion_id"))
     @Column(name = "target_id")
     private List<Long> targetIds = new ArrayList<>();

@@ -1,45 +1,43 @@
 ﻿import { useState } from 'react'
-import { Drawer, message } from 'antd'
-import { MinusOutlined, PlusOutlined } from '@ant-design/icons'
-import { useNavigate, useParams } from 'react-router-dom'
+import { message } from 'antd'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { createReview, deleteReview, getFood, getReviews, updateReview } from '../api/api'
 import useAsyncAction from '../hooks/useAsyncAction'
 import useAsyncData from '../hooks/useAsyncData'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
+import { useUiStore } from '../store/uiStore'
 import { formatVND } from '../utils/format'
 import { spicyLabel } from '../utils/food-tags'
 import { reviewStats } from '../utils/reviews'
 import { apiErrorMessage } from '../utils/api-error'
 import RatingStars from '../components/RatingStars'
 import ReviewSection from '../components/ReviewSection'
+import QuantityStepper from '../components/QuantityStepper'
 import UiButton from '../components/UiButton'
 import UiIcon from '../components/UiIcon'
 import UiImg from '../components/UiImg'
-import LoginTooltip from '../components/LoginTooltip'
 
 /**
- * Chi tiết món dạng panel phủ trên bảng món, không phải trang riêng: người dùng không
- * rời khỏi bảng món khi xem chi tiết. URL `/foods/:id` vẫn giữ nguyên nên thẻ món trong
- * chatbot liên kết được và nút quay lại của trình duyệt đóng được panel.
+ * Trang chi tiết một món. Trước đây là Drawer phủ lên bảng món; chuyển thành trang riêng
+ * để có đủ chỗ cho ảnh lớn, thông số, đánh giá và một cột mua hàng sticky.
  *
- * Nội dung panel đủ các thành phần Bảng 2.22: hình, giá, trạng thái, mô tả, thành phần,
- * mức cay, nhãn chế độ ăn, chất gây dị ứng, khẩu phần, chọn số lượng, Thêm vào giỏ,
- * điểm trung bình và danh sách đánh giá.
+ * Giá dùng đúng một nguồn `discountedPrice ?? price`, giống thẻ món. Lỗi cũ là thẻ hiện giá
+ * giảm còn trang chi tiết hiện giá gốc, khách thấy hai giá cho cùng một món.
+ *
+ * Quay lại ưu tiên `state.from` do thẻ món truyền vào (kèm query bộ lọc); vị trí cuộn của
+ * bảng món do FoodsPage khôi phục từ sessionStorage.
  */
 export default function FoodDetailPage() {
   const { id } = useParams()
   const foodId = Number(id)
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: string } | null)?.from
   const [qty, setQty] = useState(1)
-  // Đóng bằng state để Drawer chạy animation đóng rồi mới rời route; unmount ngay sẽ mất hiệu ứng.
-  const [open, setOpen] = useState(true)
   const user = useAuthStore((s) => s.user)
-  // Khách chưa đăng nhập không có giỏ: nút khoá và tooltip hướng dẫn đăng nhập.
-  const canAdd = user !== null && user.role !== 'ADMIN'
   const add = useCartStore((s) => s.add)
-
-  const close = () => setOpen(false)
+  const openDrawer = useUiStore((s) => s.openDrawer)
 
   const {
     data: food,
@@ -63,12 +61,24 @@ export default function FoodDetailPage() {
   )
   const { run: removeReview } = useAsyncAction((id: number) => deleteReview(id))
 
+  const goBack = () => {
+    if (from) navigate(from)
+    else navigate('/')
+  }
+
   const addToCart = async () => {
-    if (!food || !user || !food.available) return
+    if (!food || !food.available) return
+    if (!user) {
+      message.info('Đăng nhập để thêm món vào giỏ')
+      navigate('/login', {
+        state: { from: { pathname: location.pathname, search: location.search } },
+      })
+      return
+    }
     const ok = await add(food, qty)
     if (ok) {
       message.success(`Đã thêm ${qty} phần ${food.name} vào giỏ`)
-      close()
+      openDrawer('cart')
     }
   }
 
@@ -109,169 +119,177 @@ export default function FoodDetailPage() {
     return res
   }
 
-  const stats = reviewStats(reviews ?? [])
-  const unavailable = !food?.available
-  const allergens = food?.allergens
-    ? food.allergens.split(',').map((t) => t.trim()).filter(Boolean)
-    : []
-  const specs = food
-    ? [
-        { label: 'Phân loại', value: food.category?.name ?? 'Khác' },
-        { label: 'Khẩu phần', value: `${food.servingSize} người` },
-        { label: 'Độ cay', value: spicyLabel(food.spicyLevel) },
-        { label: 'Chế độ ăn', value: food.dietaryTags || 'Thông thường' },
-      ]
-    : []
-
-  return (
-    <Drawer
-      open={open}
-      onClose={close}
-      afterOpenChange={(visible) => {
-        // Chỉ điều hướng khi đã đóng xong; lúc mở thì giữ nguyên URL chi tiết.
-        if (!visible) navigate('/')
-      }}
-      // Không dùng `size` của Drawer: giá trị đó đè lên `width` và làm panel tràn hết
-      // màn hình. Chỉ cần `width`, Drawer tự co về 100% khi cửa sổ hẹp hơn.
-      width={720}
-      styles={{ body: { paddingTop: 16 } }}
-    >
-      {foodLoading ? (
-        <div className="space-y-4">
+  if (foodLoading) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-6">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="aspect-[4/3] animate-pulse rounded-2xl bg-stone-200/70" />
-          <div className="h-8 w-2/3 animate-pulse rounded-xl bg-stone-200/70" />
-          <div className="h-5 w-1/3 animate-pulse rounded-xl bg-stone-200/70" />
+          <div className="space-y-3">
+            <div className="h-8 w-2/3 animate-pulse rounded-xl bg-stone-200/70" />
+            <div className="h-5 w-1/3 animate-pulse rounded-xl bg-stone-200/70" />
+            <div className="h-24 w-full animate-pulse rounded-xl bg-stone-200/70" />
+          </div>
         </div>
-      ) : foodError || !food ? (
-        <div className="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 px-6 py-14 text-center">
-          <UiIcon name="exclamation-circle" size={28} className="text-stone-300" />
-          <p className="mt-3 font-medium text-stone-900">Không tải được món ăn</p>
-          <p className="mt-1 text-sm text-stone-500">Vui lòng thử lại.</p>
-          <UiButton kind="default" className="mt-5" onClick={() => void reloadFood()}>
+      </div>
+    )
+  }
+
+  if (foodError || !food) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-stone-100 text-stone-300">
+          <UiIcon name="exclamation-circle" size={28} />
+        </span>
+        <p className="mt-4 text-lg font-semibold text-stone-900">Không tìm thấy món này</p>
+        <p className="mt-1 text-sm text-stone-500">Món có thể đã bị xóa hoặc đường dẫn không đúng.</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <UiButton kind="default" onClick={() => void reloadFood()}>
             Thử lại
           </UiButton>
+          <UiButton kind="primary" onClick={goBack}>
+            Về thực đơn
+          </UiButton>
         </div>
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-2xl bg-stone-100">
-            <UiImg
-              src={food.imageUrl}
-              alt={food.name}
-              preview
-              className="aspect-[4/3] w-full sm:aspect-[2/1]"
-            />
-          </div>
+      </div>
+    )
+  }
 
-          <h2 className="mt-4 text-xl font-bold tracking-tight text-stone-900">{food.name}</h2>
+  const unit = food.discountedPrice ?? food.price
+  const saving = unit < food.price ? food.price - unit : 0
+  const stats = reviewStats(reviews ?? [])
+  const unavailable = !food.available
+  const allergens = food.allergens
+    ? food.allergens.split(',').map((t) => t.trim()).filter(Boolean)
+    : []
+  const specs = [
+    { label: 'Phân loại', value: food.category?.name ?? 'Khác' },
+    { label: 'Khẩu phần', value: `${food.servingSize} người` },
+    { label: 'Độ cay', value: spicyLabel(food.spicyLevel) },
+    { label: 'Chế độ ăn', value: food.dietaryTags || 'Thông thường' },
+  ]
 
-          <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              {stats.count > 0 && (
-                <div className="flex items-center gap-2 text-sm text-stone-500">
-                  <RatingStars value={Math.round(stats.avg ?? 0)} size={14} />
-                  <span className="font-semibold tabular-nums text-stone-800">
-                    {stats.avg?.toFixed(1)}
+  return (
+    <div className="mx-auto max-w-6xl px-3 py-4 pb-10 sm:px-6">
+      <button
+        type="button"
+        onClick={goBack}
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-amber-50 hover:text-amber-800"
+      >
+        <UiIcon name="arrow-left" size={14} />
+        Quay lại thực đơn
+      </button>
+
+      <div className="mt-3 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start lg:gap-8">
+        <div className="relative overflow-hidden rounded-2xl bg-stone-100 lg:sticky lg:top-[calc(var(--header-h)+1rem)]">
+          <UiImg
+            src={food.imageUrl}
+            alt={food.name}
+            preview
+            className="aspect-[16/10] w-full cursor-zoom-in"
+          />
+          {!!food.discountPercent && food.available && (
+            <span className="absolute left-3 top-3 rounded-full bg-amber-700 px-2.5 py-1 text-xs font-semibold text-white">
+              -{food.discountPercent}%
+            </span>
+          )}
+        </div>
+
+        <div>
+          <h1 className="text-2xl font-bold leading-tight tracking-tight text-stone-900 sm:text-3xl">
+            {food.name}
+          </h1>
+
+          {stats.count > 0 && (
+            <button
+              type="button"
+              onClick={() => document.getElementById('danh-gia')?.scrollIntoView({ behavior: 'smooth' })}
+              className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-sm text-stone-600 hover:text-amber-800"
+            >
+              <RatingStars value={Math.round(stats.avg ?? 0)} size={14} />
+              <span className="font-semibold tabular-nums text-stone-900">{stats.avg?.toFixed(1)}</span>
+              <span>· {stats.count} đánh giá</span>
+            </button>
+          )}
+
+          <div className="mt-3 flex flex-wrap items-baseline gap-2">
+            <span className="text-[26px] font-bold tabular-nums leading-none text-amber-800">
+              {formatVND(unit)}
+            </span>
+            {saving > 0 && (
+              <>
+                <span className="text-sm tabular-nums text-stone-500 line-through">
+                  {formatVND(food.price)}
+                </span>
+                {!!food.discountPercent && (
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                    -{food.discountPercent}%
                   </span>
-                  <span>· {stats.count} đánh giá</span>
-                </div>
-              )}
-              <div className="mt-1 text-2xl font-bold tabular-nums text-amber-700">
-                {formatVND(food.price)}
-              </div>
-            </div>
-            {!food.available && (
-              <span className="rounded-full bg-red-50 px-3 py-1 text-sm font-semibold text-red-600">
-                Hết món
-              </span>
+                )}
+              </>
             )}
           </div>
 
           {food.description && (
-            <p className="mt-4 leading-relaxed text-stone-600">{food.description}</p>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">{food.description}</p>
           )}
 
-          <dl className="mt-5 grid grid-cols-2 gap-x-6 border-t border-stone-100">
-            {specs.map((spec) => (
-              <div key={spec.label} className="border-b border-stone-100 py-3">
-                <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                  {spec.label}
-                </dt>
-                <dd className="mt-0.5 text-sm font-medium text-stone-800">{spec.value}</dd>
-              </div>
-            ))}
-            <div className="col-span-2 border-b border-stone-100 py-3">
-              <dt className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">
-                Thành phần
-              </dt>
-              <dd className="mt-0.5 text-sm font-medium leading-relaxed text-stone-800">
+          {unavailable ? (
+            <div className="mt-5 rounded-xl bg-stone-100 px-4 py-3 text-sm font-medium text-stone-600">
+              Món đang tạm hết. Bạn có thể chọn món khác trong thực đơn.
+            </div>
+          ) : (
+            <div className="mt-5 flex items-center gap-3">
+              <QuantityStepper value={qty} onChange={setQty} label={`Số lượng ${food.name}`} />
+              <UiButton kind="primary-lg" className="flex-1" onClick={() => void addToCart()}>
+                Thêm vào giỏ
+              </UiButton>
+            </div>
+          )}
+
+          <div className="mt-8">
+            <h2 className="text-base font-bold text-stone-900">Thông tin món</h2>
+            <dl className="mt-3 grid grid-cols-2 gap-2">
+              {specs.map((spec) => (
+                <div key={spec.label} className="rounded-xl bg-white px-3 py-2.5 ring-1 ring-stone-200/60">
+                  <dt className="text-xs text-stone-500">{spec.label}</dt>
+                  <dd className="mt-0.5 text-sm font-semibold text-stone-800">{spec.value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <dl className="mt-4">
+              <dt className="text-xs text-stone-500">Thành phần</dt>
+              <dd className="mt-0.5 text-sm leading-relaxed text-stone-800">
                 {food.ingredients || 'Chưa cập nhật'}
               </dd>
-            </div>
-          </dl>
+            </dl>
 
-          {allergens.length > 0 && (
-            <div className="mt-4 flex items-start gap-2.5 rounded-2xl bg-red-50/70 px-4 py-3 ring-1 ring-red-100">
-              <UiIcon name="exclamation-circle" size={16} className="mt-0.5 shrink-0 text-red-500" />
-              <p className="text-sm leading-relaxed text-red-800">
-                <span className="font-semibold">Lưu ý dị ứng:</span> {allergens.join(', ')}
-              </p>
-            </div>
-          )}
-
-          {/* Số lượng và nút thêm nằm cạnh nhau để đổi số lượng rồi thêm chỉ một lần chạm. */}
-          <div className="mt-6 flex items-center gap-3">
-            <div className="flex shrink-0 items-center overflow-hidden rounded-xl ring-1 ring-stone-200">
-              <button
-                type="button"
-                aria-label="Giảm số lượng"
-                disabled={unavailable}
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                className="flex h-11 w-11 items-center justify-center text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed"
-              >
-                <MinusOutlined />
-              </button>
-              <span className="w-10 text-center text-base font-semibold tabular-nums text-stone-900">
-                {qty}
-              </span>
-              <button
-                type="button"
-                aria-label="Tăng số lượng"
-                disabled={unavailable}
-                onClick={() => setQty((q) => q + 1)}
-                className="flex h-11 w-11 items-center justify-center text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed"
-              >
-                <PlusOutlined />
-              </button>
-            </div>
-            <p className="min-w-0 flex-1 text-sm font-semibold tabular-nums text-stone-700">
-              {formatVND(Number(food.price) * qty)}
-            </p>
-            <LoginTooltip active={!canAdd && !unavailable} hint={user?.role === 'ADMIN' ? 'Tài khoản quản trị không đặt món' : undefined}>
-              <UiButton
-                kind="primary-lg"
-                disabled={unavailable || !canAdd}
-                onClick={() => void addToCart()}
-                className="shrink-0"
-              >
-                {unavailable ? 'Hết món' : 'Thêm vào giỏ'}
-              </UiButton>
-            </LoginTooltip>
+            {allergens.length > 0 && (
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-red-50/70 px-3.5 py-3 ring-1 ring-red-100">
+                <UiIcon name="exclamation-circle" size={16} className="mt-0.5 shrink-0 text-red-500" />
+                <p className="text-sm leading-relaxed text-red-800">
+                  <span className="font-semibold">Lưu ý dị ứng:</span> {allergens.join(', ')}
+                </p>
+              </div>
+            )}
           </div>
+        </div>
+      </div>
 
-          <ReviewSection
-            foodId={foodId}
-            reviews={reviews}
-            loading={reviewsLoading}
-            error={reviewsError}
-            user={user}
-            submitting={reviewPending || editPending}
-            onRefresh={refreshReviews}
-            onSubmit={onReview}
-            onUpdate={onEditReview}
-            onDelete={onDeleteReview}
-          />
-        </>
-      )}
-    </Drawer>
+      <div id="danh-gia" className="mt-8 scroll-mt-[calc(var(--header-h)+1rem)]">
+        <ReviewSection
+          foodId={foodId}
+          reviews={reviews}
+          loading={reviewsLoading}
+          error={reviewsError}
+          user={user}
+          submitting={reviewPending || editPending}
+          onRefresh={refreshReviews}
+          onSubmit={onReview}
+          onUpdate={onEditReview}
+          onDelete={onDeleteReview}
+        />
+      </div>
+    </div>
   )
 }

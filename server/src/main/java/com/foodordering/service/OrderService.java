@@ -65,7 +65,15 @@ public class OrderService {
         applyDelivery(order, req.receiverName(), req.phone(), req.address(), req.paymentMethod(), req.note());
         PricingService.PricedCart priced = fillItems(order, req.items());
         if (req.status() != null && !req.status().isBlank()) {
-            order.setStatus(parseStatus(req.status()));
+            Orders.Status next = parseStatus(req.status());
+            // Tạo thẳng sau bước chờ xác nhận với QR thì phải đã thu tiền, như đường duyệt đơn.
+            if (next != Orders.Status.PENDING && next != Orders.Status.CANCELLED
+                    && "QR".equals(order.getPaymentMethod())
+                    && !Boolean.TRUE.equals(req.paid())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Đơn chưa thanh toán nên chưa thể xác nhận");
+            }
+            order.setStatus(next);
         }
 
         Orders saved = orderRepo.save(order);
@@ -242,6 +250,14 @@ public class OrderService {
         if (!isValidTransition(order.getStatus(), next)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Không thể chuyển đơn từ \"" + label(order.getStatus()) + "\" sang \"" + label(next) + "\"");
+        }
+        // QR thanh toán trước nên phải đã thu tiền mới xác nhận được; COD thu khi giao
+        // nên duyệt bình thường dù chưa thu tiền.
+        if (next == Orders.Status.CONFIRMED
+                && "QR".equals(order.getPaymentMethod())
+                && order.getPaymentStatus() != Orders.PaymentStatus.PAID) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Đơn chưa thanh toán nên chưa thể xác nhận");
         }
         order.setStatus(next);
     }
