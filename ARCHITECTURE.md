@@ -330,8 +330,10 @@ màn hình. Cấu trúc từ trên xuống:
   gian giao và `Hôm nay ăn gì?`. Cao 180/220/260px theo breakpoint.
 - **Dải danh mục** (`CategoryRail`) là chip cao 40px có ảnh tròn 32px, cuộn ngang; chọn danh mục
   ghi `?category=` và cuộn tới lưới món.
-- **Ưu đãi hôm nay** (`DealRail`) là shelf cuộn ngang, lấy tối đa 8 món có `discountPercent > 0`
-  do server tính, kèm nút "Xem tất cả" bật bộ lọc `deal=1`. Không tự đoán chương trình nào đang chạy.
+- **Ưu đãi hôm nay** (`DealRail`) là shelf cuộn ngang dùng chung `FoodCard` với lưới thực đơn,
+  lấy tối đa 8 món có `discountPercent > 0` do server tính, kèm nút "Xem tất cả" bật bộ lọc
+  `deal=1`. Không tự đoán chương trình nào đang chạy. Nút cộng trên ảnh chỉ hiện khi hover
+  (hoặc luôn hiện trên màn không có hover).
 - **Sắp xếp** nằm ở hàng tiêu đề thực đơn dưới dạng nút `Sắp xếp: … ⌄` mở Dropdown radio, không
   còn Select full-width trong thanh sticky.
 - **Lưới món** 2 cột dưới `md`, 4 cột từ `md` (`grid-cols-2 md:grid-cols-4`), phân trang 12 món
