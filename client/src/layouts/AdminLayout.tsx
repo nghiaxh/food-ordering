@@ -128,7 +128,6 @@ export default function AdminLayout() {
                 <Avatar size={30} style={{ backgroundColor: '#b45309' }}>
                   {user?.fullName.charAt(0).toUpperCase()}
                 </Avatar>
-                <span className="hidden text-sm font-medium text-stone-700 sm:inline">{user?.fullName}</span>
               </button>
             </Dropdown>
           </div>
