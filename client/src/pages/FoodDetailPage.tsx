@@ -295,7 +295,7 @@ export default function FoodDetailPage() {
               <div className="mt-5 hidden items-center gap-3 lg:flex">
                 <QuantityStepper value={qty} onChange={setQty} label={`Số lượng ${food.name}`} />
                 <UiButton kind="primary-lg" className="flex-1" onClick={() => void addToCart()}>
-                  Thêm vào giỏ · {formatVND(unit * qty)}
+                  Thêm vào giỏ
                 </UiButton>
               </div>
             )}
@@ -332,7 +332,7 @@ export default function FoodDetailPage() {
               label={`Số lượng ${food.name}`}
             />
             <UiButton kind="primary" className="min-w-0 flex-1" onClick={() => void addToCart()}>
-              <span className="truncate">Thêm · {formatVND(unit * qty)}</span>
+              Thêm vào giỏ
             </UiButton>
           </div>
         </div>

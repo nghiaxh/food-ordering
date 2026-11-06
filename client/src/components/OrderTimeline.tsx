@@ -17,16 +17,25 @@ export default function OrderTimeline({ status }: { status: OrderStatus }) {
   }
 
   const current = ORDER_FLOW.indexOf(status)
+  // Đường nối chạy từ tâm bước đầu tới tâm bước cuối (số bước trừ một đoạn).
+  const progress =
+    status === 'COMPLETED' ? 100 : (current / Math.max(1, ORDER_FLOW.length - 1)) * 100
 
   return (
-    <ol className="mt-3 grid grid-cols-4 gap-1" aria-label="Tiến trình đơn hàng">
+    <ol className="relative mt-3 grid grid-cols-4 gap-1" aria-label="Tiến trình đơn hàng">
+      <span aria-hidden="true" className="absolute left-[12.5%] right-[12.5%] top-3 h-0.5 bg-stone-200" />
+      <span
+        aria-hidden="true"
+        className="absolute left-[12.5%] top-3 h-0.5 bg-amber-600 transition-[width] duration-300"
+        style={{ width: `${progress * 0.75}%` }}
+      />
       {ORDER_FLOW.map((step, index) => {
         const done = index < current || status === 'COMPLETED'
         const active = index === current && status !== 'COMPLETED'
         return (
           <li key={step} className="flex flex-col items-center gap-1 text-center">
             <span
-              className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold ${
+              className={`relative z-10 grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold ${
                 done
                   ? 'bg-amber-700 text-white'
                   : active

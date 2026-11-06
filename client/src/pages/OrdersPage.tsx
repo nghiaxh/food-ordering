@@ -35,6 +35,20 @@ export default function OrdersPage() {
   const openDrawer = useUiStore((s) => s.openDrawer)
   const [reorderingId, setReorderingId] = useState<number | null>(null)
   const [paying, setPaying] = useState<Order | null>(null)
+  // Mã QR chỉ hiển thị 1 phút rồi hết hạn ở phía giao diện; giây còn lại để khách đối chiếu.
+  const [qrSeconds, setQrSeconds] = useState(60)
+
+  useEffect(() => {
+    if (!paying || paying.paymentMethod !== 'QR') return
+    setQrSeconds(60)
+    const timer = window.setInterval(() => {
+      setQrSeconds((s) => (s > 0 ? s - 1 : 0))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [paying])
+
+  const qrExpired = paying?.paymentMethod === 'QR' && qrSeconds === 0
+  const qrLabel = `${Math.floor(qrSeconds / 60)}:${String(qrSeconds % 60).padStart(2, '0')}`
 
   const statusParam = params.get('status')
   const filter: OrderStatus | 'ALL' = isOrderStatus(statusParam) ? statusParam : 'ALL'
@@ -96,7 +110,7 @@ export default function OrdersPage() {
   }
 
   const confirmPaid = async () => {
-    if (!paying) return
+    if (!paying || qrExpired) return
     try {
       await payOrder(paying.id)
       message.success('Đã ghi nhận thanh toán')
@@ -128,21 +142,7 @@ export default function OrdersPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-3 py-6 sm:px-6 sm:py-8">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Đơn hàng của tôi</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Theo dõi tiến trình và đặt lại món cũ bất cứ lúc nào.
-          </p>
-        </div>
-        <a
-          href={`tel:${HOTLINE.replace(/\./g, '')}`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-amber-50 hover:text-amber-800"
-        >
-          <UiIcon name="phone" size={14} />
-          {HOTLINE}
-        </a>
-      </div>
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">Đơn hàng của tôi</h1>
 
       {error ? (
         <Alert
@@ -350,10 +350,6 @@ export default function OrdersPage() {
         </>
       )}
 
-      <p className="mt-8 text-sm text-stone-500">
-        Cần hỗ trợ đơn hàng? Gọi hotline {HOTLINE} hoặc hỏi trợ lý AI ở góc màn hình.
-      </p>
-
       <Modal
         open={paying !== null}
         onCancel={() => setPaying(null)}
@@ -362,7 +358,12 @@ export default function OrdersPage() {
           <UiButton key="back" kind="default" onClick={() => setPaying(null)}>
             Quay lại
           </UiButton>,
-          <UiButton key="pay" kind="primary-lg" onClick={() => void confirmPaid()}>
+          <UiButton
+            key="pay"
+            kind="primary-lg"
+            onClick={() => void confirmPaid()}
+            disabled={qrExpired}
+          >
             Xác nhận đã thanh toán
           </UiButton>,
         ]}
@@ -373,19 +374,42 @@ export default function OrdersPage() {
               Phương thức: {PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod}
             </div>
             {/* Chỉ phương thức QR mới có mã để quét; COD trả tiền khi nhận món nên không hiện QR.
-                Mã hoá mã đơn để quét ra thông tin nhận dạng đơn, không phải payload chuyển khoản. */}
+                Mã hoá mã đơn để quét ra thông tin nhận dạng đơn, không phải payload chuyển khoản.
+                Đếm ngược 1 phút là giới hạn hiển thị ở phía giao diện, server không hết hạn. */}
             {paying.paymentMethod === 'QR' && (
-              <QRCode value={`FOOD-${paying.id}-${paying.total}`} size={168} errorLevel="M" />
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="relative">
+                  <QRCode value={`FOOD-${paying.id}-${paying.total}`} size={168} errorLevel="M" />
+                  {qrExpired && (
+                    <div className="absolute inset-0 grid place-items-center bg-white/80 text-sm font-semibold text-stone-700">
+                      Mã QR đã hết hạn
+                    </div>
+                  )}
+                </div>
+                {qrExpired ? (
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+                    onClick={() => setQrSeconds(60)}
+                  >
+                    Tạo mã mới
+                  </button>
+                ) : (
+                  <p className="text-xs text-stone-500" aria-live="polite">
+                    Mã QR hết hạn sau {qrLabel}
+                  </p>
+                )}
+              </div>
             )}
             <div className="text-lg font-bold text-stone-900">{formatVND(paying.total)}</div>
             <Alert
               type="warning"
               showIcon
-              message="Thanh toán mô phỏng"
+              message="Lưu ý"
               description={
                 paying.paymentMethod === 'QR'
-                  ? 'Mã QR trên chỉ chứa mã đơn, không phải mã chuyển khoản nên không chuyển tiền thật. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
-                  : 'Bạn trả tiền mặt khi nhận món. Bấm nút xác nhận để hệ thống ghi nhận trạng thái đơn.'
+                  ? 'Đây là thanh toán thử nghiệm. Mã QR chỉ dùng để nhận dạng đơn, chưa chuyển tiền thật. Bấm "Xác nhận đã thanh toán" để ghi nhận trạng thái.'
+                  : 'Bạn trả tiền mặt khi nhận món. Bấm "Xác nhận đã thanh toán" để ghi nhận trạng thái.'
               }
             />
           </div>

@@ -220,9 +220,6 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto max-w-5xl px-3 py-6 pb-32 sm:px-6 lg:pb-10">
       <h1 className="text-2xl font-bold tracking-tight text-stone-900">Đặt món</h1>
-      <p className="mt-1 text-sm text-stone-500">
-        Kiểm tra thông tin giao hàng và cách thanh toán. Sửa món trong giỏ bất cứ lúc nào.
-      </p>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
         <Form
