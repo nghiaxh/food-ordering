@@ -3,7 +3,7 @@ import { Modal } from 'antd'
 
 /**
  * Modal chứa Form: bấm Lưu vẫn chạy `form.submit()` qua onSubmit. Gom bản lặp của
- * các trang quản trị và CartPage để mọi hộp biểu mẫu có cùng nút Lưu/Hủy + loading.
+ * các trang quản trị và trang checkout để mọi hộp biểu mẫu có cùng nút Lưu/Hủy + loading.
  */
 export default function FormModal(props: {
   title: ReactNode
