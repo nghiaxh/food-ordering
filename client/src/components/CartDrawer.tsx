@@ -154,9 +154,14 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
           const food = item.food
           if (!food) return null
           const line = quote?.lines.find((l) => l.foodId === food.id)
-          const unit = line?.unitPrice ?? (food.discountedPrice ?? food.price)
-          const lineTotal = line?.lineTotal ?? unit * item.quantity
+          // Server trả `unitPrice` là giá gốc; giá sau giảm của một phần là thành tiền dòng chia cho số lượng.
+          const originalUnit = line?.unitPrice ?? food.price
+          const discountedUnit = line
+            ? line.lineTotal / item.quantity
+            : (food.discountedPrice ?? food.price)
+          const lineTotal = line?.lineTotal ?? discountedUnit * item.quantity
           const lineDiscount = line?.lineDiscount ?? 0
+          const hasDiscount = discountedUnit < originalUnit
 
           return (
             <div key={food.id} className="flex gap-3 border-b border-stone-100 py-3.5 last:border-0">
@@ -172,10 +177,14 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
                 >
                   {food.name}
                 </Link>
-                {/* Chỉ nói "/phần" khi khách đã tăng số lượng, một phần thì đơn giá đã rõ. */}
-                <p className="mt-0.5 text-xs text-stone-500">
-                  {formatVND(unit)}
-                  {item.quantity > 1 ? ' / phần' : ''}
+                {/* Chỉ nói "/phần" khi khách đã tăng số lượng, một phần thì đơn giá đã rõ.
+                    Có giảm thì hiện giá gốc gạch ngang trước giá sau giảm để đối chiếu. */}
+                <p className="mt-0.5 text-xs" aria-label={hasDiscount ? `Giá gốc ${formatVND(originalUnit)}, giảm còn ${formatVND(discountedUnit)}${item.quantity > 1 ? ' mỗi phần' : ''}` : undefined}>
+                  {hasDiscount && (
+                    <span className="mr-1 text-stone-400 line-through">{formatVND(originalUnit)}</span>
+                  )}
+                  <span className="font-medium text-stone-800">{formatVND(discountedUnit)}</span>
+                  {item.quantity > 1 && <span className="text-stone-500"> / phần</span>}
                 </p>
                 {lineDiscount > 0 && (
                   <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
