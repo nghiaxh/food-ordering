@@ -90,8 +90,11 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   khoá mất quyền ngay). CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; nút thêm món bị khoá kèm tooltip
-  "Đăng nhập để thêm món vào giỏ" (`components/LoginTooltip.tsx`), `/cart` nằm trong `RequireAuth`,
-  `cartStore.add` trả `Promise<boolean>` và từ chối khi chưa đăng nhập. Store thay dòng optimistic
+  "Đăng nhập để thêm món vào giỏ" (`components/LoginTooltip.tsx`), `/checkout` nằm trong
+  `RequireAuth` còn `/cart` chỉ chuyển hướng về `/checkout`. Giỏ mở bằng drawer toàn cục
+  (`components/CartDrawer.tsx`), khách bấm giỏ khi chưa đăng nhập được đưa sang `/login` kèm cờ
+  `openCart` để mở lại sau khi đăng nhập. `cartStore.add` trả `Promise<boolean>` và từ chối khi
+  chưa đăng nhập. Store thay dòng optimistic
   bằng `CartItem` server trả để món thêm từ chatbot có đủ field và giá đúng; response chỉ được áp
   theo số thứ tự request của từng món. `CartItem.quantity` mặc định `1`, nên `CartService.add` phải
   tạo dòng mới với `quantity = 0` trước khi cộng, không thì lần thêm đầu tiên dư 1 phần.
@@ -99,7 +102,8 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   client đang hiển thị và tính bằng `priceOrder`; lúc tạo đơn dùng chung service này. Quote **không
   đọc lại giỏ DB** để response cũ không ghi đè giỏ mới. Client không nhân phần trăm hay trừ khuyến
   mãi, chỉ hiện lại `QuoteLine.lineDiscount` (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một
-  khuyến mãi tự động tốt nhất.
+  khuyến mãi tự động tốt nhất. `hooks/useCartQuote.ts` là nơi duy nhất gọi quote, dùng chung cho
+  drawer giỏ và `/checkout`.
 - **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`OrderService.canEditItems`);
   đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (`requireEditable`); các
   trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `AdminOrderRequest.items`
@@ -119,10 +123,13 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `app.upload.dir`
   (volume `uploads`) và phục vụ tại `/api/uploads/**`; endpoint trả URL **tuyệt đối** nên
   không cần sửa nginx.
-- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, chi tiết món là **route con** `/foods/:id`,
-  hiện thành Drawer phủ (không phải trang riêng) để không rời bảng món và dùng chung bố cục. Bộ lọc của trang này nằm trên URL (`category`, `keyword`,
-  `min`, `max`), đọc bằng `useSearchParams`. Lưới món 2 cột dưới `md` và 4 cột từ `md`; thanh lọc
-  gộp chip danh mục với dải giá trên một hàng từ `md`, dưới `md` dải giá xuống dòng.
+- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, có hero ngắn, dải danh mục ảnh và
+  "Ưu đãi hôm nay" trước lưới món. Chi tiết món là **trang riêng** `/foods/:id` trong
+  `DefaultLayout` (không còn Drawer hay route con). Bộ lọc của trang chủ nằm trên URL (`category`,
+  `keyword`, `min`, `max`, `sort`, `diet`, `spicy`, `available`, `deal`), đọc bằng
+  `useSearchParams`. Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi lượt 12 món và nút "Tải
+  thêm món" nối tiếp. Vị trí cuộn lưới lưu ở `sessionStorage['menu-scroll']`, nút quay lại của
+  trang chi tiết dùng `state.from` để giữ nguyên query.
 - **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
   `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
   viết class nút mới. **Đừng ghi đè kích thước bằng class.** Hai class `!h-*` có cùng độ ưu
@@ -131,19 +138,24 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   thì truyền `size="small"`; bảng `HEIGHTS` trong UiButton đã tính sẵn.
 - **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
   sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
-- **Thanh điều hướng có 5 thành phần** (nút trang chủ, ô tìm kiếm, đơn hàng, giỏ, đăng nhập)
-  theo Bảng 2.22, cộng thêm chuông thông báo (chỉ khi đã đăng nhập) và nút tắt nhanh sang
-  trang quản trị (chỉ ADMIN). Logo **không** nằm ở thanh điều hướng; trang đăng nhập/đăng ký (`AuthShell`)
-  không còn hiển thị thương hiệu/link về bảng món. Nút đơn hàng (icon `inbox`)
-  chỉ hiện khi đã đăng nhập vì `/orders` cần token; đừng thêm menu điều hướng, các trang con còn
-  lại nằm trong menu tài khoản. Header cao `3.25rem`; đổi chiều cao này thì sửa luôn
-  `top-[3.25rem]` của khối chatbot và `100dvh-3.25rem` ở `FoodsPage`, nếu không khung chat sẽ
-  tràn lên header hoặc bảng món bị hụt dải phía dưới.
+- **Thanh điều hướng một hàng ở mọi kích thước**: logo (`BrandMark`, bấm về `/`), ô tìm kiếm
+  co giãn, nút đơn hàng, nút giỏ, avatar/nút đăng nhập. Chuông **không** còn là nút riêng:
+  mục "Thông báo" nằm trong menu tài khoản và mở `NotificationsDrawer`; avatar có chấm đỏ khi
+  chưa đọc. Nút đơn hàng (icon `inbox`) chỉ hiện từ `md` khi đã đăng nhập vì `/orders` cần token;
+  đừng thêm menu điều hướng, các trang con còn lại nằm trong menu tài khoản. Trang
+  đăng nhập/đăng ký (`AuthShell`) không hiển thị thương hiệu/link về bảng món.
+- **Chiều cao header là `--header-h` (`3.25rem`)** trong `index.css`; khối chatbot dùng
+  `top-[var(--header-h)]`, vùng cuộn của `FoodsPage` dùng `calc(100dvh-var(--header-h))`. Đổi
+  chiều cao chỉ sửa biến, đừng hard-code lại ở ba nơi. Trang chi tiết và checkout cũng dùng
+  `top-[calc(var(--header-h)+1rem)]` cho cột sticky.
+- **Chatbot mở bằng `store/uiStore.ts`** (`chatOpen`), không còn state cục bộ, để hero và empty
+  state mở được; nút làm mới hội thoại xoá ngữ cảnh cũ và cấp `sessionId` mới. Dải gợi ý luôn
+  nằm trên ô nhập, cuộn ngang trên mobile, thay vì biến mất sau tin đầu.
 - **Chatbot chỉ giữ thẻ của tin bot mới nhất** (tối đa 5); tin bot cũ vẫn còn chữ nhưng mất
   `foods`, nên khung chat không dồn thẻ. Không còn nút "Xem thực đơn" trong khung chat. Nút
   thêm món trong thẻ yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip và bấm
   không điều hướng theo link của thẻ.
-- **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[3.25rem]` + `justify-end`,
+- **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[var(--header-h)]` + `justify-end`,
   khung chat
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
   cách đó dễ trượt khi header đổi kích thước. Vùng trống của cụm có `pointer-events-none` nên
@@ -209,8 +221,10 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
   `AdminLayout` (menu trái 5 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
   báo trong `AdminLayout`, đừng gắn vào `DefaultLayout`.
-- **`useHasCartBar` tính theo đường dẫn**, hiện chỉ `/` và `/cart`. Trang mới có thanh giỏ
-  ghim đáy thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh giỏ che.
+- **`useHasBottomBar` tính theo đường dẫn**: `/` có thanh giỏ khi giỏ không rỗng, `/checkout`
+  có thanh đặt món, `/foods/*` có thanh thêm món trên mobile. Trang mới có thanh cố định đáy
+  thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh che. Hai drawer giỏ/thông báo
+  dùng `activeDrawer` trong `uiStore` để không chồng mask.
 - `JwtFilter` nuốt exception không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
