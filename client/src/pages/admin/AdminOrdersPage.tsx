@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Checkbox, Drawer, Form, Input, InputNumber, Segmented, Select, Table, message } from 'antd'
+import { Checkbox, Drawer, Form, Input, InputNumber, Segmented, Select, Table, message } from 'antd'
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
 import { adminDeleteOrder, adminGetOrders, adminGetUsers, adminSaveOrder, adminUpdateOrderPayment, adminUpdateOrderStatus, getFoods, type AdminOrderPayload } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
@@ -554,9 +554,9 @@ export default function AdminOrdersPage() {
                     />
                   </div>
                 ))}
-                <Button type="dashed" block disabled={itemsLocked} onClick={() => add({ quantity: 1 })}>
+                <UiButton kind="default" block disabled={itemsLocked} onClick={() => add({ quantity: 1 })} className="border-dashed">
                   Thêm món
-                </Button>
+                </UiButton>
               </>
             )}
           </Form.List>
