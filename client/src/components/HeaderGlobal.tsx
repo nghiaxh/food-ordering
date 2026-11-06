@@ -301,6 +301,9 @@ export default function HeaderGlobal() {
                 <Avatar style={{ backgroundColor: '#d97706' }}>
                   {user.fullName.charAt(0).toUpperCase()}
                 </Avatar>
+                <span className="hidden text-sm font-medium text-stone-700 sm:inline">
+                  {user.fullName}
+                </span>
               </button>
             </Dropdown>
           ) : (
