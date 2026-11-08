@@ -7,7 +7,7 @@
 [![Zustand](https://img.shields.io/badge/Zustand-5.0-443e38?logo=zustand&logoColor=white)](https://zustand-demo.pmnd.rs)
 [![React Router](https://img.shields.io/badge/React%20Router-7.18-CA4245?logo=reactrouter&logoColor=white)](https://reactrouter.com)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6db33f?logo=spring&logoColor=white)](https://spring.io)
-[![Java](https://img.shields.io/badge/Java-25-f89820?logo=openjdk&logoColor=white)](https://www.java.com)
+[![Java](https://img.shields.io/badge/Java-21-f89820?logo=openjdk&logoColor=white)](https://www.java.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-2496ed?logo=docker&logoColor=white)](https://www.docker.com)
 
