@@ -77,6 +77,8 @@ export default function NotificationsDrawer() {
           {items.map((n) => (
             <div
               key={n.id}
+              data-testid="notification-item"
+              data-read={n.read ? 'true' : 'false'}
               className={`group relative rounded-xl text-sm ${
                 n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-amber-50/80 font-medium text-stone-800'
               }`}
