@@ -5,6 +5,7 @@ import com.foodordering.entity.*;
 import com.foodordering.repository.*;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -112,6 +113,8 @@ public class ChatbotService {
         this(ai, foodRepo, categoryRepo, chatRepo, userRepo, settingRepo, knowledgeRepo, null);
     }
 
+    // Có nhiều overloaded constructor cho test nên Spring cần biết dùng constructor đầy đủ nhất.
+    @Autowired
     public ChatbotService(AiClient ai, FoodRepository foodRepo, CategoryRepository categoryRepo,
                           ChatMessageRepository chatRepo, UserRepository userRepo,
                           AiSettingRepository settingRepo, ChatbotKnowledgeRepository knowledgeRepo,
