@@ -174,6 +174,23 @@ export interface KnowledgeDoc {
   keywords: string | null
   content: string
   enabled: boolean
+  status?: string
+  fileName?: string | null
+  fileSize?: number | null
+  chunkCount?: number
+}
+
+export interface KnowledgeChunkView {
+  id: number
+  chunkIndex: number
+  content: string
+}
+
+export interface KnowledgeStats {
+  totalDocuments: number
+  totalChunks: number
+  ready: number
+  failed: number
 }
 
 export interface Promotion {

@@ -75,12 +75,19 @@
       <optional>true</optional>
     </dependency>
 
-    <!-- Apache POI: xuất báo cáo Excel (chỉ tạo file, không parse file người dùng) -->
+    <!-- Apache POI: xuất báo cáo Excel và đọc DOCX tài liệu RAG -->
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
       <version>6.0.0</version>
     </dependency>
+    <!-- PDFBox: đọc PDF tài liệu RAG -->
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>3.0.3</version>
+    </dependency>
+    <!-- pgvector: embedding lưu dạng vector literal, Postgres xử lý <==> nên không cần lib riêng. -->
 
     <!-- Test: JUnit 5 + Mockito + AssertJ -->
     <dependency>

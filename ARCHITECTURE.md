@@ -224,11 +224,15 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
 - **Lưu lịch sử cho khách vãng lai**: từ phiên bản này, cả khách chưa đăng nhập cũng được lưu `chat_message` với `user = null` theo `sessionId`, nên ngữ cảnh phiên hoạt động cho mọi khách. `recentTurns` đọc theo `sessionId` không phụ thuộc tài khoản.
 - **Giải quyết đại từ tham chiếu**: server nhớ tên các món vừa gợi ý theo `sessionId` (bộ nhớ trong tiến trình). Nếu câu hỏi chứa đại từ ("món đó", "rẻ hơn"...) hoặc rất ngắn, server thêm tên các món đó vào câu hỏi trước khi trích tiêu chí, giúp AI không hiểu sai.
 - **Validate tiêu chí**: `normalizeCriteria` loại bỏ giá trị vô lý (độ cay ngoài 0–3, ngân sách ≤ 0, số người ≤ 0/>50, chuỗi rỗng). Nếu bộ lọc từ khóa không khớp món nào, server bỏ lọc từ khóa nhưng vẫn giữ các ràng buộc thuộc tính, tránh trả danh sách rỗng vô lý.
-- **RAG-lite cho thông tin quán:** bảng `chatbot_knowledge` lưu tài liệu do admin nhập ở tab Tài liệu
-  (`/admin/chatbot`), bot tra theo từ khóa (chấm điểm như chấm món dự phòng) và trả lời chỉ từ nội
-  dung tìm được, kèm `citations` hiện "Nguồn: ...". Không tìm thấy thì nói không rõ, không bịa giờ/giá ship.
-  Đây là retrieval theo từ khóa, chưa dùng pgvector; món ăn vẫn lọc bằng code xác định,
-  không đưa giá/cay/khả dụng vào vector.
+- **RAG cho thông tin quán:** bảng `chatbot_knowledge` lưu tài liệu do admin nhập ở tab Tài liệu
+  (`/admin/chatbot`), bảng `chatbot_knowledge_chunk` lưu các đoạn văn bản sau khi chia nhỏ kèm vector
+  `vector(768)` trong Postgres pgvector (`CREATE EXTENSION vector`). Admin tải lên PDF/DOCX/TXT/MD,
+  `DocumentParserService` tách text (PDFBox + POI), chia nhỏ 600 ký tự overlap 80, `AiClient.embed`
+  tạo embedding qua Gemini, `KnowledgeIngestionService` lưu chunk. Bot tra **hybrid vector + từ khóa**:
+  `VectorSearchService` ưu tiên cosine similarity (pgvector `<=>`, fallback chấm cosine trong Java khi
+  DB chưa có extension), sau đó mới chấm từ khóa như chấm món dự phòng. Câu trả lời chỉ từ đoạn tìm được,
+  kèm `citations` hiện "Nguồn: ...". Không tìm thấy thì nói không rõ, không bịa giờ/giá ship.
+  Món ăn vẫn lọc bằng code xác định, không đưa giá/cay/khả dụng vào vector.
 - **Định tuyến intent:** `ChatbotService.classifyIntent` chia câu hỏi thành `FOOD`,
   `RESTAURANT_INFO`, `ORDER_GUIDE`, `OUT_OF_SCOPE`. `RESTAURANT_INFO` và `ORDER_GUIDE` trả lời bằng
   tài liệu/quy trình cố định (không gọi AI), `OUT_OF_SCOPE` từ chối lịch sự, `FOOD` mới đi hai lượt AI.

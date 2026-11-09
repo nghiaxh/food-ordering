@@ -1,0 +1,12 @@
+[
+  {"question": "Mấy giờ quán mở cửa?", "expectDoc": "Giờ mở cửa", "expectedIntent": "RESTAURANT_INFO"},
+  {"question": "Quán đóng cửa lúc mấy giờ?", "expectDoc": "Giờ mở cửa", "expectedIntent": "RESTAURANT_INFO"},
+  {"question": "Phí giao hàng là bao nhiêu?", "expectDoc": "Giao hàng và phí ship", "expectedIntent": "RESTAURANT_INFO"},
+  {"question": "Ship mất bao lâu?", "expectDoc": "Giao hàng và phí ship", "expectedIntent": "RESTAURANT_INFO"},
+  {"question": "Thanh toán bằng gì?", "expectDoc": "Thanh toán", "expectedIntent": "ORDER_GUIDE"},
+  {"question": "Có nhận COD không?", "expectDoc": "Thanh toán", "expectedIntent": "ORDER_GUIDE"},
+  {"question": "Cách đặt món?", "expectDoc": "Cách đặt món", "expectedIntent": "ORDER_GUIDE"},
+  {"question": "Hủy đơn được không?", "expectDoc": "Hủy đơn", "expectedIntent": "ORDER_GUIDE"},
+  {"question": "Cho 2 người 150k không cay", "expectedIntent": "FOOD"},
+  {"question": "Thời tiết hôm nay?", "expectedIntent": "OUT_OF_SCOPE"}
+]

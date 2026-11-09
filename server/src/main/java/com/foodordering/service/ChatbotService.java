@@ -93,6 +93,7 @@ public class ChatbotService {
     private final UserRepository userRepo;
     private final AiSettingRepository settingRepo;
     private final ChatbotKnowledgeRepository knowledgeRepo;
+    private final VectorSearchService vectorSearch;
     private final ObjectMapper mapper = new ObjectMapper()
             // AI có thể trả về thêm trường không có trong Criteria; bỏ qua chúng thay vì
             // coi cả câu trả lời là lỗi, vì khi đó lượt chat sẽ mất hoàn toàn gợi ý món.
@@ -108,6 +109,13 @@ public class ChatbotService {
     public ChatbotService(AiClient ai, FoodRepository foodRepo, CategoryRepository categoryRepo,
                           ChatMessageRepository chatRepo, UserRepository userRepo,
                           AiSettingRepository settingRepo, ChatbotKnowledgeRepository knowledgeRepo) {
+        this(ai, foodRepo, categoryRepo, chatRepo, userRepo, settingRepo, knowledgeRepo, null);
+    }
+
+    public ChatbotService(AiClient ai, FoodRepository foodRepo, CategoryRepository categoryRepo,
+                          ChatMessageRepository chatRepo, UserRepository userRepo,
+                          AiSettingRepository settingRepo, ChatbotKnowledgeRepository knowledgeRepo,
+                          VectorSearchService vectorSearch) {
         this.ai = ai;
         this.foodRepo = foodRepo;
         this.categoryRepo = categoryRepo;
@@ -115,6 +123,7 @@ public class ChatbotService {
         this.userRepo = userRepo;
         this.settingRepo = settingRepo;
         this.knowledgeRepo = knowledgeRepo;
+        this.vectorSearch = vectorSearch;
     }
 
     /** Phân loại câu hỏi để đi đúng nhánh: món, thông tin quán, hướng dẫn đặt hàng, ngoài lề. */
@@ -170,8 +179,22 @@ public class ChatbotService {
         return sb.toString().trim();
     }
 
-    /** Tìm tài liệu khớp từ khóa (bỏ từ dừng), chấm điểm như chấm món để tránh trùng từ ngẫu nhiên. */
+    /** Tìm tài liệu: ưu tiên vector ngữ nghĩa, sau đó mới chấm từ khóa (hybrid). */
     public java.util.List<ChatbotKnowledge> retrieveKnowledge(String question) {
+        // Vector trươc: bắt câu hỏi diễn đạt khác từ khóa.
+        if (vectorSearch != null) {
+            try {
+                java.util.List<VectorSearchService.ScoredChunk> hits = vectorSearch.search(question, 3);
+                if (hits != null && !hits.isEmpty()) {
+                    // Giữ thứ tự similarity, bỏ trùng tài liệu.
+                    java.util.LinkedHashMap<Long, ChatbotKnowledge> byDoc = new java.util.LinkedHashMap<>();
+                    for (VectorSearchService.ScoredChunk h : hits) byDoc.putIfAbsent(h.document().getId(), h.document());
+                    return new java.util.ArrayList<>(byDoc.values());
+                }
+            } catch (Exception ignored) {
+                // Vector lỗi thi roi sang keyword ben duoi.
+            }
+        }
         if (knowledgeRepo == null) return List.of();
         java.util.List<String> words = significantWords(question == null ? "" : question);
         if (words.isEmpty()) return List.of();
@@ -203,6 +226,12 @@ public class ChatbotService {
         }
         scored.sort(Comparator.comparingInt((Map.Entry<ChatbotKnowledge, Integer> e) -> e.getValue()).reversed());
         return scored.stream().limit(3).map(Map.Entry::getKey).toList();
+    }
+
+    /** Các đoạn vector gần nhất kèm similarity, để trả lời bám đúng đoạn thay vì cả tài liệu dài. */
+    public java.util.List<VectorSearchService.ScoredChunk> retrieveChunks(String question) {
+        if (vectorSearch == null) return List.of();
+        try { return vectorSearch.search(question, 5); } catch (Exception e) { return List.of(); }
     }
 
     /**
@@ -251,12 +280,24 @@ public class ChatbotService {
         ChatIntent intent = classifyIntent(req.message());
         if (intent == ChatIntent.RESTAURANT_INFO) {
             java.util.List<ChatbotKnowledge> docs = retrieveKnowledge(req.message());
-            String reply = infoReply(docs);
+            java.util.List<VectorSearchService.ScoredChunk> chunks = retrieveChunks(req.message());
+            String reply;
+            java.util.List<Citation> cits;
+            if (chunks != null && !chunks.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (VectorSearchService.ScoredChunk sc : chunks) sb.append("- ").append(truncate(sc.chunk().getContent(), 400)).append("\n");
+                reply = sb.toString().trim();
+                cits = chunks.stream()
+                        .map(sc -> new Citation(sc.document().getTitle(), truncate(sc.chunk().getContent(), 120)))
+                        .toList();
+            } else {
+                reply = infoReply(docs);
+                cits = docs.stream()
+                        .map(d -> new Citation(d.getTitle(), d.getContent() == null ? "" : truncate(d.getContent(), 120)))
+                        .toList();
+            }
             if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
-            if (!docs.isEmpty()) lastPickedBySession.remove(sessionId);
-            java.util.List<Citation> cits = docs.stream()
-                    .map(d -> new Citation(d.getTitle(), d.getContent() == null ? "" : truncate(d.getContent(), 120)))
-                    .toList();
+            if (!docs.isEmpty() || (chunks != null && !chunks.isEmpty())) lastPickedBySession.remove(sessionId);
             return new ChatResponse(reply, List.of(), intent.name(), cits.isEmpty() ? null : cits);
         }
         if (intent == ChatIntent.ORDER_GUIDE) {

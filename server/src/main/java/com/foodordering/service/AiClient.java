@@ -197,4 +197,94 @@ public class AiClient {
                 .filter(v -> v != null && !v.isBlank())
                 .orElse(fallback);
     }
+
+    /** Создает vector embedding cho tung doan; tra [] khi chua cau hinh khoa. */
+    public float[] embed(String text) {
+        String provider = setting("provider", props.getAi().getProvider()).toLowerCase();
+        String model = props.getAi().getEmbeddingModel();
+        int dims = props.getAi().getEmbeddingDimensions();
+        String apiKey = props.getAi().getApiKey();
+        if (apiKey == null || apiKey.isBlank() || text == null || text.isBlank()) {
+            return new float[0];
+        }
+        try {
+            String raw = PROVIDER_OPENAI.equals(provider)
+                    ? callOpenAIEmbed(apiKey, model, text)
+                    : callGeminiEmbed(apiKey, model, text, dims);
+            return parseEmbed(provider, raw, dims);
+        } catch (Exception e) {
+            if (isKeyRejected(e)) {
+                credentialsRejected = true;
+                throw new AiKeyRejectedException("Khóa API của dịch vụ AI bị từ chối", e);
+            }
+            // Lỗi tạm thời thì tra về rỗng để retrieve roi sang keyword, không lam hong luot chat.
+            return new float[0];
+        }
+    }
+
+    private String callGeminiEmbed(String apiKey, String model, String text, int dims) {
+        Map<String, Object> body = Map.of(
+                "content", Map.of("parts", List.of(Map.of("text", text))),
+                "taskType", "RETRIEVAL_DOCUMENT",
+                "outputDimensionality", dims);
+        return http.post().uri(GEMINI_URL + model + ":embedContent?key=" + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+    }
+
+    private String callOpenAIEmbed(String apiKey, String model, String text) {
+        Map<String, Object> body = Map.of("model", model, "input", text);
+        return http.post().uri("https://api.openai.com/v1/embeddings")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+    }
+
+    private float[] parseEmbed(String provider, String raw, int dims) throws Exception {
+        JsonNode root = mapper.readTree(raw);
+        JsonNode vec;
+        if (PROVIDER_OPENAI.equals(provider)) {
+            vec = root.path("data").path(0).path("embedding");
+        } else {
+            vec = root.path("embedding").path("values");
+        }
+        float[] out = new float[dims];
+        for (int i = 0; i < dims && i < vec.size(); i++) out[i] = (float) vec.get(i).asDouble();
+        return out;
+    }
+
+    /** Chuyen float[] sang vector literal "[0.1,0.2,...]" de luu Postgres. */
+    public static String toVectorLiteral(float[] v) {
+        if (v == null || v.length == 0) return null;
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.length; i++) {
+            if (i > 0) sb.append(",");
+            sb.append(v[i]);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    /** Nghi tra vector literal ve cosine trong Java khi DB chua co extension. */
+    public static double cosine(float[] a, float[] b) {
+        if (a == null || b == null || a.length == 0 || b.length == 0 || a.length != b.length) return -1;
+        double dot = 0, na = 0, nb = 0;
+        for (int i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+        if (na == 0 || nb == 0) return -1;
+        return dot / (Math.sqrt(na) * Math.sqrt(nb));
+    }
+
+    public static float[] parseVectorLiteral(String s) {
+        if (s == null || s.isBlank()) return new float[0];
+        String t = s.trim().replace("[", "").replace("]", "");
+        if (t.isEmpty()) return new float[0];
+        String[] parts = t.split(",");
+        float[] out = new float[parts.length];
+        for (int i = 0; i < parts.length; i++) out[i] = Float.parseFloat(parts[i].trim());
+        return out;
+    }
 }
