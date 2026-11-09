@@ -1,5 +1,5 @@
 import http from './http'
-import type { AuthUser, CartItem, CartQuote, Category, ChatCitation, ChatHistoryMessage, ChatMessage, ChatbotStatus, Food, FoodCard, KnowledgeDoc, NotificationItem, Order, OrderStatus, Promotion, Review, SavedAddress, User } from '../types'
+import type { AuthUser, CartItem, CartQuote, Category, ChatCitation, ChatHistoryMessage, ChatMessage, ChatbotStatus, Food, FoodCard, KnowledgeChunkView, KnowledgeDoc, KnowledgeStats, NotificationItem, Order, OrderStatus, Promotion, Review, SavedAddress, User } from '../types'
 
 /** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
 export interface AdminOrderPayload {
@@ -212,10 +212,25 @@ export const adminSaveSetting = (settingKey: string, settingValue: string) =>
 // ----- Tài liệu chatbot (tab Tài liệu) -----
 export const adminGetDocuments = () => http.get<KnowledgeDoc[]>('/admin/chatbot/documents').then((r) => r.data)
 
+export const adminGetDocumentStats = () => http.get<KnowledgeStats>('/admin/chatbot/documents/stats').then((r) => r.data)
+
+export const adminGetDocumentChunks = (id: number) => http.get<KnowledgeChunkView[]>(`/admin/chatbot/documents/${id}/chunks`).then((r) => r.data)
+
 export const adminSaveDocument = (id: number | null, data: object) =>
   id ? http.put<KnowledgeDoc>(`/admin/chatbot/documents/${id}`, data).then((r) => r.data) : http.post<KnowledgeDoc>('/admin/chatbot/documents', data).then((r) => r.data)
 
 export const adminDeleteDocument = (id: number) => http.delete(`/admin/chatbot/documents/${id}`)
+
+export const adminUploadDocument = (file: File, title: string, category: string, keywords: string) => {
+  const form = new FormData()
+  form.append('file', file)
+  if (title.trim()) form.append('title', title.trim())
+  if (category.trim()) form.append('category', category.trim())
+  if (keywords.trim()) form.append('keywords', keywords.trim())
+  return http.post<KnowledgeDoc>('/admin/chatbot/documents/upload', form).then((r) => r.data)
+}
+
+export const adminReingestDocument = (id: number) => http.post<KnowledgeDoc>(`/admin/chatbot/documents/${id}/reingest`, {}).then((r) => r.data)
 
 // ----- Khuyến mãi -----
 export const adminGetPromotions = () => http.get<Promotion[]>('/admin/promotions').then((r) => r.data)
