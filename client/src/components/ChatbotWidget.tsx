@@ -87,7 +87,10 @@ export default function ChatbotWidget() {
       }`}
     >
       {open && (
-        <div className="chat-open pointer-events-auto flex min-h-0 w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 max-h-[600px] max-sm:max-h-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
+        <div
+          data-testid="chatbot-panel"
+          className="chat-open pointer-events-auto flex min-h-0 w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-2xl shadow-amber-900/10 max-h-[600px] max-sm:max-h-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0"
+        >
           <div className="flex shrink-0 items-center gap-2 bg-amber-600 px-3 py-2">
             <p className="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">
               Trợ lý gợi ý món ăn
@@ -142,7 +145,10 @@ export default function ChatbotWidget() {
                 <div key={index} className={isBot ? '' : 'flex justify-end'}>
                   <div className={isBot ? 'max-w-[92%]' : 'max-w-[85%]'}>
                     {isBot ? (
-                      <div className="rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-stone-700 ring-1 ring-stone-200/70">
+                      <div
+                        data-testid="chatbot-bot-message"
+                        className="rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-stone-700 ring-1 ring-stone-200/70"
+                      >
                         {m.content}
                         {isStreaming && (
                           <span className="ml-0.5 inline-block h-3.5 w-1 animate-pulse rounded-sm bg-stone-400 align-middle" />
@@ -173,6 +179,7 @@ export default function ChatbotWidget() {
                           <Link
                             key={f.id}
                             to={`/foods/${f.id}`}
+                            data-testid="chatbot-food-card"
                             className="flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-amber-50"
                           >
                             <UiImg
@@ -188,7 +195,10 @@ export default function ChatbotWidget() {
                                 </span>
                               ) : null}
                             </span>
-                            <span className="shrink-0 text-sm font-bold tabular-nums text-amber-700">
+                            <span
+                              data-testid="chatbot-food-total"
+                              className="shrink-0 text-sm font-bold tabular-nums text-amber-700"
+                            >
                               {f.portions && f.portions > 1 && f.totalPrice
                                 ? formatVND(Number(f.totalPrice))
                                 : formatVND(Number(f.price))}
