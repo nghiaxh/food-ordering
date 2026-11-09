@@ -62,7 +62,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đăng ký với email đã tồn tại bị từ chối")
-    void registerTrungEmailBiTuChoi() {
+    void registerDuplicateEmailRejected() {
         when(userRepo.existsByEmail("da-co@example.com")).thenReturn(true);
 
         RegisterRequest req = new RegisterRequest(
@@ -81,7 +81,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đăng ký thành công băm mật khẩu và cấp token")
-    void registerThanhCong() {
+    void registerSucceeds() {
         when(userRepo.existsByEmail("moi@example.com")).thenReturn(false);
         when(encoder.encode("matkhau123")).thenReturn("hashed-moi");
         when(userRepo.save(any())).thenAnswer(inv -> {
@@ -104,7 +104,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đăng nhập với mật khẩu sai bị từ chối")
-    void loginSaiMatKhauBiTuChoi() {
+    void loginWrongPasswordRejected() {
         when(userRepo.findByEmail("khach@example.com")).thenReturn(java.util.Optional.of(customer()));
         when(encoder.matches("mat-khau-sai", "hashed")).thenReturn(false);
 
@@ -117,7 +117,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đăng nhập thành công cấp token")
-    void loginThanhCong() {
+    void loginSucceeds() {
         when(userRepo.findByEmail("khach@example.com")).thenReturn(java.util.Optional.of(customer()));
         when(encoder.matches("mat-khau-dung", "hashed")).thenReturn(true);
 
@@ -132,7 +132,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đăng nhập với email không tồn tại bị từ chối")
-    void loginEmailKhongTonTaiBiTuChoi() {
+    void loginUnknownEmailRejected() {
         when(userRepo.findByEmail("khong-co@example.com")).thenReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> service.login(new LoginRequest("khong-co@example.com", "mat-khau-dung")))
@@ -146,7 +146,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Tài khoản đã khóa không đăng nhập được")
-    void loginTaiKhoanDaKhoaBiTuChoi() {
+    void loginLockedAccountRejected() {
         User locked = customer();
         locked.setActive(false);
         when(userRepo.findByEmail("khach@example.com")).thenReturn(java.util.Optional.of(locked));
@@ -162,7 +162,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đổi mật khẩu với mật khẩu cũ sai bị từ chối")
-    void changePasswordSaiBiTuChoi() {
+    void changePasswordWrongCurrentRejected() {
         when(userRepo.findByEmail("khach@example.com")).thenReturn(java.util.Optional.of(customer()));
         when(encoder.matches("mat-khau-sai", "hashed")).thenReturn(false);
 
@@ -179,7 +179,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đổi mật khẩu thành công băm mật khẩu mới")
-    void changePasswordThanhCong() {
+    void changePasswordSucceeds() {
         User user = customer();
         when(userRepo.findByEmail("khach@example.com")).thenReturn(java.util.Optional.of(user));
         when(encoder.matches("mat-khau-dung", "hashed")).thenReturn(true);
@@ -194,7 +194,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Tạo tài khoản quản trị với email đã tồn tại bị từ chối")
-    void adminCreateTrungEmailBiTuChoi() {
+    void adminCreateDuplicateEmailRejected() {
         when(userRepo.existsByEmail("da-co@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> service.adminCreate(new UserRequest(
@@ -209,7 +209,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Tạo tài khoản từ quản trị luôn là khách hàng")
-    void adminCreateThanhCong() {
+    void adminCreateSucceeds() {
         when(userRepo.existsByEmail("moi@example.com")).thenReturn(false);
         when(encoder.encode("matkhau123")).thenReturn("hashed-moi");
         when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -224,7 +224,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Sửa tài khoản sang email đã tồn tại bị từ chối")
-    void adminUpdateTrungEmailBiTuChoi() {
+    void adminUpdateDuplicateEmailRejected() {
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(customer()));
         when(userRepo.existsByEmail("da-co@example.com")).thenReturn(true);
 
@@ -240,7 +240,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Sửa tài khoản với mật khẩu trống thì giữ nguyên mật khẩu")
-    void adminUpdateMatKhauTrongGiuNguyen() {
+    void adminUpdateBlankPasswordKeepsCurrent() {
         User user = customer();
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(user));
         when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -255,7 +255,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Sửa tài khoản với mật khẩu mới thì băm lại")
-    void adminUpdateMatKhauMoi() {
+    void adminUpdateWithNewPasswordSucceeds() {
         User user = customer();
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(user));
         when(encoder.encode("mat-khau-moi")).thenReturn("hashed-mới");
@@ -270,7 +270,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Khóa hoặc mở tài khoản khách hàng thành công")
-    void setActiveThanhCong() {
+    void setActiveSucceeds() {
         User user = customer();
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(user));
         when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -283,7 +283,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Không khóa được tài khoản quản trị")
-    void khongKhoaDuocTaiKhoanQuanTri() {
+    void lockAdminAccountRejected() {
         User admin = customer();
         admin.setRole(User.Role.ADMIN);
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(admin));
@@ -299,7 +299,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Không xóa được tài khoản quản trị")
-    void khongXoaDuocTaiKhoanQuanTri() {
+    void deleteAdminAccountRejected() {
         User admin = customer();
         admin.setRole(User.Role.ADMIN);
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(admin));
@@ -315,7 +315,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Không xóa được khách đã có đơn hàng")
-    void adminDeleteKhachDaCoDonBiTuChoi() {
+    void adminDeleteCustomerWithOrdersRejected() {
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(customer()));
         when(ordersRepo.countByUserId(1L)).thenReturn(2L);
         when(reviewRepo.countByUserId(1L)).thenReturn(0L);
@@ -335,7 +335,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Không xóa được khách đã có đánh giá")
-    void adminDeleteKhachDaCoDanhGiaBiTuChoi() {
+    void adminDeleteCustomerWithReviewsRejected() {
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(customer()));
         when(ordersRepo.countByUserId(1L)).thenReturn(0L);
         when(reviewRepo.countByUserId(1L)).thenReturn(1L);
@@ -351,7 +351,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Xóa khách không còn lịch sử thành công")
-    void adminDeleteThanhCong() {
+    void adminDeleteSucceeds() {
         User user = customer();
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(user));
         when(ordersRepo.countByUserId(1L)).thenReturn(0L);
@@ -368,7 +368,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Tìm tài khoản không tồn tại báo 404")
-    void findKhongTonTaiBiTuChoi() {
+    void findMissingAccountRejected() {
         when(userRepo.findById(99L)).thenReturn(java.util.Optional.empty());
 
         UserRequest req = new UserRequest("khach@example.com", null, "Nguyễn Văn A", "0900000001", null);
@@ -391,7 +391,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Đổi mật khẩu với email lạ ném lỗi hệ thống")
-    void changePasswordEmailLaNemNoSuchElement() {
+    void changePasswordWithUnknownEmailThrowsNoSuchElement() {
         when(userRepo.findByEmail("la@example.com")).thenReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> service.changePassword("la@example.com",
@@ -404,7 +404,7 @@ class AuthServiceTest {
 
     @Test
     @DisplayName("Sửa tài khoản giữ nguyên email cũ vẫn cho qua")
-    void adminUpdateGiuNguyenEmailDuocChoQua() {
+    void adminUpdateSameEmailSucceeds() {
         User user = customer();
         when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(user));
         when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -431,3 +431,4 @@ class AuthServiceTest {
         return u;
     }
 }
+
