@@ -165,7 +165,11 @@ export default function ReviewSection({
           {reviews.length > 0 ? (
             <div className="mt-4 divide-y divide-stone-100">
               {reviews.map((r) => (
-                <article key={r.id} className="flex items-start gap-3 py-4 first:pt-2">
+                <article
+                  key={r.id}
+                  data-testid="review-item"
+                  className="flex items-start gap-3 py-4 first:pt-2"
+                >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-xs font-bold text-stone-600 ring-1 ring-stone-200/60">
                     {reviewerInitials(r.userName)}
                   </span>
@@ -200,7 +204,11 @@ export default function ReviewSection({
                       <RatingStars value={r.rating} size={13} />
                       <time className="text-[11px] text-stone-400">{formatRelativeTime(r.createdAt)}</time>
                     </div>
-                    {r.comment && <p className="mt-1.5 text-sm leading-relaxed text-stone-600">{r.comment}</p>}
+                    {r.comment && (
+                      <p data-testid="review-comment" className="mt-1.5 text-sm leading-relaxed text-stone-600">
+                        {r.comment}
+                      </p>
+                    )}
                   </div>
                 </article>
               ))}
