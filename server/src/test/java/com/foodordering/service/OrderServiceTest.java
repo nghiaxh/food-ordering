@@ -5,6 +5,7 @@ import com.foodordering.dto.OrderDtos.CreateOrderRequest;
 import com.foodordering.dto.OrderDtos.OrderItemRequest;
 import com.foodordering.entity.Food;
 import com.foodordering.entity.Orders;
+import com.foodordering.entity.PaymentTransaction;
 import com.foodordering.entity.User;
 import com.foodordering.repository.FoodRepository;
 import com.foodordering.repository.NotificationRepository;
@@ -17,7 +18,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,6 +87,36 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("Tạo đơn thành công ghi giá từ database và ghi giao dịch thanh toán")
+    void createThanhCong() {
+        Food food = food(20L, "Bún bò Huế", "70000");
+        when(foodRepo.findById(20L)).thenReturn(Optional.of(food));
+        when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "70000"));
+        when(orderRepo.save(any())).thenAnswer(inv -> {
+            Orders o = inv.getArgument(0);
+            o.setId(200L);
+            return o;
+        });
+
+        CreateOrderRequest req = new CreateOrderRequest(
+                List.of(new OrderItemRequest(20L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", "  Ghi chú  ");
+
+        Orders saved = service.create(EMAIL, req);
+
+        assertThat(saved.getId()).isEqualTo(200L);
+        assertThat(saved.getTotal()).isEqualByComparingTo("70000");
+        assertThat(saved.getItems()).hasSize(1);
+        assertThat(saved.getItems().get(0).getPrice()).isEqualByComparingTo("70000");
+        assertThat(saved.getNote()).isEqualTo("Ghi chú");
+        // Giá luôn lấy từ DB qua PricingService, không tin số client tự ghi.
+        verify(pricing).priceOrder(any());
+        verify(promotionService).markUsed(any());
+        verify(paymentTxRepo).save(any());
+        verify(notificationRepo).save(any());
+    }
+
+    @Test
     @DisplayName("Khách chỉ hủy được đơn đang chờ xác nhận")
     void cancelDonKhongPendingBiTuChoi() {
         Orders order = order(100L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
@@ -111,6 +144,19 @@ class OrderServiceTest {
                         .isEqualTo(HttpStatus.BAD_REQUEST.value()));
 
         verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Hủy đơn đang chờ và chưa trả thành công")
+    void cancelPendingThanhCong() {
+        Orders order = order(110L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(110L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Orders saved = service.cancel(EMAIL, 110L);
+
+        assertThat(saved.getStatus()).isEqualTo(Orders.Status.CANCELLED);
+        verify(notificationRepo).save(any());
     }
 
     @Test
@@ -162,6 +208,87 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("Chuyển trạng thái hợp lệ từ chờ xác nhận sang đã xác nhận")
+    void updateStatusPendingToConfirmedThanhCong() {
+        Orders order = order(111L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        order.setPaymentMethod("COD");
+        when(orderRepo.findById(111L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Orders saved = service.updateStatus(111L, "CONFIRMED");
+
+        assertThat(saved.getStatus()).isEqualTo(Orders.Status.CONFIRMED);
+        verify(notificationRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("Chuyển trạng thái hợp lệ từ đã xác nhận sang đang vận chuyển")
+    void updateStatusConfirmedToPreparingThanhCong() {
+        Orders order = order(112L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(112L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Orders saved = service.updateStatus(112L, "PREPARING");
+
+        assertThat(saved.getStatus()).isEqualTo(Orders.Status.PREPARING);
+        verify(notificationRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("Chuyển trạng thái hợp lệ từ đang vận chuyển sang hoàn thành")
+    void updateStatusPreparingToCompletedThanhCong() {
+        Orders order = order(113L, user(1L, EMAIL), Orders.Status.PREPARING, Orders.PaymentStatus.PAID);
+        when(orderRepo.findById(113L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Orders saved = service.updateStatus(113L, "COMPLETED");
+
+        assertThat(saved.getStatus()).isEqualTo(Orders.Status.COMPLETED);
+        verify(notificationRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("Đơn QR chưa thanh toán không được xác nhận")
+    void updateStatusQrChuaThanhToanBiTuChoi() {
+        Orders order = order(114L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        order.setPaymentMethod("QR");
+        when(orderRepo.findById(114L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> service.updateStatus(114L, "CONFIRMED"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("chưa thanh toán")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Trạng thái đơn không hợp lệ bị từ chối")
+    void updateStatusChuoiLaBiTuChoi() {
+        Orders order = order(115L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(115L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> service.updateStatus(115L, "KHONG_CO"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("không hợp lệ")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+    }
+
+    @Test
+    @DisplayName("Đơn không tìm thấy thì cập nhật trạng thái báo 404")
+    void updateStatusDonKhongTonTai() {
+        when(orderRepo.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateStatus(999L, "CONFIRMED"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Không tìm thấy đơn")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.NOT_FOUND.value()));
+    }
+
+    @Test
     @DisplayName("Không được hủy đơn của người khác")
     void cancelDonCuaNguoiKhacBiTuChoi() {
         Orders order = order(105L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
@@ -176,6 +303,144 @@ class OrderServiceTest {
                         .isEqualTo(HttpStatus.FORBIDDEN.value()));
 
         verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Khách xem đơn của mình thành công, email lạ ném lỗi")
+    void myOrdersThanhCongVaEmailLaBiTuChoi() {
+        Orders order = order(120L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findByUserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(order));
+
+        assertThat(service.myOrders(EMAIL)).containsExactly(order);
+        assertThatThrownBy(() -> service.myOrders("la@example.com"))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    @DisplayName("Quản trị xem tất cả đơn thành công")
+    void allDonThanhCong() {
+        Orders order = order(121L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(order));
+
+        assertThat(service.all()).containsExactly(order);
+    }
+
+    @Test
+    @DisplayName("Tạo đơn quản trị không có món bị từ chối")
+    void adminCreateKhongCoMonBiTuChoi() {
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, List.of(), "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null, null);
+
+        assertThatThrownBy(() -> service.adminCreate(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("ít nhất một món")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+    }
+
+    @Test
+    @DisplayName("Tạo đơn quản trị QR chưa trả mà xác nhận thẳng bị từ chối")
+    void adminCreateQrChuaTraXacNhanBiTuChoi() {
+        Food food = food(21L, "Cơm gà", "55000");
+        when(foodRepo.findById(21L)).thenReturn(Optional.of(food));
+        when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "55000"));
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, List.of(new OrderItemRequest(21L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "QR", null, "CONFIRMED", false);
+
+        assertThatThrownBy(() -> service.adminCreate(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("chưa thanh toán")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Tạo đơn quản trị thành công có thể ghi đã trả")
+    void adminCreateThanhCongCoPaid() {
+        Food food = food(21L, "Cơm gà", "55000");
+        when(foodRepo.findById(21L)).thenReturn(Optional.of(food));
+        when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "55000"));
+        when(orderRepo.save(any())).thenAnswer(inv -> {
+            Orders o = inv.getArgument(0);
+            o.setId(201L);
+            return o;
+        });
+        when(paymentTxRepo.findByOrderId(any())).thenReturn(Optional.empty());
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, List.of(new OrderItemRequest(21L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "QR", null, "CONFIRMED", true);
+
+        Orders saved = service.adminCreate(req);
+
+        assertThat(saved.getStatus()).isEqualTo(Orders.Status.CONFIRMED);
+        assertThat(saved.getPaymentStatus()).isEqualTo(Orders.PaymentStatus.PAID);
+        assertThat(saved.getTotal()).isEqualByComparingTo("55000");
+        verify(promotionService).markUsed(any());
+        verify(paymentTxRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("Quản trị chỉ sửa giao hàng khi đơn đã xác nhận thì cho qua")
+    void adminUpdateChiSuaGiaoHangKhiConfirmedChoQua() {
+        Orders order = order(122L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(122L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, null, "Người Nhận Mới", "0912345678", "Địa chỉ mới", "COD", "Ghi chú mới", null, null);
+
+        Orders saved = service.adminUpdate(122L, req);
+
+        assertThat(saved.getReceiverName()).isEqualTo("Người Nhận Mới");
+        assertThat(saved.getPhone()).isEqualTo("0912345678");
+        // Đơn đã xác nhận không còn sửa món nên không tính tiền lại.
+        verify(pricing, never()).priceOrder(any());
+    }
+
+    @Test
+    @DisplayName("Quản trị không sửa được món khi đơn đã xác nhận")
+    void adminUpdateSuaMonKhiConfirmedBiTuChoi() {
+        Orders order = order(123L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(123L)).thenReturn(Optional.of(order));
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, List.of(new OrderItemRequest(20L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null, null);
+
+        assertThatThrownBy(() -> service.adminUpdate(123L, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Chỉ sửa được món")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Quản trị sửa được món khi đơn đang chờ và chưa thanh toán")
+    void adminUpdateSuaMonKhiPendingChoQua() {
+        Food food = food(20L, "Bún bò Huế", "70000");
+        Orders order = order(124L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(124L)).thenReturn(Optional.of(order));
+        when(foodRepo.findById(20L)).thenReturn(Optional.of(food));
+        when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "70000"));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentTxRepo.findByOrderId(any())).thenReturn(Optional.empty());
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, List.of(new OrderItemRequest(20L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null, null);
+
+        Orders saved = service.adminUpdate(124L, req);
+
+        assertThat(saved.getTotal()).isEqualByComparingTo("70000");
+        assertThat(saved.getItems()).hasSize(1);
+        verify(promotionService).markUsed(any());
     }
 
     @Test
@@ -208,11 +473,131 @@ class OrderServiceTest {
         verify(orderRepo, never()).save(any());
     }
 
+    @Test
+    @DisplayName("Đơn đã hủy thì không thanh toán được")
+    void payDonDaHuyBiTuChoi() {
+        Orders order = order(125L, user(1L, EMAIL), Orders.Status.CANCELLED, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(125L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> service.pay(EMAIL, 125L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("không thanh toán")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+    }
+
+    @Test
+    @DisplayName("Khách tự thanh toán đơn chưa trả thành công")
+    void payThanhCong() {
+        Orders order = order(126L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(126L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentTxRepo.findByOrderId(any())).thenReturn(Optional.empty());
+
+        Orders saved = service.pay(EMAIL, 126L);
+
+        assertThat(saved.getPaymentStatus()).isEqualTo(Orders.PaymentStatus.PAID);
+        verify(notificationRepo).save(any());
+    }
+
+    @Test
+    @DisplayName("Cập nhật thanh toán đồng bộ với giao dịch")
+    void updatePaymentDongBoGiaoDich() {
+        Orders order = order(127L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setOrder(order);
+        tx.setStatus(PaymentTransaction.Status.PENDING);
+        when(orderRepo.findById(127L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentTxRepo.findByOrderId(any())).thenReturn(Optional.of(tx));
+
+        Orders saved = service.updatePayment(127L, true);
+
+        assertThat(saved.getPaymentStatus()).isEqualTo(Orders.PaymentStatus.PAID);
+        assertThat(tx.getStatus()).isEqualTo(PaymentTransaction.Status.PAID);
+        assertThat(tx.getPaidAt()).isNotNull();
+        verify(paymentTxRepo).save(tx);
+    }
+
+    @Test
+    @DisplayName("Hoàn tác thanh toán về chưa trả thành công")
+    void updatePaymentHoanTacThanhCong() {
+        Orders order = order(128L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.PAID);
+        PaymentTransaction tx = new PaymentTransaction();
+        tx.setOrder(order);
+        tx.setStatus(PaymentTransaction.Status.PAID);
+        when(orderRepo.findById(128L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentTxRepo.findByOrderId(any())).thenReturn(Optional.of(tx));
+
+        Orders saved = service.updatePayment(128L, false);
+
+        assertThat(saved.getPaymentStatus()).isEqualTo(Orders.PaymentStatus.UNPAID);
+        assertThat(tx.getStatus()).isEqualTo(PaymentTransaction.Status.PENDING);
+        assertThat(tx.getPaidAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("Cập nhật thanh toán giữ nguyên khi đã cùng trạng thái")
+    void updatePaymentGiuNguyenKhiDaCungTrangThai() {
+        Orders order = order(129L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.PAID);
+        when(orderRepo.findById(129L)).thenReturn(Optional.of(order));
+
+        Orders saved = service.updatePayment(129L, true);
+
+        assertThat(saved).isSameAs(order);
+        verify(orderRepo, never()).save(any());
+        verify(paymentTxRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Quản trị xóa đơn thành công xóa giao dịch trước")
+    void adminDeleteThanhCong() {
+        Orders order = order(130L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(130L)).thenReturn(Optional.of(order));
+
+        service.adminDelete(130L);
+
+        verify(paymentTxRepo).deleteByOrderId(130L);
+        verify(orderRepo).delete(order);
+    }
+
+    @Test
+    @DisplayName("Xóa đơn không tồn tại báo 404")
+    void adminDeleteKhongTonTai() {
+        when(orderRepo.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.adminDelete(999L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Không tìm thấy đơn")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.NOT_FOUND.value()));
+    }
+
     private static User user(Long id, String email) {
         User u = new User();
         u.setId(id);
         u.setEmail(email);
         return u;
+    }
+
+    private static Food food(Long id, String name, String price) {
+        Food f = new Food();
+        f.setId(id);
+        f.setName(name);
+        f.setPrice(new BigDecimal(price));
+        f.setAvailable(true);
+        return f;
+    }
+
+    private static PricingService.PricedCart pricedOf(Food food, int qty, String price) {
+        BigDecimal unit = new BigDecimal(price);
+        return new PricingService.PricedCart(
+                List.of(new PricingService.Line(food, qty, unit, BigDecimal.ZERO, null)),
+                unit.multiply(BigDecimal.valueOf(qty)),
+                BigDecimal.ZERO,
+                unit.multiply(BigDecimal.valueOf(qty)),
+                List.of());
     }
 
     private static Orders order(Long id, User user, Orders.Status status, Orders.PaymentStatus payment) {
