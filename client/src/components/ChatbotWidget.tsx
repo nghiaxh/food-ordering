@@ -42,6 +42,7 @@ export default function ChatbotWidget() {
 
   const user = useAuthStore((s) => s.user)
   const isAdmin = location.pathname.startsWith('/admin') || user?.role === 'ADMIN'
+  const isChatbotRoute = location.pathname === '/chatbot' || location.pathname.startsWith('/chatbot/')
   const addToCart = useCartStore((s) => s.add)
   const canAdd = user !== null && user.role !== 'ADMIN'
 
@@ -67,7 +68,7 @@ export default function ChatbotWidget() {
     navigate('/chatbot')
   }
 
-  if (isAdmin) return null
+  if (isAdmin || isChatbotRoute) return null
   const showBody = !unavailable || messages.some((m) => m.sender === 'USER')
   const streamingMessage = draft
     ? {
@@ -228,7 +229,7 @@ export default function ChatbotWidget() {
                       </div>
                     )}
 
-                    {index === 0 && !unavailable && messages.length <= 1 && (
+                    {index === 0 && !unavailable && messages.length <= 2 && (
                       <div className="mt-2 space-y-2">
                         {Object.entries(SUGGESTION_GROUPS_LIST).map(([group, items]) => (
                           <div key={group}>
