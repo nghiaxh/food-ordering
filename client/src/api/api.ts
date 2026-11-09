@@ -1,5 +1,5 @@
 import http from './http'
-import type { AuthUser, CartItem, CartQuote, Category, ChatHistoryMessage, ChatMessage, ChatbotStatus, Food, FoodCard, NotificationItem, Order, OrderStatus, Promotion, Review, SavedAddress, User } from '../types'
+import type { AuthUser, CartItem, CartQuote, Category, ChatCitation, ChatHistoryMessage, ChatMessage, ChatbotStatus, Food, FoodCard, KnowledgeDoc, NotificationItem, Order, OrderStatus, Promotion, Review, SavedAddress, User } from '../types'
 
 /** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
 export interface AdminOrderPayload {
@@ -145,7 +145,7 @@ export const chat = (
   lastFoodIds: number[] = [],
 ) =>
   http
-    .post<{ reply: string; foods: FoodCard[] }>('/chatbot/chat', {
+    .post<{ reply: string; foods: FoodCard[]; intent?: string; citations?: ChatCitation[] }>('/chatbot/chat', {
       message,
       sessionId,
       history,
@@ -155,6 +155,10 @@ export const chat = (
 
 export const getChatbotStatus = (signal?: AbortSignal) =>
   http.get<ChatbotStatus>('/chatbot/status', { signal }).then((r) => r.data)
+
+/** Ghi phản hồi up/down trên tin bot, để admin xem tin nào cần cải thiện. */
+export const sendChatFeedback = (sessionId: string, messageIndex: number, rating: 'up' | 'down') =>
+  http.post('/chatbot/feedback', { sessionId, messageIndex, rating })
 
 export type { ChatMessage }
 
@@ -204,6 +208,14 @@ export const adminGetSettings = () => http.get<{ settingKey: string; settingValu
 
 export const adminSaveSetting = (settingKey: string, settingValue: string) =>
   http.put('/admin/chatbot/settings', { settingKey, settingValue })
+
+// ----- Tài liệu chatbot (tab Tài liệu) -----
+export const adminGetDocuments = () => http.get<KnowledgeDoc[]>('/admin/chatbot/documents').then((r) => r.data)
+
+export const adminSaveDocument = (id: number | null, data: object) =>
+  id ? http.put<KnowledgeDoc>(`/admin/chatbot/documents/${id}`, data).then((r) => r.data) : http.post<KnowledgeDoc>('/admin/chatbot/documents', data).then((r) => r.data)
+
+export const adminDeleteDocument = (id: number) => http.delete(`/admin/chatbot/documents/${id}`)
 
 // ----- Khuyến mãi -----
 export const adminGetPromotions = () => http.get<Promotion[]>('/admin/promotions').then((r) => r.data)

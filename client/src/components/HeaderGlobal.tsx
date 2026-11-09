@@ -104,6 +104,7 @@ export default function HeaderGlobal() {
       ...(isAdmin && isDesktop
         ? [{ key: 'admin', label: 'Trang quản trị', icon: <UiIcon name="th-large" size={16} /> }]
         : []),
+      { key: 'chatbot', label: 'Trợ lý gợi ý', icon: <UiIcon name="message" size={16} /> },
       { key: 'account', label: 'Tài khoản', icon: <UiIcon name="user" size={16} /> },
       { type: 'divider' as const },
       { key: 'logout', label: 'Đăng xuất', icon: <UiIcon name="sign-out" size={16} /> },
@@ -120,6 +121,10 @@ export default function HeaderGlobal() {
       }
       if (key === 'admin') {
         navigate('/admin/foods')
+        return
+      }
+      if (key === 'chatbot') {
+        navigate('/chatbot')
         return
       }
       navigate(key === 'orders' ? '/orders' : '/profile')

@@ -12,6 +12,7 @@ import FoodDetailPage from './pages/FoodDetailPage'
 import CheckoutPage from './pages/CheckoutPage'
 import OrdersPage from './pages/OrdersPage'
 import ProfilePage from './pages/ProfilePage'
+import ChatbotPage from './pages/ChatbotPage'
 import LoginPage, { RegisterPage } from './pages/AuthPages'
 import AdminFoodsPage from './pages/admin/AdminFoodsPage'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage'
@@ -107,6 +108,7 @@ function AppRoutes() {
             </RequireAuth>
           }
         />
+        <Route path="/chatbot" element={<RequireCustomer><ChatbotPage /></RequireCustomer>} />
       </Route>
 
       {/* Trang quản trị dùng layout riêng nên tách khỏi DefaultLayout của khách hàng. */}
