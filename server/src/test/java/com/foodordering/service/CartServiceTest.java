@@ -188,6 +188,20 @@ class CartServiceTest {
     }
 
     @Test
+    @DisplayName("Xóa món chưa có trong giỏ bị từ chối")
+    void removeMonChuaCoBiTuChoi() {
+        when(itemRepo.findByUserIdAndFoodId(1L, 11L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.remove(EMAIL, 11L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("chưa có trong giỏ")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.NOT_FOUND.value()));
+
+        verify(itemRepo, never()).delete(any());
+    }
+
+    @Test
     @DisplayName("Xóa toàn bộ giỏ thành công")
     void clearXoaToanBoGio() {
         service.clear(EMAIL);
