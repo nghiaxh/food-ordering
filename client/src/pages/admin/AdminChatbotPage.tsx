@@ -143,14 +143,14 @@ export default function AdminChatbotPage() {
       {error ? <Alert type="error" showIcon style={{ marginBottom: 24 }} message="Không tải được dữ liệu chatbot" description="Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang." /> : null}
       {status && !status.available ? <Alert type="warning" showIcon style={{ marginBottom: 24 }} message="Chưa cấu hình trợ lý AI" description={<>Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.</>} /> : null}
 
-      <PageSection className="mb-6">
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div><label htmlFor="ai-provider" className="block text-sm font-medium text-stone-700">Nhà cung cấp AI</label><Select id="ai-provider" className="mt-2 w-full" value={provider} onChange={setProvider} options={[{ label: 'Google Gemini', value: 'gemini' }]} /></div>
-          <div><label htmlFor="ai-model" className="block text-sm font-medium text-stone-700">Tên mô hình</label><Select id="ai-model" className="mt-2 w-full" value={model} onChange={setModel} options={model && !MODEL_OPTIONS.some((o) => o.value === model) ? [...MODEL_OPTIONS, { value: model, label: model }] : MODEL_OPTIONS} /></div>
-          <div><label htmlFor="max-suggestions" className="block text-sm font-medium text-stone-700">Số món gợi ý tối đa</label><InputNumber id="max-suggestions" className="mt-2 w-full" min={1} max={5} value={maxSuggestions} onChange={(v) => setMaxSuggestions(Number(v))} /></div>
-          <div className="sm:col-span-2"><label htmlFor="extra-rules" className="block text-sm font-medium text-stone-700">Quy tắc bổ sung</label><Input.TextArea id="extra-rules" className="mt-2" rows={3} value={extraRules} onChange={(e) => setExtraRules(e.target.value)} placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..." /></div>
+      <PageSection className="mb-4" bodyClassName="p-3">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div><label htmlFor="ai-provider" className="block text-xs font-medium text-stone-700">Nhà cung cấp AI</label><Select id="ai-provider" size="small" className="mt-1 w-full" value={provider} onChange={setProvider} options={[{ label: 'Google Gemini', value: 'gemini' }]} /></div>
+          <div><label htmlFor="ai-model" className="block text-xs font-medium text-stone-700">Tên mô hình</label><Select id="ai-model" size="small" className="mt-1 w-full" value={model} onChange={setModel} options={model && !MODEL_OPTIONS.some((o) => o.value === model) ? [...MODEL_OPTIONS, { value: model, label: model }] : MODEL_OPTIONS} /></div>
+          <div><label htmlFor="max-suggestions" className="block text-xs font-medium text-stone-700">Số món gợi ý tối đa</label><InputNumber id="max-suggestions" size="small" className="mt-1 w-full" min={1} max={5} value={maxSuggestions} onChange={(v) => setMaxSuggestions(Number(v))} /></div>
+          <div className="flex items-end justify-end"><UiButton kind="primary" loading={savingSettings} onClick={onSaveSettings}>Lưu cài đặt</UiButton></div>
+          <div className="sm:col-span-4"><label htmlFor="extra-rules" className="block text-xs font-medium text-stone-700">Quy tắc bổ sung</label><Input.TextArea id="extra-rules" size="small" className="mt-1" rows={2} value={extraRules} onChange={(e) => setExtraRules(e.target.value)} placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..." /></div>
         </div>
-        <div className="mt-5 flex justify-end border-t border-stone-100 pt-4"><UiButton kind="primary" loading={savingSettings} onClick={onSaveSettings}>Lưu cài đặt</UiButton></div>
       </PageSection>
 
       <PageSection
