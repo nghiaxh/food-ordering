@@ -1,10 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { Alert, Input, InputNumber, Modal, Popover, Select, Space, Switch, Table, Upload, message } from 'antd'
 import { UploadOutlined, InfoCircleOutlined, EyeOutlined, EditOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons'
-import { adminGetChatHistory, adminGetSettings, adminSaveSetting, getChatbotStatus, adminGetDocuments, adminGetDocumentStats, adminGetDocumentChunks, adminSaveDocument, adminDeleteDocument, adminUploadDocument, adminReingestDocument } from '../../api/api'
+import { adminGetChatHistory, adminGetSettings, adminSaveSetting, getChatbotStatus, adminGetDocuments, adminGetDocumentChunks, adminSaveDocument, adminDeleteDocument, adminUploadDocument, adminReingestDocument } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
-import type { ChatHistoryMessage, ChatbotStatus, KnowledgeChunkView, KnowledgeDoc, KnowledgeStats } from '../../types'
+import type { ChatHistoryMessage, ChatbotStatus, KnowledgeChunkView, KnowledgeDoc } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import { EmptyState, PageSection } from './shared'
 import UiButton from '../../components/UiButton'
@@ -66,7 +66,6 @@ function Thread({ messages }: { messages: ChatHistoryMessage[] }) {
 export default function AdminChatbotPage() {
   const [history, setHistory] = useState<ChatHistoryMessage[]>([])
   const [documents, setDocuments] = useState<KnowledgeDoc[]>([])
-  const [stats, setStats] = useState<KnowledgeStats | null>(null)
   const [maxSuggestions, setMaxSuggestions] = useState(5)
   const [extraRules, setExtraRules] = useState('')
   const [provider, setProvider] = useState('gemini')
@@ -75,14 +74,11 @@ export default function AdminChatbotPage() {
   const [docModalOpen, setDocModalOpen] = useState(false)
   const [editingDoc, setEditingDoc] = useState<KnowledgeDoc | null>(null)
   const [docForm, setDocForm] = useState({ title: '', category: '', keywords: '', content: '', enabled: true })
-  const [uploadTitle, setUploadTitle] = useState('')
-  const [uploadCategory, setUploadCategory] = useState('')
-  const [uploadKeywords, setUploadKeywords] = useState('')
   const [chunksDoc, setChunksDoc] = useState<KnowledgeDoc | null>(null)
   const [chunks, setChunks] = useState<KnowledgeChunkView[]>([])
 
   const { data, loading, error, refresh: fetchData } = useAsyncData(
-    () => Promise.all([adminGetChatHistory(), adminGetSettings(), getChatbotStatus(), adminGetDocuments(), adminGetDocumentStats().catch(() => null)]),
+    () => Promise.all([adminGetChatHistory(), adminGetSettings(), getChatbotStatus(), adminGetDocuments()]),
     [],
   )
 
@@ -91,7 +87,6 @@ export default function AdminChatbotPage() {
     setHistory(data[0])
     setStatus(data[2])
     setDocuments(data[3] || [])
-    setStats(data[4] || null)
     const settings = Object.fromEntries(data[1].map((item) => [item.settingKey, item.settingValue]))
     setMaxSuggestions(Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5)))
     setExtraRules(settings.extra_rules ?? '')
@@ -123,7 +118,6 @@ export default function AdminChatbotPage() {
     if (res.ok) { message.success('Đã lưu cài đặt chatbot'); void fetchData() } else message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
   }
 
-  const openNewDoc = () => { setEditingDoc(null); setDocForm({ title: '', category: '', keywords: '', content: '', enabled: true }); setDocModalOpen(true) }
   const openEditDoc = (d: KnowledgeDoc) => { setEditingDoc(d); setDocForm({ title: d.title, category: d.category || '', keywords: d.keywords || '', content: d.content, enabled: d.enabled }); setDocModalOpen(true) }
   const saveDoc = async () => {
     if (!docForm.title.trim() || !docForm.content.trim()) { message.error('Tiêu đề và nội dung là bắt buộc'); return }
@@ -134,9 +128,8 @@ export default function AdminChatbotPage() {
   }
   const handleUpload = async (file: File) => {
     try {
-      const res = await adminUploadDocument(file, uploadTitle, uploadCategory, uploadKeywords)
+      const res = await adminUploadDocument(file, '', '', '')
       message.success(`Đã nạp tài liệu "${res.title}", đang chia ${res.chunkCount ?? 0} phần`)
-      setUploadTitle(''); setUploadCategory(''); setUploadKeywords('')
       void fetchData()
       return false
     } catch (e) { message.error(apiErrorMessage(e) ?? 'Tải lên thất bại'); return false }
@@ -167,7 +160,7 @@ export default function AdminChatbotPage() {
             <Popover
               content={
                 <div className="max-w-xs text-xs leading-relaxed text-stone-700">
-                  Tài liệu là thông tin quán (giờ mở cửa, giao hàng, thanh toán...). Hệ thống tự chia mỗi tài liệu thành các phần nội dung để chatbot tìm theo nghĩa. Bấm <b>Xem</b> để xem các phần đã chia, <b>Tạo lại</b> để chia lại khi bạn sửa nội dung.
+                  Tài liệu là thông tin quán (giờ mở cửa, giao hàng, thanh toán...). Hệ thống tự chia mỗi tài liệu thành các phần nội dung để chatbot tìm theo nghĩa. Bấm <b>Xem</b> để xem các phần đã chia, <b>Tạo lại</b> để chia lại khi bạn sửa nội dung. Chỉ tải lên file, không thêm thủ công.
                 </div>
               }
               trigger="click"
@@ -176,33 +169,25 @@ export default function AdminChatbotPage() {
             </Popover>
           </span>
         }
-        subtitle={`Thông tin quán chatbot tra cứu theo ngữ nghĩa (vector) + từ khóa. ${stats ? `Tổng ${stats.totalChunks} phần, ${stats.ready} sẵn sàng, ${stats.failed} lỗi.` : ''}`}
         className="mb-6"
       >
-        <div className="mb-3 flex flex-wrap items-end gap-3">
-          <div className="flex flex-1 flex-wrap gap-2">
-            <Input placeholder="Tiêu đề (tùy chọn, lấy tên file)" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-48" />
-            <Select placeholder="Nhóm" value={uploadCategory || undefined} onChange={setUploadCategory} options={CATEGORY_OPTIONS} className="w-40" allowClear />
-            <Input placeholder="Từ khóa (cách nhau phím phẩy)" value={uploadKeywords} onChange={(e) => setUploadKeywords(e.target.value)} className="w-56" />
-          </div>
+        <div className="mb-3 flex flex-wrap items-end justify-end gap-3">
           <Upload accept=".pdf,.docx,.txt,.md" showUploadList={false} beforeUpload={(f) => handleUpload(f as File)}>
             <UiButton kind="default"><UploadOutlined /> Tải lên file</UiButton>
           </Upload>
-          <UiButton kind="primary" onClick={openNewDoc}>Thêm bằng chữ</UiButton>
         </div>
         <Table
           rowKey={(d) => d.id}
           dataSource={documents}
           size="middle"
           pagination={false}
-          locale={{ emptyText: <EmptyState icon="message" title="Chưa có tài liệu nào." hint="Tải lên PDF/DOCX/TXT hoặc thêm bằng chữ." /> }}
+          locale={{ emptyText: <EmptyState icon="message" title="Chưa có tài liệu nào." hint="Tải lên file PDF/DOCX/TXT để nạp tài liệu." /> }}
           columns={[
             { title: 'Tiêu đề', dataIndex: 'title', key: 'title' },
             { title: 'Nhóm', dataIndex: 'category', key: 'category', width: 140, render: (v?: string) => categoryLabel(v) },
-            { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (v?: string) => statusLabel(v) },
             { title: 'Số phần', dataIndex: 'chunkCount', key: 'chunkCount', width: 80 },
             { title: 'File', dataIndex: 'fileName', key: 'fileName', ellipsis: true },
-            { title: 'Bật', dataIndex: 'enabled', key: 'enabled', width: 80, render: (v: boolean) => (v ? 'Có' : 'Không') },
+            { title: 'Trạng thái', key: 'statusEnabled', width: 160, render: (_, d: KnowledgeDoc) => `${statusLabel(d.status)} - ${d.enabled ? 'Dùng' : 'Bỏ qua'}` },
             {
               title: 'Thao tác', key: 'actions', width: 280,
               render: (_, d: KnowledgeDoc) => (
@@ -218,7 +203,7 @@ export default function AdminChatbotPage() {
         />
       </PageSection>
 
-      <PageSection title={`Lịch sử hội thoại (${sessions.length})`} subtitle="Mở một phiên để xem hội thoại đầy đủ. Email hiển thị nếu khách đã đăng nhập.">
+      <PageSection title={`Lịch sử hội thoại (${sessions.length})`}>
         <Table
           rowKey={(s) => s.id}
           dataSource={sessions}
@@ -238,7 +223,7 @@ export default function AdminChatbotPage() {
         />
       </PageSection>
 
-      <Modal title={editingDoc ? 'Sửa tài liệu' : 'Thêm tài liệu'} open={docModalOpen} onOk={saveDoc} onCancel={() => setDocModalOpen(false)} okText="Lưu" cancelText="Hủy">
+      <Modal title="Sửa tài liệu" open={docModalOpen} onOk={saveDoc} onCancel={() => setDocModalOpen(false)} okText="Lưu" cancelText="Hủy">
         <div className="space-y-4">
           <div><label htmlFor="doc-title" className="block text-sm font-medium text-stone-700">Tiêu đề</label><Input id="doc-title" className="mt-1" value={docForm.title} onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))} placeholder="Ví dụ: Giờ mở cửa" /></div>
           <div><label htmlFor="doc-cat" className="block text-sm font-medium text-stone-700">Nhóm</label><Select id="doc-cat" className="mt-1 w-full" value={docForm.category || undefined} onChange={(v) => setDocForm((f) => ({ ...f, category: v || '' }))} options={CATEGORY_OPTIONS} placeholder="Chọn nhóm" /></div>
