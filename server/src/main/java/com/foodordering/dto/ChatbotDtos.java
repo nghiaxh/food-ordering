@@ -27,13 +27,41 @@ public class ChatbotDtos {
         }
     }
 
-    public record ChatResponse(String reply, List<FoodCard> foods) {}
+    /**
+     * Nguồn trích dẫn khi bot tra tài liệu quán. Client hiện "Nguồn: ..." dưới câu trả lời
+     * để khách biết thông tin từ đâu, AI không tự bịa nguồn.
+     */
+    public record Citation(String sourceName, String snippet) {}
+
+    /**
+     * Intent của câu hỏi: FOOD gợi ý món, RESTAURANT_INFO thông tin quán, ORDER_GUIDE hướng
+     * dẫn đặt/hủy đơn, OUT_OF_SCOPE ngoài lề. Client dùng để đổi placeholder/chip cho đúng.
+     */
+    public record ChatResponse(String reply, List<FoodCard> foods, String intent, List<Citation> citations) {
+        public ChatResponse(String reply, List<FoodCard> foods) {
+            this(reply, foods, null, null);
+        }
+    }
 
     /**
      * Trạng thái sẵn dùng của trợ lý. {@code notice} là câu hiện cho khách khi thiếu khóa API;
      * endpoint chỉ trả boolean và câu thông báo, không bao giờ trả giá trị khóa.
      */
     public record ChatbotStatus(boolean available, String notice) {}
+
+    /** Tài liệu quản trị: tiêu đề, nhóm, từ khóa cách nhau dấu phẩy, nội dung trả lời. */
+    public record KnowledgeDoc(Long id, String title, String category, String keywords, String content, boolean enabled) {}
+
+    /** Dữ liệu biểu mẫu thêm/sửa tài liệu. */
+    public record KnowledgeRequest(
+            @NotBlank String title,
+            String category,
+            String keywords,
+            @NotBlank String content,
+            boolean enabled) {}
+
+    /** Phản hồi của khách trên tin bot: rating là up | down. */
+    public record FeedbackRequest(String sessionId, Integer messageIndex, String rating) {}
 
     /**
      * Tiêu chí chatbot trích xuất từ câu hỏi.

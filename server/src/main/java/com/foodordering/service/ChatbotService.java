@@ -83,26 +83,149 @@ public class ChatbotService {
             %s
             """;
 
+    /** Nhóm câu hỏi bot phục vụ: gợi ý món, thông tin quán, hướng dẫn đặt hàng, ngoài lề. */
+    public enum ChatIntent { FOOD, RESTAURANT_INFO, ORDER_GUIDE, OUT_OF_SCOPE }
+
     private final AiClient ai;
     private final FoodRepository foodRepo;
     private final CategoryRepository categoryRepo;
     private final ChatMessageRepository chatRepo;
     private final UserRepository userRepo;
     private final AiSettingRepository settingRepo;
+    private final ChatbotKnowledgeRepository knowledgeRepo;
     private final ObjectMapper mapper = new ObjectMapper()
             // AI có thể trả về thêm trường không có trong Criteria; bỏ qua chúng thay vì
             // coi cả câu trả lời là lỗi, vì khi đó lượt chat sẽ mất hoàn toàn gợi ý món.
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
+    /** Constructor giữ tương thích test cũ: thiếu repo tài liệu thì coi như không có tài liệu. */
     public ChatbotService(AiClient ai, FoodRepository foodRepo, CategoryRepository categoryRepo,
                           ChatMessageRepository chatRepo, UserRepository userRepo,
                           AiSettingRepository settingRepo) {
+        this(ai, foodRepo, categoryRepo, chatRepo, userRepo, settingRepo, null);
+    }
+
+    public ChatbotService(AiClient ai, FoodRepository foodRepo, CategoryRepository categoryRepo,
+                          ChatMessageRepository chatRepo, UserRepository userRepo,
+                          AiSettingRepository settingRepo, ChatbotKnowledgeRepository knowledgeRepo) {
         this.ai = ai;
         this.foodRepo = foodRepo;
         this.categoryRepo = categoryRepo;
         this.chatRepo = chatRepo;
         this.userRepo = userRepo;
         this.settingRepo = settingRepo;
+        this.knowledgeRepo = knowledgeRepo;
+    }
+
+    /** Phân loại câu hỏi để đi đúng nhánh: món, thông tin quán, hướng dẫn đặt hàng, ngoài lề. */
+    public ChatIntent classifyIntent(String message) {
+        String plain = plain(message == null ? "" : message);
+        if (isOrderGuideQuestion(plain)) return ChatIntent.ORDER_GUIDE;
+        if (isRestaurantInfoQuestion(plain)) return ChatIntent.RESTAURANT_INFO;
+        if (isFoodQuestion(plain)) return ChatIntent.FOOD;
+        // Cau hoi chung ve mon (don, goi y, chua co tu khoa dac thu) van la FOOD de goi y ngay.
+        if (isFollowUp(message) || plain.contains("goi y") || plain.contains("mon")) return ChatIntent.FOOD;
+        // Co tai lieu khop thi coi la hoi thong tin quan.
+        if (!retrieveKnowledge(message).isEmpty()) return ChatIntent.RESTAURANT_INFO;
+        return ChatIntent.OUT_OF_SCOPE;
+    }
+
+    private boolean isOrderGuideQuestion(String plain) {
+        return plain.contains("cach dat") || plain.contains("dat mon") || plain.contains("dat hang")
+                || plain.contains("thanh toan") || plain.contains("huy don") || plain.contains("don hang")
+                || plain.contains("trang thai don") || plain.contains("theo doi don")
+                || plain.contains("xem don") || plain.contains("don cua toi") || plain.contains("giao hang the nao");
+    }
+
+    private boolean isRestaurantInfoQuestion(String plain) {
+        return plain.contains("mo cua") || plain.contains("dong cua") || plain.contains("gio mo")
+                || plain.contains("gio dong") || plain.contains("o dia chi") || plain.contains("dia chi")
+                || plain.contains("phi ship") || plain.contains("thoi gian giao") || plain.contains("giao hang o dau")
+                || plain.contains("quan o dau") || plain.contains("sdt") || plain.contains("so dien thoai");
+    }
+
+    /** Câu trả lời hướng dẫn đặt hàng: cố định bằng code để không bịa quy trình. */
+    public String guideReply() {
+        return "Để đặt món, bạn thêm món vào giỏ rồi vào trang thanh toán. Khách vãng lai cần đăng nhập mới thêm được vào giỏ.\n"
+                + "\n- Chỉ hủy được đơn đang CHỜ (PENDING) và CHƯA thanh toán (UNPAID). Đơn đã hoàn thành hoặc đã hủy không sửa được.\n"
+                + "- Trạng thái PREPARING hiện là \"Đang vận chuyển\". Bạn xem trạng thái đơn ở mục Đơn hàng của bạn.\n"
+                + "\nNếu cần, mình cũng gợi ý món theo ngân sách. Bạn cho mình biết số người ăn nhé!";
+    }
+
+    /** Câu từ chối ngoài lề, mời khách quay lại 3 nhóm chính. */
+    public String declineReply() {
+        return "Mình chỉ tư vấn được 3 việc: gợi ý món theo số người và ngân sách, thông tin quán, và hướng dẫn đặt hàng. "
+                + "Bạn muốn mình gợi ý món cho mấy người, hoặc hỏi giờ mở cửa/shipping thì cứ nhắn nhé!";
+    }
+
+    /** Trả lời thông tin quán chỉ từ tài liệu do admin nhập; không có thì nói không rõ. */
+    public String infoReply(java.util.List<ChatbotKnowledge> docs) {
+        if (docs == null || docs.isEmpty()) {
+            return "Mình chưa có thông tin xác thực về mục này trong tài liệu của quán. Bạn xem thực đơn bên dưới hoặc hỏi nhân viên nhé!";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (ChatbotKnowledge d : docs) {
+            sb.append("- ").append(d.getContent() == null ? "" : d.getContent().trim()).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    /** Tìm tài liệu khớp từ khóa (bỏ từ dừng), chấm điểm như chấm món để tránh trùng từ ngẫu nhiên. */
+    public java.util.List<ChatbotKnowledge> retrieveKnowledge(String question) {
+        if (knowledgeRepo == null) return List.of();
+        java.util.List<String> words = significantWords(question == null ? "" : question);
+        if (words.isEmpty()) return List.of();
+        java.util.List<ChatbotKnowledge> all;
+        try {
+            all = knowledgeRepo.findByEnabledTrue();
+        } catch (Exception e) {
+            return List.of();
+        }
+        List<Map.Entry<ChatbotKnowledge, Integer>> scored = new ArrayList<>();
+        for (ChatbotKnowledge d : all) {
+            String hay = plain((d.getTitle() == null ? "" : d.getTitle()) + " "
+                    + (d.getCategory() == null ? "" : d.getCategory()) + " "
+                    + (d.getKeywords() == null ? "" : d.getKeywords()) + " "
+                    + (d.getContent() == null ? "" : d.getContent()));
+            int s = 0;
+            for (String w : words) {
+                if (hay.contains(plain(w))) s++;
+            }
+            // Khớp cụm từ khóa dài (ví dụ "giờ mở cửa") được cộng thêm.
+            if (question != null && d.getKeywords() != null) {
+                String q = plain(question);
+                for (String kw : d.getKeywords().split(",")) {
+                    String k = plain(kw.trim());
+                    if (!k.isEmpty() && q.contains(k)) s += 2;
+                }
+            }
+            if (s > 0) scored.add(Map.entry(d, s));
+        }
+        scored.sort(Comparator.comparingInt((Map.Entry<ChatbotKnowledge, Integer> e) -> e.getValue()).reversed());
+        return scored.stream().limit(3).map(Map.Entry::getKey).toList();
+    }
+
+    /**
+     * Hỏi follow-up từng bước cho người mới khi câu hỏi gợi ý món quá chung.
+     * Chỉ hỏi khi thiếu cả số người và ngân sách và câu chưa nhắc ràng buộc nào,
+     * để câu "món chay" vẫn gợi ý ngay mà không bị chặn. Khách nói "tùy" thì gợi ý luôn.
+     */
+    public String followUpQuestion(String message, Filters filters) {
+        if (message == null) return null;
+        String plain = plain(message);
+        if (plain.contains("tuy ban") || plain.contains("goi y luon") || plain.contains("cu") || plain.contains("ngon la duoc")) return null;
+        if (filters.people() != null || filters.budget() != null) return null;
+        // Co rang buoc rieng (chay, cay, hai san) thi goi y ngay, khong hoi.
+        if (filters.chay() || filters.maxSpicyLevel() != null || filters.excludeSeafood() || filters.spicyRequired()) return null;
+        // Chi hoi khi cau hoi chung chung ve mon.
+        if (!isFoodQuestion(plain)) return null;
+        // Neu cau hoi da co tu khoa mon cu the (ten mon trong DB) thi goi y ngay.
+        String q = plain.toLowerCase();
+        boolean hasDishWord = foodRepo != null && foodRepo.findAll().stream()
+                .map(Food::getName).filter(Objects::nonNull)
+                .anyMatch(n -> plain(n).length() > 3 && q.contains(plain(n)));
+        if (hasDishWord) return null;
+        return "Bạn đang muốn ăn cho mấy người? (Ví dụ: 2 người)";
     }
 
     /**
@@ -122,6 +245,47 @@ public class ChatbotService {
         }
 
         String workingMessage = enrichWithLastPicked(sessionId, req.message());
+
+        // Phan loai cau hoi de di dung nhanh: thong tin quan va huong dan dat hang
+        // tra loi bang tai lieu ma admin nhap, khong goi AI de tranh bia.
+        ChatIntent intent = classifyIntent(req.message());
+        if (intent == ChatIntent.RESTAURANT_INFO) {
+            java.util.List<ChatbotKnowledge> docs = retrieveKnowledge(req.message());
+            String reply = infoReply(docs);
+            if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
+            if (!docs.isEmpty()) lastPickedBySession.remove(sessionId);
+            java.util.List<Citation> cits = docs.stream()
+                    .map(d -> new Citation(d.getTitle(), d.getContent() == null ? "" : truncate(d.getContent(), 120)))
+                    .toList();
+            return new ChatResponse(reply, List.of(), intent.name(), cits.isEmpty() ? null : cits);
+        }
+        if (intent == ChatIntent.ORDER_GUIDE) {
+            String reply = guideReply();
+            if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
+            lastPickedBySession.remove(sessionId);
+            java.util.List<ChatbotKnowledge> docs = retrieveKnowledge("cách đặt món thanh toán hủy đơn");
+            java.util.List<Citation> cits = docs.stream()
+                    .map(d -> new Citation(d.getTitle(), d.getContent() == null ? "" : truncate(d.getContent(), 120)))
+                    .toList();
+            return new ChatResponse(reply, List.of(), intent.name(), cits.isEmpty() ? null : cits);
+        }
+        if (intent == ChatIntent.OUT_OF_SCOPE) {
+            String reply = declineReply();
+            if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, reply);
+            lastPickedBySession.remove(sessionId);
+            return new ChatResponse(reply, List.of(), intent.name(), null);
+        }
+        // FOOD: hoi follow-up tung buoc cho cau hoi chung chung cua nguoi moi.
+        {
+            Filters earlyFilters = readFilters(req.message());
+            String fq = (history == null || history.isEmpty()) ? null : null; // history khong dung cho follow-up
+            String fu = followUpQuestion(req.message(), earlyFilters);
+            if (fu != null) {
+                if (user != null) save(user, sessionId, ChatMessage.Sender.BOT, fu);
+                lastPickedBySession.remove(sessionId);
+                return new ChatResponse(fu, List.of(), ChatIntent.FOOD.name(), null);
+            }
+        }
 
         Criteria criteria;
         List<Long> contextIds;
@@ -171,7 +335,7 @@ public class ChatbotService {
         // Card được tạo từ entity đã lọc nên ID và giá không phụ thuộc vào nội dung AI.
         List<FoodCard> cards = picked.stream().limit(maxSuggestions())
                 .map(p -> FoodCard.from(p.food(), p.portions(), p.totalPrice())).toList();
-        return new ChatResponse(reply, cards);
+        return new ChatResponse(reply, cards, ChatIntent.FOOD.name(), null);
     }
 
     /**
@@ -949,4 +1113,10 @@ public class ChatbotService {
     }
 
     private String nz(String s) { return s == null ? "không có" : s; }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        String t = s.replaceAll("\\s+", " ").trim();
+        return t.length() <= max ? t : t.substring(0, max).trim() + "...";
+    }
 }
