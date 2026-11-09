@@ -735,6 +735,54 @@ class OrderServiceTest {
         verify(orderRepo, never()).save(any());
     }
 
+    @Test
+    @DisplayName("Thanh toán đơn không tồn tại báo 404")
+    void payDonKhongTonTai() {
+        when(orderRepo.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.pay(EMAIL, 999L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Không tìm thấy đơn")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.NOT_FOUND.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Quản trị sửa đơn với status không đổi vẫn lưu thành công")
+    void adminUpdateGiuNguyenStatusThanhCong() {
+        Orders order = order(142L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(142L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, null, "Người Nhận Mới", "0912345678", "Địa chỉ mới", "COD", null, "CONFIRMED", null);
+
+        Orders saved = service.adminUpdate(142L, req);
+
+        // Status gửi trùng hiện tại thì bỏ qua transition, vẫn áp địa chỉ mới.
+        assertThat(saved.getStatus()).isEqualTo(Orders.Status.CONFIRMED);
+        assertThat(saved.getReceiverName()).isEqualTo("Người Nhận Mới");
+        verify(pricing, never()).priceOrder(any());
+    }
+
+    @Test
+    @DisplayName("Quản trị hoàn tác thanh toán về chưa trả thành công")
+    void adminUpdatePaidFalseThanhCong() {
+        Orders order = order(143L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.PAID);
+        when(orderRepo.findById(143L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentTxRepo.findByOrderId(any())).thenReturn(Optional.empty());
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, null, "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null, false);
+
+        Orders saved = service.adminUpdate(143L, req);
+
+        assertThat(saved.getPaymentStatus()).isEqualTo(Orders.PaymentStatus.UNPAID);
+    }
+
     private static User user(Long id, String email) {
         User u = new User();
         u.setId(id);
