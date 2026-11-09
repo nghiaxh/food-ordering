@@ -24,6 +24,18 @@ public class ChatbotKnowledge {
 
     private boolean enabled = true;
 
+    /** Ten file goc khi tai len (null khi nhap bang chu), de reingest sau nay. */
+    private String fileName;
+
+    private Long fileSize;
+
+    /** PENDING | READY | FAILED - trang thai ingest/chia doan. */
+    private String status = "READY";
+
+    private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
+
+    private java.time.LocalDateTime updatedAt = java.time.LocalDateTime.now();
+
     public ChatbotKnowledge(String title, String category, String keywords, String content, boolean enabled) {
         this.title = title;
         this.category = category;

@@ -24,5 +24,7 @@ public class AppProperties {
         /** Mặc định khi quản trị viên chưa chọn nhà cung cấp trong trang Chatbot. */
         private String provider = "gemini";
         private String model;
+        private String embeddingModel = "text-embedding-004";
+        private int embeddingDimensions = 768;
     }
 }

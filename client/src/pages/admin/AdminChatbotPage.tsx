@@ -1,9 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { Alert, Input, InputNumber, Modal, Select, Switch, Table, message } from 'antd'
-import { adminGetChatHistory, adminGetSettings, adminSaveSetting, getChatbotStatus, adminGetDocuments, adminSaveDocument, adminDeleteDocument } from '../../api/api'
+import { Alert, Input, InputNumber, Modal, Select, Switch, Table, Upload, message } from 'antd'
+import { UploadOutlined } from '@ant-design/icons'
+import { adminGetChatHistory, adminGetSettings, adminSaveSetting, getChatbotStatus, adminGetDocuments, adminGetDocumentStats, adminGetDocumentChunks, adminSaveDocument, adminDeleteDocument, adminUploadDocument, adminReingestDocument } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
-import type { ChatHistoryMessage, ChatbotStatus, KnowledgeDoc } from '../../types'
+import type { ChatHistoryMessage, ChatbotStatus, KnowledgeChunkView, KnowledgeDoc, KnowledgeStats } from '../../types'
 import { apiErrorMessage } from '../../utils/api-error'
 import { EmptyState, PageSection } from './shared'
 import UiButton from '../../components/UiButton'
@@ -26,13 +27,9 @@ function Bubble({ message }: { message: ChatHistoryMessage }) {
   return (
     <div className={`flex ${isBot ? 'justify-start' : 'justify-end'}`}>
       <div className="max-w-[75%]">
-        <div className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${isBot ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200' : 'rounded-br-sm bg-amber-600 text-white'}`}>
-          {text}
-        </div>
+        <div className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${isBot ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200' : 'rounded-br-sm bg-amber-600 text-white'}`}>{text}</div>
         <p className={`mt-1 text-[11px] text-stone-400 ${isBot ? '' : 'text-right'}`}>{isBot ? 'Bot' : 'User'} · {formatTime(message.createdAt)}</p>
-        {long ? (
-          <button type="button" onClick={() => setExpanded((v) => !v)} className={`mt-0.5 text-xs font-medium text-amber-700 hover:underline ${isBot ? '' : 'ml-auto block'}`}>{expanded ? 'Thu gọn' : 'Xem thêm'}</button>
-        ) : null}
+        {long ? <button type="button" onClick={() => setExpanded((v) => !v)} className={`mt-0.5 text-xs font-medium text-amber-700 hover:underline ${isBot ? '' : 'ml-auto block'}`}>{expanded ? 'Thu gọn' : 'Xem thêm'}</button> : null}
       </div>
     </div>
   )
@@ -45,6 +42,7 @@ function Thread({ messages }: { messages: ChatHistoryMessage[] }) {
 export default function AdminChatbotPage() {
   const [history, setHistory] = useState<ChatHistoryMessage[]>([])
   const [documents, setDocuments] = useState<KnowledgeDoc[]>([])
+  const [stats, setStats] = useState<KnowledgeStats | null>(null)
   const [maxSuggestions, setMaxSuggestions] = useState(5)
   const [extraRules, setExtraRules] = useState('')
   const [provider, setProvider] = useState('gemini')
@@ -53,9 +51,14 @@ export default function AdminChatbotPage() {
   const [docModalOpen, setDocModalOpen] = useState(false)
   const [editingDoc, setEditingDoc] = useState<KnowledgeDoc | null>(null)
   const [docForm, setDocForm] = useState({ title: '', category: '', keywords: '', content: '', enabled: true })
+  const [uploadTitle, setUploadTitle] = useState('')
+  const [uploadCategory, setUploadCategory] = useState('')
+  const [uploadKeywords, setUploadKeywords] = useState('')
+  const [chunksDoc, setChunksDoc] = useState<KnowledgeDoc | null>(null)
+  const [chunks, setChunks] = useState<KnowledgeChunkView[]>([])
 
   const { data, loading, error, refresh: fetchData } = useAsyncData(
-    () => Promise.all([adminGetChatHistory(), adminGetSettings(), getChatbotStatus(), adminGetDocuments()]),
+    () => Promise.all([adminGetChatHistory(), adminGetSettings(), getChatbotStatus(), adminGetDocuments(), adminGetDocumentStats().catch(() => null)]),
     [],
   )
 
@@ -64,6 +67,7 @@ export default function AdminChatbotPage() {
     setHistory(data[0])
     setStatus(data[2])
     setDocuments(data[3] || [])
+    setStats(data[4] || null)
     const settings = Object.fromEntries(data[1].map((item) => [item.settingKey, item.settingValue]))
     setMaxSuggestions(Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5)))
     setExtraRules(settings.extra_rules ?? '')
@@ -95,91 +99,74 @@ export default function AdminChatbotPage() {
     if (res.ok) { message.success('Đã lưu cài đặt chatbot'); void fetchData() } else message.error(apiErrorMessage(res.error) ?? 'Lưu thất bại')
   }
 
-  const openNewDoc = () => {
-    setEditingDoc(null)
-    setDocForm({ title: '', category: '', keywords: '', content: '', enabled: true })
-    setDocModalOpen(true)
-  }
-  const openEditDoc = (d: KnowledgeDoc) => {
-    setEditingDoc(d)
-    setDocForm({ title: d.title, category: d.category || '', keywords: d.keywords || '', content: d.content, enabled: d.enabled })
-    setDocModalOpen(true)
-  }
+  const openNewDoc = () => { setEditingDoc(null); setDocForm({ title: '', category: '', keywords: '', content: '', enabled: true }); setDocModalOpen(true) }
+  const openEditDoc = (d: KnowledgeDoc) => { setEditingDoc(d); setDocForm({ title: d.title, category: d.category || '', keywords: d.keywords || '', content: d.content, enabled: d.enabled }); setDocModalOpen(true) }
   const saveDoc = async () => {
     if (!docForm.title.trim() || !docForm.content.trim()) { message.error('Tiêu đề và nội dung là bắt buộc'); return }
-    try {
-      await adminSaveDocument(editingDoc?.id ?? null, docForm)
-      message.success('Đã lưu tài liệu')
-      setDocModalOpen(false)
-      void fetchData()
-    } catch (e) {
-      message.error(apiErrorMessage(e) ?? 'Lưu thất bại')
-    }
+    try { await adminSaveDocument(editingDoc?.id ?? null, docForm); message.success('Đã lưu tài liệu'); setDocModalOpen(false); void fetchData() } catch (e) { message.error(apiErrorMessage(e) ?? 'Lưu thất bại') }
   }
   const deleteDoc = async (id: number) => {
-    Modal.confirm({
-      title: 'Xóa tài liệu này?',
-      content: 'Chatbot sẽ không tra được nội dung này nữa.',
-      okText: 'Xóa', cancelText: 'Hủy',
-      onOk: async () => {
-        try { await adminDeleteDocument(id); message.success('Đã xóa tài liệu'); void fetchData() } catch (e) { message.error(apiErrorMessage(e) ?? 'Xóa thất bại') }
-      },
-    })
+    Modal.confirm({ title: 'Xóa tài liệu này?', content: 'Chatbot sẽ không tra được nội dung này nữa.', okText: 'Xóa', cancelText: 'Hủy', onOk: async () => { try { await adminDeleteDocument(id); message.success('Đã xóa tài liệu'); void fetchData() } catch (e) { message.error(apiErrorMessage(e) ?? 'Xóa thất bại') } } })
   }
+  const handleUpload = async (file: File) => {
+    try {
+      const res = await adminUploadDocument(file, uploadTitle, uploadCategory, uploadKeywords)
+      message.success(`Đã nạp tài liệu "${res.title}", đang chia ${res.chunkCount ?? 0} đoạn`)
+      setUploadTitle(''); setUploadCategory(''); setUploadKeywords('')
+      void fetchData()
+      return false
+    } catch (e) { message.error(apiErrorMessage(e) ?? 'Tải lên thất bại'); return false }
+  }
+  const reingest = async (id: number) => { try { await adminReingestDocument(id); message.success('Đã nạp lại'); void fetchData() } catch (e) { message.error(apiErrorMessage(e) ?? 'Nạp lại thất bại') } }
+  const viewChunks = async (d: KnowledgeDoc) => { setChunksDoc(d); try { const c = await adminGetDocumentChunks(d.id); setChunks(c) } catch { setChunks([]) } }
 
   return (
     <div>
       <div className="mb-3"><h1 className="text-2xl font-bold tracking-tight text-stone-900">Cấu hình chatbot</h1></div>
       {error ? <Alert type="error" showIcon className="mb-6" message="Không tải được dữ liệu chatbot" description="Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang." /> : null}
-      {status && !status.available ? (
-        <Alert type="warning" showIcon className="mb-6" message="Chưa cấu hình trợ lý AI" description={<>Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.</>} />
-      ) : null}
+      {status && !status.available ? <Alert type="warning" showIcon className="mb-6" message="Chưa cấu hình trợ lý AI" description={<>Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.</>} /> : null}
 
       <PageSection className="mb-6">
         <div className="grid gap-6 sm:grid-cols-2">
-          <div>
-            <label htmlFor="ai-provider" className="block text-sm font-medium text-stone-700">Nhà cung cấp AI</label>
-            <Select id="ai-provider" className="mt-2 w-full" value={provider} onChange={setProvider} options={[{ label: 'Google Gemini', value: 'gemini' }]} />
-          </div>
-          <div>
-            <label htmlFor="ai-model" className="block text-sm font-medium text-stone-700">Tên mô hình</label>
-            <Select id="ai-model" className="mt-2 w-full" value={model} onChange={setModel} options={model && !MODEL_OPTIONS.some((o) => o.value === model) ? [...MODEL_OPTIONS, { value: model, label: model }] : MODEL_OPTIONS} />
-          </div>
-          <div>
-            <label htmlFor="max-suggestions" className="block text-sm font-medium text-stone-700">Số món gợi ý tối đa</label>
-            <InputNumber id="max-suggestions" className="mt-2 w-full" min={1} max={5} value={maxSuggestions} onChange={(v) => setMaxSuggestions(Number(v))} />
-          </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="extra-rules" className="block text-sm font-medium text-stone-700">Quy tắc bổ sung</label>
-            <Input.TextArea id="extra-rules" className="mt-2" rows={3} value={extraRules} onChange={(e) => setExtraRules(e.target.value)} placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..." />
-          </div>
+          <div><label htmlFor="ai-provider" className="block text-sm font-medium text-stone-700">Nhà cung cấp AI</label><Select id="ai-provider" className="mt-2 w-full" value={provider} onChange={setProvider} options={[{ label: 'Google Gemini', value: 'gemini' }]} /></div>
+          <div><label htmlFor="ai-model" className="block text-sm font-medium text-stone-700">Tên mô hình</label><Select id="ai-model" className="mt-2 w-full" value={model} onChange={setModel} options={model && !MODEL_OPTIONS.some((o) => o.value === model) ? [...MODEL_OPTIONS, { value: model, label: model }] : MODEL_OPTIONS} /></div>
+          <div><label htmlFor="max-suggestions" className="block text-sm font-medium text-stone-700">Số món gợi ý tối đa</label><InputNumber id="max-suggestions" className="mt-2 w-full" min={1} max={5} value={maxSuggestions} onChange={(v) => setMaxSuggestions(Number(v))} /></div>
+          <div className="sm:col-span-2"><label htmlFor="extra-rules" className="block text-sm font-medium text-stone-700">Quy tắc bổ sung</label><Input.TextArea id="extra-rules" className="mt-2" rows={3} value={extraRules} onChange={(e) => setExtraRules(e.target.value)} placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..." /></div>
         </div>
-        <div className="mt-5 flex justify-end border-t border-stone-100 pt-4">
-          <UiButton kind="primary" loading={savingSettings} onClick={onSaveSettings}>Lưu cài đặt</UiButton>
-        </div>
+        <div className="mt-5 flex justify-end border-t border-stone-100 pt-4"><UiButton kind="primary" loading={savingSettings} onClick={onSaveSettings}>Lưu cài đặt</UiButton></div>
       </PageSection>
 
-      <PageSection title={`Tài liệu (${documents.length})`} subtitle="Thông tin quán chatbot tra cứu. Bot chỉ trả lời từ tài liệu đang bật, kèm nguồn." className="mb-6">
-        <div className="mb-3 flex justify-end">
-          <UiButton kind="primary" onClick={openNewDoc}>Thêm tài liệu</UiButton>
+      <PageSection title={`Tài liệu (${documents.length})`} subtitle={`Thông tin quán chatbot tra cứu theo ngữ nghĩa (vector) + từ khóa. ${stats ? `Tổng ${stats.totalChunks} đoạn, ${stats.ready} sẵn sàng, ${stats.failed} lỗi.` : ''}`} className="mb-6">
+        <div className="mb-3 flex flex-wrap items-end gap-3">
+          <div className="flex flex-1 flex-wrap gap-2">
+            <Input placeholder="Tiêu đề (tùy chọn, lấy tên file)" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-48" />
+            <Input placeholder="Nhóm (HOURS, DELIVERY...)" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)} className="w-40" />
+            <Input placeholder="Từ khóa (cách nhau phím phẩy)" value={uploadKeywords} onChange={(e) => setUploadKeywords(e.target.value)} className="w-56" />
+          </div>
+          <Upload accept=".pdf,.docx,.txt,.md" showUploadList={false} beforeUpload={(f) => handleUpload(f as File)}>
+            <UiButton kind="default"><UploadOutlined /> Tải lên file</UiButton>
+          </Upload>
+          <UiButton kind="primary" onClick={openNewDoc}>Thêm bằng chữ</UiButton>
         </div>
         <Table
           rowKey={(d) => d.id}
           dataSource={documents}
           size="middle"
           pagination={false}
-          locale={{ emptyText: <EmptyState icon="message" title="Chưa có tài liệu nào." hint="Thêm tài liệu để chatbot trả lời thông tin quán." /> }}
+          locale={{ emptyText: <EmptyState icon="message" title="Chưa có tài liệu nào." hint="Tải lên PDF/DOCX/TXT hoặc thêm bằng chữ." /> }}
           columns={[
             { title: 'Tiêu đề', dataIndex: 'title', key: 'title' },
-            { title: 'Nhóm', dataIndex: 'category', key: 'category', width: 120 },
-            { title: 'Từ khóa', dataIndex: 'keywords', key: 'keywords', ellipsis: true },
-            { title: 'Nội dung', dataIndex: 'content', key: 'content', ellipsis: true },
+            { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (v?: string) => v || 'READY' },
+            { title: 'Đoạn', dataIndex: 'chunkCount', key: 'chunkCount', width: 70 },
+            { title: 'File', dataIndex: 'fileName', key: 'fileName', ellipsis: true },
             { title: 'Bật', dataIndex: 'enabled', key: 'enabled', width: 80, render: (v: boolean) => (v ? 'Có' : 'Không') },
             {
-              title: 'Thao tác', key: 'actions', width: 160,
+              title: 'Thao tác', key: 'actions', width: 260,
               render: (_, d: KnowledgeDoc) => (
                 <div className="flex gap-2">
                   <button type="button" className="text-amber-700 hover:underline" onClick={() => openEditDoc(d)}>Sửa</button>
+                  <button type="button" className="text-amber-700 hover:underline" onClick={() => viewChunks(d)}>Đoạn</button>
+                  <button type="button" className="text-amber-700 hover:underline" onClick={() => reingest(d.id)}>Nạp lại</button>
                   <button type="button" className="text-red-600 hover:underline" onClick={() => deleteDoc(d.id)}>Xóa</button>
                 </div>
               ),
@@ -210,26 +197,22 @@ export default function AdminChatbotPage() {
 
       <Modal title={editingDoc ? 'Sửa tài liệu' : 'Thêm tài liệu'} open={docModalOpen} onOk={saveDoc} onCancel={() => setDocModalOpen(false)} okText="Lưu" cancelText="Hủy">
         <div className="space-y-4">
-          <div>
-            <label htmlFor="doc-title" className="block text-sm font-medium text-stone-700">Tiêu đề</label>
-            <Input id="doc-title" className="mt-1" value={docForm.title} onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))} placeholder="Ví dụ: Giờ mở cửa" />
-          </div>
-          <div>
-            <label htmlFor="doc-cat" className="block text-sm font-medium text-stone-700">Nhóm</label>
-            <Input id="doc-cat" className="mt-1" value={docForm.category} onChange={(e) => setDocForm((f) => ({ ...f, category: e.target.value }))} placeholder="HOURS, DELIVERY, PAYMENT, ORDER..." />
-          </div>
-          <div>
-            <label htmlFor="doc-keys" className="block text-sm font-medium text-stone-700">Từ khóa (cách nhau dấu phẩy)</label>
-            <Input id="doc-keys" className="mt-1" value={docForm.keywords} onChange={(e) => setDocForm((f) => ({ ...f, keywords: e.target.value }))} placeholder="giờ mở cửa, mấy giờ đóng cửa" />
-          </div>
-          <div>
-            <label htmlFor="doc-content" className="block text-sm font-medium text-stone-700">Nội dung</label>
-            <Input.TextArea id="doc-content" rows={4} className="mt-1" value={docForm.content} onChange={(e) => setDocForm((f) => ({ ...f, content: e.target.value }))} placeholder="Nội dung bot trả lời khi khách hỏi..." />
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch checked={docForm.enabled} onChange={(v) => setDocForm((f) => ({ ...f, enabled: v }))} />
-            <span className="text-sm text-stone-600">Đang bật (bot mới tra được)</span>
-          </div>
+          <div><label htmlFor="doc-title" className="block text-sm font-medium text-stone-700">Tiêu đề</label><Input id="doc-title" className="mt-1" value={docForm.title} onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))} placeholder="Ví dụ: Giờ mở cửa" /></div>
+          <div><label htmlFor="doc-cat" className="block text-sm font-medium text-stone-700">Nhóm</label><Input id="doc-cat" className="mt-1" value={docForm.category} onChange={(e) => setDocForm((f) => ({ ...f, category: e.target.value }))} placeholder="HOURS, DELIVERY, PAYMENT, ORDER..." /></div>
+          <div><label htmlFor="doc-keys" className="block text-sm font-medium text-stone-700">Từ khóa (cách nhau dấu phẩy)</label><Input id="doc-keys" className="mt-1" value={docForm.keywords} onChange={(e) => setDocForm((f) => ({ ...f, keywords: e.target.value }))} placeholder="giờ mở cửa, mấy giờ đóng cửa" /></div>
+          <div><label htmlFor="doc-content" className="block text-sm font-medium text-stone-700">Nội dung</label><Input.TextArea id="doc-content" rows={4} className="mt-1" value={docForm.content} onChange={(e) => setDocForm((f) => ({ ...f, content: e.target.value }))} placeholder="Nội dung bot trả lời khi khách hỏi..." /></div>
+          <div className="flex items-center gap-2"><Switch checked={docForm.enabled} onChange={(v) => setDocForm((f) => ({ ...f, enabled: v }))} /><span className="text-sm text-stone-600">Đang bật (bot mới tra được)</span></div>
+        </div>
+      </Modal>
+
+      <Modal title={chunksDoc ? `Đoạn của "${chunksDoc.title}"` : 'Đoạn'} open={chunksDoc !== null} onCancel={() => setChunksDoc(null)} footer={null}>
+        <div className="space-y-2 max-h-[400px] overflow-auto">
+          {chunks.length === 0 ? <p className="text-sm text-stone-500">Chưa có đoạn (có thể chưa nạp lại sau khi sửa).</p> : chunks.map((c) => (
+            <div key={c.id} className="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
+              <p className="mb-1 text-xs font-semibold text-stone-500">Đoạn {c.chunkIndex + 1}</p>
+              <p className="whitespace-pre-wrap">{c.content}</p>
+            </div>
+          ))}
         </div>
       </Modal>
     </div>

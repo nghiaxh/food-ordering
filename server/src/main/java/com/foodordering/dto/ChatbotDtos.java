@@ -49,8 +49,13 @@ public class ChatbotDtos {
      */
     public record ChatbotStatus(boolean available, String notice) {}
 
-    /** Tài liệu quản trị: tiêu đề, nhóm, từ khóa cách nhau dấu phẩy, nội dung trả lời. */
-    public record KnowledgeDoc(Long id, String title, String category, String keywords, String content, boolean enabled) {}
+    /** Tài liệu quản trị: tiêu đề, nhóm, từ khóa, nội dung, trạng thái, file gốc. */
+    public record KnowledgeDoc(Long id, String title, String category, String keywords, String content, boolean enabled,
+                               String status, String fileName, Long fileSize, long chunkCount) {
+        public KnowledgeDoc(Long id, String title, String category, String keywords, String content, boolean enabled) {
+            this(id, title, category, keywords, content, enabled, "READY", null, null, 0);
+        }
+    }
 
     /** Dữ liệu biểu mẫu thêm/sửa tài liệu. */
     public record KnowledgeRequest(
@@ -59,6 +64,12 @@ public class ChatbotDtos {
             String keywords,
             @NotBlank String content,
             boolean enabled) {}
+
+    /** Một đoạn văn bản sau khi chia nhỏ, kèm vector. */
+    public record ChunkView(Long id, int chunkIndex, String content) {}
+
+    /** Thống kê tài liệu RAG. */
+    public record DocStats(long totalDocuments, long totalChunks, long ready, long failed) {}
 
     /** Phản hồi của khách trên tin bot: rating là up | down. */
     public record FeedbackRequest(String sessionId, Integer messageIndex, String rating) {}

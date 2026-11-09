@@ -134,6 +134,8 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-BOT-18 | Hướng dẫn đặt hàng | Hỏi "Cách đặt món thế nào?" | Bot trả quy trình (thêm vào giỏ -> thanh toán, hủy PENDING+UNPAID, trạng thái Đang vận chuyển), không có thẻ món | | |
 | TC-BOT-19 | Follow-up hỏi từng bước | Hỏi "Gợi ý món đi" (chưa có số người, ngân sách, ràng buộc) | Bot không trả thẻ món, hỏi "Bạn đang muốn ăn cho mấy người?"; hỏi "Món chay" thì không hỏi nữa mà trả món ngay | | |
 | TC-BOT-20 | Streaming và trang toàn trang | Mở `/chatbot`, gửi câu hỏi, bấm Dừng khi chữ đang chạy | Chữ chạy dần theo từ có status "Đang tìm món...", bấm Dừng giữ phần đã hiện; `/chatbot` giữ nguyên hội thoại với widget nổi | | |
+| TC-BOT-21 | Upload tài liệu RAG | Admin tải lên file PDF/DOCX/TXT, hỏi thông tin quán bằng diễn đạt khác từ khóa | Tài liệu chia thành nhiều đoạn, mỗi đoạn có vector; bot trả lời từ đoạn gần nhất kèm nguồn, không cần trùng từ khóa | | |
+| TC-BOT-22 | Vector fail fallback keyword | Tắt extension vector hoặc lỗi embed, hỏi "Giờ mở cửa" | Bot vẫn trả lời từ tài liệu bằng chấm từ khóa, không crash, không bịa | | |
 
 ### 1.2.6. Quản trị hệ thống (Admin Portal: UC26 - UC35)
 
