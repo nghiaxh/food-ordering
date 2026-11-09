@@ -242,8 +242,8 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
   khi trả món. Câu có ràng buộc (chay/cay/dị ứng) hoặc khách nói `tùy bạn` thì gợi ý ngay, không tra hỏi.
 - **Streaming chữ:** server vẫn trả nguyên câu về một lần, client chạy chữ dần theo từ
   (`useChatConversation`), có status text `Đang tìm món...` / `Đang tra tài liệu quán...` và nút Dừng.
-  Trang full page `/chatbot` dùng chung hook và chung `sessionId`/`messages` qua `localStorage`
-  với widget nổi, nên đổi qua lại không mất hội thoại.
+  Widget nổi dùng một session duy nhất: `sessionId`/`messages` lưu qua `localStorage`,
+  làm mới hội thoại thì cấp `sessionId` mới.
 
 #### Bốn kiểu tư vấn và cách server lọc
 
@@ -445,8 +445,8 @@ Bố cục khung chat:
   và ví dụ mẫu `Cho 2 người 200k, không cay`, placeholder nhắc đúng ví dụ đó.
 - Nút **Làm mới hội thoại** trên thanh tiêu đề xoá ngữ cảnh cũ (tin nhắn, `lastFoodIds`,
   `sessionId` mới) để câu hỏi tiếp không dính vào món của lượt trước. Tin bot chạy chữ dần theo từ;
-  ai bật `prefers-reduced-motion` thì thấy ngay toàn bộ câu trả lời. Nút maximize (toàn trang) đưa
-  khách sang `/chatbot` giữ nguyên hội thoại; menu tài khoản cũng có mục `Trợ lý gợi ý`.
+  ai bật `prefers-reduced-motion` thì thấy ngay toàn bộ câu trả lời. Chatbot chỉ mở bằng nút nổi,
+  không còn trang toàn màn hình.
 - Thẻ món gộp trong **một khung trắng**, các dòng ngăn bằng đường kẻ, không viền riêng từng
   thẻ: ảnh 40px, tên một dòng, giá hổ phách căn phải. Cả dòng là liên kết tới `/foods/:id`.
   Khung này canh cùng mép trái với bong bóng của bot.
