@@ -56,122 +56,76 @@ type Draft = {
   intent?: string
 }
 
-export type ChatSession = {
+type LegacySession = {
   id: string
-  title: string
   messages: ChatMessage[]
-  createdAt: number
-  updatedAt: number
 }
 
-const DEFAULT_TITLE = 'Đoạn chat mới'
-
-function deriveTitle(messages: ChatMessage[]): string {
-  const firstUser = messages.find((m) => m.sender === 'USER')?.content.trim()
-  if (!firstUser) return DEFAULT_TITLE
-  return firstUser.length > 40 ? `${firstUser.slice(0, 40)}...` : firstUser
-}
-
-function createGreetingSession(id?: string): ChatSession {
-  const now = Date.now()
-  return {
-    id: id || crypto.randomUUID(),
-    title: DEFAULT_TITLE,
-    messages: greetingMessages(),
-    createdAt: now,
-    updatedAt: now,
-  }
-}
-
-function loadSessions(): ChatSession[] {
-  try {
-    const raw = localStorage.getItem('chatbot.sessions')
-    if (raw) {
-      const parsed = JSON.parse(raw) as ChatSession[]
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed
-    }
-  } catch {}
-  // Di chuyển dữ liệu cũ từ key đơn lẻ để không mất hội thoại của khách đã có.
+function loadSingleSession(): { messages: ChatMessage[], sessionId: string } {
   try {
     const raw = localStorage.getItem('chatbot.messages')
     const legacyId = localStorage.getItem('chatbot.sessionId')
     const parsed = raw ? (JSON.parse(raw) as ChatMessage[]) : null
     if (parsed && parsed.length > 0) {
-      const now = Date.now()
-      return [
-        {
-          id: legacyId || crypto.randomUUID(),
-          title: deriveTitle(parsed),
-          messages: parsed,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ]
+      return { messages: parsed, sessionId: legacyId || crypto.randomUUID() }
     }
   } catch {}
-  return [createGreetingSession()]
-}
-
-function loadActiveId(sessions: ChatSession[]): string {
+  // Khách cũ còn hội thoại multi-session: lấy đoạn đang mở, thiếu thì lấy đoạn đầu tiên.
   try {
-    const id = localStorage.getItem('chatbot.activeSessionId')
-    if (id && sessions.some((s) => s.id === id)) return id
+    const raw = localStorage.getItem('chatbot.sessions')
+    const activeId = localStorage.getItem('chatbot.activeSessionId')
+    const parsed = raw ? (JSON.parse(raw) as LegacySession[]) : null
+    if (parsed && parsed.length > 0) {
+      const picked = parsed.find((s) => s.id === activeId) ?? parsed[0]
+      if (picked && picked.messages && picked.messages.length > 0) {
+        localStorage.removeItem('chatbot.sessions')
+        localStorage.removeItem('chatbot.activeSessionId')
+        return { messages: picked.messages, sessionId: picked.id || crypto.randomUUID() }
+      }
+    }
   } catch {}
-  return sessions[0]?.id ?? createGreetingSession().id
-}
-
-function hasUserMessage(messages: ChatMessage[]): boolean {
-  return messages.some((m) => m.sender === 'USER')
+  localStorage.removeItem('chatbot.sessions')
+  localStorage.removeItem('chatbot.activeSessionId')
+  return { messages: greetingMessages(), sessionId: crypto.randomUUID() }
 }
 
 /**
- * Dùng chung cho widget nổi và trang full page: nhiều đoạn chat qua localStorage
- * nên đổi qua lại không mất hội thoại. Widget nổi dùng đoạn đang active.
+ * Hội thoại widget nổi: một session duy nhất lưu qua localStorage nên mở lại
+ * khung chat vẫn giữ nguyên ngữ cảnh. Làm mới hội thoại sẽ cấp sessionId mới.
  */
 export function useChatConversation() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [statusText, setStatusText] = useState<string | null>(null)
   const [error, setError] = useState(false)
-  const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions())
-  const [activeId, setActiveId] = useState<string>(() => loadActiveId(sessions))
+  const [initial] = useState(() => loadSingleSession())
+  const [messages, setMessages] = useState<ChatMessage[]>(initial.messages)
+  const [sessionId, setSessionId] = useState<string>(initial.sessionId)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [status, setStatus] = useState<ChatbotStatus | null>(null)
   const unavailable = status?.available === false
   const statusNotice = status?.notice ?? CHATBOT_OFF_NOTICE
 
-  const activeSession = sessions.find((s) => s.id === activeId) ?? sessions[0]
-  const messages: ChatMessage[] = activeSession?.messages ?? greetingMessages()
-
-  const sessionId = useRef<string>(activeId)
+  const sessionIdRef = useRef<string>(sessionId)
   const lastUserRef = useRef('')
   const lastFoodIdsRef = useRef<number[]>([])
   const activeRef = useRef(true)
   const stoppingRef = useRef(false)
 
-  // sessionId gửi cho server chính là id của đoạn chat đang mở.
-  useEffect(() => {
-    sessionId.current = activeId
-  }, [activeId])
-
-  const setMessages = (update: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
-    setSessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== activeId) return s
-        const next = typeof update === 'function' ? update(s.messages) : update
-        // Tiêu đề lấy từ câu hỏi đầu tiên, giữ lại nếu khách đã sửa tay.
-        const title = s.title !== DEFAULT_TITLE ? s.title : deriveTitle(next)
-        return { ...s, messages: next, updatedAt: Date.now(), title }
-      }),
-    )
+  const updateMessages = (update: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    setMessages((prev) => (typeof update === 'function' ? update(prev) : update))
   }
 
   useEffect(() => {
+    sessionIdRef.current = sessionId
+  }, [sessionId])
+
+  useEffect(() => {
     try {
-      localStorage.setItem('chatbot.sessions', JSON.stringify(sessions))
-      localStorage.setItem('chatbot.activeSessionId', activeId)
+      localStorage.setItem('chatbot.messages', JSON.stringify(messages))
+      localStorage.setItem('chatbot.sessionId', sessionId)
     } catch {}
-  }, [sessions, activeId])
+  }, [messages, sessionId])
 
   useEffect(() => {
     getChatbotStatus()
@@ -203,16 +157,13 @@ export function useChatConversation() {
   }, [draft])
 
   const pushBotMessage = (content: string, foods: ChatMessage['foods'] = [], citations?: ChatCitation[], intent?: string) => {
-    setSessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== activeId) return s
-        const next: ChatMessage[] = [
-          ...s.messages.map((m) => (m.sender === 'BOT' ? { sender: m.sender, content: m.content } : m)),
-          { sender: 'BOT', content, foods, citations, intent },
-        ]
-        return { ...s, messages: next, updatedAt: Date.now() }
-      }),
-    )
+    setMessages((prev) => {
+      const next: ChatMessage[] = [
+        ...prev.map((m) => (m.sender === 'BOT' ? { sender: m.sender, content: m.content } : m)),
+        { sender: 'BOT', content, foods, citations, intent },
+      ]
+      return next
+    })
   }
 
   const handleSend = async (raw?: string) => {
@@ -228,14 +179,14 @@ export function useChatConversation() {
     lastUserRef.current = text
     const history = messages.filter((m) => m.sender === 'USER').map((m) => m.content).slice(-3)
     const newMessages: ChatMessage[] = [...messages, { sender: 'USER', content: text }]
-    setMessages(newMessages)
+    updateMessages(newMessages)
     setLoading(true)
     // Status text cho người mới biết bot đang làm gì.
     const plain = text.toLowerCase()
     const isInfo = plain.includes('giờ') || plain.includes('địa chỉ') || plain.includes('giao hàng') || plain.includes('ship') || plain.includes('thanh toán') || plain.includes('mở cửa') || plain.includes('đóng cửa')
     setStatusText(isInfo ? 'Đang tra tài liệu quán...' : 'Đang tìm món...')
     try {
-      const res = await chat(text, sessionId.current, history, lastFoodIdsRef.current)
+      const res = await chat(text, sessionIdRef.current, history, lastFoodIdsRef.current)
       if (!activeRef.current) return
       setError(false)
       const foods = (res.foods || []).slice(0, 5)
@@ -292,83 +243,20 @@ export function useChatConversation() {
   }
 
   const resetChat = () => {
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === activeId
-          ? { ...s, title: DEFAULT_TITLE, messages: greetingMessages(), updatedAt: Date.now() }
-          : s,
-      ),
-    )
+    setMessages(greetingMessages())
+    setSessionId(crypto.randomUUID())
     resetTransientState()
     activeRef.current = true
-  }
-
-  const flushDraft = () => {
-    if (!draft) return
-    const words = draft.content.split(/\s+/)
-    const partial = words.slice(0, draft.shownWords).join(' ')
-    if (partial.trim()) pushBotMessage(partial, draft.foods || [], draft.citations, draft.intent)
-  }
-
-  const switchSession = (id: string) => {
-    if (id === activeId) return
-    flushDraft()
-    const target = sessions.find((s) => s.id === id)
-    if (!target) return
-    setActiveId(id)
-    resetTransientState()
-    const lastBot = [...target.messages].reverse().find((m) => m.sender === 'BOT' && m.foods?.length)
-    lastFoodIdsRef.current = lastBot?.foods?.map((f) => f.id) ?? []
-    activeRef.current = true
-  }
-
-  const createSession = () => {
-    // Tránh tạo đoạn trống trùng khi đoạn đang mở mới chỉ có lời chào.
-    if (!hasUserMessage(messages) && !loading && !draft) {
-      resetChat()
-      return activeId
-    }
-    flushDraft()
-    const next = createGreetingSession()
-    setSessions((prev) => [next, ...prev])
-    setActiveId(next.id)
-    resetTransientState()
-    activeRef.current = true
-    return next.id
-  }
-
-  const deleteSession = (id: string) => {
-    const remaining = sessions.filter((s) => s.id !== id)
-    if (remaining.length === 0) {
-      const next = createGreetingSession()
-      setSessions([next])
-      setActiveId(next.id)
-      resetTransientState()
-      return
-    }
-    setSessions(remaining)
-    if (id === activeId) {
-      const sorted = [...remaining].sort((a, b) => b.updatedAt - a.updatedAt)
-      const nextActive = sorted[0]
-      setActiveId(nextActive.id)
-      resetTransientState()
-      const lastBot = [...nextActive.messages].reverse().find((m) => m.sender === 'BOT' && m.foods?.length)
-      lastFoodIdsRef.current = lastBot?.foods?.map((f) => f.id) ?? []
-    }
   }
 
   const submitFeedback = (index: number, rating: 'up' | 'down') => {
-    sendChatFeedback(sessionId.current, index, rating).catch(() => {})
+    sendChatFeedback(sessionIdRef.current, index, rating).catch(() => {})
   }
-
-  const sessionsSorted = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)
 
   return {
     input, setInput, loading, statusText, error, messages, draft, status,
     unavailable, statusNotice, sessionId, activeRef, handleSend, handleRetry,
     resetChat, stopStreaming, submitFeedback, pushBotMessage,
-    sessions: sessionsSorted, activeId, activeSession: activeSession ?? null,
-    createSession, switchSession, deleteSession,
     isStreaming: draft !== null,
   }
 }
