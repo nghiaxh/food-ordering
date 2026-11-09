@@ -149,7 +149,8 @@ class ChatbotServiceTest {
                  "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
                 """);
 
-        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món ngon", "s8", null, null));
+        // Dùng câu có ràng buộc chay để không rơi vào follow-up hỏi số người.
+        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món chay", "s8", null, null));
 
         assertThat(res.foods()).hasSize(5);
     }
@@ -288,6 +289,62 @@ class ChatbotServiceTest {
         ChatResponse res = service.chat(null, new ChatRequest("món không cay", "s5", null, null));
 
         assertThat(res.foods()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("Phân loại intent: thông tin quán, hướng dẫn đặt hàng, ngoài lề")
+    void phanLoaiIntent() {
+        assertThat(service.classifyIntent("Mấy giờ quán mở cửa?"))
+                .isEqualTo(ChatbotService.ChatIntent.RESTAURANT_INFO);
+        assertThat(service.classifyIntent("Cách đặt món thế nào?"))
+                .isEqualTo(ChatbotService.ChatIntent.ORDER_GUIDE);
+        assertThat(service.classifyIntent("Thời tiết hôm nay thế nào?"))
+                .isEqualTo(ChatbotService.ChatIntent.OUT_OF_SCOPE);
+        assertThat(service.classifyIntent("Món chay không cay"))
+                .isEqualTo(ChatbotService.ChatIntent.FOOD);
+    }
+
+    @Test
+    @DisplayName("Hỏi thông tin quán: trả tài liệu kèm nguồn, không có thẻ món")
+    void hoiThongTinQuan() {
+        ChatResponse res = service.chat(null, new ChatRequest("Mấy giờ quán mở cửa?", "si1", null, null));
+        assertThat(res.intent()).isEqualTo("RESTAURANT_INFO");
+        assertThat(res.foods()).isEmpty();
+        assertThat(res.reply()).contains("chưa có thông tin xác thực");
+    }
+
+    @Test
+    @DisplayName("Hỏi hướng dẫn đặt hàng: trả quy trình, không có thẻ món")
+    void hoiHuongDanDatHang() {
+        ChatResponse res = service.chat(null, new ChatRequest("Cách đặt món thế nào?", "si2", null, null));
+        assertThat(res.intent()).isEqualTo("ORDER_GUIDE");
+        assertThat(res.foods()).isEmpty();
+        assertThat(res.reply()).contains("PENDING");
+        assertThat(res.reply()).contains("UNPAID");
+    }
+
+    @Test
+    @DisplayName("Câu hỏi ngoài lề: từ chối lịch sự, không có thẻ món")
+    void hoiNgoaiLe() {
+        ChatResponse res = service.chat(null, new ChatRequest("Thời tiết hôm nay thế nào?", "si3", null, null));
+        assertThat(res.intent()).isEqualTo("OUT_OF_SCOPE");
+        assertThat(res.foods()).isEmpty();
+        assertThat(res.reply()).contains("Mình chỉ tư vấn được về món ăn của quán");
+    }
+
+    @Test
+    @DisplayName("Follow-up: câu gợi ý chung chung thì hỏi số người trước, không trả món ngay")
+    void followUpHoSoNguoi() {
+        ChatResponse res = service.chat(null, new ChatRequest("Gợi ý món đi", "si4", null, null));
+        assertThat(res.foods()).isEmpty();
+        assertThat(res.reply()).contains("mấy người");
+        // Câu đã có ràng buộc chay thì không hỏi nữa.
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":["chay"],"keywords":[]}
+                """);
+        ChatResponse res2 = service.chat(null, new ChatRequest("Món chay", "si5", null, null));
+        assertThat(res2.foods()).isNotEmpty();
     }
 
     /** Mock lần gọi AI đầu tiên (trích tiêu chí) trả về JSON, các lần sau trả về câu trả lời. */
