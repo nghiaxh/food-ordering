@@ -154,7 +154,7 @@ public class ChatbotService {
 
     /** Câu từ chối ngoài lề, mời khách quay lại 3 nhóm chính. */
     public String declineReply() {
-        return "Mình chỉ tư vấn được 3 việc: gợi ý món theo số người và ngân sách, thông tin quán, và hướng dẫn đặt hàng. "
+        return "Mình chỉ tư vấn được về món ăn của quán (gợi ý món, thông tin quán, hướng dẫn đặt hàng). "
                 + "Bạn muốn mình gợi ý món cho mấy người, hoặc hỏi giờ mở cửa/shipping thì cứ nhắn nhé!";
     }
 

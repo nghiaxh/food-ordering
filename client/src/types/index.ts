@@ -130,10 +130,19 @@ export interface FoodCard {
   totalPrice?: string
 }
 
+/** Nguồn trích dẫn khi bot tra tài liệu quán; client hiện dưới câu trả lời. */
+export interface ChatCitation {
+  sourceName: string
+  snippet: string
+}
+
 export interface ChatMessage {
   sender: 'USER' | 'BOT'
   content: string
   foods?: FoodCard[]
+  /** Nhóm câu hỏi: FOOD | RESTAURANT_INFO | ORDER_GUIDE | OUT_OF_SCOPE */
+  intent?: string
+  citations?: ChatCitation[]
 }
 
 /** Trạng thái trợ lý; `notice` có câu nhắc khi server chưa cấu hình khóa API. */
@@ -155,6 +164,16 @@ export interface ChatHistoryMessage {
 export interface AiSetting {
   settingKey: string
   settingValue: string
+}
+
+/** Tài liệu quán do admin nhập để chatbot tra cứu. */
+export interface KnowledgeDoc {
+  id: number
+  title: string
+  category: string | null
+  keywords: string | null
+  content: string
+  enabled: boolean
 }
 
 export interface Promotion {
