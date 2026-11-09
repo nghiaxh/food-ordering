@@ -574,6 +574,167 @@ class OrderServiceTest {
                         .isEqualTo(HttpStatus.NOT_FOUND.value()));
     }
 
+    @Test
+    @DisplayName("Tạo đơn với dòng hàng không có món bị từ chối")
+    void createFoodIdNullBiTuChoi() {
+        CreateOrderRequest req = new CreateOrderRequest(
+                List.of(new OrderItemRequest(null, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null);
+
+        assertThatThrownBy(() -> service.create(EMAIL, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("phải có món")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(pricing, never()).priceOrder(any());
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Tạo đơn với món không tồn tại bị từ chối")
+    void createMonKhongTonTaiBiTuChoi() {
+        when(foodRepo.findById(20L)).thenReturn(Optional.empty());
+
+        CreateOrderRequest req = new CreateOrderRequest(
+                List.of(new OrderItemRequest(20L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null);
+
+        assertThatThrownBy(() -> service.create(EMAIL, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Món không tồn tại")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(pricing, never()).priceOrder(any());
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Tạo đơn với email lạ ném lỗi hệ thống")
+    void createEmailLaNemNoSuchElement() {
+        when(userRepo.findByEmail("la@example.com")).thenReturn(Optional.empty());
+
+        CreateOrderRequest req = new CreateOrderRequest(
+                List.of(new OrderItemRequest(20L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null);
+
+        assertThatThrownBy(() -> service.create("la@example.com", req))
+                .isInstanceOf(NoSuchElementException.class);
+
+        verify(pricing, never()).priceOrder(any());
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Tạo đơn quản trị với khách không tồn tại bị từ chối")
+    void adminCreateKhachKhongTonTaiBiTuChoi() {
+        when(userRepo.findByEmail("khong-co@example.com")).thenReturn(Optional.empty());
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                "khong-co@example.com", List.of(new OrderItemRequest(21L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null, null);
+
+        assertThatThrownBy(() -> service.adminCreate(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Khách hàng không tồn tại")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Tạo đơn quản trị với status lạ bị từ chối")
+    void adminCreateStatusLaBiTuChoi() {
+        Food food = food(21L, "Cơm gà", "55000");
+        when(foodRepo.findById(21L)).thenReturn(Optional.of(food));
+        when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "55000"));
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, List.of(new OrderItemRequest(21L, 1)),
+                "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, "KHONG_CO", null);
+
+        assertThatThrownBy(() -> service.adminCreate(req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("không hợp lệ")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Quản trị đổi trạng thái và ghi đã trả thành công")
+    void adminUpdateDoiStatusVaPaidThanhCong() {
+        Orders order = order(140L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(140L)).thenReturn(Optional.of(order));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(paymentTxRepo.findByOrderId(any())).thenReturn(Optional.empty());
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, null, "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, "PREPARING", true);
+
+        Orders saved = service.adminUpdate(140L, req);
+
+        assertThat(saved.getStatus()).isEqualTo(Orders.Status.PREPARING);
+        assertThat(saved.getPaymentStatus()).isEqualTo(Orders.PaymentStatus.PAID);
+    }
+
+    @Test
+    @DisplayName("Quản trị sửa đơn với status lạ bị từ chối")
+    void adminUpdateStatusLaBiTuChoi() {
+        Orders order = order(141L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
+        when(orderRepo.findById(141L)).thenReturn(Optional.of(order));
+
+        AdminOrderRequest req = new AdminOrderRequest(
+                EMAIL, null, "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, "KHONG_CO", null);
+
+        assertThatThrownBy(() -> service.adminUpdate(141L, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("không hợp lệ")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.BAD_REQUEST.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Hủy đơn không tồn tại báo 404")
+    void cancelDonKhongTonTai() {
+        when(orderRepo.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.cancel(EMAIL, 999L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Không tìm thấy đơn")
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode().value())
+                        .isEqualTo(HttpStatus.NOT_FOUND.value()));
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Hủy đơn với email lạ ném lỗi hệ thống")
+    void cancelEmailLaNemNoSuchElement() {
+        when(userRepo.findByEmail("la@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.cancel("la@example.com", 100L))
+                .isInstanceOf(NoSuchElementException.class);
+
+        verify(orderRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Thanh toán với email lạ ném lỗi hệ thống")
+    void payEmailLaNemNoSuchElement() {
+        when(userRepo.findByEmail("la@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.pay("la@example.com", 100L))
+                .isInstanceOf(NoSuchElementException.class);
+
+        verify(orderRepo, never()).save(any());
+    }
+
     private static User user(Long id, String email) {
         User u = new User();
         u.setId(id);
