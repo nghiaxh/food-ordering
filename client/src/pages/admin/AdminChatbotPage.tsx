@@ -19,11 +19,11 @@ const MODEL_OPTIONS = [
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
 ]
 
-/** Trạng thái tài liệu hiện bằng tiếng Việt. */
-function statusLabel(v?: string): string {
-  if (v === 'PENDING') return 'Đang xử lý'
-  if (v === 'FAILED') return 'Lỗi'
-  return 'Sẵn sàng'
+/** Trạng thái tài liệu hiện bằng tiếng Việt, gộp cả cho phép bot dùng hay không. */
+function statusLabel(status?: string, enabled = true): string {
+  if (status === 'PENDING') return 'Đang xử lý'
+  if (status === 'FAILED') return 'Lỗi'
+  return enabled ? 'Sẵn sàng' : 'Tạm ngừng'
 }
 
 /** Nhóm tài liệu: giá trị lưu DB giữ nguyên, hiển thị nhãn tiếng Việt. */
@@ -187,7 +187,7 @@ export default function AdminChatbotPage() {
             { title: 'Nhóm', dataIndex: 'category', key: 'category', width: 140, render: (v?: string) => categoryLabel(v) },
             { title: 'Số phần', dataIndex: 'chunkCount', key: 'chunkCount', width: 80 },
             { title: 'File', dataIndex: 'fileName', key: 'fileName', ellipsis: true },
-            { title: 'Trạng thái', key: 'statusEnabled', width: 160, render: (_, d: KnowledgeDoc) => `${statusLabel(d.status)} - ${d.enabled ? 'Dùng' : 'Bỏ qua'}` },
+            { title: 'Trạng thái', key: 'statusEnabled', width: 120, render: (_, d: KnowledgeDoc) => statusLabel(d.status, d.enabled) },
             {
               title: 'Thao tác', key: 'actions', width: 280,
               render: (_, d: KnowledgeDoc) => (
