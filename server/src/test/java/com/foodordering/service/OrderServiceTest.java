@@ -64,7 +64,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn chứa món ngừng phục vụ bị từ chối")
-    void createChuaMonNgungPhucVuBiTuChoi() {
+    void createWithUnavailableFoodRejected() {
         Food food = new Food();
         food.setId(20L);
         food.setName("Bún bò Huế");
@@ -88,7 +88,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn thành công ghi giá từ database và ghi giao dịch thanh toán")
-    void createThanhCong() {
+    void createSucceeds() {
         Food food = food(20L, "Bún bò Huế", "70000");
         when(foodRepo.findById(20L)).thenReturn(Optional.of(food));
         when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "70000"));
@@ -118,7 +118,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Khách chỉ hủy được đơn đang chờ xác nhận")
-    void cancelDonKhongPendingBiTuChoi() {
+    void cancelNonPendingOrderRejected() {
         Orders order = order(100L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(100L)).thenReturn(Optional.of(order));
 
@@ -133,7 +133,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Đơn đã thanh toán không tự hủy trên hệ thống")
-    void cancelDonDaThanhToanBiTuChoi() {
+    void cancelPaidOrderRejected() {
         Orders order = order(101L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.PAID);
         when(orderRepo.findById(101L)).thenReturn(Optional.of(order));
 
@@ -148,7 +148,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Hủy đơn đang chờ và chưa trả thành công")
-    void cancelPendingThanhCong() {
+    void cancelPendingOrderSucceeds() {
         Orders order = order(110L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(110L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -161,7 +161,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Chuyển trạng thái không được bỏ bước trong quy trình")
-    void updateStatusKhongDuocBoBuoc() {
+    void updateStatusSkippingStepRejected() {
         Orders order = order(102L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         order.setPaymentMethod("COD");
         when(orderRepo.findById(102L)).thenReturn(Optional.of(order));
@@ -178,7 +178,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Chuyển trạng thái không được đi ngược")
-    void updateStatusKhongDuocDiNguoc() {
+    void updateStatusGoingBackwardRejected() {
         Orders order = order(103L, user(1L, EMAIL), Orders.Status.PREPARING, Orders.PaymentStatus.PAID);
         order.setPaymentMethod("COD");
         when(orderRepo.findById(103L)).thenReturn(Optional.of(order));
@@ -194,7 +194,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Đơn đã hoàn thành không thể đổi trạng thái nữa")
-    void updateStatusTerminalBiTuChoi() {
+    void updateStatusFromTerminalRejected() {
         Orders order = order(104L, user(1L, EMAIL), Orders.Status.COMPLETED, Orders.PaymentStatus.PAID);
         when(orderRepo.findById(104L)).thenReturn(Optional.of(order));
 
@@ -209,7 +209,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Chuyển trạng thái hợp lệ từ chờ xác nhận sang đã xác nhận")
-    void updateStatusPendingToConfirmedThanhCong() {
+    void updateStatusPendingToConfirmedSucceeds() {
         Orders order = order(111L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         order.setPaymentMethod("COD");
         when(orderRepo.findById(111L)).thenReturn(Optional.of(order));
@@ -223,7 +223,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Chuyển trạng thái hợp lệ từ đã xác nhận sang đang vận chuyển")
-    void updateStatusConfirmedToPreparingThanhCong() {
+    void updateStatusConfirmedToPreparingSucceeds() {
         Orders order = order(112L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(112L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -236,7 +236,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Chuyển trạng thái hợp lệ từ đang vận chuyển sang hoàn thành")
-    void updateStatusPreparingToCompletedThanhCong() {
+    void updateStatusPreparingToCompletedSucceeds() {
         Orders order = order(113L, user(1L, EMAIL), Orders.Status.PREPARING, Orders.PaymentStatus.PAID);
         when(orderRepo.findById(113L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -249,7 +249,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Đơn QR chưa thanh toán không được xác nhận")
-    void updateStatusQrChuaThanhToanBiTuChoi() {
+    void updateStatusQrUnpaidRejected() {
         Orders order = order(114L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         order.setPaymentMethod("QR");
         when(orderRepo.findById(114L)).thenReturn(Optional.of(order));
@@ -265,7 +265,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Trạng thái đơn không hợp lệ bị từ chối")
-    void updateStatusChuoiLaBiTuChoi() {
+    void updateStatusInvalidStringRejected() {
         Orders order = order(115L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(115L)).thenReturn(Optional.of(order));
 
@@ -278,7 +278,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Đơn không tìm thấy thì cập nhật trạng thái báo 404")
-    void updateStatusDonKhongTonTai() {
+    void updateStatusMissingOrderRejected() {
         when(orderRepo.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.updateStatus(999L, "CONFIRMED"))
@@ -290,7 +290,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Không được hủy đơn của người khác")
-    void cancelDonCuaNguoiKhacBiTuChoi() {
+    void cancelOtherUsersOrderRejected() {
         Orders order = order(105L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(105L)).thenReturn(Optional.of(order));
         when(userRepo.findByEmail("nguoi-khac@example.com"))
@@ -307,7 +307,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Khách xem đơn của mình thành công, email lạ ném lỗi")
-    void myOrdersThanhCongVaEmailLaBiTuChoi() {
+    void myOrdersSucceedsAndUnknownEmailThrows() {
         Orders order = order(120L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findByUserIdOrderByCreatedAtDesc(1L)).thenReturn(List.of(order));
 
@@ -318,7 +318,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị xem tất cả đơn thành công")
-    void allDonThanhCong() {
+    void allOrdersSucceeds() {
         Orders order = order(121L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(order));
 
@@ -327,7 +327,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn quản trị không có món bị từ chối")
-    void adminCreateKhongCoMonBiTuChoi() {
+    void adminCreateWithoutItemsRejected() {
         AdminOrderRequest req = new AdminOrderRequest(
                 EMAIL, List.of(), "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null, null);
 
@@ -340,7 +340,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn quản trị QR chưa trả mà xác nhận thẳng bị từ chối")
-    void adminCreateQrChuaTraXacNhanBiTuChoi() {
+    void adminCreateQrUnpaidConfirmRejected() {
         Food food = food(21L, "Cơm gà", "55000");
         when(foodRepo.findById(21L)).thenReturn(Optional.of(food));
         when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "55000"));
@@ -360,7 +360,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn quản trị thành công có thể ghi đã trả")
-    void adminCreateThanhCongCoPaid() {
+    void adminCreateWithPaidSucceeds() {
         Food food = food(21L, "Cơm gà", "55000");
         when(foodRepo.findById(21L)).thenReturn(Optional.of(food));
         when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "55000"));
@@ -386,7 +386,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị chỉ sửa giao hàng khi đơn đã xác nhận thì cho qua")
-    void adminUpdateChiSuaGiaoHangKhiConfirmedChoQua() {
+    void adminUpdateDeliveryOnlySucceeds() {
         Orders order = order(122L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(122L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -404,7 +404,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị không sửa được món khi đơn đã xác nhận")
-    void adminUpdateSuaMonKhiConfirmedBiTuChoi() {
+    void adminUpdateItemsWhenConfirmedRejected() {
         Orders order = order(123L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(123L)).thenReturn(Optional.of(order));
 
@@ -423,7 +423,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị sửa được món khi đơn đang chờ và chưa thanh toán")
-    void adminUpdateSuaMonKhiPendingChoQua() {
+    void adminUpdateItemsWhenPendingSucceeds() {
         Food food = food(20L, "Bún bò Huế", "70000");
         Orders order = order(124L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(124L)).thenReturn(Optional.of(order));
@@ -445,7 +445,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Đơn đã hoàn thành không sửa được nữa")
-    void adminUpdateDonHoanThanhBiTuChoi() {
+    void adminUpdateCompletedOrderRejected() {
         Orders order = order(106L, user(1L, EMAIL), Orders.Status.COMPLETED, Orders.PaymentStatus.PAID);
         when(orderRepo.findById(106L)).thenReturn(Optional.of(order));
 
@@ -460,7 +460,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Đơn đã hủy không sửa được nữa")
-    void adminUpdateDonDaHuyBiTuChoi() {
+    void adminUpdateCancelledOrderRejected() {
         Orders order = order(107L, user(1L, EMAIL), Orders.Status.CANCELLED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(107L)).thenReturn(Optional.of(order));
 
@@ -475,7 +475,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Đơn đã hủy thì không thanh toán được")
-    void payDonDaHuyBiTuChoi() {
+    void payCancelledOrderRejected() {
         Orders order = order(125L, user(1L, EMAIL), Orders.Status.CANCELLED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(125L)).thenReturn(Optional.of(order));
 
@@ -488,7 +488,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Khách tự thanh toán đơn chưa trả thành công")
-    void payThanhCong() {
+    void paySucceeds() {
         Orders order = order(126L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(126L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -502,7 +502,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Cập nhật thanh toán đồng bộ với giao dịch")
-    void updatePaymentDongBoGiaoDich() {
+    void updatePaymentSyncsTransaction() {
         Orders order = order(127L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         PaymentTransaction tx = new PaymentTransaction();
         tx.setOrder(order);
@@ -521,7 +521,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Hoàn tác thanh toán về chưa trả thành công")
-    void updatePaymentHoanTacThanhCong() {
+    void updatePaymentRevertsToUnpaid() {
         Orders order = order(128L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.PAID);
         PaymentTransaction tx = new PaymentTransaction();
         tx.setOrder(order);
@@ -539,7 +539,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Cập nhật thanh toán giữ nguyên khi đã cùng trạng thái")
-    void updatePaymentGiuNguyenKhiDaCungTrangThai() {
+    void updatePaymentNoOpWhenSameStatus() {
         Orders order = order(129L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.PAID);
         when(orderRepo.findById(129L)).thenReturn(Optional.of(order));
 
@@ -552,7 +552,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị xóa đơn thành công xóa giao dịch trước")
-    void adminDeleteThanhCong() {
+    void adminDeleteSucceeds() {
         Orders order = order(130L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(130L)).thenReturn(Optional.of(order));
 
@@ -564,7 +564,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Xóa đơn không tồn tại báo 404")
-    void adminDeleteKhongTonTai() {
+    void adminDeleteMissingOrderRejected() {
         when(orderRepo.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.adminDelete(999L))
@@ -576,7 +576,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn với dòng hàng không có món bị từ chối")
-    void createFoodIdNullBiTuChoi() {
+    void createWithNullFoodIdRejected() {
         CreateOrderRequest req = new CreateOrderRequest(
                 List.of(new OrderItemRequest(null, 1)),
                 "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null);
@@ -593,7 +593,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn với món không tồn tại bị từ chối")
-    void createMonKhongTonTaiBiTuChoi() {
+    void createWithMissingFoodRejected() {
         when(foodRepo.findById(20L)).thenReturn(Optional.empty());
 
         CreateOrderRequest req = new CreateOrderRequest(
@@ -612,7 +612,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn với email lạ ném lỗi hệ thống")
-    void createEmailLaNemNoSuchElement() {
+    void createWithUnknownEmailThrowsNoSuchElement() {
         when(userRepo.findByEmail("la@example.com")).thenReturn(Optional.empty());
 
         CreateOrderRequest req = new CreateOrderRequest(
@@ -628,7 +628,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn quản trị với khách không tồn tại bị từ chối")
-    void adminCreateKhachKhongTonTaiBiTuChoi() {
+    void adminCreateWithMissingCustomerRejected() {
         when(userRepo.findByEmail("khong-co@example.com")).thenReturn(Optional.empty());
 
         AdminOrderRequest req = new AdminOrderRequest(
@@ -646,7 +646,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Tạo đơn quản trị với status lạ bị từ chối")
-    void adminCreateStatusLaBiTuChoi() {
+    void adminCreateWithInvalidStatusRejected() {
         Food food = food(21L, "Cơm gà", "55000");
         when(foodRepo.findById(21L)).thenReturn(Optional.of(food));
         when(pricing.priceOrder(any())).thenReturn(pricedOf(food, 1, "55000"));
@@ -666,7 +666,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị đổi trạng thái và ghi đã trả thành công")
-    void adminUpdateDoiStatusVaPaidThanhCong() {
+    void adminUpdateStatusAndPaidSucceeds() {
         Orders order = order(140L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(140L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -683,7 +683,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị sửa đơn với status lạ bị từ chối")
-    void adminUpdateStatusLaBiTuChoi() {
+    void adminUpdateInvalidStatusRejected() {
         Orders order = order(141L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(141L)).thenReturn(Optional.of(order));
 
@@ -701,7 +701,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Hủy đơn không tồn tại báo 404")
-    void cancelDonKhongTonTai() {
+    void cancelMissingOrderRejected() {
         when(orderRepo.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.cancel(EMAIL, 999L))
@@ -715,7 +715,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Hủy đơn với email lạ ném lỗi hệ thống")
-    void cancelEmailLaNemNoSuchElement() {
+    void cancelWithUnknownEmailThrowsNoSuchElement() {
         when(userRepo.findByEmail("la@example.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.cancel("la@example.com", 100L))
@@ -726,7 +726,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Thanh toán với email lạ ném lỗi hệ thống")
-    void payEmailLaNemNoSuchElement() {
+    void payWithUnknownEmailThrowsNoSuchElement() {
         when(userRepo.findByEmail("la@example.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.pay("la@example.com", 100L))
@@ -737,7 +737,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Thanh toán đơn không tồn tại báo 404")
-    void payDonKhongTonTai() {
+    void payMissingOrderRejected() {
         when(orderRepo.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.pay(EMAIL, 999L))
@@ -751,7 +751,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị sửa đơn với status không đổi vẫn lưu thành công")
-    void adminUpdateGiuNguyenStatusThanhCong() {
+    void adminUpdateSameStatusSucceeds() {
         Orders order = order(142L, user(1L, EMAIL), Orders.Status.CONFIRMED, Orders.PaymentStatus.UNPAID);
         when(orderRepo.findById(142L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -769,7 +769,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Quản trị hoàn tác thanh toán về chưa trả thành công")
-    void adminUpdatePaidFalseThanhCong() {
+    void adminUpdatePaidFalseSucceeds() {
         Orders order = order(143L, user(1L, EMAIL), Orders.Status.PENDING, Orders.PaymentStatus.PAID);
         when(orderRepo.findById(143L)).thenReturn(Optional.of(order));
         when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -824,3 +824,4 @@ class OrderServiceTest {
                 EMAIL, null, "Nguyễn Văn A", "0900000001", "Địa chỉ", "COD", null, null, null);
     }
 }
+
