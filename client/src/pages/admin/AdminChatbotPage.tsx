@@ -169,13 +169,13 @@ export default function AdminChatbotPage() {
             </Popover>
           </span>
         }
+        extra={
+          <Upload accept=".pdf,.docx,.txt,.md" showUploadList={false} beforeUpload={(f) => handleUpload(f as File)}>
+            <UiButton kind="default" size="small"><UploadOutlined /> Tải lên file</UiButton>
+          </Upload>
+        }
         className="mb-6"
       >
-        <div className="mb-3 flex flex-wrap items-end justify-end gap-3">
-          <Upload accept=".pdf,.docx,.txt,.md" showUploadList={false} beforeUpload={(f) => handleUpload(f as File)}>
-            <UiButton kind="default"><UploadOutlined /> Tải lên file</UiButton>
-          </Upload>
-        </div>
         <Table
           rowKey={(d) => d.id}
           dataSource={documents}
