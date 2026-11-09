@@ -389,6 +389,37 @@ class AuthServiceTest {
                         .isEqualTo(HttpStatus.NOT_FOUND.value()));
     }
 
+    @Test
+    @DisplayName("Đổi mật khẩu với email lạ ném lỗi hệ thống")
+    void changePasswordEmailLaNemNoSuchElement() {
+        when(userRepo.findByEmail("la@example.com")).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> service.changePassword("la@example.com",
+                        new ChangePasswordRequest("mat-khau-dung", "mat-khau-moi123")))
+                .isInstanceOf(java.util.NoSuchElementException.class);
+
+        verify(encoder, never()).encode(any());
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Sửa tài khoản giữ nguyên email cũ vẫn cho qua")
+    void adminUpdateGiuNguyenEmailDuocChoQua() {
+        User user = customer();
+        when(userRepo.findById(1L)).thenReturn(java.util.Optional.of(user));
+        when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        User saved = service.adminUpdate(1L, new UserRequest(
+                "khach@example.com", null, "Tên Mới", "0912345678", null));
+
+        // Email không đổi thì không kiểm tra trùng, kể cả email đó đang tồn tại cho chính user này.
+        assertThat(saved.getEmail()).isEqualTo("khach@example.com");
+        assertThat(saved.getFullName()).isEqualTo("Tên Mới");
+        assertThat(saved.getPassword()).isEqualTo("hashed");
+        verify(userRepo, never()).existsByEmail(anyString());
+        verify(userRepo).save(user);
+    }
+
     private static User customer() {
         User u = new User();
         u.setId(1L);
