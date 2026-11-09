@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { Alert, Input, InputNumber, Modal, Select, Switch, Table, Upload, message } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+import { Alert, Input, InputNumber, Modal, Popover, Select, Space, Switch, Table, Upload, message } from 'antd'
+import { UploadOutlined, InfoCircleOutlined, EyeOutlined, EditOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons'
 import { adminGetChatHistory, adminGetSettings, adminSaveSetting, getChatbotStatus, adminGetDocuments, adminGetDocumentStats, adminGetDocumentChunks, adminSaveDocument, adminDeleteDocument, adminUploadDocument, adminReingestDocument } from '../../api/api'
 import useAsyncData from '../../hooks/useAsyncData'
 import useAsyncAction from '../../hooks/useAsyncAction'
@@ -19,6 +19,30 @@ const MODEL_OPTIONS = [
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
 ]
 
+/** Trạng thái tài liệu hiện bằng tiếng Việt. */
+function statusLabel(v?: string): string {
+  if (v === 'PENDING') return 'Đang xử lý'
+  if (v === 'FAILED') return 'Lỗi'
+  return 'Sẵn sàng'
+}
+
+/** Nhóm tài liệu: giá trị lưu DB giữ nguyên, hiển thị nhãn tiếng Việt. */
+const CATEGORY_OPTIONS = [
+  { value: 'HOURS', label: 'Giờ mở cửa' },
+  { value: 'DELIVERY', label: 'Giao hàng' },
+  { value: 'PAYMENT', label: 'Thanh toán' },
+  { value: 'ORDER', label: 'Đặt / hủy đơn' },
+  { value: 'SHOP', label: 'Địa chỉ quán' },
+  { value: 'ALLERGY', label: 'Dị ứng, thành phần' },
+  { value: 'OTHER', label: 'Khác' },
+]
+
+function categoryLabel(v?: string | null): string {
+  if (!v) return 'Khác'
+  const found = CATEGORY_OPTIONS.find((o) => o.value === v)
+  return found ? found.label : v
+}
+
 function Bubble({ message }: { message: ChatHistoryMessage }) {
   const [expanded, setExpanded] = useState(false)
   const isBot = message.sender === 'BOT'
@@ -29,7 +53,7 @@ function Bubble({ message }: { message: ChatHistoryMessage }) {
       <div className="max-w-[75%]">
         <div className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${isBot ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200' : 'rounded-br-sm bg-amber-600 text-white'}`}>{text}</div>
         <p className={`mt-1 text-[11px] text-stone-400 ${isBot ? '' : 'text-right'}`}>{isBot ? 'Bot' : 'User'} · {formatTime(message.createdAt)}</p>
-        {long ? <button type="button" onClick={() => setExpanded((v) => !v)} className={`mt-0.5 text-xs font-medium text-amber-700 hover:underline ${isBot ? '' : 'ml-auto block'}`}>{expanded ? 'Thu gọn' : 'Xem thêm'}</button> : null}
+        {long ? <button type="button" onClick={() => setExpanded((v) => !v)} className="mt-0.5 cursor-pointer text-xs font-medium text-amber-700 hover:underline ml-auto block">{expanded ? 'Thu gọn' : 'Xem thêm'}</button> : null}
       </div>
     </div>
   )
@@ -111,20 +135,20 @@ export default function AdminChatbotPage() {
   const handleUpload = async (file: File) => {
     try {
       const res = await adminUploadDocument(file, uploadTitle, uploadCategory, uploadKeywords)
-      message.success(`Đã nạp tài liệu "${res.title}", đang chia ${res.chunkCount ?? 0} đoạn`)
+      message.success(`Đã nạp tài liệu "${res.title}", đang chia ${res.chunkCount ?? 0} phần`)
       setUploadTitle(''); setUploadCategory(''); setUploadKeywords('')
       void fetchData()
       return false
     } catch (e) { message.error(apiErrorMessage(e) ?? 'Tải lên thất bại'); return false }
   }
-  const reingest = async (id: number) => { try { await adminReingestDocument(id); message.success('Đã nạp lại'); void fetchData() } catch (e) { message.error(apiErrorMessage(e) ?? 'Nạp lại thất bại') } }
+  const reingest = async (id: number) => { try { await adminReingestDocument(id); message.success('Đã tạo lại'); void fetchData() } catch (e) { message.error(apiErrorMessage(e) ?? 'Tạo lại thất bại') } }
   const viewChunks = async (d: KnowledgeDoc) => { setChunksDoc(d); try { const c = await adminGetDocumentChunks(d.id); setChunks(c) } catch { setChunks([]) } }
 
   return (
     <div>
       <div className="mb-3"><h1 className="text-2xl font-bold tracking-tight text-stone-900">Cấu hình chatbot</h1></div>
-      {error ? <Alert type="error" showIcon className="mb-6" message="Không tải được dữ liệu chatbot" description="Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang." /> : null}
-      {status && !status.available ? <Alert type="warning" showIcon className="mb-6" message="Chưa cấu hình trợ lý AI" description={<>Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.</>} /> : null}
+      {error ? <Alert type="error" showIcon style={{ marginBottom: 24 }} message="Không tải được dữ liệu chatbot" description="Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang." /> : null}
+      {status && !status.available ? <Alert type="warning" showIcon style={{ marginBottom: 24 }} message="Chưa cấu hình trợ lý AI" description={<>Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.</>} /> : null}
 
       <PageSection className="mb-6">
         <div className="grid gap-6 sm:grid-cols-2">
@@ -136,11 +160,29 @@ export default function AdminChatbotPage() {
         <div className="mt-5 flex justify-end border-t border-stone-100 pt-4"><UiButton kind="primary" loading={savingSettings} onClick={onSaveSettings}>Lưu cài đặt</UiButton></div>
       </PageSection>
 
-      <PageSection title={`Tài liệu (${documents.length})`} subtitle={`Thông tin quán chatbot tra cứu theo ngữ nghĩa (vector) + từ khóa. ${stats ? `Tổng ${stats.totalChunks} đoạn, ${stats.ready} sẵn sàng, ${stats.failed} lỗi.` : ''}`} className="mb-6">
+      <PageSection
+        title={
+          <span className="flex items-center gap-1">
+            Tài liệu ({documents.length})
+            <Popover
+              content={
+                <div className="max-w-xs text-xs leading-relaxed text-stone-700">
+                  Tài liệu là thông tin quán (giờ mở cửa, giao hàng, thanh toán...). Hệ thống tự chia mỗi tài liệu thành các phần nội dung để chatbot tìm theo nghĩa. Bấm <b>Xem</b> để xem các phần đã chia, <b>Tạo lại</b> để chia lại khi bạn sửa nội dung.
+                </div>
+              }
+              trigger="click"
+            >
+              <InfoCircleOutlined className="cursor-pointer text-stone-400" />
+            </Popover>
+          </span>
+        }
+        subtitle={`Thông tin quán chatbot tra cứu theo ngữ nghĩa (vector) + từ khóa. ${stats ? `Tổng ${stats.totalChunks} phần, ${stats.ready} sẵn sàng, ${stats.failed} lỗi.` : ''}`}
+        className="mb-6"
+      >
         <div className="mb-3 flex flex-wrap items-end gap-3">
           <div className="flex flex-1 flex-wrap gap-2">
             <Input placeholder="Tiêu đề (tùy chọn, lấy tên file)" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-48" />
-            <Input placeholder="Nhóm (HOURS, DELIVERY...)" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)} className="w-40" />
+            <Select placeholder="Nhóm" value={uploadCategory || undefined} onChange={setUploadCategory} options={CATEGORY_OPTIONS} className="w-40" allowClear />
             <Input placeholder="Từ khóa (cách nhau phím phẩy)" value={uploadKeywords} onChange={(e) => setUploadKeywords(e.target.value)} className="w-56" />
           </div>
           <Upload accept=".pdf,.docx,.txt,.md" showUploadList={false} beforeUpload={(f) => handleUpload(f as File)}>
@@ -156,19 +198,20 @@ export default function AdminChatbotPage() {
           locale={{ emptyText: <EmptyState icon="message" title="Chưa có tài liệu nào." hint="Tải lên PDF/DOCX/TXT hoặc thêm bằng chữ." /> }}
           columns={[
             { title: 'Tiêu đề', dataIndex: 'title', key: 'title' },
-            { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (v?: string) => v || 'READY' },
-            { title: 'Đoạn', dataIndex: 'chunkCount', key: 'chunkCount', width: 70 },
+            { title: 'Nhóm', dataIndex: 'category', key: 'category', width: 140, render: (v?: string) => categoryLabel(v) },
+            { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, render: (v?: string) => statusLabel(v) },
+            { title: 'Số phần', dataIndex: 'chunkCount', key: 'chunkCount', width: 80 },
             { title: 'File', dataIndex: 'fileName', key: 'fileName', ellipsis: true },
             { title: 'Bật', dataIndex: 'enabled', key: 'enabled', width: 80, render: (v: boolean) => (v ? 'Có' : 'Không') },
             {
-              title: 'Thao tác', key: 'actions', width: 260,
+              title: 'Thao tác', key: 'actions', width: 280,
               render: (_, d: KnowledgeDoc) => (
-                <div className="flex gap-2">
-                  <button type="button" className="text-amber-700 hover:underline" onClick={() => openEditDoc(d)}>Sửa</button>
-                  <button type="button" className="text-amber-700 hover:underline" onClick={() => viewChunks(d)}>Đoạn</button>
-                  <button type="button" className="text-amber-700 hover:underline" onClick={() => reingest(d.id)}>Nạp lại</button>
-                  <button type="button" className="text-red-600 hover:underline" onClick={() => deleteDoc(d.id)}>Xóa</button>
-                </div>
+                <Space size="small">
+                  <button type="button" title="Sửa tiêu đề/nội dung" className="cursor-pointer text-amber-700 hover:underline" onClick={() => openEditDoc(d)}><EditOutlined /> Sửa</button>
+                  <button type="button" title="Xem các phần nội dung đã chia" className="cursor-pointer text-amber-700 hover:underline" onClick={() => viewChunks(d)}><EyeOutlined /> Xem</button>
+                  <button type="button" title="Chia lại phần nội dung và tạo vector mới" className="cursor-pointer text-amber-700 hover:underline" onClick={() => reingest(d.id)}><ReloadOutlined /> Tạo lại</button>
+                  <button type="button" title="Xóa tài liệu này" className="cursor-pointer text-red-600 hover:underline" onClick={() => deleteDoc(d.id)}><DeleteOutlined /> Xóa</button>
+                </Space>
               ),
             },
           ]}
@@ -198,18 +241,24 @@ export default function AdminChatbotPage() {
       <Modal title={editingDoc ? 'Sửa tài liệu' : 'Thêm tài liệu'} open={docModalOpen} onOk={saveDoc} onCancel={() => setDocModalOpen(false)} okText="Lưu" cancelText="Hủy">
         <div className="space-y-4">
           <div><label htmlFor="doc-title" className="block text-sm font-medium text-stone-700">Tiêu đề</label><Input id="doc-title" className="mt-1" value={docForm.title} onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))} placeholder="Ví dụ: Giờ mở cửa" /></div>
-          <div><label htmlFor="doc-cat" className="block text-sm font-medium text-stone-700">Nhóm</label><Input id="doc-cat" className="mt-1" value={docForm.category} onChange={(e) => setDocForm((f) => ({ ...f, category: e.target.value }))} placeholder="HOURS, DELIVERY, PAYMENT, ORDER..." /></div>
+          <div><label htmlFor="doc-cat" className="block text-sm font-medium text-stone-700">Nhóm</label><Select id="doc-cat" className="mt-1 w-full" value={docForm.category || undefined} onChange={(v) => setDocForm((f) => ({ ...f, category: v || '' }))} options={CATEGORY_OPTIONS} placeholder="Chọn nhóm" /></div>
           <div><label htmlFor="doc-keys" className="block text-sm font-medium text-stone-700">Từ khóa (cách nhau dấu phẩy)</label><Input id="doc-keys" className="mt-1" value={docForm.keywords} onChange={(e) => setDocForm((f) => ({ ...f, keywords: e.target.value }))} placeholder="giờ mở cửa, mấy giờ đóng cửa" /></div>
           <div><label htmlFor="doc-content" className="block text-sm font-medium text-stone-700">Nội dung</label><Input.TextArea id="doc-content" rows={4} className="mt-1" value={docForm.content} onChange={(e) => setDocForm((f) => ({ ...f, content: e.target.value }))} placeholder="Nội dung bot trả lời khi khách hỏi..." /></div>
-          <div className="flex items-center gap-2"><Switch checked={docForm.enabled} onChange={(v) => setDocForm((f) => ({ ...f, enabled: v }))} /><span className="text-sm text-stone-600">Đang bật (bot mới tra được)</span></div>
+          <div>
+            <span className="block text-sm font-medium text-stone-700">Trạng thái</span>
+            <div className="mt-1 flex items-center gap-2">
+              <Switch checked={docForm.enabled} onChange={(v) => setDocForm((f) => ({ ...f, enabled: v }))} />
+              <span className="text-sm text-stone-600">{docForm.enabled ? 'Cho phép chatbot tra cứu' : 'Chatbot sẽ bỏ qua'}</span>
+            </div>
+          </div>
         </div>
       </Modal>
 
-      <Modal title={chunksDoc ? `Đoạn của "${chunksDoc.title}"` : 'Đoạn'} open={chunksDoc !== null} onCancel={() => setChunksDoc(null)} footer={null}>
+      <Modal title={chunksDoc ? `Nội dung đã chia của "${chunksDoc.title}"` : 'Nội dung đã chia'} open={chunksDoc !== null} onCancel={() => setChunksDoc(null)} footer={null}>
         <div className="space-y-2 max-h-[400px] overflow-auto">
-          {chunks.length === 0 ? <p className="text-sm text-stone-500">Chưa có đoạn (có thể chưa nạp lại sau khi sửa).</p> : chunks.map((c) => (
+          {chunks.length === 0 ? <p className="text-sm text-stone-500">Chưa có phần nội dung (có thể chưa tạo lại sau khi sửa).</p> : chunks.map((c) => (
             <div key={c.id} className="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
-              <p className="mb-1 text-xs font-semibold text-stone-500">Đoạn {c.chunkIndex + 1}</p>
+              <p className="mb-1 text-xs font-semibold text-stone-500">Phần {c.chunkIndex + 1}</p>
               <p className="whitespace-pre-wrap">{c.content}</p>
             </div>
           ))}
