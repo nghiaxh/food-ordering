@@ -12,7 +12,7 @@ public interface ChatbotKnowledgeChunkRepository extends JpaRepository<ChatbotKn
     long countByDocumentId(Long documentId);
 
     /** Tim theo cosine similarity bang pgvector; tra ve [chunk, distance] da sap xep. */
-    @Query(value = "SELECT * FROM chatbot_knowledge_chunk WHERE embedding IS NOT NULL ORDER BY embedding <=> ?::vector LIMIT ?1", nativeQuery = true)
+    @Query(value = "SELECT * FROM chatbot_knowledge_chunk WHERE embedding IS NOT NULL ORDER BY embedding <=> ?1::vector LIMIT ?2", nativeQuery = true)
     List<ChatbotKnowledgeChunk> findByVectorSimilarity(String vectorLiteral, int limit);
 
     List<ChatbotKnowledgeChunk> findByEmbeddingIsNotNull();
