@@ -166,7 +166,11 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
           const hasDiscount = discountedUnit < originalUnit
 
           return (
-            <div key={food.id} className="flex gap-3 border-b border-stone-100 py-3.5 last:border-0">
+            <div
+              key={food.id}
+              data-testid="cart-line"
+              className="flex gap-3 border-b border-stone-100 py-3.5 last:border-0"
+            >
               <Link to={`/foods/${food.id}`} onClick={onClose} className="shrink-0 self-start">
                 <UiImg src={food.imageUrl} alt={food.name} className="h-16 w-16 rounded-xl" />
               </Link>
@@ -216,7 +220,10 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
                       Xóa
                     </button>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums text-stone-900">
+                  <span
+                    data-testid="cart-line-total"
+                    className="shrink-0 text-sm font-semibold tabular-nums text-stone-900"
+                  >
                     {formatVND(lineTotal)}
                   </span>
                 </div>
@@ -287,6 +294,7 @@ function CartDrawerContent({ onClose }: { onClose: () => void }) {
               <div className="mt-1 flex items-baseline justify-between border-t border-stone-200 pt-1.5">
                 <span className="text-sm font-semibold text-stone-900">Tổng thanh toán</span>
                 <span
+                  data-testid="cart-total"
                   className={`text-lg font-bold tabular-nums text-amber-800 transition-opacity ${
                     quoteStale ? 'opacity-60' : ''
                   }`}
