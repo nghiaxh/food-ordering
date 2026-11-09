@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { Input, Tooltip, message } from 'antd'
-import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined, ReloadOutlined, FullscreenOutlined, LikeOutlined, DislikeOutlined, StopOutlined } from '@ant-design/icons'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined, ReloadOutlined, LikeOutlined, DislikeOutlined, StopOutlined } from '@ant-design/icons'
+import { Link, useLocation } from 'react-router-dom'
 import type { Food, FoodCard } from '../types'
 import { formatVND } from '../utils/format'
 import { useHasBottomBar } from '../hooks/useHasBottomBar'
@@ -13,12 +13,10 @@ import UiButton from './UiButton'
 import UiImg from './UiImg'
 
 /**
- * Widget chatbot nổi ở mọi trang khách. Logic hội thoại nằm ở useChatConversation
- * để trang full page /chatbot dùng chung một session.
+ * Widget chatbot nổi ở mọi trang khách với một session duy nhất lưu qua localStorage.
  */
 export default function ChatbotWidget() {
   const location = useLocation()
-  const navigate = useNavigate()
   const bottomBar = useHasBottomBar()
   const open = useUiStore((s) => s.chatOpen)
   const openChat = useUiStore((s) => s.openChat)
@@ -42,7 +40,6 @@ export default function ChatbotWidget() {
 
   const user = useAuthStore((s) => s.user)
   const isAdmin = location.pathname.startsWith('/admin') || user?.role === 'ADMIN'
-  const isChatbotRoute = location.pathname === '/chatbot' || location.pathname.startsWith('/chatbot/')
   const addToCart = useCartStore((s) => s.add)
   const canAdd = user !== null && user.role !== 'ADMIN'
 
@@ -63,12 +60,8 @@ export default function ChatbotWidget() {
     activeRef.current = true
     openChat()
   }
-  const handleMaximize = () => {
-    closeChat()
-    navigate('/chatbot')
-  }
 
-  if (isAdmin || isChatbotRoute) return null
+  if (isAdmin) return null
   const showBody = !unavailable || messages.some((m) => m.sender === 'USER')
   const streamingMessage = draft
     ? {
@@ -96,16 +89,6 @@ export default function ChatbotWidget() {
             <p className="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">
               Trợ lý gợi ý món ăn
             </p>
-            <Tooltip title="Toàn trang" placement="bottom">
-              <button
-                type="button"
-                aria-label="Mở toàn trang"
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-amber-100 transition hover:bg-white/15 hover:text-white"
-                onClick={handleMaximize}
-              >
-                <FullscreenOutlined />
-              </button>
-            </Tooltip>
             <Tooltip title="Làm mới hội thoại" placement="bottom">
               <button
                 type="button"
