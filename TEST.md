@@ -130,6 +130,10 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-BOT-11 | Lưu lịch sử khách vãng lai | Khách chưa đăng nhập gửi 2 câu hỏi liên tiếp | Câu hỏi thứ hai được lưu vào `chat_message` với `user = null` theo `sessionId`; ngữ cảnh phiên được dùng cho lượt trả lời | | |
 | TC-BOT-12 | Giải quyết đại từ tham chiếu | Sau khi gợi ý món, hỏi "món đó rẻ hơn được không?" | Server dùng tên món vừa gợi ý để trích tiêu chí; kết quả lọc dựa trên các món đó, không trả về danh sách không liên quan | | |
 | TC-BOT-13 | Validate tiêu chí | AI trích xuất `keywords` quá chắt không khớp món nào | Server bỏ lọc từ khóa, vẫn giữ ràng buộc thuộc tính (cay, dị ứng, nhãn); không trả danh sách rỗng vô lý | | |
+| TC-BOT-17 | Thông tin quán có nguồn | Hỏi "Mấy giờ quán mở cửa?" (đã có tài liệu Giờ mở cửa) | Bot trả nội dung tài liệu, kèm `citations` hiện "Nguồn: Giờ mở cửa", không có thẻ món, không bịa giờ | | |
+| TC-BOT-18 | Hướng dẫn đặt hàng | Hỏi "Cách đặt món thế nào?" | Bot trả quy trình (thêm vào giỏ -> thanh toán, hủy PENDING+UNPAID, trạng thái Đang vận chuyển), không có thẻ món | | |
+| TC-BOT-19 | Follow-up hỏi từng bước | Hỏi "Gợi ý món đi" (chưa có số người, ngân sách, ràng buộc) | Bot không trả thẻ món, hỏi "Bạn đang muốn ăn cho mấy người?"; hỏi "Món chay" thì không hỏi nữa mà trả món ngay | | |
+| TC-BOT-20 | Streaming và trang toàn trang | Mở `/chatbot`, gửi câu hỏi, bấm Dừng khi chữ đang chạy | Chữ chạy dần theo từ có status "Đang tìm món...", bấm Dừng giữ phần đã hiện; `/chatbot` giữ nguyên hội thoại với widget nổi | | |
 
 ### 1.2.6. Quản trị hệ thống (Admin Portal: UC26 - UC35)
 
