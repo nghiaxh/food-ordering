@@ -57,7 +57,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Thêm món ngừng phục vụ vào giỏ bị từ chối")
-    void themMonNgungPhucVuBiTuChoi() {
+    void addUnavailableFoodRejected() {
         Food food = new Food();
         food.setId(10L);
         food.setName("Phở bò");
@@ -75,7 +75,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Thêm món không tồn tại vào giỏ bị từ chối")
-    void themMonKhongTonTaiBiTuChoi() {
+    void addNonExistentFoodRejected() {
         when(foodRepo.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.add(EMAIL, 99L, 1))
@@ -89,7 +89,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Dòng giỏ mới bắt đầu từ 0 trước khi cộng số lượng khách chọn")
-    void dongMoiTuKhaiTuZero() {
+    void newCartLineStartsAtZero() {
         Food food = new Food();
         food.setId(11L);
         food.setName("Bún chả");
@@ -113,7 +113,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Thêm món đã có trong giỏ thì cộng dồn số lượng")
-    void congDonMonDaCoTrongGio() {
+    void addingExistingFoodAccumulatesQuantity() {
         User user = user();
         Food food = food(11L, "Bún chả");
         CartItem existing = new CartItem();
@@ -132,7 +132,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Giỏ hàng của khách trả đúng danh sách dòng")
-    void listTraDungDanhSach() {
+    void listReturnsUserCartItems() {
         CartItem item = new CartItem();
         item.setUser(user());
         item.setFood(food(11L, "Bún chả"));
@@ -147,7 +147,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Cập nhật số lượng món trong giỏ thành công")
-    void updateQuantityThanhCong() {
+    void updateQuantitySucceeds() {
         CartItem item = new CartItem();
         item.setUser(user());
         item.setFood(food(11L, "Bún chả"));
@@ -162,7 +162,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Cập nhật món chưa có trong giỏ bị từ chối")
-    void updateQuantityMonChuaCoBiTuChoi() {
+    void updateQuantityMissingItemRejected() {
         when(itemRepo.findByUserIdAndFoodId(1L, 11L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.updateQuantity(EMAIL, 11L, 4))
@@ -176,7 +176,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Xóa một món khỏi giỏ thành công")
-    void removeThanhCong() {
+    void removeSucceeds() {
         CartItem item = new CartItem();
         item.setUser(user());
         item.setFood(food(11L, "Bún chả"));
@@ -189,7 +189,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Xóa món chưa có trong giỏ bị từ chối")
-    void removeMonChuaCoBiTuChoi() {
+    void removeMissingItemRejected() {
         when(itemRepo.findByUserIdAndFoodId(1L, 11L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.remove(EMAIL, 11L))
@@ -203,7 +203,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Xóa toàn bộ giỏ thành công")
-    void clearXoaToanBoGio() {
+    void clearSucceeds() {
         service.clear(EMAIL);
 
         verify(itemRepo).deleteByUserId(1L);
@@ -211,7 +211,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Email không tồn tại thì thao tác giỏ ném lỗi hệ thống")
-    void emailKhongTonTaiNemNoSuchElement() {
+    void unknownEmailThrowsNoSuchElement() {
         // findByEmail rỗng (không stub) nên mọi thao tác đều chạm orElseThrow() đầu hàm.
         assertThatThrownBy(() -> service.list("la@example.com"))
                 .isInstanceOf(NoSuchElementException.class);
@@ -227,7 +227,7 @@ class CartServiceTest {
 
     @Test
     @DisplayName("Báo giá giỏ ủy thác cho PricingService")
-    void quoteUyThacChoPricingService() {
+    void quoteDelegatesToPricingService() {
         List<OrderItemRequest> items = List.of(new OrderItemRequest(11L, 2));
         PricingService.PricedCart priced = new PricingService.PricedCart(
                 List.of(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, List.of());
@@ -259,3 +259,4 @@ class CartServiceTest {
         return f;
     }
 }
+
