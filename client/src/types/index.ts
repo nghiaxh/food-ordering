@@ -143,6 +143,8 @@ export interface ChatMessage {
   /** Nhóm câu hỏi: FOOD | RESTAURANT_INFO | ORDER_GUIDE | OUT_OF_SCOPE */
   intent?: string
   citations?: ChatCitation[]
+  /** Các nút hành động tiếp theo do server quyết định; chỉ tin bot mới nhất còn quickReplies. */
+  quickReplies?: string[]
 }
 
 /** Trạng thái trợ lý; `notice` có câu nhắc khi server chưa cấu hình khóa API. */

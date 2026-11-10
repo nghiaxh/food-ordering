@@ -145,7 +145,7 @@ export const chat = (
   lastFoodIds: number[] = [],
 ) =>
   http
-    .post<{ reply: string; foods: FoodCard[]; intent?: string; citations?: ChatCitation[] }>('/chatbot/chat', {
+    .post<{ reply: string; foods: FoodCard[]; intent?: string; citations?: ChatCitation[], quickReplies?: string[] }>('/chatbot/chat', {
       message,
       sessionId,
       history,
@@ -155,10 +155,6 @@ export const chat = (
 
 export const getChatbotStatus = (signal?: AbortSignal) =>
   http.get<ChatbotStatus>('/chatbot/status', { signal }).then((r) => r.data)
-
-/** Ghi phản hồi up/down trên tin bot, để admin xem tin nào cần cải thiện. */
-export const sendChatFeedback = (sessionId: string, messageIndex: number, rating: 'up' | 'down') =>
-  http.post('/chatbot/feedback', { sessionId, messageIndex, rating })
 
 export type { ChatMessage }
 
