@@ -67,6 +67,13 @@ services:
       VITE_API_URL: http://localhost:8080/api
     ports:
       - "5173:5173"
+    # Chỉ coi là sẵn sàng khi Vite thật sự phục vụ, tránh CI curl vào cổng đã publish nhưng chưa có backend.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
     volumes:
       - ./client:/app
       - /app/node_modules
