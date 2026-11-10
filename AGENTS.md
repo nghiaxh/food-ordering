@@ -89,7 +89,7 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   `{ message }` tiếng Việt với đúng mã 4xx/5xx, không lộ chi tiết nội bộ.
   Token sinh bằng `src/lib/jwt.ts`, middleware tra CSDL mỗi request để tài khoản bị
   khoá mất quyền ngay. CORS mở cho demo.
-- **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
+- **Giá luôn lấy từ DB**: `modules/order` `createOrder` set `price` = giá trong DB, không tin client.
 - **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; nút thêm món bị khoá kèm tooltip
   "Đăng nhập để thêm món vào giỏ" (NTooltip trong thẻ món), `/checkout` nằm trong
   requireAuth còn `/cart` chỉ chuyển hướng về `/checkout`. Giỏ mở bằng drawer toàn cục

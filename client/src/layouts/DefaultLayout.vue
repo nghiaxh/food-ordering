@@ -4,6 +4,7 @@ import { watch } from 'vue'
 import HeaderGlobal from '@/components/HeaderGlobal.vue'
 import CartDrawer from '@/modules/cart/components/CartDrawer.vue'
 import NotificationsDrawer from '@/modules/notification/components/NotificationsDrawer.vue'
+import ChatbotWidget from '@/modules/chatbot/components/ChatbotWidget.vue'
 import { useAuthStore } from '@/modules/auth/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 
@@ -40,4 +41,5 @@ watch(
   </div>
   <CartDrawer />
   <NotificationsDrawer />
+  <ChatbotWidget />
 </template>
