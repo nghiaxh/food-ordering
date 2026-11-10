@@ -20,7 +20,9 @@ COPY . .
 RUN npx prisma generate
 ENV NODE_ENV=development
 EXPOSE 8080
-CMD ["npm", "run", "dev"]
+# Áp migration và seed (bỏ qua nếu DB đã có dữ liệu) trước khi khởi động server.
+# migrate deploy idempotent; seed tự bỏ qua khi bảng users đã có dữ liệu.
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npm run dev"]
 
 # ---- build: biên dịch TS sang dist (tsc cũng biên dịch src/generated) ----
 FROM deps AS build
