@@ -5,41 +5,41 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
 
 ## Kiến trúc
 
-- **client/** - React + TypeScript, Vite, Ant Design, Zustand, Axios, React Router.
-  SPA thuần, không SSR. App code trong `src/` (`main.tsx` + `App.tsx` + `api/` +
-  `store/` + `types/` + `components/` + `pages/`). Toast/message dùng AntD trực tiếp.
-  UI tiếng Việt.
-- **server/** - Spring Boot 3.5 (Java 21), Maven, Spring Security + JWT (access token
-  đơn giản), Spring Data JPA, PostgreSQL 18. Package gốc `com.foodordering`, lớp chính
-  `FoodOrderingApplication`. Layered: `controller` → `service` → `repository`; `config`,
-  `security`, `entity`, `dto` mỗi thư mục riêng.
-- **AI** - `service/AiClient` là lớp DUY NHẤT gọi API AI (REST bằng `RestClient`, `jsonMode` ép
+- **client/** - Vue 3 (Composition API, `<script setup>`) + TypeScript, Vite, Naive UI,
+  Tailwind CSS 4, Pinia, Axios, Vue Router. SPA thuần, không SSR. Cấu trúc `modules/` theo
+  module chức năng (`modules/auth/`, `modules/menu/`...), mỗi module gồm `api.ts`, `store.ts`
+  (nếu có store) và `components/`, `pages/`; hạ tầng dùng chung ở `shared/` (`api/http.ts`,
+  `types/`, `utils/`, `stores/`). Toast/message dùng naive-ui (`createDiscreteApi`). UI tiếng Việt.
+- **server/** - Express 5 + TypeScript, Prisma 7 (driver adapter `@prisma/adapter-pg`), PostgreSQL 18.
+  JWT bằng `jsonwebtoken` (HS256) + `bcrypt`; validate đầu vào bằng `zod`. Cấu trúc `src/modules/`
+  theo module chức năng giống client, lớp chính `src/server.ts`; middleware tập trung ở
+  `src/middleware/` (auth, error), tiện ích ở `src/lib/`.
+- **AI** - `server/src/lib/gemini.ts` là lớp DUY NHẤT gọi API AI (REST bằng `fetch`, `jsonMode` ép
   JSON, timeout 15s). Hỗ trợ Gemini và OpenAI; nhà cung cấp + tên mô hình đọc từ bảng `ai_setting`
-  do admin đặt trong trang Chatbot, fallback về `app.ai.provider` / `app.ai.model`. Muốn thêm
-  nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `app.ai.api-key`, không gửi xuống client.
+  do admin đặt trong trang Chatbot, fallback về `AI_PROVIDER` / `AI_MODEL`. Muốn thêm
+  nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không gửi xuống client.
 - **Infra** - `docker-compose.yml` 1 file, 2 profile: `prod` (db + server-prod +
   client-prod) và `dev` (db + server-dev + client-dev với volume mount, hot reload).
-  Server dev reload nhờ `spring-boot-devtools` + tự `mvn compile` (xem Gotchas).
-  Một file `.env` duy nhất ở root chứa mọi bí mật; cả compose và `application.yml`
-  đều đọc theo cùng tên biến.
+  Server dev reload nhờ `tsx watch` (không cần bước compile riêng).
+  Một file `.env` duy nhất ở root chứa mọi bí mật; compose tự dựng `DATABASE_URL`.
 
 ### Chatbot - hai lượt gọi AI, bốn bước chống AI bịa món/giá
 
 ```
-Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [AiClient, jsonMode]
+Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [gemini.ts, jsonMode]
            → (2) Server truy vấn DB và lọc món bằng code xác định
            → (3) AI viết câu trả lời dựa TRÊN DANH SÁCH MÓN THẬT
            → (4) Thẻ món trả về client luôn lấy ID từ DB, không từ text AI
 ```
 
 AI **không bao giờ** được tự nghĩ ra món/giá. Prompt truy vấn món chỉ nhận danh sách
-có sẵn từ `FoodRepository`; nếu lỗi AI/JSON sai thì `extractCriteria` trả `null` và
+có sẵn từ `modules/menu`; nếu lỗi AI/JSON sai thì `criteria.ts` extractCriteria trả `null` và
 `chat()` chuyển sang nhánh dự phòng. Đừng coi `null` là tiêu chí rỗng: tiêu chí rỗng
 khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan gì tới câu hỏi, khách hỏi
 món chay lại nhận cà phê đá. Chỉ khách **đã đăng nhập** mới ghi lịch sử hội thoại; khách
 vãng lai chat được nhờ `history`/`lastFoodIds` client gửi kèm, không lưu vào DB.
 
-**Cách áp tiêu chí** (`ChatbotService.selectFoods`): lọc thuộc tính món trước (còn phục
+**Cách áp tiêu chí** (`modules/chatbot/service.ts (selectFoods)`): lọc thuộc tính món trước (còn phục
 vụ, độ cay, thành phần loại trừ, nhãn chế độ ăn, từ khóa), rồi mới chọn món theo ngân
 sách. `maxBudget` là **TỔNG** tiền của cả bộ gợi ý, không phải giá một món. Số phần cần
 tính theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá × số phần`; đừng
@@ -51,7 +51,7 @@ Mỗi lượt trả tối đa **5 thẻ**; `maxSuggestions()` kẹp cấu hình 
 Số phần và tổng tiền phải tính ở server và gửi kèm thẻ món, không giao cho AI tự tính.
 
 **Nhánh dự phòng khi không gọi được AI** (429/5xx, hết thời gian chờ, JSON hỏng):
-`chat()` rơi sang `selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code theo
+`chat()` rơi sang `service.ts` selectFoodsByCode + `reply.ts` fallbackReply. Món được chấm điểm bằng code theo
 từ khóa trùng tên món/nguyên liệu/nhãn (không tính mô tả món, không tính từng từ của tên
 danh mục), rồi áp ràng buộc đọc chắc chắn từ câu: không cay, chay, loại trừ hải sản, ngân
 sách, số người. Câu trả lời chỉ tóm tắt một dòng rồi mời khách bấm thẻ món, **không** liệt
@@ -66,7 +66,7 @@ gần nhất). Server chỉ dùng `lastFoodIds` khi câu có cụm tham chiếu 
 và áp ràng buộc mới. Không dùng độ dài câu để đoán hỏi tiếp. Nhánh dự phòng khi AI lỗi cũng
 bám context này.
 
-**Thiếu hoặc hỏng khóa AI**: `AiClient.isConfigured()` false khi `AI_API_KEY` rỗng **hoặc** nhà
+**Thiếu hoặc hỏng khóa AI**: `lib/gemini.ts` isConfigured() false khi `AI_API_KEY` rỗng **hoặc** nhà
 cung cấp đã từ chối khóa (401/403, hay 400 kèm `API_KEY_INVALID` của Gemini); cờ "bị từ chối"
 giữ tới khi khởi động lại server. `GET /api/chatbot/status` gọi `verifyKey()`: lần đầu thử một
 câu tối giản với nhà cung cấp rồi nhớ kết quả, nên mở trang là biết khóa sai ngay chứ không đợi
@@ -77,67 +77,62 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
 
 ### Key wiring (không rõ từ tên file)
 
-- **Không dùng Flyway.** `spring.jpa.hibernate.ddl-auto=update` để Hibernate tự tạo/cập
-  nhật bảng. Dữ liệu mẫu nạp qua `config/DataSeeder` (`CommandLineRunner`); seed bị bỏ qua
-  nếu `userRepo.count() > 0`, nên không nhân đôi dữ liệu demo khi chạy lại.
-- **Security**: `SecurityConfig` stateless, `permitAll()` cho `/api/auth/register`,
-  `/api/auth/login` (matcher không giới hạn method), GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
+- **Không dùng Flyway.** Schema do `prisma migrate` quản lý (`server/prisma/migrations/`);
+  seed nạp qua `server/prisma/seed.ts`, bỏ qua nếu bảng `users` đã có dữ liệu,
+  nên không nhân đôi dữ liệu demo khi chạy lại.
+- **Security**: middleware stateless `requireAuth`/`optionalAuth`/`requireRole` ở
+  `src/middleware/auth.ts`, không session. Public: `/api/auth/register`,
+  `/api/auth/login`, GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
   `/api/uploads/**` và toàn bộ `/api/chatbot/**` (khách vãng lai vẫn chat được);
-  `/api/admin/**` yêu cầu `ROLE_ADMIN`; phần còn lại `authenticated()`.
-  **Phải có `dispatcherTypeMatchers(ERROR).permitAll()`**: thiếu dòng này thì mọi lỗi
-  400/404/500 đều bị đổi thành 401 khi Tomcat dispatch sang `/error`.
-  Token sinh bằng `JwtUtil`, lọc bằng `JwtFilter` (tra CSDL mỗi request để tài khoản bị
-  khoá mất quyền ngay). CORS mở cho demo.
+  `/api/admin/**` yêu cầu role `ADMIN`; `/api/cart/**`, `/api/orders`, `/api/orders/**` yêu cầu
+  role `CUSTOMER`; phần còn lại cần đăng nhập. Mọi lỗi đi qua `middleware/error.ts` và trả
+  `{ message }` tiếng Việt với đúng mã 4xx/5xx, không lộ chi tiết nội bộ.
+  Token sinh bằng `src/lib/jwt.ts`, middleware tra CSDL mỗi request để tài khoản bị
+  khoá mất quyền ngay. CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `OrderService.create` set `price` = giá trong DB, không tin client.
 - **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; nút thêm món bị khoá kèm tooltip
-  "Đăng nhập để thêm món vào giỏ" (`components/LoginTooltip.tsx`), `/checkout` nằm trong
-  `RequireAuth` còn `/cart` chỉ chuyển hướng về `/checkout`. Giỏ mở bằng drawer toàn cục
-  (`components/CartDrawer.tsx`), khách bấm giỏ khi chưa đăng nhập được đưa sang `/login` kèm cờ
+  "Đăng nhập để thêm món vào giỏ" (NTooltip trong thẻ món), `/checkout` nằm trong
+  requireAuth còn `/cart` chỉ chuyển hướng về `/checkout`. Giỏ mở bằng drawer toàn cục
+  (`modules/cart/components/CartDrawer.vue`), khách bấm giỏ khi chưa đăng nhập được đưa sang `/login` kèm cờ
   `openCart` để mở lại sau khi đăng nhập. `cartStore.add` trả `Promise<boolean>` và từ chối khi
   chưa đăng nhập. Store thay dòng optimistic
   bằng `CartItem` server trả để món thêm từ chatbot có đủ field và giá đúng; response chỉ được áp
-  theo số thứ tự request của từng món. `CartItem.quantity` mặc định `1`, nên `CartService.add` phải
-  tạo dòng mới với `quantity = 0` trước khi cộng, không thì lần thêm đầu tiên dư 1 phần.
-- **Tiền chỉ tính ở `PricingService`**: `POST /api/cart/quote` nhận `{ items }` đúng danh sách dòng
-  client đang hiển thị và tính bằng `priceOrder`; lúc tạo đơn dùng chung service này. Quote **không
+  theo số thứ tự request của từng món. `CartItem.quantity` mặc định `1`, nên `cart` module tạo
+  dòng mới với `quantity = 0` trước khi cộng, không thì lần thêm đầu tiên dư 1 phần.
+- **Tiền chỉ tính ở `modules/pricing` (server)**: `POST /api/cart/quote` nhận `{ items }` đúng danh sách dòng
+  client đang hiển thị và tính bằng `priceOrder`; lúc tạo đơn dùng chung module này. Quote **không
   đọc lại giỏ DB** để response cũ không ghi đè giỏ mới. Client không nhân phần trăm hay trừ khuyến
   mãi, chỉ hiện lại `QuoteLine.lineDiscount` (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một
-  khuyến mãi tự động tốt nhất. `hooks/useCartQuote.ts` là nơi duy nhất gọi quote, dùng chung cho
+  khuyến mãi tự động tốt nhất. `composables/useCartQuote.ts` là nơi duy nhất gọi quote, dùng chung cho
   drawer giỏ và `/checkout`.
-- **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`OrderService.canEditItems`);
+- **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`order` module `canEditItems`);
   đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (`requireEditable`); các
   trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `AdminOrderRequest.items`
   được phép null, còn `adminCreate` tự kiểm danh sách món không rỗng. Khách cũng chỉ hủy được đơn
-  `PENDING` + chưa thanh toán; client ẩn nút bằng `canCancelOrder` trong `client/src/utils/orders.ts`.
+  `PENDING` + chưa thanh toán; client ẩn nút bằng `canCancelOrder` trong `client/src/shared/utils/orders.ts`.
 
 - **Nhãn PREPARING là "Đang vận chuyển"**: mã trạng thái trong DB không đổi, chỉ đổi nhãn hiển thị
-  (`ORDER_STATUS_LABEL`, `OrderService.label`, thông báo "đang được vận chuyển"); nút admin
+  (`ORDER_STATUS_LABEL`, `order` module, thông báo "đang được vận chuyển"); nút admin
   `CONFIRMED → PREPARING` là "Giao hàng", nút **Đặt lại** ở `/orders` chỉ hiện khi `COMPLETED`.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
   trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
   từng mục nằm trong `TEST.md`.
 - **Types client phải đồng bộ với DTO server** (thủ công). Sửa DTO nhớ cập nhật
-  `client/src/types/index.ts` và `client/src/api/api.ts`.
+  `client/src/shared/types/index.ts` và file `api.ts` của module tương ứng.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
   lên qua `POST /api/admin/uploads/image` (JPG/PNG/WEBP, ≤ 2 MB, kiểm bằng chữ ký đầu file
-  chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `app.upload.dir`
+  chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `UPLOAD_DIR`
   (volume `uploads`) và phục vụ tại `/api/uploads/**`; endpoint trả URL **tuyệt đối** nên
   không cần sửa nginx.
 - **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, có hero ngắn, dải danh mục ảnh và
   "Ưu đãi hôm nay" trước lưới món. Chi tiết món là **trang riêng** `/foods/:id` trong
   `DefaultLayout` (không còn Drawer hay route con). Bộ lọc của trang chủ nằm trên URL (`category`,
   `keyword`, `min`, `max`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`), đọc bằng
-  `useSearchParams`. Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi trang 12 món và phân trang
+  `useRoute().query`. Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi trang 12 món và phân trang
   số trang. Vị trí cuộn lưới lưu ở `sessionStorage['menu-scroll']`, nút quay lại của
   trang chi tiết dùng `state.from` để giữ nguyên query.
-- **Nút bấm dùng `components/UiButton.tsx`**, chỉ 6 dạng `primary`, `primary-lg`, `default`,
-  `danger`, `icon`, `fab`; prop tên là `kind` vì AntD đã dùng `variant` cho kiểu nút. Không tự
-  viết class nút mới. **Đừng ghi đè kích thước bằng class.** Hai class `!h-*` có cùng độ ưu
-  tiên nên Tailwind quyết định theo thứ tự sinh CSS, không phải thứ tự truyền vào, nên
-  truyền `className="!h-9"` lên nút có preset `!h-10` sẽ **không** có tác dụng. Muốn nhỏ lại
-  thì truyền `size="small"`; bảng `HEIGHTS` trong UiButton đã tính sẵn.
-- **Chiều cao nút phải ghi bằng tiền tố `!`** (`!h-11`): AntD nạp CSS-in-JS sau Tailwind và
-  sẽ ghi đè chiều cao, nút chatbot từng bị vì thế mà chỉ còn 40px.
+- **Nút bấm**: dùng trực tiếp `NButton` của Naive UI; không viết wrapper nút mới. Không ghi đè
+  chiều cao bằng class `!h-*` đi ngược lại chiều cao mặc định của naive-ui.
 - **Thanh điều hướng một hàng ở mọi kích thước**: logo (`BrandMark`, bấm về `/`), ô tìm kiếm
   co giãn, nút đơn hàng, nút giỏ, avatar/nút đăng nhập. Từ `lg` chuông và đơn hàng có nút riêng
   trên header (chuông mang chấm đỏ chưa đọc); dưới `lg` hai mục này nằm trong menu tài khoản
@@ -148,7 +143,7 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   `top-[var(--header-h)]`, vùng cuộn của `FoodsPage` dùng `calc(100dvh-var(--header-h))`. Đổi
   chiều cao chỉ sửa biến, đừng hard-code lại ở ba nơi. Trang chi tiết và checkout cũng dùng
   `top-[calc(var(--header-h)+1rem)]` cho cột sticky.
-- **Chatbot mở bằng `store/uiStore.ts`** (`chatOpen`), không còn state cục bộ, để hero và empty
+- **Chatbot mở bằng `shared/stores/uiStore.ts`** (`chatOpen`), không còn state cục bộ, để hero và empty
   state mở được; nút làm mới hội thoại xoá ngữ cảnh cũ và cấp `sessionId` mới. Dải gợi ý luôn
   nằm trên ô nhập, cuộn ngang trên mobile, thay vì biến mất sau tin đầu.
 - **Chatbot chỉ giữ thẻ của tin bot mới nhất** (tối đa 5); tin bot cũ vẫn còn chữ nhưng mất
@@ -162,7 +157,7 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   không chặn bấm vào thẻ món.
 - **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
   Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
-  sửa `DataSeeder` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
+  sửa `server/prisma/seed.ts` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
   khi DB đã có dữ liệu. Cỡ ảnh theo ô hiển thị: `foods` 1200px, `categories` 800px,
   `hero` 1280px (hero vốn đã blur + opacity nên quality thấp vẫn đẹp).
 
@@ -172,24 +167,23 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 
 **Client** (`./client`):
 - Dev server: `npm run dev` (http://localhost:5173)
-- Build: `npm run build` (tsc --noEmit + vite build → `dist/`)
-- Typecheck: `npm run typecheck` (tsc --noEmit). Không có lint target, client chưa có test runner; kiểm tra bằng typecheck + build.
+- Build: `npm run build` (vue-tsc --noEmit + vite build → `dist/`)
+- Typecheck: `npm run typecheck` (vue-tsc --noEmit). Không có lint target, client chưa có test runner; kiểm tra bằng typecheck + build.
 - API client dùng `VITE_API_URL` làm `baseURL`; `vite.config.ts` không có proxy `/api`.
 
 **Server** (`./server`):
-- Dev: `docker compose --profile dev up --build` từ repo root (postgres + server-dev +
-  client-dev, hot reload), hoặc `mvn spring-boot:run` (cần Postgres ở localhost:5432
-  và nạp các biến từ `.env` - Maven không tự đọc `.env`)
-- Build/test: `mvn package` / `mvn test`. Có 3 test class (`PricingServiceTest`,
-  `ChatbotServiceTest`, `OrderDtosValidationTest`), chạy độc lập không cần DB.
+- Dev: `npm run dev` (tsx watch, http://localhost:8080/api; cần Postgres ở localhost:5432
+  và biến môi trường từ root `.env` — server tự đọc qua dotenv; hoặc `docker compose --profile dev up --build`)
+- Build/test: `npm run build` / `npm test`. Unit test Vitest trong `tests/`, chạy độc lập không cần DB.
+- Migration CSDL: `npx prisma migrate dev` (tạo migration), `npx prisma migrate deploy` (áp dụng), `npx prisma db seed` (nạp demo).
 - Prod: `docker compose --profile prod up --build -d`
 
 **Full stack** (repo root):
 - Prod: `docker compose --profile prod up --build`
 - Dev: `docker compose --profile dev up --build`
 - `docker compose up` (không profile) chỉ khởi động Postgres.
-- Compose tự dựng `DB_URL` từ `DB_NAME`; `AI_PROVIDER` mặc định `gemini`, `UPLOAD_DIR=/app/uploads`.
-  Các biến còn lại đọc từ `.env`, tên khớp `application.yml` (`DB_USER`/`DB_PASSWORD`, `JWT_SECRET`,
+- Compose tự dựng `DATABASE_URL` từ `DB_NAME`; `AI_PROVIDER` mặc định `gemini`, `UPLOAD_DIR=/app/uploads`.
+  Các biến còn lại đọc từ `.env`, tên khớp cấu hình server (`DB_USER`/`DB_PASSWORD`, `JWT_SECRET`,
   `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_MODEL`).
 
 ## Quy ước comment và tài liệu
@@ -217,18 +211,15 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - **`.env` bắt buộc** và chứa mọi bí mật (DB, JWT, Gemini). Copy từ `.env.example` →
   `.env`. `.gitignore` đã chặn `.env` ở root.
 - **`docker compose up` lần đầu chậm ~30s là đúng**: `client-dev`/`client-prod` chờ
-  `condition: service_healthy`, mà server cần ~28s (mvn compile + Spring Boot). Trước đó client
+  `condition: service_healthy`, mà server cần thời gian cài deps + khởi động Node. Trước đó client
   gọi vào cổng 8080 đã publish nhưng chưa có backend nên ra `net::ERR_EMPTY_RESPONSE`. Đừng bỏ
   healthcheck để "nhanh hơn".
 - UI tiếng Việt (`lang: vi`). Giữ chuỗi giao diện và thông báo lỗi bằng tiếng Việt.
-- **Quyền ADMIN kiểm soát ở server** bằng HTTP (`hasRole("ADMIN")` trên `/api/admin/**`),
+- **Quyền ADMIN kiểm soát ở server** bằng middleware (`requireRole('ADMIN')` trên `/api/admin/**`),
   không chỉ dựa vào ẩn menu client. Route guard client chỉ là UX.
-- **Hot reload server**: `spring-boot-devtools` restart khi file `.class` đổi. Trong
-  container chỉ mount mã nguồn nên cần biên dịch: chạy `docker compose --profile dev exec
-  server-dev sh -c "while true; do mvn -q compile; sleep 3; done"` ở một terminal khác
-  (hoặc để IDE biên dịch vào `server/target/classes`).
+- **Hot reload server**: `tsx watch` tự restart khi file trong `src/` đổi — không cần bước compile riêng.
 - **Lưu ý phiên đăng nhập:** `authStore` hỗ trợ `localStorage` và `sessionStorage`;
-  `client/src/api/http.ts` đọc token từ `localStorage` rồi fallback `sessionStorage`, nên ô
+  `client/src/shared/api/http.ts` đọc token từ `localStorage` rồi fallback `sessionStorage`, nên ô
   "Ghi nhớ đăng nhập" hoạt động đúng cả hai chế độ.
 - **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
   `AdminLayout` (menu trái 5 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
@@ -237,7 +228,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   `/foods/*` có thanh thêm món trên mobile. Trang mới có thanh cố định đáy
   thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh che. Hai drawer giỏ/thông báo
   dùng `activeDrawer` trong `uiStore` để không chồng mask.
-- `JwtFilter` nuốt exception không hợp lệ (coi như chưa đăng nhập) - đừng log token.
+- `requireAuth`/`optionalAuth` bọc lỗi không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
 - **`AI_API_KEY` trong `.env` phải là khóa thật.** Để trống, sai hoặc hết hạn thì trợ lý bị khóa
