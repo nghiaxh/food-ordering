@@ -1,16 +1,4 @@
 @import "tailwindcss";
-@import "antd/dist/reset.css" layer(base);
-
-/*
-  AntD Image (CSS-in-JS) chèn `.ant-image .ant-image-img { width:100%; height:auto }`
-  ngoài cascade layer nên đè mọi class Tailwind. Ép ảnh luôn lấp đầy wrapper;
-  mọi kích thước đặt ở wrapper (xem UiImg), ảnh chỉ giữ object-fit.
-*/
-.ant-image .ant-image-img {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover;
-}
 
 @theme {
   --font-heading: "Be Vietnam Pro", Inter, sans-serif;
@@ -35,7 +23,6 @@
     scroll-behavior: auto !important;
   }
 }
-
 
 /* Khung chat nở lên từ góc dưới phải khi mở: nhanh, nhỏ và không đẩy nội dung. */
 @keyframes chat-in {
@@ -65,10 +52,6 @@ html {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-}
-
-.ant-typography {
   font-family: var(--font-heading);
 }
 
@@ -112,15 +95,6 @@ html:has(.auth-shell)::-webkit-scrollbar {
   display: none;
 }
 
-html:has(.profile-page) {
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-html:has(.profile-page)::-webkit-scrollbar {
-  display: none;
-}
-
 /*
   Trang thực đơn tự cuộn trong vùng riêng. Khoá cuộn tài liệu để không hiện thêm scrollbar
   của html: chiều cao `calc(100dvh - header)` lẻ vài phần mười px nên html vẫn đủ điều kiện
@@ -128,14 +102,4 @@ html:has(.profile-page)::-webkit-scrollbar {
 */
 html:has(.kiosk-scroll) {
   overflow-y: hidden;
-}
-
-/* Biểu mẫu đăng nhập và đăng ký: ẩn gợi ý dưới ô nhập vì đã có thông báo riêng
-   khi bấm nút, tránh mỗi lần gõ lại thấy hai lớp thông báo trùng nhau. */
-.auth-form .ant-form-item {
-  margin-bottom: 16px;
-}
-
-.auth-form .ant-form-item-explain {
-  display: none;
 }
