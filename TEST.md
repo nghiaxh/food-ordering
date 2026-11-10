@@ -14,9 +14,9 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 - **MT1 — Đầy đủ chức năng:** Đảm bảo toàn bộ luồng nghiệp vụ hoạt động trơn tru theo đặc tả (xác thực, thực đơn, giỏ hàng, tính giá khuyến mãi tự động, thanh toán mô phỏng, đơn hàng, quản trị món/danh mục/khách hàng/báo cáo).
 - **MT2 — Toàn vẹn dữ liệu & Ràng buộc biên:** Dữ liệu tính toán từ server luôn chính xác (giá lấy từ DB, không tin client; tổng tiền voucher không âm; chuyển đổi trạng thái đơn 1 chiều).
 - **MT3 — Chatbot an toàn & tin cậy:** Chatbot AI tư vấn chuẩn xác từ thực đơn thật, **tuyệt đối không bịa món, bịa giá, hay bịa trạng thái phục vụ**; chuyển nhánh dự phòng (fallback) mượt mà khi AI timeout hoặc API key lỗi.
-- **MT4 — Phân quyền & Bảo mật:** Kiểm soát quyền hạn chặt chẽ ở cấp API backend (`SecurityConfig`), không phụ thuộc việc ẩn/hiện UI. Tài khoản bị khoá mất quyền tức thời.
+- **MT4 - Phân quyền & Bảo mật:** Kiểm soát quyền hạn chặt chẽ ở cấp API backend (middleware `requireAuth`/`requireRole`), không phụ thuộc việc ẩn/hiện UI. Tài khoản bị khoá mất quyền tức thời.
 
-### Môi trường và Dữ liệu mẫu (DataSeeder)
+### Môi trường và Dữ liệu mẫu (prisma/seed.ts)
 - **Tài khoản quản trị:** `namnguyen@demo.com` / `namnguyen` (Nguyễn Hoàng Nam, vai trò `ADMIN`), `huongtran@demo.com` / `huongtran` (Trần Thu Hương, vai trò `ADMIN`)
 - **Tài khoản khách hàng:** `tuanpham@demo.com` / `tuanpham` (Phạm Văn Tuấn), `khangnguyen@demo.com` / `khangnguyen` (Nguyễn Minh Khang), `thaotran@demo.com` / `thaotran` (Trần Phương Thảo), `linhduong@demo.com` / `linhduong` (Dương Ngọc Linh), `sonnguyen@demo.com` / `sonnguyen` (Nguyễn Thanh Sơn), `trungdang@demo.com` / `trungdang` (Đặng Quốc Trung), `duchoang@demo.com` / `duchoang` (Hoàng Minh Đức), `tunghoang@demo.com` / `tunghoang` (Hoàng Thanh Tùng). Mật khẩu bằng phần trước dấu `@` trong email.
 - **Dữ liệu nạp sẵn:** 5 danh mục, 32 món ăn (28 còn phục vụ, 4 ngừng phục vụ), 4 chương trình khuyến mãi tự động ("Cuối tuần mát lạnh", "Món may mắn hôm nay", "Giảm 10k cho đơn từ 100k", "Ưu đãi buổi trưa"), 15 đơn hàng mẫu đủ 5 trạng thái (`PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`), 12 đánh giá mẫu, 5 thông báo và 4 dòng giỏ mẫu.
