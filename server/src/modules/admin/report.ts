@@ -2,6 +2,7 @@
 
 import writeExcelFile from "write-excel-file/node";
 import { prisma } from "../../lib/prisma.js";
+import { businessTimeParts, BUSINESS_UTC_OFFSET } from "../../lib/businessTime.js";
 
 export interface ReportRange {
   from: Date;
@@ -19,9 +20,10 @@ export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange => {
 const parseDate = (raw: string, endOfDay = false): Date => {
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed;
-  const d = new Date(`${raw}T00:00:00`);
+  // Ngày trần "YYYY-MM-DD" hiểu là nửa đầu/cuối ngày theo giờ VN — báo cáo phục vụ khách Việt,
+  // không theo TZ máy chủ (CI/docker chạy UTC).
+  const d = new Date(endOfDay ? `${raw}T23:59:59.999${BUSINESS_UTC_OFFSET}` : `${raw}T00:00:00${BUSINESS_UTC_OFFSET}`);
   if (Number.isNaN(d.getTime())) throw new Error("Khoảng ngày không hợp lệ");
-  if (endOfDay) d.setHours(23, 59, 59, 999);
   return d;
 };
 
@@ -60,7 +62,8 @@ export const revenueByDay = async (range: ReportRange) => {
   const byDay = new Map<string, { revenue: number; orders: number }>();
   for (const o of orders) {
     if (o.status === "CANCELLED") continue;
-    const day = o.createdAt.toISOString().slice(0, 10);
+    // Doanh thu theo ngày bucket theo ngày lịch VN, không theo ngày UTC.
+    const day = businessTimeParts(o.createdAt).dayKey;
     const entry = byDay.get(day) ?? { revenue: 0, orders: 0 };
     entry.revenue += Number(o.total);
     entry.orders += 1;
