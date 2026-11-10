@@ -181,7 +181,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 ## 2.1. Kiểm thử Unit Test phía Server (Vitest)
 
 Kiểm thử tự động backend tập trung vào việc bảo vệ các thuật toán lõi và nghiệp vụ biên phức tạp mà không phụ thuộc hạ tầng bên ngoài (chạy độc lập, không cần Docker/DB):
-- **pricing.test.ts**: quy tắc giảm giá tự động theo từng dòng, chọn chương trình tốt nhất, chặn giảm giá vượt tổng tiền. *(thêm ở branch `refactor/server-commerce`)*
+- **pricing.test.ts**: quy tắc giảm giá tự động theo từng dòng, chọn chương trình tốt nhất, chặn giảm giá vượt tổng tiền; ngày/thứ và khung giờ đánh giá theo giờ Việt Nam (không phụ thuộc TZ máy chủ). *(thêm ở branch `refactor/server-commerce`; múi giờ sửa ở `fix/docker-ci-build`)*
 - **chatbot tests**: lọc món xác định bằng code, fallback khi AI lỗi, câu hỏi tiếp (follow-up), phân loại intent. *(thêm ở branch `refactor/server-chatbot-admin`)*
 - **orderLifecycle.test.ts**: chuyển trạng thái đơn một chiều, hủy PENDING + UNPAID. *(thêm ở branch `refactor/server-commerce`)*
 - **textNormalizer.test.ts**: chuẩn hoá tiếng Việt không dấu cho tìm kiếm. *(đã có)*

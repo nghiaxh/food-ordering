@@ -1,7 +1,8 @@
-// Báo cáo doanh thu cho quản trị + xuất Excel bằng exceljs (thay Apache POI).
+// Báo cáo doanh thu cho quản trị + xuất Excel bằng write-excel-file.
 
-import ExcelJS from "exceljs";
+import writeExcelFile from "write-excel-file/node";
 import { prisma } from "../../lib/prisma.js";
+import { businessTimeParts, BUSINESS_UTC_OFFSET } from "../../lib/businessTime.js";
 
 export interface ReportRange {
   from: Date;
@@ -19,9 +20,10 @@ export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange => {
 const parseDate = (raw: string, endOfDay = false): Date => {
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed;
-  const d = new Date(`${raw}T00:00:00`);
+  // Ngày trần "YYYY-MM-DD" hiểu là nửa đầu/cuối ngày theo giờ VN — báo cáo phục vụ khách Việt,
+  // không theo TZ máy chủ (CI/docker chạy UTC).
+  const d = new Date(endOfDay ? `${raw}T23:59:59.999${BUSINESS_UTC_OFFSET}` : `${raw}T00:00:00${BUSINESS_UTC_OFFSET}`);
   if (Number.isNaN(d.getTime())) throw new Error("Khoảng ngày không hợp lệ");
-  if (endOfDay) d.setHours(23, 59, 59, 999);
   return d;
 };
 
@@ -60,7 +62,8 @@ export const revenueByDay = async (range: ReportRange) => {
   const byDay = new Map<string, { revenue: number; orders: number }>();
   for (const o of orders) {
     if (o.status === "CANCELLED") continue;
-    const day = o.createdAt.toISOString().slice(0, 10);
+    // Doanh thu theo ngày bucket theo ngày lịch VN, không theo ngày UTC.
+    const day = businessTimeParts(o.createdAt).dayKey;
     const entry = byDay.get(day) ?? { revenue: 0, orders: 0 };
     entry.revenue += Number(o.total);
     entry.orders += 1;
@@ -95,51 +98,56 @@ export const topFoods = async (range: ReportRange, limit: number) => {
 /** Xuất Excel 4 sheet: Tổng quan, Doanh thu, Top món, Đơn hàng. */
 export const exportExcel = async (range: ReportRange): Promise<Buffer> => {
   const orders = await loadOrders(range);
-  const sum = summary(range);
+  const s = await summary(range);
+  const byDay = await revenueByDay(range);
+  const top = await topFoods(range, 20);
 
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "FoodOrdering";
-  workbook.created = new Date();
+  const sheets = [
+    {
+      sheet: "Tong quan",
+      data: [
+        ["Chỉ số", "Giá trị"],
+        ["Doanh thu", s.revenue],
+        ["Số đơn", s.orderCount],
+        ["Đơn hoàn thành", s.completedCount],
+        ["Giá trị đơn TB", s.avgOrder],
+        ["Khách hàng", s.customerCount],
+        ["Tổng giảm khuyến mãi", s.promotionDiscount],
+      ],
+      columns: [{ width: 28 }, { width: 28 }],
+    },
+    {
+      sheet: "Doanh thu",
+      data: [
+        ["Ngày", "Doanh thu", "Số đơn"],
+        ...byDay.map((p) => [p.date, p.revenue, p.orders]),
+      ],
+      columns: [{ width: 18 }, { width: 18 }, { width: 18 }],
+    },
+    {
+      sheet: "Top mon",
+      data: [
+        ["Món", "Số lượng", "Doanh thu"],
+        ...top.map((t) => [t.name, t.quantity, t.revenue]),
+      ],
+      columns: [{ width: 30 }, { width: 30 }, { width: 30 }],
+    },
+    {
+      sheet: "Don hang",
+      data: [
+        ["Mã đơn", "Ngày", "Trạng thái", "Tổng tiền", "Giảm giá", "Khách"],
+        ...orders.map((o) => [
+          o.id,
+          o.createdAt.toISOString(),
+          o.status,
+          Number(o.total),
+          Number(o.discountTotal ?? 0),
+          o.user?.email ?? "",
+        ]),
+      ],
+      columns: [{ width: 24 }, { width: 24 }, { width: 24 }, { width: 24 }, { width: 24 }, { width: 24 }],
+    },
+  ];
 
-  // Sheet 1 — Tổng quan
-  const s0 = workbook.addWorksheet("Tong quan");
-  s0.addRow(["Chỉ số", "Giá trị"]);
-  const s = await sum;
-  s0.addRow(["Doanh thu", s.revenue]);
-  s0.addRow(["Số đơn", s.orderCount]);
-  s0.addRow(["Đơn hoàn thành", s.completedCount]);
-  s0.addRow(["Giá trị đơn TB", s.avgOrder]);
-  s0.addRow(["Khách hàng", s.customerCount]);
-  s0.addRow(["Tổng giảm khuyến mãi", s.promotionDiscount]);
-  s0.columns.forEach((c) => { c.width = 28; });
-
-  // Sheet 2 — Doanh thu theo ngày
-  const s1 = workbook.addWorksheet("Doanh thu");
-  s1.addRow(["Ngày", "Doanh thu", "Số đơn"]);
-  for (const p of await revenueByDay(range)) s1.addRow([p.date, p.revenue, p.orders]);
-  s1.columns.forEach((c) => { c.width = 18; });
-
-  // Sheet 3 — Top món
-  const s2 = workbook.addWorksheet("Top mon");
-  s2.addRow(["Món", "Số lượng", "Doanh thu"]);
-  for (const t of await topFoods(range, 20)) s2.addRow([t.name, t.quantity, t.revenue]);
-  s2.columns.forEach((c) => { c.width = 30; });
-
-  // Sheet 4 — Đơn hàng
-  const s4 = workbook.addWorksheet("Don hang");
-  s4.addRow(["Mã đơn", "Ngày", "Trạng thái", "Tổng tiền", "Giảm giá", "Khách"]);
-  for (const o of orders) {
-    s4.addRow([
-      o.id,
-      o.createdAt.toISOString(),
-      o.status,
-      Number(o.total),
-      Number(o.discountTotal ?? 0),
-      o.user?.email ?? "",
-    ]);
-  }
-  s4.columns.forEach((c) => { c.width = 24; });
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  return Buffer.from(buffer);
+  return writeExcelFile(sheets).toBuffer();
 };

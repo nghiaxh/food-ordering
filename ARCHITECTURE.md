@@ -154,7 +154,9 @@ lệch nhau.
 - **Phạm vi** `GLOBAL`, `CATEGORY`, `FOOD` quyết định chương trình có áp cho dòng đó
   không (`matches`). Chương trình theo danh mục chỉ khớp món.
 - **Khuyến mãi theo dịp** dùng `daysOfWeek` (ví dụ `SAT,SUN`) và `startTime/endTime`; khung giờ
-  qua nửa đêm được hiểu là `start > end`.
+  qua nửa đêm được hiểu là `start > end`. Ngày/thứ và khung giờ (và "Món may mắn mỗi ngày") được
+  đánh giá theo giờ Việt Nam (`Asia/Ho_Chi_Minh`, `src/lib/businessTime.ts`), không theo TZ máy
+  chủ; doanh thu theo ngày trong báo cáo Excel cũng bucket theo ngày lịch VN.
 - **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
   `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
   cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
