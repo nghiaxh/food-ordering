@@ -78,14 +78,14 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 
 1. Client gửi `POST /api/orders` với danh sách món + số lượng, thông tin người nhận,
    phương thức thanh toán và **ghi chú cho quán** (`note`, tối đa 255 ký tự, tuỳ chọn).
-2. `OrderService.create` set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
+2. `order` module (createOrder) set `price` = giá trong DB, **không tin giá từ client**; từ chối món ngừng phục vụ.
 3. Mỗi đơn được ghi một giao dịch thanh toán (`payment_transactions`: phương thức, số tiền,
    trạng thái PENDING/PAID) và tạo thông báo xác nhận cho khách (`notifications`).
 4. Trạng thái đơn dùng các giá trị `PENDING`, `CONFIRMED`, `PREPARING`, `COMPLETED`, `CANCELLED`
    — `PREPARING` có nghĩa là đang vận chuyển, nhãn hiển thị "Đang vận chuyển" ở cả client lẫn
    thông báo server (mã trong DB không đổi); trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
 5. **Trạng thái đi đúng một chiều**: `PENDING → CONFIRMED → PREPARING → COMPLETED`, được canh
-   trong `OrderService.isValidTransition`. Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
+   trong `modules/order/transitions.ts` (isValidTransition). Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
    thái được. `CANCELLED` được phép từ mọi trạng thái chưa chốt. Client cũng lọc danh sách trạng
    thái hợp lệ bằng `allowedNextStatuses`, nhưng server mới là nơi quyết định.
 6. Khách tự hủy được đơn của mình qua `PATCH /api/orders/{id}/cancel`, chỉ khi đơn còn `PENDING`
@@ -106,7 +106,7 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
    trên thẻ đơn ở `/orders` và khối "Lưu ý cho quán" trong drawer chi tiết đơn của admin.
    Nút "Đặt lại" chỉ hiện ở đơn `COMPLETED`, chỉ chuyển món sang giỏ, không mang theo ghi chú cũ.
 10. Mã đơn hiển thị cho khách và quản trị viên là `FO-xxxx` (tiền tố `FO` + id đệm 4 chữ số),
-    sinh bởi `orderCode` trong `client/src/utils/orders.ts` để hai bên không lệch nhau. Id do
+    sinh bởi `orderCode` trong `client/src/shared/utils/orders.ts` để hai bên không lệch nhau. Id do
     server cấp nên đổi tiền tố không cần sửa dữ liệu; mã QR vẫn giữ `FOOD-{id}-{tổng tiền}`.
 
 ### 4b. Ràng buộc dữ liệu ở biên
@@ -116,9 +116,9 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 - Phương thức thanh toán phải thuộc danh sách `COD|QR` (`@Pattern(regexp =
   PAYMENT_METHOD_PATTERN)` trong `OrderDtos`). `COD` là **tiền mặt khi nhận**, `QR` là **quét
   mã QR để chuyển khoản**; không có phương thức khác. Nhãn hiển thị nằm ở
-  `client/src/utils/orders.ts` (`PAYMENT_METHOD_LABEL`) để trang khách và trang quản trị hiện
+  `client/src/shared/utils/orders.ts` (`PAYMENT_METHOD_LABEL`) để trang khách và trang quản trị hiện
   giống nhau, không lộ mã thôi ra giao diện.
-- Giỏ hàng chỉ nhận món đang phục vụ (`CartService.add`); lỗi hiện ở lúc thêm chứ không đợi tới
+- Giỏ hàng chỉ nhận món đang phục vụ (`cart` module (addToCart)); lỗi hiện ở lúc thêm chứ không đợi tới
   lúc đặt.
 - Món đã có trong đơn không xoá được (`FoodService.delete` trả 409 kèm gợi ý chuyển sang
   ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
@@ -143,7 +143,7 @@ lệch nhau.
   vào giỏ, nên response về muộn không đè lần bấm sau dù số lượng server trả khác dòng đang hiển
   thị. Xoá sạch giỏ hoặc đăng xuất thì tăng "thế hệ" giỏ để response đang bay không dựng lại dòng
   vừa xoá.
-- **Số lượng dòng mới**: `CartService.add` tạo `CartItem` với `quantity = 0` trước khi cộng,
+- **Số lượng dòng mới**: `cart` module (addToCart) tạo `CartItem` với `quantity = 0` trước khi cộng,
   vì entity mặc định 1; thiếu bước này thì lần thêm đầu tiên dư 1 phần so với số khách chọn.
 
 - **Một dòng, một khoản giảm.** `QuoteLine.lineDiscount` và `OrderItem.discountAmount` là số
@@ -158,7 +158,7 @@ lệch nhau.
 - **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
   `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
   cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
-- **Giá trên thẻ món**: `GET /api/foods` và `/api/foods` được `decorateFoods`
+- **Giá trên thẻ món**: `GET /api/foods` và `/api/foods` được `decorateFoods` (modules/pricing)
   điền `discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel`; client chỉ hiện.
   Đây là giá tham khảo cùng luật với giỏ, còn con số chốt vẫn là báo giá.
 
@@ -315,7 +315,7 @@ dạng "N món, tổng ... trong ngân sách ...".
 - Trang lịch sử đơn có nút **Đặt lại** (chỉ render khi đơn `COMPLETED` theo điều kiện trong
   `OrdersPage`): đưa toàn bộ món (còn phục vụ) của đơn cũ vào giỏ, món ngừng phục vụ bị bỏ qua
   kèm cảnh báo, rồi mở drawer giỏ tại chỗ. Nút **Hủy đơn** đi qua helper `canCancelOrder`
-  (`client/src/utils/orders.ts`) cùng ràng buộc với `OrderService.cancel`: đơn `PENDING` chưa
+  (`client/src/shared/utils/orders.ts`) cùng ràng buộc với `order` module (cancelOrder): đơn `PENDING` chưa
   thanh toán; đơn `PENDING` đã `PAID` thay nút bằng gợi ý gọi hotline.
 
 ### 7. Thông báo
@@ -324,7 +324,7 @@ dạng "N món, tổng ... trong ngân sách ...".
   `NotificationsDrawer` bên phải. Avatar có chấm đỏ khi còn thông báo chưa đọc; số chưa đọc
   cũng hiện cạnh nhãn trong menu. `modules/notification/store.ts` là nguồn dữ liệu chung cho cả
   header và drawer, trước đây hai nơi gọi API riêng nên dễ lệch số.
-- Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `OrderService.notify` set. Cột mới
+- Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `order` module (notify) set. Cột mới
   được `ddl-auto=update` tự thêm; thông báo tạo trước thay đổi này có `orderId = null`.
 - Các thao tác giữ nguyên một bộ endpoint: `POST /api/notifications/read-all`,
   `POST /api/notifications/{id}/read`, `DELETE /api/notifications/read` (xóa các thông báo đã đọc)
@@ -481,7 +481,7 @@ chí rỗng là khớp mọi món (làm vậy khách hỏi món chay sẽ nhận
 dự phòng chấm điểm bằng code. Khi trích xuất thành công nhưng sinh câu trả lời thất bại thì
 thẻ món của bước lọc vẫn hiện, vì chúng khớp thật câu hỏi.
 
-Tài liệu tri thức mẫu không được hứa điều mà hệ thống không làm: `OrderService.create` chỉ cộng
+Tài liệu tri thức mẫu không được hứa điều mà hệ thống không làm: `order` module (createOrder) chỉ cộng
 tiền món nên tài liệu đã bỏ câu "Phí giao hàng 15.000 đồng". Ba câu còn lại (giờ mở cửa, khu vực
 không phục vụ, thời gian giao) là thông tin, không sinh ra con số sai về tiền, nhưng cũng
 không có code kiểm chứng.

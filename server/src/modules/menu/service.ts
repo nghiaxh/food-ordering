@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import { notFound } from "../../lib/errors.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { toCategoryJson, toFoodJson } from "../../lib/serializers.js";
+import { decorateFoods } from "../pricing/service.js";
 
 /**
  * Tìm món: chỉ lọc thuộc tính tới được trong DB (danh mục, giá, còn bán). Từ khoá lọc bằng JS
@@ -30,14 +31,15 @@ export async function searchFoods(filter: {
   });
   const keyword = plain(filter.keyword);
   const matched = keyword ? foods.filter((f) => plain(f.name).includes(keyword)) : foods;
-  // Giá khuyến mãi được lớp pricing điền ở nhánh commerce; tới đó toFoodJson mới có discountedPrice.
-  return matched.map((f) => toFoodJson(f));
+  const decorated = await decorateFoods(matched);
+  return decorated.map((f) => toFoodJson(f));
 }
 
 export async function getFood(id: number) {
   const food = await prisma.food.findUnique({ where: { id }, include: { category: true } });
   if (!food) throw notFound("Không tìm thấy món ăn");
-  return toFoodJson(food);
+  const [decorated] = await decorateFoods([food]);
+  return toFoodJson(decorated!);
 }
 
 export async function listCategories() {
