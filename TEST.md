@@ -52,7 +52,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-MENU-01 | Xem danh sách món & phân trang | Trang chủ `/` | Cuộn danh sách món, bấm số trang | Lưới thẻ món 2 cột mobile / 4 cột từ 768px; 12 món mỗi trang, URL có `page`, đổi trang cuộn về đầu lưới; kèm giá, tag ăn kiêng, độ cay | | |
 | TC-MENU-02 | Lọc theo danh mục | Trang chủ `/` | Bấm ô danh mục có ảnh "Món Việt" trên dải danh mục | URL cập nhật `?category={id}`, ô danh mục được tô viền, lưới chỉ còn món thuộc danh mục đã chọn | | |
 | TC-MENU-03 | Tìm kiếm theo từ khóa & Giá | Trang chủ `/` | Nhập từ khóa "bún", bấm dải giá 50.000đ - 100.000đ | Lưới món lọc đúng các món chứa từ khóa trong tên và nằm trong khoảng giá; URL có `keyword`, `min`, `max` | | |
-| TC-MENU-05 | Tìm không dấu & không phân biệt hoa thường | Trang chủ `/` | Gõ "pho bo", "ca phe", "do uong" vào ô tìm kiếm | Lần lượt ra "Phở bò", "Cà phê sữa đá", các món Đồ uống; server lọc qua `TextNormalizer` (không cần PostgreSQL `unaccent`) | | |
+| TC-MENU-05 | Tìm không dấu & không phân biệt hoa thường | Trang chủ `/` | Gõ "pho bo", "ca phe", "do uong" vào ô tìm kiếm | Lần lượt ra "Phở bò", "Cà phê sữa đá", các món Đồ uống; server lọc qua `text-normalizer.ts` (không cần PostgreSQL `unaccent`) | | |
 | TC-MENU-07 | Enter giữ bộ lọc hiện tại | Đang lọc theo danh mục + khoảng giá trên `/` | Gõ từ khóa mới rồi nhấn Enter | URL giữ nguyên `category`/`min`/`max` và cập nhật `keyword` tức thì (không đợi debounce), lưới món lọc theo cả bộ lọc cũ + từ khóa mới | | |
 | TC-MENU-08 | Enter khi đang ở trang khác | Đang ở `/orders` hoặc `/checkout` | Gõ từ khóa trong ô tìm kiếm rồi nhấn Enter | Quay về `/` kèm `?keyword=...`; không mất dữ liệu trang đang xem khi dùng nút Quay lại | | |
 | TC-MENU-09 | Bố cục lưới và thanh lọc theo bề rộng | Trang chủ `/` | Thu hẹp/phóng cửa sổ lần lượt 360px, 768px, 1024px, 1280px rồi cuộn lưới món | 360px: 2 cột, chip lọc và dải giá xuống dòng, không có thanh cuộn ngang; từ 768px: 4 cột, thanh lọc vẫn dính khi cuộn; header luôn một hàng ở mọi cỡ | | |
@@ -64,7 +64,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-MENU-13 | Chip danh mục | Trang chủ `/` | Cuộn dải danh mục | Chip cao 36px, ảnh tròn 28px, active nền amber đậm chữ trắng; dải cùng ngôn ngữ với hàng chip lọc | | |
 | TC-MENU-14 | Sắp xếp bằng dropdown | Trang chủ `/` | Bấm "Sắp xếp: Mặc định" | Dropdown radio hiện 4 lựa chọn, chọn xong URL có `sort`, thanh sticky chỉ còn chip lọc | | |
 
-### 1.2.3. Giỏ hàng & Định giá Khuyến mãi (UC09 – UC12, PricingService)
+### 1.2.3. Giỏ hàng & Định giá Khuyến mãi (UC09 – UC12, lớp pricing)
 
 | Mã TC | Chức năng | Tiền điều kiện | Thao tác / Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Pass/Fail |
 |-------|-----------|----------------|------------------------|-------------------|------------------|-----------|
