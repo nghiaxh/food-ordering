@@ -163,6 +163,37 @@ export const updatePaymentStatus = (
   db: DbClient = prisma,
 ) => updatePayment(order, paid, db);
 
+/** Hoàn đổi trạng thái trong admin: transition một chiều + thông báo cho khách theo đúng nội dung. */
+export async function adminUpdateStatus(id: number, status: string) {
+  const order = await prisma.order.findUnique({ where: { id }, include: ORDER_INCLUDE });
+  if (!order) throw notFound("Không tìm thấy đơn");
+  const next = parseStatus(status);
+  const draft = {
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+  };
+  transition(draft, next);
+
+  const content =
+    next === "CONFIRMED"
+      ? `Đơn hàng #${id} đã được xác nhận.`
+      : next === "PREPARING"
+        ? `Đơn hàng #${id} đang được vận chuyển.`
+        : next === "COMPLETED"
+          ? `Đơn hàng #${id} đã hoàn thành. Cảm ơn bạn đã đặt món!`
+          : next === "CANCELLED"
+            ? `Đơn hàng #${id} đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.`
+            : null;
+
+  const saved = await prisma.$transaction(async (tx) => {
+    const updated = await tx.order.update({ where: { id }, data: { status: next }, include: ORDER_INCLUDE });
+    if (content) await notify(tx, updated, content);
+    return updated;
+  });
+  return toOrderJson(saved);
+}
+
 /** Đồng bộ trạng thái thanh toán của đơn với giao dịch tương ứng; gửi thông báo (trong cùng transaction). */
 async function applyPaymentTx(
   tx: DbClient,
@@ -363,4 +394,10 @@ export async function adminListOrders() {
     orderBy: { createdAt: "desc" },
   });
   return orders.map(toOrderJson);
+}
+
+export async function adminGetOrder(id: number) {
+  const order = await prisma.order.findUnique({ where: { id }, include: ORDER_INCLUDE });
+  if (!order) throw notFound("Không tìm thấy đơn");
+  return { id: order.id, user: order.user ? { id: order.user.id } : { id: order.userId }, paymentStatus: order.paymentStatus };
 }

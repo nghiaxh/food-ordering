@@ -13,25 +13,25 @@ const idParam = (raw: string | string[] | undefined): number => {
 
 export const userRouter = Router();
 
-userRouter.use(requireAuth);
-
-userRouter.get("/addresses", async (req, res) => {
+// Địa chỉ đã lưu chỉ có ý nghĩa khi đăng nhập; guard theo từng route để router mount ở "/api"
+// không chặn các route mount trước/sau nó. Mọi endpoint ở đây đều yêu cầu đăng nhập.
+userRouter.get("/addresses", requireAuth, async (req, res) => {
   res.json(await userService.listAddresses(req.user!.email));
 });
 
-userRouter.post("/addresses", async (req, res) => {
+userRouter.post("/addresses", requireAuth, async (req, res) => {
   res.json(await userService.createAddress(req.user!.email, parseBody(addressRequestSchema, req.body)));
 });
 
-userRouter.put("/addresses/:id", async (req, res) => {
+userRouter.put("/addresses/:id", requireAuth, async (req, res) => {
   res.json(await userService.updateAddress(req.user!.email, idParam(req.params.id), parseBody(addressRequestSchema, req.body)));
 });
 
-userRouter.patch("/addresses/:id/default", async (req, res) => {
+userRouter.patch("/addresses/:id/default", requireAuth, async (req, res) => {
   res.json(await userService.setDefaultAddress(req.user!.email, idParam(req.params.id)));
 });
 
-userRouter.delete("/addresses/:id", async (req, res) => {
+userRouter.delete("/addresses/:id", requireAuth, async (req, res) => {
   await userService.deleteAddress(req.user!.email, idParam(req.params.id));
   res.json({});
 });
