@@ -1,6 +1,6 @@
 services:
   database:
-    image: pgvector/pgvector:pg18
+    image: postgres:18-alpine
     container_name: food-ordering-database
     profiles: ["dev", "prod"]
     environment:
@@ -11,7 +11,6 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql
-      - ./server/db-init/01-vector.sql:/docker-entrypoint-initdb.d/01-vector.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
@@ -28,30 +27,28 @@ services:
       database:
         condition: service_healthy
     environment: &server_env
-      DB_URL: jdbc:postgresql://database:5432/${DB_NAME}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@database:5432/${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
       AI_API_KEY: ${AI_API_KEY}
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       AI_MODEL: ${AI_MODEL}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-004}
-      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
       UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
-    # `wget` có sẵn trong image alpine. Healthcheck chỉ báo healthy khi Tomcat thật sự lắng nghe,
-    # tránh client gọi vào cổng đã publish nhưng chưa có backend (net::ERR_EMPTY_RESPONSE).
+    # tsx watch tự reload khi file đổi; không cần bước compile riêng.
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
-      start_period: 60s
+      start_period: 30s
     volumes:
       - ./server:/app
-      - maven_cache:/root/.m2
+      - /app/node_modules
       - uploads:/app/uploads
 
   client-dev:
@@ -67,7 +64,7 @@ services:
       VITE_API_URL: http://localhost:8080/api
     ports:
       - "5173:5173"
-    # Chỉ coi là sẵn sàng khi Vite thật sự phục vụ, tránh CI curl vào cổng đã publish nhưng chưa có backend.
+    # Chỉ coi là sẵn sàng khi Vite thật sự phục vụ, tránh client gọi vào backend chưa chạy.
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1"]
       interval: 5s
@@ -92,13 +89,12 @@ services:
       - "8080:8080"
     volumes:
       - uploads:/app/uploads
-    # Cùng lý do như server-dev: chỉ coi là sẵn sàng khi API thật sự trả lời.
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
-      start_period: 60s
+      start_period: 30s
 
   client-prod:
     build:
@@ -116,5 +112,4 @@ services:
 
 volumes:
   db_data:
-  maven_cache:
   uploads:

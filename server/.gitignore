@@ -1,16 +1,16 @@
-# Maven build output
-target/
+# Build output
+dist/
+src/generated/
+node_modules/
 
-# IDE - Eclipse
-.classpath
-.factorypath
-.project
-.settings/
-
-# IDE - IntelliJ
+# IDE
 .idea/
-*.iml
+.vscode/
+*.swp
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Uploads local (volume docker quản lý)
+uploads/
