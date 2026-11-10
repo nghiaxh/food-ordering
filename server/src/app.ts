@@ -5,6 +5,10 @@ import { env } from "./config/env.js";
 import { authRouter } from "./modules/auth/routes.js";
 import { menuRouter } from "./modules/menu/routes.js";
 import { reviewRouter } from "./modules/review/routes.js";
+import { cartRouter } from "./modules/cart/routes.js";
+import { orderRouter } from "./modules/order/routes.js";
+import { notificationRouter } from "./modules/notification/routes.js";
+import { userRouter } from "./modules/user/routes.js";
 import { errorHandler } from "./middleware/error.js";
 
 export function createApp() {
@@ -22,6 +26,10 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api", menuRouter);
   app.use("/api/reviews", reviewRouter);
+  app.use("/api/cart", cartRouter);
+  app.use("/api/orders", orderRouter);
+  app.use("/api/notifications", notificationRouter);
+  app.use("/api", userRouter);
 
   app.use("/api", (_req, res) => {
     res.status(404).json({ message: "Không tìm thấy API được yêu cầu." });

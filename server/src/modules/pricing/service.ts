@@ -1,0 +1,150 @@
+// Lớp truy vấn + điều phối: gọi engine để tính, đọc khuyến mãi từ DB, và cung cấp
+// các hàm dùng chung cho cart/order (priceOrder, quote, decorate).
+
+import type { Food, Prisma, Promotion } from "../../generated/prisma/client.js";
+import { prisma } from "../../lib/prisma.js";
+import { badRequest } from "../../lib/errors.js";
+import {
+  bestFor,
+  computeRandomPicks,
+  discountAmount,
+  isValid,
+  toQuoteLine,
+  type DiscountRule,
+  type FoodLike,
+  type PricingInputItem,
+} from "./engine.js";
+
+export type DbClient = Prisma.TransactionClient | typeof prisma;
+
+export interface PricedLine {
+  food: FoodLike & { name: string; imageUrl: string | null; category?: { id: number } | null };
+  quantity: number;
+  unitPrice: number;
+  lineDiscount: number;
+  discountLabel: string | null;
+}
+
+export interface PricedCart {
+  lines: PricedLine[];
+  subtotal: number;
+  discountTotal: number;
+  total: number;
+  appliedPromotions: Promotion[];
+}
+
+/** Đọc khuyến mãi active từ DB rồi lọc bằng isValid; pure logic nằm ở engine. */
+export async function activePromotions(now: Date, db: DbClient = prisma): Promise<Promotion[]> {
+  const all = await db.promotion.findMany({ where: { active: true } });
+  return all.filter((p) => isValid(p, now));
+}
+
+/** Dựng rule set dùng chung cho mọi lần tính trong một request. */
+async function buildRules(now: Date, db: DbClient): Promise<DiscountRule> {
+  const auto = await activePromotions(now, db);
+  const needsPicks = auto.some((p) => p.randomCount > 0);
+  if (!needsPicks) {
+    return { now, auto, randomPicks: new Map(), availableFoodIds: [] };
+  }
+  const available = await db.food.findMany({ where: { available: true }, select: { id: true } });
+  const availableFoodIds = available.map((f) => f.id);
+  return { now, auto, randomPicks: computeRandomPicks(auto, availableFoodIds, now), availableFoodIds };
+}
+
+export async function priceOrder(
+  items: PricingInputItem[],
+  db: DbClient = prisma,
+  now: Date = new Date(),
+): Promise<PricedCart> {
+  const rules = await buildRules(now, db);
+  const lines: PricedLine[] = [];
+  const applied = new Map<number, Promotion>();
+  let subtotal = 0;
+
+  for (const input of items) {
+    if (input.quantity <= 0) throw badRequest("Số lượng món phải lớn hơn 0");
+    if (input.foodId == null) throw badRequest("Dòng hàng phải có món");
+    const food = await db.food.findUnique({ where: { id: input.foodId }, include: { category: true } });
+    if (!food) throw badRequest("Món không tồn tại");
+    const unitPrice = Number(food.price);
+
+    const auto = bestFor(unitPrice, food, rules);
+    let lineDiscount = 0;
+    let label: string | null = null;
+    if (auto) {
+      lineDiscount = discountAmount(unitPrice, auto) * input.quantity;
+      label = auto.name;
+      applied.set(auto.id, auto);
+    }
+
+    lines.push({
+      food,
+      quantity: input.quantity,
+      unitPrice,
+      lineDiscount,
+      discountLabel: label,
+    });
+    subtotal += unitPrice * input.quantity;
+  }
+
+  const total = lines.reduce((sum, l) => sum + (l.unitPrice * l.quantity - l.lineDiscount), 0);
+  return {
+    lines,
+    subtotal,
+    discountTotal: subtotal - total,
+    total,
+    appliedPromotions: [...applied.values()],
+  };
+}
+
+export const toQuote = (priced: PricedCart) => ({
+  lines: priced.lines.map((l) =>
+    toQuoteLine({
+      foodId: l.food.id,
+      name: l.food.name,
+      imageUrl: l.food.imageUrl,
+      unitPrice: l.unitPrice,
+      lineDiscount: l.lineDiscount,
+      quantity: l.quantity,
+      discountLabel: l.discountLabel,
+    }),
+  ),
+  subtotal: priced.subtotal,
+  discountTotal: priced.discountTotal,
+  total: priced.total,
+});
+
+export type DecoratedFood<TFood extends FoodLike & { name: string; imageUrl: string | null }> = TFood & {
+  discountedPrice: number;
+  discountAmount: number;
+  discountPercent: number | null;
+  discountLabel: string | null;
+};
+
+/** Điền giá sau khuyến mãi cho cả danh sách; tính rules một lần cho cả danh sách. */
+export async function decorateFoods<TFood extends FoodLike & { name: string; imageUrl: string | null; price: Prisma.Decimal | number | string }>(
+  foods: TFood[],
+  db: DbClient = prisma,
+): Promise<Array<DecoratedFood<TFood>>> {
+  if (foods.length === 0) return [];
+  const rules = await buildRules(new Date(), db);
+  return foods.map((food) => {
+    const unitPrice = Number(food.price);
+    const best = bestFor(unitPrice, food, rules);
+    const amount = best ? discountAmount(unitPrice, best) : 0;
+    return {
+      ...food,
+      discountedPrice: unitPrice - amount,
+      discountAmount: amount,
+      discountPercent: best?.discountType === "PERCENT" ? Number(best.discountValue) : null,
+      discountLabel: best?.name ?? null,
+    };
+  });
+}
+
+/** Ghi nhận lượt dùng của các KM đã áp; gọi trong cùng transaction với tạo đơn. */
+export async function markUsed(applied: Promotion[], tx: DbClient) {
+  for (const p of applied) {
+    await tx.promotion.update({ where: { id: p.id }, data: { usedCount: { increment: 1 } } });
+  }
+}
