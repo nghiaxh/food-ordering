@@ -36,10 +36,17 @@ public class ChatbotDtos {
     /**
      * Intent của câu hỏi: FOOD gợi ý món, RESTAURANT_INFO thông tin quán, ORDER_GUIDE hướng
      * dẫn đặt/hủy đơn, OUT_OF_SCOPE ngoài lề. Client dùng để đổi placeholder/chip cho đúng.
+     *
+     * <p>{@code quickReplies} là các nút gợi ý hành động tiếp theo do server quyết định:
+     * bấm nút bằng cách gửi lại đúng text đó như một câu hỏi bình thường.
      */
-    public record ChatResponse(String reply, List<FoodCard> foods, String intent, List<Citation> citations) {
+    public record ChatResponse(String reply, List<FoodCard> foods, String intent, List<Citation> citations,
+                               List<String> quickReplies) {
         public ChatResponse(String reply, List<FoodCard> foods) {
-            this(reply, foods, null, null);
+            this(reply, foods, null, null, null);
+        }
+        public ChatResponse(String reply, List<FoodCard> foods, String intent, List<Citation> citations) {
+            this(reply, foods, intent, citations, null);
         }
     }
 
@@ -70,9 +77,6 @@ public class ChatbotDtos {
 
     /** Thống kê tài liệu RAG. */
     public record DocStats(long totalDocuments, long totalChunks, long ready, long failed) {}
-
-    /** Phản hồi của khách trên tin bot: rating là up | down. */
-    public record FeedbackRequest(String sessionId, Integer messageIndex, String rating) {}
 
     /**
      * Tiêu chí chatbot trích xuất từ câu hỏi.

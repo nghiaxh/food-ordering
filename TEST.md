@@ -119,7 +119,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-BOT-08 | Khách vãng lai chưa đăng nhập | Đặt câu hỏi tư vấn tại trang chủ | Chatbot trả lời và hiện thẻ món bình thường nhưng **không** lưu lại phiên vào CSDL lịch sử | | |
 | TC-BOT-09 | Lưu lịch sử khi đã đăng nhập | Khách đã đăng nhập chat | Nội dung hội thoại được lưu vào bảng `chat_messages`, xem được tại trang admin | | |
 | TC-BOT-10 | Nhánh dự phòng (Fallback - lỗi tạm thời) | AI hết thời gian chờ, trả 429/5xx hoặc JSON sai, hỏi "Món chay không cay" | Server chuyển sang `selectFoodsByCode()`, trả lời tóm tắt 1 dòng + hiển thị đúng thẻ món chay không cay từ DB; không phải banner "chưa cấu hình" | | |
-| TC-BOT-11 | Thiếu khóa API | `.env` không có `AI_API_KEY` (rỗng), mở khung chat rồi thử hỏi "Món chay không cay" | `GET /api/chatbot/status` trả `available = false`; banner "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau." hiện dưới thanh tiêu đề; ô nhập, nút gửi và chip gợi ý bị khóa. Gọi thẳng `POST /api/chat` thì trả 503, không gọi mạng tới AI và không lưu lịch sử | | |
+| TC-BOT-11 | Thiếu khóa API | `.env` không có `AI_API_KEY` (rỗng), mở khung chat rồi thử hỏi "Món chay không cay" | `GET /api/chatbot/status` trả `available = false`; banner "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau." hiện dưới thanh tiêu đề; ô nhập và nút gửi bị khóa. Gọi thẳng `POST /api/chat` thì trả 503, không gọi mạng tới AI và không lưu lịch sử | | |
 | TC-BOT-11b | Khóa API không hợp lệ | `AI_API_KEY` có giá trị nhưng sai/hết hạn, mở trang chủ | Ngay khi mở khung chat đã thấy banner "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau." (không cần gửi câu hỏi), ô nhập bị khóa, không có thẻ món; `GET /api/chatbot/status` trả `available = false` sau lần kiểm tra khóa đầu tiên | | |
 | TC-BOT-12 | Chỉ giữ thẻ của lượt mới nhất | Hỏi 3 câu liên tiếp, mỗi câu đều có gợi ý món | Khung chat chỉ còn tối đa 5 thẻ ở tin bot mới nhất; tin bot cũ vẫn giữ chữ nhưng không còn thẻ; không còn nút "Xem thực đơn" | | |
 | TC-BOT-13 | Ngân sách là tổng bộ gợi ý | Hỏi "Bữa tối 200k cho 2 người" | Tổng `totalPrice` của tất cả thẻ ≤ 200.000đ; cấu hình `max_suggestions` cũ 8/10 vẫn chỉ trả tối đa 5 thẻ | | |
@@ -127,12 +127,16 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 | TC-BOT-15 | Chủ đề mới không dính ngữ cảnh cũ | Sau lượt gợi ý món mặn, hỏi "Món đó có món chay không?" | Bỏ qua `lastFoodIds`, tìm trên toàn thực đơn; chỉ trả món có nhãn "chay" | | |
 | TC-BOT-16 | Khách vãng lai thêm món từ thẻ chatbot | Chưa đăng nhập, mở chatbot có thẻ món | Nút thêm vào giỏ bị disabled kèm tooltip "Đăng nhập để thêm món vào giỏ"; bấm vào không thêm món và không điều hướng sang chi tiết món | | |
 
-| TC-BOT-11 | Lưu lịch sử khách vãng lai | Khách chưa đăng nhập gửi 2 câu hỏi liên tiếp | Câu hỏi thứ hai được lưu vào `chat_message` với `user = null` theo `sessionId`; ngữ cảnh phiên được dùng cho lượt trả lời | | |
-| TC-BOT-12 | Giải quyết đại từ tham chiếu | Sau khi gợi ý món, hỏi "món đó rẻ hơn được không?" | Server dùng tên món vừa gợi ý để trích tiêu chí; kết quả lọc dựa trên các món đó, không trả về danh sách không liên quan | | |
-| TC-BOT-13 | Validate tiêu chí | AI trích xuất `keywords` quá chắt không khớp món nào | Server bỏ lọc từ khóa, vẫn giữ ràng buộc thuộc tính (cay, dị ứng, nhãn); không trả danh sách rỗng vô lý | | |
+| TC-BOT-11 | Khách vãng lai không lưu lịch sử | Khách chưa đăng nhập gửi 2 câu hỏi liên tiếp | Tin nhắn không được lưu vào `chat_message`; ngữ cảnh lấy từ `history`/`lastFoodIds` do client gửi kèm nên bot vẫn trả lời liên tục trong cùng khung | | |
+| TC-BOT-12 | Giải quyết đại từ tham chiếu | Sau khi gợi ý món, hỏi "món đó rẻ hơn được không?" | Server ghép tên các món vừa gợi ý (tra từ `lastFoodIds`) vào câu hỏi để trích tiêu chí; kết quả lọc dựa trên các món đó, không trả về danh sách không liên quan | | |
+| TC-BOT-13 | Validate tiêu chí | AI trích xuất `keywords` quá chặt không khớp món nào | Server bỏ lọc từ khóa, vẫn giữ ràng buộc thuộc tính (cay, dị ứng, nhãn); từ khóa tham chiếu thuần ("món đó") bị loại khỏi `keywords`; không trả danh sách rỗng vô lý | | |
 | TC-BOT-17 | Thông tin quán có nguồn | Hỏi "Mấy giờ quán mở cửa?" (đã có tài liệu Giờ mở cửa) | Bot trả nội dung tài liệu, kèm `citations` hiện "Nguồn: Giờ mở cửa", không có thẻ món, không bịa giờ | | |
-| TC-BOT-18 | Hướng dẫn đặt hàng | Hỏi "Cách đặt món thế nào?" | Bot trả quy trình (thêm vào giỏ -> thanh toán, hủy PENDING+UNPAID, trạng thái Đang vận chuyển), không có thẻ món | | |
+| TC-BOT-18 | Hướng dẫn đặt hàng | Hỏi "Cách đặt món thế nào?" | Bot trả quy trình (thêm vào giỏ -> thanh toán, hủy PENDING+UNPAID, trạng thái Đang vận chuyển), không có thẻ món, không kèm dòng "Nguồn:" | | |
 | TC-BOT-19 | Follow-up hỏi từng bước | Hỏi "Gợi ý món đi" (chưa có số người, ngân sách, ràng buộc) | Bot không trả thẻ món, hỏi "Bạn đang muốn ăn cho mấy người?"; hỏi "Món chay" thì không hỏi nữa mà trả món ngay | | |
+| TC-BOT-23 | Follow-up trả lời vắn tắt | Hỏi "Gợi ý món đi", nhận câu hỏi "mấy người?", rồi trả "2" | Câu trả lời được ghép với câu hỏi gốc (hết hạn sau 10 phút): bot gợi ý món với `people = 2` (số phần tự tăng), không bị từ chối là ngoài lề; trả "200k" thì ghép ngân sách tương tự | | |
+| TC-BOT-24 | Quick replies sau FOOD | Hỏi "Món ngon dưới 200k" | Bot trả thẻ + hàng nút "Món khác / Món chay không cay / Cách đặt món thế nào?"; bấm "Món khác" ra bộ món mới không trùng các ID vừa hiển thị; tin bot cũ mất nút | | |
+| TC-BOT-25 | Nút trả lời follow-up | Hỏi "Gợi ý món đi" | Bot hỏi "mấy người?" kèm nút "1 người / 2 người / 4 người"; bấm "2 người" ra gợi ý với `people = 2` | | |
+| TC-BOT-26 | Giải thích lý do chọn món | Có khóa AI thật | Câu trả lời có một câu ngắn nêu vì sao các món phù hợp (số người, ngân sách, cay, dị ứng, nhãn); không lặp lại luật, không nêu ID món | | |
 | TC-BOT-20 | Streaming trong widget | Mở widget, gửi câu hỏi, bấm Dừng khi chữ đang chạy | Chữ chạy dần theo từ có status "Đang tìm món...", bấm Dừng giữ phần đã hiện | | |
 | TC-BOT-21 | Upload tài liệu RAG | Admin tải lên file PDF/DOCX/TXT, hỏi thông tin quán bằng diễn đạt khác từ khóa | Tài liệu chia thành nhiều đoạn, mỗi đoạn có vector; bot trả lời từ đoạn gần nhất kèm nguồn, không cần trùng từ khóa | | |
 | TC-BOT-22 | Vector fail fallback keyword | Tắt extension vector hoặc lỗi embed, hỏi "Giờ mở cửa" | Bot vẫn trả lời từ tài liệu bằng chấm từ khóa, không crash, không bịa | | |
@@ -173,7 +177,7 @@ Tài liệu này được cơ cấu thành hai phần trọng tâm phục vụ �
 ## 2.1. Kiểm thử Unit Test phía Server (Spring Boot / JUnit 5 + Mockito)
 
 Kiểm thử tự động backend tập trung vào việc bảo vệ các thuật toán lõi và nghiệp vụ biên phức tạp mà không phụ thuộc vào hạ tầng bên ngoài (chạy độc lập, không cần Docker/DB):
-- **ChatbotServiceTest:** Kiểm chứng việc áp tiêu chí lọc món xác định bằng code Java, đảm bảo AI không bịa món/giá, và kiểm tra cơ chế fallback.
+- **ChatbotServiceTest:** Kiểm chứng việc áp tiêu chí lọc món xác định bằng code Java, đảm bảo AI không bịa món/giá, cơ chế fallback, câu hỏi tiếp (bare answer ghép với câu hỏi gốc) và phân loại intent.
 - **PricingServiceTest:** Kiểm chứng quy tắc giảm giá tự động theo từng dòng, chọn chương trình tốt nhất và chặn giảm giá vượt tổng tiền.
 - **OrderDtosValidationTest:** Kiểm chứng ràng buộc biên DTO đầu vào của đơn hàng (whitelist phương thức thanh toán, độ dài ghi chú, giỏ rỗng).
 

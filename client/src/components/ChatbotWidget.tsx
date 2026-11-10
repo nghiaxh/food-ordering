@@ -1,11 +1,11 @@
 import { useRef, useEffect } from 'react'
 import { Input, Tooltip, message } from 'antd'
-import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined, ReloadOutlined, LikeOutlined, DislikeOutlined, StopOutlined } from '@ant-design/icons'
+import { MessageOutlined, CloseOutlined, SendOutlined, ShoppingCartOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
 import type { Food, FoodCard } from '../types'
 import { formatVND } from '../utils/format'
 import { useHasBottomBar } from '../hooks/useHasBottomBar'
-import { useChatConversation, SUGGESTION_GROUPS_LIST } from '../hooks/useChatConversation'
+import { useChatConversation, GREETING_STARTERS } from '../hooks/useChatConversation'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { useUiStore } from '../store/uiStore'
@@ -24,8 +24,8 @@ export default function ChatbotWidget() {
 
   const {
     input, setInput, loading, statusText, error, messages, draft,
-    unavailable, statusNotice, activeRef, handleSend, handleRetry,
-    resetChat, stopStreaming, submitFeedback, isStreaming,
+    unavailable, statusNotice, handleSend, handleRetry,
+    resetChat, stopStreaming, isStreaming,
   } = useChatConversation()
 
   const listRef = useRef<HTMLDivElement>(null)
@@ -33,10 +33,6 @@ export default function ChatbotWidget() {
     const list = listRef.current
     if (list && typeof list.scrollTo === 'function') list.scrollTo({ top: list.scrollHeight })
   }, [messages, loading, draft])
-
-  useEffect(() => {
-    if (open) activeRef.current = true
-  }, [open])
 
   const user = useAuthStore((s) => s.user)
   const isAdmin = location.pathname.startsWith('/admin') || user?.role === 'ADMIN'
@@ -53,16 +49,16 @@ export default function ChatbotWidget() {
   }
 
   const handleClose = () => {
-    activeRef.current = false
     closeChat()
   }
   const handleOpen = () => {
-    activeRef.current = true
     openChat()
   }
 
   if (isAdmin) return null
   const showBody = !unavailable || messages.some((m) => m.sender === 'USER')
+  // Điểm vào chỉ hiện khi hội thoại mới tinh (hai bubble lời chào); biến mất sau tin đầu tiên.
+  const showStarters = !unavailable && !loading && messages.length === 2 && messages.every((m) => m.sender === 'BOT')
   const streamingMessage = draft
     ? {
         sender: 'BOT' as const,
@@ -70,6 +66,7 @@ export default function ChatbotWidget() {
         foods: draft.content.split(/\s+/).length <= draft.shownWords ? draft.foods : [],
         citations: draft.content.split(/\s+/).length <= draft.shownWords ? draft.citations : undefined,
         intent: draft.intent,
+        quickReplies: draft.content.split(/\s+/).length <= draft.shownWords ? draft.quickReplies : undefined,
       }
     : null
   const renderedMessages = streamingMessage ? [...messages, streamingMessage] : messages
@@ -150,12 +147,22 @@ export default function ChatbotWidget() {
                       </p>
                     ) : null}
 
-                    {isBot && !isStreaming && index === renderedMessages.length - 1 && index > 0 ? (
-                      <div className="mt-1 flex gap-2">
-                        <button type="button" aria-label="Hài lòng" className="text-xs text-stone-500 hover:text-amber-700" onClick={() => submitFeedback(index, 'up')}><LikeOutlined /></button>
-                        <button type="button" aria-label="Chưa hài lòng" className="text-xs text-stone-500 hover:text-amber-700" onClick={() => submitFeedback(index, 'down')}><DislikeOutlined /></button>
-                      </div>
-                    ) : null}
+                    {index === renderedMessages.length - 1 && isBot && !isStreaming && !loading
+                      && m.quickReplies && m.quickReplies.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {m.quickReplies.map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              disabled={loading || unavailable}
+                              className="cursor-pointer rounded-full bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 ring-1 ring-amber-200/70 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              onClick={() => void handleSend(s)}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
 
                     {foods.length > 0 && (
                       <div className="mt-2 divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
@@ -211,33 +218,25 @@ export default function ChatbotWidget() {
                         ))}
                       </div>
                     )}
-
-                    {index === 0 && !unavailable && messages.length <= 2 && (
-                      <div className="mt-2 space-y-2">
-                        {Object.entries(SUGGESTION_GROUPS_LIST).map(([group, items]) => (
-                          <div key={group}>
-                            <p className="text-[11px] font-medium text-stone-500">{group}</p>
-                            <div className="mt-1 flex flex-wrap gap-1.5">
-                              {items.map((s) => (
-                                <button
-                                  key={s}
-                                  type="button"
-                                  disabled={loading}
-                                  className="cursor-pointer rounded-full bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 ring-1 ring-amber-200/70 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                  onClick={() => handleSend(s)}
-                                >
-                                  {s}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               )
             })}
+
+            {showStarters && (
+              <div className="flex flex-wrap gap-1.5 pl-0.5">
+                {GREETING_STARTERS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="cursor-pointer rounded-full bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 ring-1 ring-amber-200/70 transition hover:bg-amber-100"
+                    onClick={() => void handleSend(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {loading && (
               <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 ring-1 ring-stone-200/70">
@@ -268,12 +267,11 @@ export default function ChatbotWidget() {
           </div>
 
           <div className="shrink-0 border-t border-stone-100 bg-white p-2.5">
-            <p className="mb-1 text-[11px] text-stone-500">Mình chỉ trả lời từ thực đơn và thông tin đã xác thực. Giá luôn lấy từ thực đơn.</p>
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onPressEnter={() => handleSend()}
-              placeholder={unavailable ? 'Trợ lý đang tạm tắt' : 'Ví dụ: cho 2 người 200k, không cay...'}
+              placeholder={unavailable ? 'Trợ lý đang tạm tắt' : 'Nhập yêu cầu món ăn...'}
               disabled={loading || unavailable}
               aria-label="Nhập câu hỏi cho chatbot"
               suffix={

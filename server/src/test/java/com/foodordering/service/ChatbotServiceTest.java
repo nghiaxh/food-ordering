@@ -26,10 +26,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import org.mockito.ArgumentCaptor;
 
 /**
  * Kiểm chứng bộ lọc của chatbot: tiêu chí do AI trích xuất phải được áp bằng code xác định,
@@ -52,7 +57,6 @@ class ChatbotServiceTest {
         foodRepo = mock(FoodRepository.class);
         categoryRepo = mock(CategoryRepository.class);
         chatRepo = mock(ChatMessageRepository.class);
-        when(chatRepo.findTop10BySessionIdOrderByCreatedAtDesc(anyString())).thenReturn(List.of());
         UserRepository userRepo = mock(UserRepository.class);
         AiSettingRepository settingRepo = mock(AiSettingRepository.class);
 
@@ -321,6 +325,8 @@ class ChatbotServiceTest {
         assertThat(res.foods()).isEmpty();
         assertThat(res.reply()).contains("PENDING");
         assertThat(res.reply()).contains("UNPAID");
+        // Quy trình trả lời bằng code nên không trích dẫn tài liệu.
+        assertThat(res.citations()).isNull();
     }
 
     @Test
@@ -330,6 +336,140 @@ class ChatbotServiceTest {
         assertThat(res.intent()).isEqualTo("OUT_OF_SCOPE");
         assertThat(res.foods()).isEmpty();
         assertThat(res.reply()).contains("Mình chỉ tư vấn được về món ăn của quán");
+    }
+
+    @Test
+    @DisplayName("Follow-up: trả lời \"2\" sau câu hỏi \"mấy người?\" thì ghép vào FOOD với 2 người")
+    void followUpBareNumberTiepTuc() {
+        ChatResponse asked = service.chat(null, new ChatRequest("Gợi ý món đi", "si6", null, null));
+        assertThat(asked.reply()).contains("mấy người");
+        // AI không trích được số người từ câu trả lời vắn tắt, server phải ép people=2.
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+
+        ChatResponse res = service.chat(null, new ChatRequest("2", "si6", null, null));
+
+        assertThat(res.intent()).isEqualTo("FOOD");
+        assertThat(res.foods()).isNotEmpty();
+        assertThat(res.foods()).anySatisfy(c -> assertThat(c.portions()).isEqualTo(2));
+        assertThat(res.reply()).doesNotContain("chỉ tư vấn được về món ăn");
+    }
+
+    @Test
+    @DisplayName("Follow-up: trả lời \"200k\" sau câu hỏi \"mấy người?\" thì ghép ngân sách vào FOOD")
+    void followUpBudgetTiepTuc() {
+        service.chat(null, new ChatRequest("Gợi ý món đi", "si7", null, null));
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+
+        ChatResponse res = service.chat(null, new ChatRequest("200k", "si7", null, null));
+
+        assertThat(res.intent()).isEqualTo("FOOD");
+        assertThat(res.foods()).isNotEmpty();
+        long tong = res.foods().stream().mapToLong(c -> Long.parseLong(c.totalPrice())).sum();
+        assertThat(tong).isLessThanOrEqualTo(200000L);
+    }
+
+    @Test
+    @DisplayName("Không có ngữ cảnh chờ thì số \"2\" đứng một mình vẫn là ngoài lề")
+    void bareNumberKhongCoNguCanhCho() {
+        ChatResponse res = service.chat(null, new ChatRequest("2", "si9", null, null));
+
+        assertThat(res.intent()).isEqualTo("OUT_OF_SCOPE");
+        assertThat(res.foods()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Follow-up: khách đổi chủ đề thay vì trả lời thì bỏ ngữ cảnh chờ")
+    void followUpDoiChuDe() {
+        service.chat(null, new ChatRequest("Gợi ý món đi", "si10", null, null));
+
+        // Câu hỏi mới không phải câu trả lời vắn tắt: xử lý như câu hỏi bình thường.
+        ChatResponse res = service.chat(null, new ChatRequest("Mấy giờ quán mở cửa?", "si10", null, null));
+
+        assertThat(res.intent()).isEqualTo("RESTAURANT_INFO");
+    }
+
+    @Test
+    @DisplayName("FOOD có thẻ món: response kèm quickReplies dẫn hướng lượt tiếp theo")
+    void quickRepliesFoodCoThe() {
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+
+        ChatResponse res = service.chat(null, new ChatRequest("Món ngon dưới 200k", "qr1", null, null));
+
+        assertThat(res.intent()).isEqualTo("FOOD");
+        assertThat(res.quickReplies())
+                .containsExactly("Món khác", "Món chay không cay", "Cách đặt món thế nào?");
+    }
+
+    @Test
+    @DisplayName("Follow-up: bot kèm quickReplies 1/2/4 người, bấm là ghép ra FOOD")
+    void quickRepliesFollowUp() {
+        ChatResponse asked = service.chat(null, new ChatRequest("Gợi ý món đi", "qr2", null, null));
+        assertThat(asked.quickReplies()).containsExactly("1 người", "2 người", "4 người");
+
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+        ChatResponse res = service.chat(null, new ChatRequest("2 người", "qr2", null, null));
+
+        assertThat(res.intent()).isEqualTo("FOOD");
+        assertThat(res.quickReplies()).containsExactly("Món khác", "Món chay không cay", "Cách đặt món thế nào?");
+    }
+
+    @Test
+    @DisplayName("ORDER_GUIDE và OUT_OF_SCOPE cũng kèm quickReplies")
+    void quickRepliesGuideVaOut() {
+        ChatResponse guide = service.chat(null, new ChatRequest("Cách đặt món thế nào?", "qr3", null, null));
+        assertThat(guide.quickReplies()).containsExactly("Gợi ý món cho 2 người");
+
+        ChatResponse out = service.chat(null, new ChatRequest("Thời tiết hôm nay thế nào?", "qr4", null, null));
+        assertThat(out.quickReplies())
+                .containsExactly("Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?");
+    }
+
+    @Test
+    @DisplayName("Món khác: gợi ý bộ món mới, loại các ID vừa hiển thị, không gọi AI")
+    void monKhacLoaiMonDaGoiY() {
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+        ChatResponse first = service.chat(null, new ChatRequest("Món ngon không cay", "qr5", null, null));
+        List<Long> firstIds = first.foods().stream().map(FoodCard::id).toList();
+        assertThat(firstIds).isNotEmpty();
+
+        // Mock đếm riêng lượt "Món khác": hành động canned không được gọi mạng.
+        clearInvocations(ai);
+        ChatResponse second = service.chat(null, new ChatRequest("Món khác", "qr5", null, firstIds));
+
+        assertThat(second.intent()).isEqualTo("FOOD");
+        assertThat(second.foods()).isNotEmpty();
+        assertThat(second.foods().stream().map(FoodCard::id).toList()).noneMatch(firstIds::contains);
+        assertThat(second.quickReplies()).containsExactly("Món khác", "Món chay không cay", "Cách đặt món thế nào?");
+        verify(ai, never()).generate(anyString(), anyString(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("Prompt trả lời kèm luật giải thích lý do chọn món")
+    void promptCoLuatExplain() {
+        mockExtract("""
+                {"categories":[],"maxSpicyLevel":null,"maxBudget":null,"people":null,
+                 "excludeAllergens":[],"dietaryTags":[],"keywords":[]}
+                """);
+        service.chat(null, new ChatRequest("Món ngon dưới 200k", "qr6", null, null));
+
+        ArgumentCaptor<String> system = ArgumentCaptor.forClass(String.class);
+        verify(ai, atLeastOnce()).generate(system.capture(), anyString(), eq(false));
+        assertThat(system.getAllValues()).allSatisfy(s -> assertThat(s).contains("Giải thích ngắn gọn"));
     }
 
     @Test
