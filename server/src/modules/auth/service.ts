@@ -1,8 +1,8 @@
-import type { User } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { hashPassword, verifyPassword } from "../../lib/password.js";
 import { generateToken } from "../../lib/jwt.js";
 import { badRequest, forbidden, unauthorized } from "../../lib/errors.js";
+import { toUserJson } from "../../lib/serializers.js";
 import type { changePasswordSchema, loginSchema, registerSchema, updateProfileSchema } from "./schema.js";
 import type { z } from "zod";
 
@@ -11,19 +11,7 @@ type LoginRequest = z.infer<typeof loginSchema>;
 type UpdateProfileRequest = z.infer<typeof updateProfileSchema>;
 type ChangePasswordRequest = z.infer<typeof changePasswordSchema>;
 
-/** /auth/me và phần user trong response admin phải khớp shape entity Java (đủ field, không lộ password). */
-export const toUserJson = (u: User) => ({
-  id: u.id,
-  email: u.email,
-  fullName: u.fullName,
-  phone: u.phone,
-  address: u.address,
-  role: u.role,
-  active: u.active,
-  createdAt: u.createdAt.toISOString(),
-});
-
-const toAuthResponse = (u: User) => ({
+const toAuthResponse = (u: { id: number; email: string; fullName: string | null; role: "CUSTOMER" | "ADMIN" }) => ({
   token: generateToken(u.email, u.role),
   id: u.id,
   email: u.email,
