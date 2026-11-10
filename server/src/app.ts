@@ -22,7 +22,12 @@ export function createApp() {
   app.use(cors({ origin: true }));
   app.use(express.json({ limit: "1mb" }));
 
-  // Ảnh upload phục vụ qua /api/uploads/**; thư mục mount volume khi chạy compose.
+  // API động không được cache: tránh 304 với body rỗng ở các client sau revalidation.
+  app.use("/api", (_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
+
   app.use("/api/uploads", express.static(env.UPLOAD_DIR));
 
   app.use("/api/auth", authRouter);
