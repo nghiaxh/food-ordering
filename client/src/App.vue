@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import { watch } from 'vue'
-import { NConfigProvider, NMessageProvider, NLoadingBarProvider } from 'naive-ui'
+import { NConfigProvider, NMessageProvider, NLoadingBarProvider, NDialogProvider } from 'naive-ui'
 import viVN from 'naive-ui/es/locales/common/viVN'
 import dateViVN from 'naive-ui/es/locales/date/viVN'
 import ScrollManager from '@/components/ScrollManager.vue'
@@ -26,8 +26,10 @@ watch(
   <NConfigProvider :locale="viVN" :date-locale="dateViVN" :theme-overrides="{ common: { primaryColor: '#b45309', primaryColorHover: '#92400e', primaryColorPressed: '#78350f' } }">
     <NLoadingBarProvider>
       <NMessageProvider>
-        <ScrollManager />
-        <RouterView />
+        <NDialogProvider>
+          <ScrollManager />
+          <RouterView />
+        </NDialogProvider>
       </NMessageProvider>
     </NLoadingBarProvider>
   </NConfigProvider>
