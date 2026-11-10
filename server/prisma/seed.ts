@@ -235,6 +235,18 @@ async function main() {
       { settingKey: "provider", settingValue: "gemini" },
       { settingKey: "model", settingValue: "gemini-2.0-flash" },
     ] });
+
+    // Tài liệu mẫu của quán cho bot tra cứu (chỉ tạo khi DB còn trống, trong cùng transaction seed).
+    await tx.chatbotKnowledge.createMany({ data: [
+      { title: "Giờ mở cửa", category: "HOURS", keywords: "giờ mở cửa, mấy giờ đóng cửa, mở cửa, đóng cửa", content: "Quán mở cửa từ 07:00 đến 22:00 hằng ngày. Sau 21:30 món có thể hết dần, bạn cân nhắc đặt sớm hơn nhé!", enabled: true, status: "READY" },
+      { title: "Địa chỉ quán", category: "SHOP", keywords: "địa chỉ, ở đâu, quán ở đâu", content: "Quán ở Cần Thơ (địa chỉ chi tiết xem ở chân trang). Bạn có thể đặt giao hàng tới địa chỉ của bạn.", enabled: true, status: "READY" },
+      { title: "Giao hàng và phí ship", category: "DELIVERY", keywords: "giao hàng, ship, phí ship, thời gian giao", content: "Thời gian giao thường 20-30 phút tùy khoảng cách. Phí ship tính theo khoảng cách, xem chi tiết ở bước thanh toán.", enabled: true, status: "READY" },
+      { title: "Thanh toán", category: "PAYMENT", keywords: "thanh toán, trả tiền, cod, qr", content: "Bạn có thể thanh toán COD hoặc QR sau khi tạo đơn. Đơn UNPAID và PENDING mới được hủy.", enabled: true, status: "READY" },
+      { title: "Cách đặt món", category: "ORDER", keywords: "cách đặt món, đặt món thế nào, thêm vào giỏ", content: "Thêm món vào giỏ rồi vào trang thanh toán để đặt. Khách vãng lai cần đăng nhập mới thêm được vào giỏ.", enabled: true, status: "READY" },
+      { title: "Hủy đơn", category: "ORDER", keywords: "hủy đơn, hủy hàng", content: "Chỉ hủy được đơn đang CHỜ (PENDING) và CHƯA thanh toán (UNPAID). Đơn đã hoàn thành hoặc đã hủy không sửa được.", enabled: true, status: "READY" },
+      { title: "Dị ứng và thành phần", category: "ALLERGY", keywords: "dị ứng, thành phần, hải sản", content: "Mỗi món có bảng nguyên liệu và dị ứng. Nếu bạn dị ứng nặng, nhắn cho quán hoặc hỏi nhân viên trước khi đặt.", enabled: true, status: "READY" },
+      { title: "Giỏ hàng đăng nhập", category: "ORDER", keywords: "giỏ hàng, đăng nhập, tài khoản", content: "Giỏ hàng cần đăng nhập, khách vãng lai xem món được nhưng chưa thêm vào giỏ được.", enabled: true, status: "READY" },
+    ] });
   });
 
   console.log("Seed dữ liệu demo xong.");

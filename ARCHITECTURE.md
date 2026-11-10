@@ -324,8 +324,8 @@ dạng "N món, tổng ... trong ngân sách ...".
   `NotificationsDrawer` bên phải. Avatar có chấm đỏ khi còn thông báo chưa đọc; số chưa đọc
   cũng hiện cạnh nhãn trong menu. `modules/notification/store.ts` là nguồn dữ liệu chung cho cả
   header và drawer, trước đây hai nơi gọi API riêng nên dễ lệch số.
-- Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `order` module (notify) set. Cột mới
-  được `ddl-auto=update` tự thêm; thông báo tạo trước thay đổi này có `orderId = null`.
+- Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `order` module (notify) set;
+  từ migration `init` mọi thông báo đều có thể có `orderId`.
 - Các thao tác giữ nguyên một bộ endpoint: `POST /api/notifications/read-all`,
   `POST /api/notifications/{id}/read`, `DELETE /api/notifications/read` (xóa các thông báo đã đọc)
   và `DELETE /api/notifications/{id}`. Endpoint thao tác một thông báo kiểm tra chủ sở hữu như
@@ -537,6 +537,6 @@ Server có các unit test Vitest (`server/tests/`), chạy độc lập không c
 - Không Hibernate/`ddl-auto`; schema do `prisma migrate` quản lý. Thay đổi schema phải tạo migration và commit kèm.
 - DB mới hoàn toàn: seed chỉ chạy khi bảng `users` trống; đổi dữ liệu mẫu thì DB cũ giữ nguyên — reset bằng
   `docker compose --profile prod down -v`.
-- Mọi quy tắc giảm giá sửa ở lớp pricing (`modules/pricing` hiện tại, chuyển thành `modules/pricing` ở branch commerce), đừng tính lại ở Vue.
+- Mọi quy tắc giảm giá sửa ở lớp pricing (`modules/pricing`), đừng tính lại ở Vue.
 - Sửa endpoint/DTO/quy tắc domain → cập nhật đồng bộ `AGENTS.md`, `ARCHITECTURE.md`, `TEST.md`.
 - Không giữ bí mật trong code; chỉ trong `.env`.

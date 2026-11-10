@@ -4,10 +4,18 @@ import FoodsPage from '@/modules/menu/pages/FoodsPage.vue'
 import FoodDetailPage from '@/modules/menu/pages/FoodDetailPage.vue'
 import LoginPage from '@/modules/auth/pages/LoginPage.vue'
 import RegisterPage from '@/modules/auth/pages/RegisterPage.vue'
-import PlaceholderPage from '@/components/PlaceholderPage.vue'
 import CheckoutPage from '@/modules/order/pages/CheckoutPage.vue'
 import OrdersPage from '@/modules/order/pages/OrdersPage.vue'
 import ProfilePage from '@/modules/user/pages/ProfilePage.vue'
+import AdminLayout from '@/layouts/AdminLayout.vue'
+import AdminDashboardPage from '@/modules/admin/pages/AdminDashboardPage.vue'
+import AdminFoodsPage from '@/modules/admin/pages/AdminFoodsPage.vue'
+import AdminCategoriesPage from '@/modules/admin/pages/AdminCategoriesPage.vue'
+import AdminOrdersPage from '@/modules/admin/pages/AdminOrdersPage.vue'
+import AdminCustomersPage from '@/modules/admin/pages/AdminCustomersPage.vue'
+import AdminPromotionsPage from '@/modules/admin/pages/AdminPromotionsPage.vue'
+import AdminReportsPage from '@/modules/admin/pages/AdminReportsPage.vue'
+import AdminChatbotPage from '@/modules/admin/pages/AdminChatbotPage.vue'
 import { useAuthStore } from '@/modules/auth/store'
 
 /**
@@ -43,12 +51,21 @@ const routes = [
       { path: 'chatbot', redirect: '/' },
     ],
   },
-  // Khu quản trị sẽ gắn AdminLayout và các trang thật ở branch refactor/client-admin-chatbot.
   {
     path: '/admin',
-    component: PlaceholderPage,
-    props: { title: 'Trang quản trị' },
+    component: AdminLayout,
     meta: { requiresAuth: true, requiresAdmin: true },
+    children: [
+      { path: '', redirect: '/admin/dashboard' },
+      { path: 'dashboard', component: AdminDashboardPage },
+      { path: 'foods', component: AdminFoodsPage },
+      { path: 'categories', component: AdminCategoriesPage },
+      { path: 'orders', component: AdminOrdersPage },
+      { path: 'customers', component: AdminCustomersPage },
+      { path: 'promotions', component: AdminPromotionsPage },
+      { path: 'reports', component: AdminReportsPage },
+      { path: 'chatbot', component: AdminChatbotPage },
+    ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

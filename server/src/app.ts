@@ -9,6 +9,8 @@ import { cartRouter } from "./modules/cart/routes.js";
 import { orderRouter } from "./modules/order/routes.js";
 import { notificationRouter } from "./modules/notification/routes.js";
 import { userRouter } from "./modules/user/routes.js";
+import { chatbotRouter } from "./modules/chatbot/routes.js";
+import { adminRouter } from "./modules/admin/routes.js";
 import { errorHandler } from "./middleware/error.js";
 
 export function createApp() {
@@ -20,7 +22,12 @@ export function createApp() {
   app.use(cors({ origin: true }));
   app.use(express.json({ limit: "1mb" }));
 
-  // Ảnh upload phục vụ qua /api/uploads/**; thư mục mount volume khi chạy compose.
+  // API động không được cache: tránh 304 với body rỗng ở các client sau revalidation.
+  app.use("/api", (_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
+
   app.use("/api/uploads", express.static(env.UPLOAD_DIR));
 
   app.use("/api/auth", authRouter);
@@ -30,6 +37,8 @@ export function createApp() {
   app.use("/api/orders", orderRouter);
   app.use("/api/notifications", notificationRouter);
   app.use("/api", userRouter);
+  app.use("/api/chatbot", chatbotRouter);
+  app.use("/api/admin", adminRouter);
 
   app.use("/api", (_req, res) => {
     res.status(404).json({ message: "Không tìm thấy API được yêu cầu." });
