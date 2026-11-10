@@ -5,6 +5,9 @@ import FoodDetailPage from '@/modules/menu/pages/FoodDetailPage.vue'
 import LoginPage from '@/modules/auth/pages/LoginPage.vue'
 import RegisterPage from '@/modules/auth/pages/RegisterPage.vue'
 import PlaceholderPage from '@/components/PlaceholderPage.vue'
+import CheckoutPage from '@/modules/order/pages/CheckoutPage.vue'
+import OrdersPage from '@/modules/order/pages/OrdersPage.vue'
+import ProfilePage from '@/modules/user/pages/ProfilePage.vue'
 import { useAuthStore } from '@/modules/auth/store'
 
 /**
@@ -24,20 +27,17 @@ const routes = [
       { path: 'cart', redirect: '/checkout' },
       {
         path: 'checkout',
-        component: PlaceholderPage,
-        props: { title: 'Đặt món' },
+        component: CheckoutPage,
         meta: { requiresAuth: true, customerOnly: true },
       },
       {
         path: 'orders',
-        component: PlaceholderPage,
-        props: { title: 'Đơn hàng' },
+        component: OrdersPage,
         meta: { requiresAuth: true, customerOnly: true },
       },
       {
         path: 'profile',
-        component: PlaceholderPage,
-        props: { title: 'Tài khoản' },
+        component: ProfilePage,
         meta: { requiresAuth: true },
       },
       { path: 'chatbot', redirect: '/' },

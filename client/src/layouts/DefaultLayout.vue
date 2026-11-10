@@ -2,6 +2,8 @@
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { watch } from 'vue'
 import HeaderGlobal from '@/components/HeaderGlobal.vue'
+import CartDrawer from '@/modules/cart/components/CartDrawer.vue'
+import NotificationsDrawer from '@/modules/notification/components/NotificationsDrawer.vue'
 import { useAuthStore } from '@/modules/auth/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 
@@ -36,4 +38,6 @@ watch(
       <RouterView />
     </main>
   </div>
+  <CartDrawer />
+  <NotificationsDrawer />
 </template>
