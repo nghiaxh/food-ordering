@@ -9,15 +9,17 @@ tư vấn món theo ngôn ngữ tự nhiên, gợi ý luôn nằm trong thực �
 
 ```
 ┌──────────────────┐     VITE_API_URL (Bearer JWT)      ┌──────────────────────┐
-│  Vite SPA client │ ─────────────────────────────────▶ │  Spring Boot server   │
-│ (React + antd)   │ ◀───────────────────────────────── │  Java 25 + JPA        │
+│  Client SPA      │ ─────────────────────────────────▶ │  Express server       │
+│  (Vite)          │ ◀───────────────────────────────── │  Node 26 + Prisma     │
 └──────────────────┘                                    └──────────┬───────────┘
                                                               PostgreSQL 18
 ```
 
-- **client/**: React 19 + TypeScript 7 + Vite 8 + Ant Design 6 + Zustand 5 + Axios + React Router 7. SPA thuần, không SSR. UI tiếng Việt. `client/src/api/http.ts` dùng `VITE_API_URL` làm `baseURL` (mặc định `http://localhost:8080/api`). Vite hiện không có proxy `/api`; nginx ở prod chỉ phục vụ static SPA và fallback route.
-- **server/**: Spring Boot 3.5 (Java 25) + Spring Security (JWT access token đơn giản) + Spring Data JPA. Package gốc `com.foodordering`, layered `controller` → `service` → `repository`.
-- **PostgreSQL**: `ddl-auto: update` đồng bộ schema khi khởi động (không dùng Flyway).
+> **Trạng thái chuyển đổi**: server đã chuyển sang Express 5 + Prisma 7. Client đang được viết lại bằng Vue 3 qua các branch `refactor/client-*`; tới khi branch client tương ứng merge, phần mô tả client trong tài liệu này vẫn phản ánh bản React ở nhánh cũ.
+
+- **client/**: Vue 3 + TypeScript 7 + Vite 8 + Naive UI + Pinia + Axios + Vue Router. SPA thuần, không SSR. UI tiếng Việt. API client dùng `VITE_API_URL` làm `baseURL` (mặc định `http://localhost:8080/api`). Nginx ở prod chỉ phục vụ static SPA và fallback route.
+- **server/**: Express 5 + TypeScript 7 + Prisma 7 (Node 26). JWT bằng `jsonwebtoken` (HS256) và mật khẩu bằng `bcrypt`; quyền kiểm tra ở server bằng middleware. Schema CSDL quản lý bằng `prisma migrate`, không còn `ddl-auto`.
+- **PostgreSQL 18**: cấu hình từ `DATABASE_URL` (compose tự dựng từ `DB_NAME`/`DB_USER`/`DB_PASSWORD`).
 
 ## Luồng dữ liệu chính
 
@@ -29,24 +31,25 @@ tư vấn món theo ngôn ngữ tự nhiên, gợi ý luôn nằm trong thực �
 4. `api/http` đọc token từ `localStorage`, chưa có thì lấy từ `sessionStorage`, rồi gắn
    `Authorization: Bearer <token>` cho request. Khi gặp 401 sẽ xoá token ở cả hai kho và đưa
    người dùng về trang đăng nhập.
-5. `JwtFilter` trên server đọc và verify token, tra CSDL kiểm tra tài khoản còn `active`
-   rồi mới dựng `SecurityContext`. Token không hợp lệ hoặc tài khoản đã bị khoá bị nuốt,
-   request được coi là chưa đăng nhập. Cần tra CSDL mỗi request vì token vẫn còn hạn sau khi
-   admin khoá tài khoản.
-6. `SecurityConfig` stateless: yêu cầu `ROLE_ADMIN` cho `/api/admin/**`; phần còn lại dùng
-   `authenticated()`, trừ các matcher được khai báo `permitAll()`.
+5. `requireAuth`/`optionalAuth` middleware (`server/src/middleware/auth.ts`) trên server đọc và verify
+   token (`jsonwebtoken`), **tra CSDL mỗi request** kiểm tra tài khoản còn `active` rồi mới dựng
+   `id/email/role` vào `req.user`. Token không hợp lệ hoặc tài khoản đã bị khoá được coi như chưa
+   đăng nhập. Cần tra CSDL mỗi request vì token vẫn còn hạn sau khi admin khoá tài khoản.
+6. Phân quyền ở `middleware/auth.ts`: stateless, không session. Ma trận quyền: `/api/auth/register`,
+   `/api/auth/login` không cần token; `GET /api/foods/**`, `/api/categories/**`, `/api/reviews/**`,
+   `/api/uploads/**` và `/api/chatbot/**` công khai; `/api/cart/**`, `/api/orders`, `/api/orders/**`
+   yêu cầu role `CUSTOMER`; `/api/admin/**` yêu cầu role `ADMIN`; phần còn lại cần đăng nhập.
 
 Endpoint và chính sách public hiện tại:
 
-- `permitAll()` áp dụng đúng cho `POST /api/auth/register` và `POST /api/auth/login`.
+- `POST /api/auth/register` và `POST /api/auth/login` không cần token.
   `/api/auth/me` và `/api/auth/password` yêu cầu đăng nhập, gọi vô danh sẽ nhận 401.
 - `GET /api/foods/**`, `/api/categories/**`, `GET /api/reviews/**`, `GET /api/uploads/**`
   (ảnh admin tải lên được phục vụ công khai vì mọi khách đều cần xem thực đơn).
 - `POST /api/chatbot/chat`: tư vấn món, khách vãng lai vẫn dùng được.
-- `dispatcherTypeMatchers(ERROR).permitAll()`: khi controller ném lỗi, Tomcat dispatch sang
-  `/error`; nếu không cho phép riêng thì mọi lỗi 400/404/500 đều bị đổi thành 401 và mất
-  thông báo gốc. Đây là lý do các lỗi validation trả về đúng mã 400.
-- `POST /api/reviews` yêu cầu đăng nhập vì chỉ có matcher GET được permitAll.
+- Mọi lỗi từ handler (validation, nghiệp vụ, không tìm thấy) đi qua `middleware/error.ts` và trả
+  về đúng mã 4xx kèm `{ message }` tiếng Việt; validation sai JSON trả 400 chứ không phải 500.
+- `POST /api/reviews` yêu cầu đăng nhập vì chỉ có route GET được public.
 
 Bảo vệ route trên client chỉ là UX - **quyền ADMIN được kiểm soát ở server**.
 
@@ -295,10 +298,9 @@ dạng "N món, tổng ... trong ngân sách ...".
 
 - `POST /api/admin/uploads/image` nhận JPG/PNG/WEBP tối đa 2 MB. Định dạng được xác định bằng
   **chữ ký đầu file**, không tin `Content-Type` do client khai.
-- File nằm ở thư mục `app.upload.dir` (mặc định `uploads`), mount thành volume `uploads` trong
-  `docker-compose.yml`, và được phục vụ lại qua `WebConfig` tại đường dẫn `/api/uploads/**`.
-- Endpoint trả về **URL tuyệt đối** dựng từ `ServletUriComponentsBuilder`, nhờ vậy ảnh hiển thị
-  được ở cả dev (Vite ở cổng khác) lẫn bản build qua nginx mà không phải sửa cấu hình proxy.
+- File nằm ở thư mục `UPLOAD_DIR` (mặc định `uploads`, `/app/uploads` trong container), mount thành volume `uploads` trong
+  `docker-compose.yml`, và được phục vụ lại qua `express.static` tại đường dẫn `/api/uploads/**`.
+- Endpoint trả về **URL tuyệt đối** dựng từ host của request, nhờ vậy ảnh hiển thị được ở cả dev (Vite ở cổng khác) lẫn bản build qua nginx mà không phải sửa cấu hình proxy.
 
 ### 6. Đánh giá và đặt lại
 
@@ -491,48 +493,53 @@ không có code kiểm chứng.
 ## Cấu trúc mã nguồn
 
 ```
-server/src/main/java/com/foodordering/
-  config/  cấu hình (AppProperties, DataSeeder, WebConfig, SecurityConfig)
-  security/ JwtUtil, JwtFilter
-  entity/  JPA entities
-  repository/  Spring Data JPA repositories
-  dto/     request/response (đồng bộ thủ công với types client)
-  service/ nghiệp vụ (OrderService, CartService, PricingService, PromotionService,
-           ChatbotService, AiClient, ReportService, AuthService, FoodService)
-  controller/  mapping dưới /api/...
+server/
+  prisma/
+    schema.prisma        # toàn bộ model + enum; nguồn duy nhất của cấu trúc CSDL
+    migrations/          # SQL migrate commit kèm (gồm cả cột search_vector tsvector + GIN)
+    seed.ts              # dữ liệu demo; chỉ chạy khi bảng users trống
+  prisma.config.ts       # Prisma 7: schema path, migrations.seed, datasource url
+  src/
+    config/env.ts        # zod đọc biến môi trường, fail-fast khi thiếu JWT_SECRET/DATABASE_URL
+    lib/                 # prisma (adapter-pg), jwt, password, errors, validate, text-normalizer, serializers
+    middleware/          # auth (requireAuth/optionalAuth/requireRole), error (errorHandler)
+    modules/
+      auth/      routes.ts  service.ts  schema.ts
+      menu/      routes.ts  service.ts   # GET /api/foods, /api/categories (public)
+      review/    routes.ts  service.ts  schema.ts
+      ...        # cart/order/pricing/promotion/notification/chatbot/admin/report chuyển dần qua các branch
+    app.ts  server.ts
+  tests/                 # Vitest, chạy không cần DB
 
-client/src/
+client/src/              # đang chuyển sang Vue 3 qua các branch refactor/client-*
   main.tsx  App.tsx(router)  api/  store/(Zustand)  types/  components/
   pages/    layouts/  hooks/  utils/  index.css
 ```
 
-Sửa DTO phải cập nhật cả `client/src/types/index.ts` và `client/src/api/api.ts`.
+Sửa DTO/response phải cập nhật đồng thời server module tương ứng và `client/src/types/index.ts` + `client/src/api/api.ts`.
 
 ## Môi trường & chạy
 
 Bí mật nằm trong một file `.env` ở root (copy từ `.env.example`): `DB_NAME`, `DB_USER`,
 `DB_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_MODEL`. Compose tự dựng
-`DB_URL`; `AI_PROVIDER` mặc định `gemini`, `UPLOAD_DIR=/app/uploads` trong container.
-`mvn spring-boot:run` **không tự đọc `.env`** — phải export tay hoặc chạy qua compose.
+`DATABASE_URL`; `AI_PROVIDER` mặc định `gemini`, `UPLOAD_DIR=/app/uploads` trong container.
+Khi chạy server ngoài Docker mà không có `DATABASE_URL`, server tự ghép từ `DB_*` (host `localhost`).
 
-- Dev: `docker compose --profile dev up --build` (client http://localhost:5173, server :8080)
+- Dev: `docker compose --profile dev up --build` (client http://localhost:5173, server :8080). Server dev chạy `tsx watch` tự reload khi file đổi.
 - Prod: `docker compose --profile prod up --build -d` (client http://localhost)
 - `docker compose up` (không profile): chỉ Postgres.
-- Server dev hot reload: trong container chỉ mount mã nguồn nên cần terminal riêng chạy
-  `docker compose --profile dev exec server-dev sh -c "while true; do mvn -q compile; sleep 3; done"`
-  (hoặc để IDE biên dịch vào `server/target/classes`). Client dev dùng Vite HMR, không cần build lại
-  image trừ khi đổi `package.json`.
+- Migration CSDL: `cd server && npx prisma migrate dev` (dev) / `npx prisma migrate deploy` (prod/CI), seed bằng `npx prisma db seed`. Migration `init` đã gồm cả cột `search_vector tsvector` (RAG) — xem `server/prisma/migrations/`.
+- Client dev dùng Vite HMR, không cần build lại image trừ khi đổi `package.json`.
 
 ## Kiểm thử
 
-Server có 3 test class (`PricingServiceTest`, `ChatbotServiceTest`, `OrderDtosValidationTest`),
-chạy độc lập không cần DB. Client chưa có test runner; kiểm tra bằng `npm run typecheck` và `npm run build`.
+Server có các unit test Vitest (`server/tests/`), chạy độc lập không cần DB (`npm test`). Client chưa có test runner; kiểm tra bằng `npm run typecheck` và `npm run build`.
 
 ## Quy tắc quan trọng khi làm việc
 
-- Không Flyway; schema do Hibernate `ddl-auto: update` tự đồng bộ.
-- Seed chỉ chạy khi bảng `users` trống; đổi dữ liệu mẫu thì DB cũ giữ nguyên — reset bằng
+- Không Hibernate/`ddl-auto`; schema do `prisma migrate` quản lý. Thay đổi schema phải tạo migration và commit kèm.
+- DB mới hoàn toàn: seed chỉ chạy khi bảng `users` trống; đổi dữ liệu mẫu thì DB cũ giữ nguyên — reset bằng
   `docker compose --profile prod down -v`.
-- Mọi quy tắc giảm giá sửa ở `PricingService`, đừng tính lại ở React.
+- Mọi quy tắc giảm giá sửa ở lớp pricing (`service/PricingService` hiện tại, chuyển thành `modules/pricing` ở branch commerce), đừng tính lại ở React.
 - Sửa endpoint/DTO/quy tắc domain → cập nhật đồng bộ `AGENTS.md`, `ARCHITECTURE.md`, `TEST.md`.
 - Không giữ bí mật trong code; chỉ trong `.env`.
