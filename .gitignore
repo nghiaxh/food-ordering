@@ -4,9 +4,9 @@
 # Node
 client/node_modules/
 client/dist/
-
-# Java
-server/target/
+server/node_modules/
+server/dist/
+server/src/generated/
 
 # OS
 .DS_Store
