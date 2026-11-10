@@ -186,8 +186,8 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
   `foods` của mọi tin bot cũ nên chỉ tin mới nhất còn thẻ; ref `lastFoodIds` được cập nhật theo
   tin đó và clear khi tin mới không có món.
 - `history` được đưa vào prompt trích xuất tiêu chí dưới nhãn "CÂU HỎI TRƯỚC CỦA KHÁCH" để AI
-  hiểu "món đó", "món vừa gợi ý". Với khách đã đăng nhập, server dùng lịch sử phiên trong
-  `chat_message` khi client không gửi gì.
+  hiểu "món đó", "món vừa gợi ý". Server không tự đọc `chat_message`; ngữ cảnh chỉ đến từ
+  client hoặc từ `lastFoodIds`.
 - `lastFoodIds` chỉ được dùng khi câu mới là hỏi tiếp thật sự: có cụm tham chiếu rõ ("món đó",
   "cái đó", "món này", "món vừa gợi ý", "mấy món trên", "trong số đó") **và** tiêu chí không mở
   chủ đề mới (`categories`, `keywords`, `dietaryTags`, `excludeAllergens` đều rỗng). Khi đó
@@ -221,9 +221,11 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
   để câu trả lời của hai nhánh (AI và dự phòng) nhìn giống nhau.
 - **Chỉ khách đã đăng nhập mới lưu lịch sử hội thoại.** Khách vãng lai vẫn chat được nhưng
   tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
-- **Lưu lịch sử cho khách vãng lai**: từ phiên bản này, cả khách chưa đăng nhập cũng được lưu `chat_message` với `user = null` theo `sessionId`, nên ngữ cảnh phiên hoạt động cho mọi khách. `recentTurns` đọc theo `sessionId` không phụ thuộc tài khoản.
-- **Giải quyết đại từ tham chiếu**: server nhớ tên các món vừa gợi ý theo `sessionId` (bộ nhớ trong tiến trình). Nếu câu hỏi chứa đại từ ("món đó", "rẻ hơn"...) hoặc rất ngắn, server thêm tên các món đó vào câu hỏi trước khi trích tiêu chí, giúp AI không hiểu sai.
-- **Validate tiêu chí**: `normalizeCriteria` loại bỏ giá trị vô lý (độ cay ngoài 0–3, ngân sách ≤ 0, số người ≤ 0/>50, chuỗi rỗng). Nếu bộ lọc từ khóa không khớp món nào, server bỏ lọc từ khóa nhưng vẫn giữ các ràng buộc thuộc tính, tránh trả danh sách rỗng vô lý.
+- **Giải quyết đại từ tham chiếu**: khi câu hỏi có cụm tham chiếu rõ ("món đó", "cái đó", "món này",
+  "món vừa gợi ý", "mấy món trên", "trong số đó") và client gửi `lastFoodIds`, server tra tên các
+  món đó (`findAllById`) và ghép vào câu hỏi trước khi trích tiêu chí; không dùng bộ nhớ theo
+  `sessionId` phía server.
+- **Validate tiêu chí**: `normalizeCriteria` loại bỏ giá trị vô lý (độ cay ngoài 0–3, ngân sách ≤ 0, số người ≤ 0/>50, chuỗi rỗng) và bỏ từ khóa tham chiếu thuần ("món đó"...). Nếu bộ lọc từ khóa không khớp món nào, server bỏ lọc từ khóa nhưng vẫn giữ các ràng buộc thuộc tính, tránh trả danh sách rỗng vô lý.
 - **RAG cho thông tin quán:** bảng `chatbot_knowledge` lưu tài liệu do admin nhập ở tab Tài liệu
   (`/admin/chatbot`), bảng `chatbot_knowledge_chunk` lưu các đoạn văn bản sau khi chia nhỏ kèm vector
   `vector(768)` trong Postgres pgvector (`CREATE EXTENSION vector`). Admin tải lên PDF/DOCX/TXT/MD,
@@ -234,12 +236,27 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [service/AiClient, j
   kèm `citations` hiện "Nguồn: ...". Không tìm thấy thì nói không rõ, không bịa giờ/giá ship.
   Món ăn vẫn lọc bằng code xác định, không đưa giá/cay/khả dụng vào vector.
 - **Định tuyến intent:** `ChatbotService.classifyIntent` chia câu hỏi thành `FOOD`,
-  `RESTAURANT_INFO`, `ORDER_GUIDE`, `OUT_OF_SCOPE`. `RESTAURANT_INFO` và `ORDER_GUIDE` trả lời bằng
-  tài liệu/quy trình cố định (không gọi AI), `OUT_OF_SCOPE` từ chối lịch sự, `FOOD` mới đi hai lượt AI.
-  Client dùng `intent` để đổi placeholder/chip cho đúng.
+  `RESTAURANT_INFO`, `ORDER_GUIDE`, `OUT_OF_SCOPE`. Keyword được thử trước (không tốn mạng);
+  không khớp gì mới tra vector tài liệu một lần — câu khớp thì coi là `RESTAURANT_INFO` (dùng
+  luôn các đoạn đã tra cho câu trả lời), không khớp thì `OUT_OF_SCOPE`. `RESTAURANT_INFO` và
+  `ORDER_GUIDE` trả lời bằng tài liệu/quy trình cố định (không gọi AI), `ORDER_GUIDE` không trích
+  dẫn tài liệu, `OUT_OF_SCOPE` từ chối lịch sự, `FOOD` mới đi hai lượt AI.
 - **Follow-up từng bước cho người mới:** nếu câu gợi ý món quá chung (thiếu cả số người và ngân sách,
-  chưa nhắc chay/cay/dị ứng, không nhắc tên món cụ thể) thì bot hỏi `Bạn ăn cho mấy người?` trước
-  khi trả món. Câu có ràng buộc (chay/cay/dị ứng) hoặc khách nói `tùy bạn` thì gợi ý ngay, không tra hỏi.
+  chưa nhắc chay/cay/dị ứng, không nhắc tên món cụ thể) thì bot hỏi `Bạn đang muốn ăn cho mấy người?`
+  trước khi trả món. Câu có ràng buộc (chay/cay/dị ứng) hoặc khách nói `tùy bạn` thì gợi ý ngay,
+  không tra hỏi. Server giữ câu hỏi gốc theo `sessionId` (hết hạn sau 10 phút): nếu lượt sau khách
+  trả lời vắn tắt ("2", "2 người", "200k") thì câu trả lời được ghép với câu hỏi gốc trước khi
+  phân loại FOOD, và ràng buộc đọc được (số người, ngân sách) được ép vào tiêu chí; khách hỏi câu
+  khác thì ngữ cảnh chờ bị bỏ.
+- **Quick replies theo từng lượt:** mỗi `ChatResponse` kèm `quickReplies` do server quyết định theo
+  tình huống — FOOD có thẻ: `Món khác`, `Món chay không cay`, `Cách đặt món thế nào?`; FOOD rỗng:
+  `Món khác`, `Món chay không cay`; bot hỏi follow-up: `1 người`/`2 người`/`4 người`;
+  RESTAURANT_INFO/ORDER_GUIDE/OUT_OF_SCOPE: lối vào gợi ý món/đặt hàng/giờ mở cửa. Bấm nút =
+  gửi đúng text đó như khách tự gõ; client render dưới tin bot mới nhất (tin cũ bị tước
+  `quickReplies` giống `foods`). Nút `Món khác` do server xử lý bằng code — chọn món đang phục vụ
+  ngoại trừ các ID vừa hiển thị, giá tăng dần, không gọi AI. Prompt trả lời có thêm luật 10
+  (giải thích ngắn gọn vì sao các món hợp với yêu cầu của khách); prompt nằm ở `AiPrompts.java`,
+  dự án tự thiết kế theo nghiệp vụ đặt món, không bản sao prompt mẫu của repo nào.
 - **Streaming chữ:** server vẫn trả nguyên câu về một lần, client chạy chữ dần theo từ
   (`useChatConversation`), có status text `Đang tìm món...` / `Đang tra tài liệu quán...` và nút Dừng.
   Widget nổi dùng một session duy nhất: `sessionId`/`messages` lưu qua `localStorage`,
@@ -438,11 +455,7 @@ Bố cục khung chat:
 - Tin bot và tin khách đều nằm trong bong bóng: bot là bong bóng trắng căn trái (`rounded-bl-md`,
   viền mảnh), khách là bong bóng hổ phách căn phải (`rounded-br-md`). Ô chữ của bot rộng tối đa
   92%, của khách 85%.
-- Ba nhóm chip **luôn nằm trên ô nhập**, cuộn ngang trên mobile, không biến mất sau tin đầu tiên;
-  chip bị khoá khi trợ lý chưa cấu hình hoặc đang chờ trả lời. Nhóm Gợi ý món chạy bộ lọc thật
-  (chế độ ăn + độ cay, ngân sách + số người, thành phần loại trừ, kết hợp món theo tổng ngân sách);
-  nhóm Thông tin quán và Đặt hàng trả tài liệu/quy trình kèm nguồn. Greeting nêu rõ 3 việc bot làm
-  và ví dụ mẫu `Cho 2 người 200k, không cay`, placeholder nhắc đúng ví dụ đó.
+- Không còn dải chip gợi ý vĩnh viễn; lời chào gồm **hai bong trắng** (chào ngắn + hướng dẫn bắt đầu với ví dụ `Cho 2 người 200k, không cay`). Ngay dưới lời chào là **một hàng nút điểm vào** (`Gợi ý món cho 2 người`, `Món chay không cay`, `Giờ mở cửa là mấy giờ?`, `Cách đặt món thế nào?`), bấm là gửi tin như khách tự gõ; chỉ hiện khi hội thoại còn mới và biến mất sau tin đầu tiên. Placeholder là `Nhập yêu cầu món ăn...`.
 - Nút **Làm mới hội thoại** trên thanh tiêu đề xoá ngữ cảnh cũ (tin nhắn, `lastFoodIds`,
   `sessionId` mới) để câu hỏi tiếp không dính vào món của lượt trước. Tin bot chạy chữ dần theo từ;
   ai bật `prefers-reduced-motion` thì thấy ngay toàn bộ câu trả lời. Chatbot chỉ mở bằng nút nổi,
@@ -456,8 +469,9 @@ Bố cục khung chat:
 - Nút thêm vào giỏ trong thẻ yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip
   "Đăng nhập để thêm món vào giỏ" và bấm vào không điều hướng theo link của thẻ.
 - Khi server thiếu khóa AI, `GET /api/chatbot/status` trả `available = false`; khung chat hiện
-  banner hổ phách ngay dưới thanh tiêu đề, khóa ô nhập, nút gửi và các chip gợi ý. `ChatResponse`
-  gồm `reply`, `foods`, `intent`, `citations` (citations chỉ có khi tra tài liệu quán).
+  banner hổ phách ngay dưới thanh tiêu đề, khóa ô nhập và nút gửi. `ChatResponse`
+  gồm `reply`, `foods`, `intent`, `citations` (citations chỉ có khi tra tài liệu quán) và
+  `quickReplies` (tối đa 4 nút hành động tiếp theo do server quyết định).
   Nếu vẫn nhận 503 lúc gửi (trạng thái đổi sau khi mở khung), client báo đúng câu đó và khóa
   khung chat thay vì mời thử lại.
 - Nút gửi nằm trong ô nhập (`suffix`) thay vì một nút tròn riêng, nên khung chat đỡ một phần
