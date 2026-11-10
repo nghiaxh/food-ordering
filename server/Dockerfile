@@ -15,6 +15,9 @@ RUN --mount=type=cache,id=npm,target=/root/.npm \
 # ---- dev: tsx watch + source mount, không cần build ----
 FROM deps AS dev
 COPY . .
+# COPY ghi đè src/ từ host (không có src/generated/) lên trên layer deps,
+# che mất Prisma Client đã generate ở stage deps → phải generate lại ở đây.
+RUN npx prisma generate
 ENV NODE_ENV=development
 EXPOSE 8080
 CMD ["npm", "run", "dev"]
