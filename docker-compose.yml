@@ -49,6 +49,9 @@ services:
     volumes:
       - ./server:/app
       - /app/node_modules
+      # Anonymous volume giữ src/generated/ (Prisma Client) không bị ghi đè
+      # bởi bind mount ./server:/app từ host (host không có thư mục này).
+      - /app/src/generated
       - uploads:/app/uploads
 
   client-dev:

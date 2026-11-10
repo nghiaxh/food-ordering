@@ -15,9 +15,14 @@ RUN --mount=type=cache,id=npm,target=/root/.npm \
 # ---- dev: tsx watch + source mount, không cần build ----
 FROM deps AS dev
 COPY . .
+# COPY ghi đè src/ từ host (không có src/generated/) lên trên layer deps,
+# che mất Prisma Client đã generate ở stage deps → phải generate lại ở đây.
+RUN npx prisma generate
 ENV NODE_ENV=development
 EXPOSE 8080
-CMD ["npm", "run", "dev"]
+# Áp migration và seed (bỏ qua nếu DB đã có dữ liệu) trước khi khởi động server.
+# migrate deploy idempotent; seed tự bỏ qua khi bảng users đã có dữ liệu.
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npm run dev"]
 
 # ---- build: biên dịch TS sang dist (tsc cũng biên dịch src/generated) ----
 FROM deps AS build
