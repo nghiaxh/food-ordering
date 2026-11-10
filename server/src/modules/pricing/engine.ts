@@ -7,6 +7,7 @@
 
 import { createHash } from "node:crypto";
 import type { Food, Promotion } from "../../generated/prisma/client.js";
+import { businessTimeParts } from "../../lib/businessTime.js";
 
 export interface PricingInputItem {
   foodId: number | null;
@@ -26,28 +27,26 @@ export type FoodLike = Pick<Food, "id" | "categoryId" | "price" | "name" | "avai
   category?: { id: number } | null;
 };
 
-const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
-
 /** Khuyến mãi còn hiệu lực tại `now`: active, thời gian bắt đầu/kết thúc, ngày, khung giờ, usageLimit. */
 export function isValid(p: Promotion, now: Date): boolean {
   if (!p.active) return false;
   if (now < p.startsAt || now > p.endsAt) return false;
+  // Ngày/thứ/giờ so theo giờ Việt Nam — máy chủ thường chạy UTC.
+  const { weekday, minutes } = businessTimeParts(now);
   if (p.daysOfWeek && p.daysOfWeek.trim()) {
-    const today = DAYS[now.getDay()] ?? "SUN";
-    const ok = p.daysOfWeek.split(",").some((d) => d.trim().toUpperCase() === today);
+    const ok = p.daysOfWeek.split(",").some((d) => d.trim().toUpperCase() === weekday);
     if (!ok) return false;
   }
   if (p.startTime && p.endTime) {
-    const t = now.getHours() * 60 + now.getMinutes();
     const start = toMinutes(p.startTime);
     const end = toMinutes(p.endTime);
     if (start == null || end == null) return true;
     if (start <= end) {
       // Khung giờ bình thường trong ngày.
-      if (t < start || t > end) return false;
+      if (minutes < start || minutes > end) return false;
     } else {
       // Khung qua nửa đêm: [start, 24h) ∪ [0, end].
-      if (t < start && t > end) return false;
+      if (minutes < start && minutes > end) return false;
     }
   }
   if (p.usageLimit != null && p.usedCount >= p.usageLimit) return false;
@@ -132,7 +131,8 @@ export function computeRandomPicks(
   availableFoodIds: number[],
   now: Date,
 ): Map<number, Set<number>> {
-  const day = now.toISOString().slice(0, 10);
+  // Khóa "ngày" theo lịch VN để khớp khái niệm "mỗi ngày" của khách, không theo ngày UTC.
+  const day = businessTimeParts(now).dayKey;
   const picks = new Map<number, Set<number>>();
   for (const p of auto) {
     if (p.randomCount <= 0) continue;
