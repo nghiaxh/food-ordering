@@ -3,8 +3,17 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 // App doc bien moi truong tu process.env (compose inject) hoac .env o root khi chay local.
+// Thu tu tim: .env o root repo truoc (server/src/config -> server/src -> server -> root),
+// roi den .env trong thu muc server; file nao doc truoc thi thang cho cac bien sau.
 // Thieu bien bat buoc thi dung han thay vi chay lung roi tra 500 o request dau tien.
-config({ path: [resolve(import.meta.dirname, "../../.env"), resolve(import.meta.dirname, "../.env")], quiet: true });
+config({
+  path: [
+    resolve(import.meta.dirname, "../../../.env"),
+    resolve(import.meta.dirname, "../../.env"),
+    resolve(import.meta.dirname, "../.env"),
+  ],
+  quiet: true,
+});
 
 const schema = z.object({
   // Compose dung DATABASE_URL tu DB_*; chay local khong co thi tu ghep tu DB_* hoac fallback mac dinh.
