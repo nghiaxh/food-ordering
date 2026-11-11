@@ -5,7 +5,7 @@ import type {
   Order,
   OrderItem,
   User,
-} from "../generated/prisma/client.js";
+} from "../db/schema.js";
 
 export const toCategoryJson = (c: Category) => ({
   id: c.id,

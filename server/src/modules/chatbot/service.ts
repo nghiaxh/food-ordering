@@ -3,8 +3,10 @@
 // mới lưu lịch sử hội thoại; khách vãng lai chat được nhờ history/lastFoodIds client gửi kèm.
 
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { HttpError } from "../../lib/errors.js";
-import { prisma } from "../../lib/prisma.js";
+import { aiSetting, chatMessages, foods, users } from "../../db/schema.js";
+import { db } from "../../lib/db.js";
 import * as gemini from "../../lib/gemini.js";
 import { plain } from "../../lib/text-normalizer.js";
 import {
@@ -85,14 +87,14 @@ const toCard = (p: Picked): FoodCard => ({
 });
 
 const maxSuggestions = async (): Promise<number> => {
-  const row = await prisma.aiSetting.findUnique({ where: { settingKey: "max_suggestions" } });
+  const row = await db.query.aiSetting.findFirst({ where: eq(aiSetting.settingKey, "max_suggestions") });
   const parsed = Number.parseInt(row?.settingValue?.trim() ?? "", 10);
   if (!Number.isFinite(parsed)) return 5;
   return Math.max(1, Math.min(5, parsed));
 };
 
 const extraRules = async (): Promise<string> => {
-  const row = await prisma.aiSetting.findUnique({ where: { settingKey: "extra_rules" } });
+  const row = await db.query.aiSetting.findFirst({ where: eq(aiSetting.settingKey, "extra_rules") });
   const value = row?.settingValue?.trim();
   return value ? `11. Quy tắc bổ sung của nhà hàng: ${value}` : "";
 };
@@ -299,7 +301,7 @@ const saveMessage = async (
   sender: "USER" | "BOT",
   content: string,
 ) => {
-  await prisma.chatMessage.create({ data: { userId, sessionId, sender, content } });
+  await db.insert(chatMessages).values({ userId, sessionId, sender, content });
 };
 
 export const chatbotStatus = async () => {
@@ -324,14 +326,14 @@ export const chat = async (
   requireConfigured();
 
   const sessionId = input.sessionId?.trim() || randomUUID();
-  const user = email ? await prisma.user.findUnique({ where: { email } }) : null;
+  const user = email ? await db.query.users.findFirst({ where: eq(users.email, email) }) : null;
   const history = requestHistory(input.history);
   if (user) await saveMessage(user.id, sessionId, "USER", input.message);
 
   const resolved = resolveFollowUpAnswer(sessionId, input.message);
   const classifyMessage = resolved.message;
 
-  const menu = await prisma.food.findMany({ include: { category: true } });
+  const menu = await db.query.foods.findMany({ with: { category: true } });
   const workingMessage = enrichWithLastPicked(classifyMessage, input.lastFoodIds, menu);
 
   const p = plain(classifyMessage);

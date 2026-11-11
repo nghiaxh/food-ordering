@@ -3,7 +3,19 @@
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { prisma } from "../../lib/prisma.js";
+import { asc, count, desc, eq } from "drizzle-orm";
+import {
+  aiSetting,
+  cartItems,
+  chatMessages,
+  notifications,
+  orders,
+  promotions,
+  reviews,
+  userAddresses,
+  users,
+} from "../../db/schema.js";
+import { db } from "../../lib/db.js";
 import { badRequest, conflict, notFound } from "../../lib/errors.js";
 import { hashPassword } from "../../lib/password.js";
 import { toUserJson } from "../../lib/serializers.js";
@@ -12,8 +24,8 @@ import { env } from "../../config/env.js";
 // ----- Khách hàng (UC13) -----
 
 export const listUsers = async () => {
-  const users = await prisma.user.findMany({ orderBy: { id: "asc" } });
-  return users.map(toUserJson);
+  const userList = await db.query.users.findMany({ orderBy: [asc(users.id)] });
+  return userList.map(toUserJson);
 };
 
 export const adminCreateUser = async (req: {
@@ -23,80 +35,99 @@ export const adminCreateUser = async (req: {
   phone?: string | "";
   address?: string;
 }) => {
-  const exists = await prisma.user.findUnique({ where: { email: req.email }, select: { id: true } });
+  const exists = await db.query.users.findFirst({
+    where: eq(users.email, req.email),
+    columns: { id: true },
+  });
   if (exists) throw badRequest("Email đã tồn tại");
   if (!req.password) throw badRequest("Mật khẩu không được để trống");
-  const user = await prisma.user.create({
-    data: {
+
+  const [user] = await db
+    .insert(users)
+    .values({
       email: req.email,
       password: await hashPassword(req.password),
       fullName: req.fullName,
       phone: req.phone || null,
       address: req.address ?? null,
-      // Tài khoản tạo từ trang quản trị luôn là khách hàng; admin do hệ thống cấp sẵn.
       role: "CUSTOMER",
-    },
-  });
-  return toUserJson(user);
+    })
+    .returning();
+
+  return toUserJson(user!);
 };
 
 export const adminUpdateUser = async (
   id: number,
   req: { email: string; password?: string | ""; fullName: string; phone?: string | ""; address?: string },
 ) => {
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!user) throw notFound("Không tìm thấy tài khoản");
   if (user.email !== req.email) {
-    const exists = await prisma.user.findUnique({ where: { email: req.email }, select: { id: true } });
+    const exists = await db.query.users.findFirst({
+      where: eq(users.email, req.email),
+      columns: { id: true },
+    });
     if (exists) throw badRequest("Email đã tồn tại");
   }
-  const updated = await prisma.user.update({
-    where: { id },
-    data: {
+
+  const [updated] = await db
+    .update(users)
+    .set({
       email: req.email,
       fullName: req.fullName,
       phone: req.phone || null,
       address: req.address ?? null,
-      // Mật khẩu để trống nghĩa là giữ nguyên mật khẩu hiện tại.
       ...(req.password ? { password: await hashPassword(req.password) } : {}),
-    },
-  });
-  return toUserJson(updated);
+    })
+    .where(eq(users.id, id))
+    .returning();
+
+  return toUserJson(updated!);
 };
 
 /** Khóa hoặc xóa tài khoản quản trị sẽ làm mất quyền truy cập hệ thống nên bị chặn. */
 export const setUserActive = async (id: number, active: boolean) => {
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!user) throw notFound("Không tìm thấy tài khoản");
   if (user.role === "ADMIN") throw badRequest("Không thể thao tác trên tài khoản quản trị");
-  const updated = await prisma.user.update({ where: { id }, data: { active } });
-  return toUserJson(updated);
+
+  const [updated] = await db
+    .update(users)
+    .set({ active })
+    .where(eq(users.id, id))
+    .returning();
+
+  return toUserJson(updated!);
 };
 
 export const adminDeleteUser = async (id: number) => {
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!user) throw notFound("Không tìm thấy tài khoản");
   if (user.role === "ADMIN") throw badRequest("Không thể thao tác trên tài khoản quản trị");
 
-  // Đơn và đánh giá đều giữ khoá ngoại tới users; xóa user khi còn các bản ghi đó
-  // sẽ làm hỏng lịch sử đơn hàng, nên chặn trước và trả 409.
-  const [orders, reviews] = await Promise.all([
-    prisma.order.count({ where: { userId: id } }),
-    prisma.review.count({ where: { userId: id } }),
+  const [orderRows, reviewRows] = await Promise.all([
+    db.select({ value: count() }).from(orders).where(eq(orders.userId, id)),
+    db.select({ value: count() }).from(reviews).where(eq(reviews.userId, id)),
   ]);
-  if (orders > 0 || reviews > 0) {
+
+  const orderCount = orderRows[0]?.value ?? 0;
+  const reviewCount = reviewRows[0]?.value ?? 0;
+
+  if (orderCount > 0 || reviewCount > 0) {
     const parts: string[] = [];
-    if (orders > 0) parts.push(`${orders} đơn hàng`);
-    if (reviews > 0) parts.push(`${reviews} đánh giá`);
+    if (orderCount > 0) parts.push(`${orderCount} đơn hàng`);
+    if (reviewCount > 0) parts.push(`${reviewCount} đánh giá`);
     throw conflict(`Không xoá được: khách đã có ${parts.join(" và ")}. Hãy khoá tài khoản để giữ lịch sử.`);
   }
-  // Giỏ, thông báo và tin nhắn chatbot là dữ liệu phụ nên xoá theo tài khoản.
-  await prisma.$transaction([
-    prisma.cartItem.deleteMany({ where: { userId: id } }),
-    prisma.chatMessage.deleteMany({ where: { userId: id } }),
-    prisma.notification.deleteMany({ where: { userId: id } }),
-    prisma.user.delete({ where: { id } }),
-  ]);
+
+  await db.transaction(async (tx) => {
+    await tx.delete(cartItems).where(eq(cartItems.userId, id));
+    await tx.delete(chatMessages).where(eq(chatMessages.userId, id));
+    await tx.delete(notifications).where(eq(notifications.userId, id));
+    await tx.delete(userAddresses).where(eq(userAddresses.userId, id));
+    await tx.delete(users).where(eq(users.id, id));
+  });
 };
 
 // ----- Khuyến mãi -----
@@ -142,7 +173,7 @@ export const toPromotionJson = (p: {
 });
 
 export const listPromotions = async () => {
-  const rows = await prisma.promotion.findMany({ orderBy: { id: "asc" } });
+  const rows = await db.query.promotions.findMany({ orderBy: [asc(promotions.id)] });
   return rows.map(toPromotionJson);
 };
 
@@ -164,13 +195,14 @@ export const createPromotion = async (req: {
   usageLimit?: number | null;
   randomCount: number;
 }) => {
-  const created = await prisma.promotion.create({
-    data: {
+  const [created] = await db
+    .insert(promotions)
+    .values({
       name: req.name,
       description: req.description ?? null,
       discountType: req.discountType,
-      discountValue: req.discountValue,
-      maxDiscount: req.maxDiscount ?? null,
+      discountValue: String(req.discountValue),
+      maxDiscount: req.maxDiscount != null ? String(req.maxDiscount) : null,
       scope: req.scope,
       targetIds: req.targetIds ?? [],
       startsAt: req.startsAt,
@@ -182,25 +214,30 @@ export const createPromotion = async (req: {
       priority: req.priority,
       usageLimit: req.usageLimit ?? null,
       randomCount: req.randomCount,
-    },
-  });
-  return toPromotionJson(created);
+    })
+    .returning();
+
+  return toPromotionJson(created!);
 };
 
 export const updatePromotion = async (
   id: number,
   req: Parameters<typeof createPromotion>[0],
 ) => {
-  const exists = await prisma.promotion.findUnique({ where: { id }, select: { id: true } });
+  const exists = await db.query.promotions.findFirst({
+    where: eq(promotions.id, id),
+    columns: { id: true },
+  });
   if (!exists) throw notFound("Không tìm thấy khuyến mãi");
-  const updated = await prisma.promotion.update({
-    where: { id },
-    data: {
+
+  const [updated] = await db
+    .update(promotions)
+    .set({
       name: req.name,
       description: req.description ?? null,
       discountType: req.discountType,
-      discountValue: req.discountValue,
-      maxDiscount: req.maxDiscount ?? null,
+      discountValue: String(req.discountValue),
+      maxDiscount: req.maxDiscount != null ? String(req.maxDiscount) : null,
       scope: req.scope,
       targetIds: req.targetIds ?? [],
       startsAt: req.startsAt,
@@ -212,39 +249,49 @@ export const updatePromotion = async (
       priority: req.priority,
       usageLimit: req.usageLimit ?? null,
       randomCount: req.randomCount,
-    },
-  });
-  return toPromotionJson(updated);
+    })
+    .where(eq(promotions.id, id))
+    .returning();
+
+  return toPromotionJson(updated!);
 };
 
 export const deletePromotion = async (id: number) => {
-  const exists = await prisma.promotion.findUnique({ where: { id }, select: { id: true } });
+  const exists = await db.query.promotions.findFirst({
+    where: eq(promotions.id, id),
+    columns: { id: true },
+  });
   if (!exists) throw notFound("Không tìm thấy khuyến mãi");
-  await prisma.promotion.delete({ where: { id } });
+  await db.delete(promotions).where(eq(promotions.id, id));
 };
 
 // ----- Cấu hình AI / lịch sử hội thoại -----
 
 export const listAiSettings = async () => {
-  const rows = await prisma.aiSetting.findMany({ orderBy: { settingKey: "asc" } });
+  const rows = await db.query.aiSetting.findMany({ orderBy: [asc(aiSetting.settingKey)] });
   return rows.map((r) => ({ settingKey: r.settingKey, settingValue: r.settingValue }));
 };
 
 export const saveAiSetting = async (settingKey: string, settingValue: string) => {
   const key = settingKey.trim();
   if (!key) throw badRequest("settingKey không được để trống");
-  const row = await prisma.aiSetting.upsert({
-    where: { settingKey: key },
-    create: { settingKey: key, settingValue },
-    update: { settingValue },
-  });
-  return { settingKey: row.settingKey, settingValue: row.settingValue };
+
+  const [row] = await db
+    .insert(aiSetting)
+    .values({ settingKey: key, settingValue })
+    .onConflictDoUpdate({
+      target: [aiSetting.settingKey],
+      set: { settingValue },
+    })
+    .returning();
+
+  return { settingKey: row!.settingKey, settingValue: row!.settingValue };
 };
 
 export const chatHistory = async () => {
-  const rows = await prisma.chatMessage.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { user: true },
+  const rows = await db.query.chatMessages.findMany({
+    orderBy: [desc(chatMessages.createdAt)],
+    with: { user: true },
   });
   return rows.map((r) => ({
     id: r.id,
@@ -280,7 +327,6 @@ const IMAGE_MIME: Record<string, string> = {
 export const saveImage = async (buffer: Buffer, host: string, protocol: string) => {
   const ext = imageExtension(buffer.subarray(0, 12));
   if (!ext) throw badRequest("Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP");
-  // Tên ngẫu nhiên để không trùng và không lộ thứ tự upload.
   const name = `${randomUUID()}${ext}`;
   writeFileSync(join(env.UPLOAD_DIR, name), buffer);
   return { url: `${protocol}://${host}/api/uploads/${name}`, mime: IMAGE_MIME[ext] };

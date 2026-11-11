@@ -10,15 +10,15 @@ tư vấn món theo ngôn ngữ tự nhiên, gợi ý luôn nằm trong thực �
 ```
 ┌──────────────────┐     VITE_API_URL (Bearer JWT)      ┌──────────────────────┐
 │  Client SPA      │ ─────────────────────────────────▶ │  Express server       │
-│  (Vite)          │ ◀───────────────────────────────── │  Node 26 + Prisma     │
+│  (Vite)          │ ◀───────────────────────────────── │  Node 26 + Drizzle    │
 └──────────────────┘                                    └──────────┬───────────┘
                                                               PostgreSQL 18
 ```
 
-> **Trạng thái chuyển đổi**: server đã chuyển sang Express 5 + Prisma 7; client đã chuyển sang Vue 3 + Naive UI. Hành vi nghiệp vụ không đổi.
+> **Trạng thái chuyển đổi**: server đã chuyển sang Express 5 + Drizzle ORM (Node 26) + PostgreSQL 18; client đã chuyển sang Vue 3 + Naive UI. Hành vi nghiệp vụ không đổi.
 
 - **client/**: Vue 3 + TypeScript 5.9 + Vite 8 + Naive UI + Pinia + Axios + Vue Router. SPA thuần, không SSR. UI tiếng Việt. API client dùng `VITE_API_URL` làm `baseURL` (mặc định `http://localhost:8080/api`). Nginx ở prod chỉ phục vụ static SPA và fallback route.
-- **server/**: Express 5 + TypeScript 7 + Prisma 7 (Node 26). JWT bằng `jsonwebtoken` (HS256) và mật khẩu bằng `bcrypt`; quyền kiểm tra ở server bằng middleware. Schema CSDL quản lý bằng `prisma migrate`, không còn `ddl-auto`.
+- **server/**: Express 5 + TypeScript 7 + Drizzle ORM (Node 26). JWT bằng `jsonwebtoken` (HS256) và mật khẩu bằng `bcrypt`; quyền kiểm tra ở server bằng middleware. Schema CSDL định nghĩa bằng TypeScript (`src/db/schema.ts`), quản lý migration bằng `drizzle-kit`.
 - **PostgreSQL 18**: cấu hình từ `DATABASE_URL` (compose tự dựng từ `DB_NAME`/`DB_USER`/`DB_PASSWORD`).
 
 ## Luồng dữ liệu chính
@@ -233,8 +233,8 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
 - **Validate tiêu chí**: `normalizeCriteria` loại bỏ giá trị vô lý (độ cay ngoài 0–3, ngân sách ≤ 0, số người ≤ 0/>50, chuỗi rỗng) và bỏ từ khóa tham chiếu thuần ("món đó"...). Nếu bộ lọc từ khóa không khớp món nào, server bỏ lọc từ khóa nhưng vẫn giữ các ràng buộc thuộc tính, tránh trả danh sách rỗng vô lý.
 - **RAG cho thông tin quán:** bảng `chatbot_knowledge` lưu tài liệu do admin nhập ở tab Tài liệu
   (`/admin/chatbot`), bảng `chatbot_knowledge_chunk` lưu các đoạn văn bản sau khi chia nhỏ kèm cột
-  `search_vector tsvector GENERATED ALWAYS AS (...) STORED` và index `GIN` (thêm bằng SQL trong
-  migration, Prisma không mô hình hoá kiểu này). Admin tải lên PDF/DOCX/TXT/MD,
+  `search_vector tsvector GENERATED ALWAYS AS (...) STORED` và index `GIN` (được thêm bằng SQL trong
+  migration, Drizzle hỗ trợ truy vấn trực tiếp bằng tag `sql`). Admin tải lên PDF/DOCX/TXT/MD,
   `modules/chatbot/documentParser.ts` tách text (pdf-parse/mammoth), chia nhỏ theo đoạn, `documentParser`/`ingest`
   lưu chunk. Bot tra **tsvector + từ khóa**: tìm bằng `websearch_to_tsquery` (`ts_rank_cd`), không
   tìm thấy thì chấm từ khóa như chấm món dự phòng (có unaccent/chuẩn hoá tiếng Việt 2 đầu).
@@ -492,14 +492,15 @@ không có code kiểm chứng.
 
 ```
 server/
-  prisma/
-    schema.prisma        # toàn bộ model + enum; nguồn duy nhất của cấu trúc CSDL
-    migrations/          # SQL migrate commit kèm (gồm cả cột search_vector tsvector + GIN)
-    seed.ts              # dữ liệu demo; chỉ chạy khi bảng users trống
-  prisma.config.ts       # Prisma 7: schema path, migrations.seed, datasource url
+  drizzle/               # SQL migrations theo thời gian do drizzle-kit quản lý (gồm cả search_vector tsvector + GIN)
+  drizzle.config.ts      # Drizzle config: schema path, out dir, datasource url
   src/
     config/env.ts        # zod đọc biến môi trường, fail-fast khi thiếu JWT_SECRET/DATABASE_URL
-    lib/                 # prisma (adapter-pg), jwt, password, errors, validate, text-normalizer, serializers
+    db/
+      schema.ts          # toàn bộ 15 bảng + 7 enums định nghĩa bằng TypeScript
+      relations.ts       # quan hệ giữa các bảng phục vụ Drizzle Relational Queries (`db.query.*`)
+      seed.ts            # dữ liệu demo; chỉ chạy khi bảng users trống
+    lib/                 # db (drizzle client + connection pool), jwt, password, errors, validate, text-normalizer, serializers
     middleware/          # auth (requireAuth/optionalAuth/requireRole), error (errorHandler)
     modules/
       auth/      routes.ts  service.ts  schema.ts
@@ -527,7 +528,7 @@ Khi chạy server ngoài Docker mà không có `DATABASE_URL`, server tự ghép
 - Dev: `docker compose --profile dev up --build` (client http://localhost:5173, server :8080). Server dev chạy `tsx watch` tự reload khi file đổi.
 - Prod: `docker compose --profile prod up --build -d` (client http://localhost)
 - `docker compose up` (không profile): chỉ Postgres.
-- Migration CSDL: `cd server && npx prisma migrate dev` (dev) / `npx prisma migrate deploy` (prod/CI), seed bằng `npx prisma db seed`. Migration `init` đã gồm cả cột `search_vector tsvector` (RAG) — xem `server/prisma/migrations/`.
+- Migration CSDL: `cd server && npm run db:generate` (sinh migration) / `npm run db:migrate` (áp dụng migration), seed bằng `npm run db:seed`. Cột `search_vector tsvector` (RAG) được tạo trực tiếp trong migration SQL.
 - Client dev dùng Vite HMR, không cần build lại image trừ khi đổi `package.json`.
 
 ## Kiểm thử
@@ -536,7 +537,7 @@ Server có các unit test Vitest (`server/tests/`), chạy độc lập không c
 
 ## Quy tắc quan trọng khi làm việc
 
-- Không Hibernate/`ddl-auto`; schema do `prisma migrate` quản lý. Thay đổi schema phải tạo migration và commit kèm.
+- Schema quản lý bằng Drizzle ORM (`drizzle-kit`). Mọi thay đổi schema đi qua `schema.ts`, sinh migration SQL và commit kèm.
 - DB mới hoàn toàn: seed chỉ chạy khi bảng `users` trống; đổi dữ liệu mẫu thì DB cũ giữ nguyên — reset bằng
   `docker compose --profile prod down -v`.
 - Mọi quy tắc giảm giá sửa ở lớp pricing (`modules/pricing`), đừng tính lại ở Vue.

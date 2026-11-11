@@ -49,9 +49,6 @@ services:
     volumes:
       - ./server:/app
       - /app/node_modules
-      # Anonymous volume giữ src/generated/ (Prisma Client) không bị ghi đè
-      # bởi bind mount ./server:/app từ host (host không có thư mục này).
-      - /app/src/generated
       - uploads:/app/uploads
 
   client-dev:
@@ -112,6 +109,21 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
+
+  drizzle-studio:
+    build:
+      context: ./server
+      target: dev
+    container_name: food-ordering-drizzle-studio
+    profiles: ["tools"]
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@database:5432/${DB_NAME}
+    ports:
+      - "4983:4983"
+    command: ["npx", "drizzle-kit", "studio", "--port", "4983", "--host", "0.0.0.0"]
 
 volumes:
   db_data:

@@ -1,8 +1,10 @@
 // Lớp truy vấn + điều phối: gọi engine để tính, đọc khuyến mãi từ DB, và cung cấp
 // các hàm dùng chung cho cart/order (priceOrder, quote, decorate).
 
-import type { Food, Prisma, Promotion } from "../../generated/prisma/client.js";
-import { prisma } from "../../lib/prisma.js";
+import { eq, sql } from "drizzle-orm";
+import type { Food, Promotion } from "../../db/schema.js";
+import { foods, promotions } from "../../db/schema.js";
+import { db } from "../../lib/db.js";
 import { badRequest } from "../../lib/errors.js";
 import {
   bestFor,
@@ -15,7 +17,8 @@ import {
   type PricingInputItem,
 } from "./engine.js";
 
-export type DbClient = Prisma.TransactionClient | typeof prisma;
+export type DrizzleTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DbClient = typeof db | DrizzleTransaction;
 
 export interface PricedLine {
   food: FoodLike & { name: string; imageUrl: string | null; category?: { id: number } | null };
@@ -34,29 +37,32 @@ export interface PricedCart {
 }
 
 /** Đọc khuyến mãi active từ DB rồi lọc bằng isValid; pure logic nằm ở engine. */
-export async function activePromotions(now: Date, db: DbClient = prisma): Promise<Promotion[]> {
-  const all = await db.promotion.findMany({ where: { active: true } });
+export async function activePromotions(now: Date, client: DbClient = db): Promise<Promotion[]> {
+  const all = await client.query.promotions.findMany({ where: eq(promotions.active, true) });
   return all.filter((p) => isValid(p, now));
 }
 
 /** Dựng rule set dùng chung cho mọi lần tính trong một request. */
-async function buildRules(now: Date, db: DbClient): Promise<DiscountRule> {
-  const auto = await activePromotions(now, db);
+async function buildRules(now: Date, client: DbClient): Promise<DiscountRule> {
+  const auto = await activePromotions(now, client);
   const needsPicks = auto.some((p) => p.randomCount > 0);
   if (!needsPicks) {
     return { now, auto, randomPicks: new Map(), availableFoodIds: [] };
   }
-  const available = await db.food.findMany({ where: { available: true }, select: { id: true } });
+  const available = await client.query.foods.findMany({
+    where: eq(foods.available, true),
+    columns: { id: true },
+  });
   const availableFoodIds = available.map((f) => f.id);
   return { now, auto, randomPicks: computeRandomPicks(auto, availableFoodIds, now), availableFoodIds };
 }
 
 export async function priceOrder(
   items: PricingInputItem[],
-  db: DbClient = prisma,
+  client: DbClient = db,
   now: Date = new Date(),
 ): Promise<PricedCart> {
-  const rules = await buildRules(now, db);
+  const rules = await buildRules(now, client);
   const lines: PricedLine[] = [];
   const applied = new Map<number, Promotion>();
   let subtotal = 0;
@@ -64,7 +70,10 @@ export async function priceOrder(
   for (const input of items) {
     if (input.quantity <= 0) throw badRequest("Số lượng món phải lớn hơn 0");
     if (input.foodId == null) throw badRequest("Dòng hàng phải có món");
-    const food = await db.food.findUnique({ where: { id: input.foodId }, include: { category: true } });
+    const food = await client.query.foods.findFirst({
+      where: eq(foods.id, input.foodId),
+      with: { category: true },
+    });
     if (!food) throw badRequest("Món không tồn tại");
     const unitPrice = Number(food.price);
 
@@ -122,13 +131,13 @@ export type DecoratedFood<TFood extends FoodLike & { name: string; imageUrl: str
 };
 
 /** Điền giá sau khuyến mãi cho cả danh sách; tính rules một lần cho cả danh sách. */
-export async function decorateFoods<TFood extends FoodLike & { name: string; imageUrl: string | null; price: Prisma.Decimal | number | string }>(
-  foods: TFood[],
-  db: DbClient = prisma,
+export async function decorateFoods<TFood extends FoodLike & { name: string; imageUrl: string | null; price: number | string }>(
+  foodList: TFood[],
+  client: DbClient = db,
 ): Promise<Array<DecoratedFood<TFood>>> {
-  if (foods.length === 0) return [];
-  const rules = await buildRules(new Date(), db);
-  return foods.map((food) => {
+  if (foodList.length === 0) return [];
+  const rules = await buildRules(new Date(), client);
+  return foodList.map((food) => {
     const unitPrice = Number(food.price);
     const best = bestFor(unitPrice, food, rules);
     const amount = best ? discountAmount(unitPrice, best) : 0;
@@ -145,6 +154,9 @@ export async function decorateFoods<TFood extends FoodLike & { name: string; ima
 /** Ghi nhận lượt dùng của các KM đã áp; gọi trong cùng transaction với tạo đơn. */
 export async function markUsed(applied: Promotion[], tx: DbClient) {
   for (const p of applied) {
-    await tx.promotion.update({ where: { id: p.id }, data: { usedCount: { increment: 1 } } });
+    await tx
+      .update(promotions)
+      .set({ usedCount: sql`${promotions.usedCount} + 1` })
+      .where(eq(promotions.id, p.id));
   }
 }

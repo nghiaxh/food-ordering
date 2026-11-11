@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Prisma, type Promotion } from "../src/generated/prisma/client.js";
+import type { Promotion } from "../src/db/schema.js";
 import {
   bestFor,
   computeRandomPicks,
@@ -19,7 +19,7 @@ const promo = (partial: Partial<Promotion>): Promotion =>
     name: "KM",
     description: null,
     discountType: "PERCENT",
-    discountValue: new Prisma.Decimal(10),
+    discountValue: "10",
     maxDiscount: null,
     minOrderTotal: null,
     scope: "GLOBAL",
@@ -41,7 +41,7 @@ const promo = (partial: Partial<Promotion>): Promotion =>
 const food = (id: number, categoryId: number | null) => ({
   id,
   categoryId,
-  price: new Prisma.Decimal(50000),
+  price: "50000",
   name: `Món ${id}`,
   available: true,
 });
@@ -83,20 +83,20 @@ describe("isValid", () => {
 
 describe("discountAmount", () => {
   it("PERCENT lấy theo phần trăm của giá, làm tròn HALF_UP 2 số lẻ", () => {
-    expect(discountAmount(50000, promo({ discountValue: new Prisma.Decimal(20) }))).toBe(10000);
-    expect(discountAmount(10001, promo({ discountValue: new Prisma.Decimal(10) }))).toBeCloseTo(1000.1, 2);
+    expect(discountAmount(50000, promo({ discountValue: "20" }))).toBe(10000);
+    expect(discountAmount(10001, promo({ discountValue: "10" }))).toBeCloseTo(1000.1, 2);
   });
 
   it("FIXED lấy đúng số tiền và bị kẹp trần bởi maxDiscount", () => {
-    expect(discountAmount(50000, promo({ discountType: "FIXED", discountValue: new Prisma.Decimal(15000) }))).toBe(15000);
+    expect(discountAmount(50000, promo({ discountType: "FIXED", discountValue: "15000" }))).toBe(15000);
     expect(
-      discountAmount(50000, promo({ discountType: "FIXED", discountValue: new Prisma.Decimal(30000), maxDiscount: new Prisma.Decimal(10000) })),
+      discountAmount(50000, promo({ discountType: "FIXED", discountValue: "30000", maxDiscount: "10000" })),
     ).toBe(10000);
   });
 
   it("không bao giờ giảm quá giá món hoặc âm", () => {
-    expect(discountAmount(5000, promo({ discountType: "FIXED", discountValue: new Prisma.Decimal(99999) }))).toBe(5000);
-    expect(discountAmount(50000, promo({ discountType: "FIXED", discountValue: new Prisma.Decimal(-1) }))).toBe(0);
+    expect(discountAmount(5000, promo({ discountType: "FIXED", discountValue: "99999" }))).toBe(5000);
+    expect(discountAmount(50000, promo({ discountType: "FIXED", discountValue: "-1" }))).toBe(0);
   });
 });
 
@@ -115,14 +115,14 @@ describe("matches / bestFor", () => {
 
   it("chọn giảm nhiều nhất; hoà số tiền thì priority cao hơn thắng", () => {
     const best = bestFor(50000, food(7, 2), rulesOf([
-      promo({ id: 1, scope: "GLOBAL", discountValue: new Prisma.Decimal(10), priority: 0, name: "10%" }),
-      promo({ id: 2, scope: "GLOBAL", discountValue: new Prisma.Decimal(30), priority: 0, name: "30%" }),
+      promo({ id: 1, scope: "GLOBAL", discountValue: "10", priority: 0, name: "10%" }),
+      promo({ id: 2, scope: "GLOBAL", discountValue: "30", priority: 0, name: "30%" }),
     ]));
     expect(best?.name).toBe("30%");
 
     const tie = bestFor(50000, food(7, 2), rulesOf([
-      promo({ id: 1, scope: "GLOBAL", discountValue: new Prisma.Decimal(10), priority: 1, name: "thấp điểm ưu tiên" }),
-      promo({ id: 2, scope: "GLOBAL", discountValue: new Prisma.Decimal(10), priority: 9, name: "cao điểm ưu tiên" }),
+      promo({ id: 1, scope: "GLOBAL", discountValue: "10", priority: 1, name: "thấp điểm ưu tiên" }),
+      promo({ id: 2, scope: "GLOBAL", discountValue: "10", priority: 9, name: "cao điểm ưu tiên" }),
     ]));
     expect(tie?.name).toBe("cao điểm ưu tiên");
   });

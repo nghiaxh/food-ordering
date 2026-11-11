@@ -6,7 +6,7 @@
 // hoà số tiền giảm thì xét priority. Khung giờ qua nửa đêm được hiểu start > end.
 
 import { createHash } from "node:crypto";
-import type { Food, Promotion } from "../../generated/prisma/client.js";
+import type { Food, Promotion } from "../../db/schema.js";
 import { businessTimeParts } from "../../lib/businessTime.js";
 
 export interface PricingInputItem {
