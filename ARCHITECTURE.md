@@ -546,7 +546,8 @@ Khi chạy server ngoài Docker mà không có `DATABASE_URL`, server tự ghép
 - Dev: `docker compose --profile dev up --build` (client http://localhost:5173, server :8080). Server dev chạy `tsx watch` tự reload khi file đổi.
 - Prod: `docker compose --profile prod up --build -d` (client http://localhost)
 - Tools: `docker compose --profile tools up -d drizzle-studio` (Drizzle Studio ở http://localhost:4983)
-- `docker compose up` (không profile): chỉ Postgres.
+- `docker compose up` (không profile): chỉ Postgres. Service `database` không khai báo `profiles`
+  nên nó luôn chạy theo mọi profile, kể cả `tools`.
 - Migration CSDL: `cd server && npm run db:generate` (sinh migration) / `npm run db:migrate` (áp dụng migration), seed bằng `npm run db:seed`. Cột `search_vector tsvector` (RAG) được tạo trực tiếp trong migration SQL.
 - Client dev dùng Vite HMR, không cần build lại image trừ khi đổi `package.json`.
 

@@ -20,7 +20,8 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không gửi xuống client.
 - **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
   client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
-  (Drizzle Studio).
+  (Drizzle Studio). Service `database` không khai báo `profiles` nên Postgres luôn chạy theo mọi
+  profile, kể cả `docker compose up` không profile.
   Server dev reload nhờ `tsx watch` (không cần bước compile riêng).
   Một file `.env` duy nhất ở root chứa mọi bí mật; compose tự dựng `DATABASE_URL`.
 
@@ -199,7 +200,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Comment mới dùng **tiếng Việt không dấu**, ngắn gọn và giải thích **vì sao**, ràng buộc nghiệp vụ,
   nguồn dữ liệu, vòng đời state hoặc cách fallback; không lặp lại cú pháp hoặc từng dòng JSX.
 - Dùng `//` cho quyết định cục bộ, Javadoc/JSDoc cho hợp đồng hoặc ranh giới quan trọng.
-- Quy ước này chỉ áp cho **comment trong mã** (`client/src`, `server/src`, `server/tests`).
+- Quy ước này áp cho **mọi comment trong mã và file cấu hình** (`client/src`, `client/e2e`,
+  `server/src`, `server/tests`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `*.css`).
   Chuỗi hiển thị cho người dùng, prompt AI, dữ liệu seed và thông báo lỗi vẫn viết có dấu.
 - Khi đổi endpoint, DTO, quy tắc domain hoặc luồng nghiệp vụ, cập nhật đồng bộ
   `ARCHITECTURE.md`, `TEST.md` và tài liệu liên quan. Khi đổi quy ước phân nhánh
