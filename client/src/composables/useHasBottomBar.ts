@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { useCartStore } from '@/modules/cart/store'
+import { useCartStore } from '@/user/cart/store'
 
 /** Thanh co dinh day dang chiem cho, de nut chatbot biet phai nhuong bao nhieu. */
 export type BottomBar = 'checkout' | null

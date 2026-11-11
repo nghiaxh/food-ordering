@@ -85,7 +85,7 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
    — `PREPARING` có nghĩa là đang vận chuyển, nhãn hiển thị "Đang vận chuyển" ở cả client lẫn
    thông báo server (mã trong DB không đổi); trạng thái thanh toán dùng `UNPAID` hoặc `PAID`.
 5. **Trạng thái đi đúng một chiều**: `PENDING → CONFIRMED → PREPARING → COMPLETED`, được canh
-   trong `modules/order/transitions.ts` (isValidTransition). Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
+   trong `user/order/transitions.ts` (isValidTransition). Đơn đã `COMPLETED` hoặc `CANCELLED` không đổi trạng
    thái được. `CANCELLED` được phép từ mọi trạng thái chưa chốt. Client cũng lọc danh sách trạng
    thái hợp lệ bằng `allowedNextStatuses`, nhưng server mới là nơi quyết định.
 6. Khách tự hủy được đơn của mình qua `PATCH /api/orders/{id}/cancel`, chỉ khi đơn còn `PENDING`
@@ -128,7 +128,7 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 
 ### 4c. Khuyến mãi tự động
 
-Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `modules/pricing`.
+Mọi con số tiền của giỏ và của đơn do **một chỗ duy nhất** tính: `user/pricing`.
 Client không tự nhân phần trăm, không tự trừ voucher; nó gửi `POST /api/cart/quote` kèm
 `{ items }` đúng danh sách dòng đang hiển thị và hiện lại đúng những gì server trả. Quote tính
 bằng `priceOrder` trên danh sách đó, **không đọc lại giỏ trong DB**, nên thêm món xong không bị
@@ -163,7 +163,7 @@ lệch nhau.
   `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
   cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
 - **Giá trên thẻ món**: `GET /api/foods` và `GET /api/foods/{id}` được `decorateFoods`
-  (`modules/pricing/service.ts`) điền `discountedPrice`, `discountAmount`, `discountPercent`,
+  (`user/pricing/service.ts`) điền `discountedPrice`, `discountAmount`, `discountPercent`,
   `discountLabel`; client chỉ hiện.
   Đây là giá tham khảo cùng luật với giỏ, còn con số chốt vẫn là báo giá.
 
@@ -189,7 +189,7 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
 - `lib/gemini.ts` đọc nhà cung cấp và tên mô hình từ bảng cấu hình `ai_setting` (quản trị viên đặt
   trong trang Chatbot), chỉ fallback về `AI_PROVIDER` / `AI_MODEL` khi chưa đặt. Cả
   Gemini và OpenAI đều được hỗ trợ; `fetch REST` có timeout 15 giây cho cả kết nối và đọc.
-- **Ngữ cảnh hỏi tiếp nằm ở client, không lưu vào CSDL.** `chatSchema` (`modules/chatbot/routes.ts`)
+- **Ngữ cảnh hỏi tiếp nằm ở client, không lưu vào CSDL.** `chatSchema` (`user/chatbot/routes.ts`)
   nhận thêm `history`
   (tối đa 3 câu hỏi gần nhất) và `lastFoodIds` (ID các món ở tin bot gần nhất). Client xoá
   `foods` của mọi tin bot cũ nên chỉ tin mới nhất còn thẻ; ref `lastFoodIds` được cập nhật theo
@@ -219,7 +219,7 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
   `extractCriteria`/`generateReply` để `chat()` đổi thành 503 thay vì dựng câu trả lời dự phòng.
   Lỗi 429/5xx, hết thời gian chờ mới đi nhánh dự phòng.
 - **Nhánh dự phòng khi không gọi được AI** (429/5xx, JSON sai, hết thời gian chờ): `chat()`
-  rơi sang `modules/chatbot/select.ts` (`selectFoodsByCode` + `fallbackReply`). Món được chấm điểm bằng code
+  rơi sang `user/chatbot/select.ts` (`selectFoodsByCode` + `fallbackReply`). Món được chấm điểm bằng code
   theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm
   tên danh mục, rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải
   sản, ngân sách, số người). Câu trả lời chỉ tóm tắt một dòng ("Mình tìm được 5 món chay, không
@@ -239,12 +239,12 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
   (`/admin/chatbot`), bảng `chatbot_knowledge_chunk` lưu các đoạn văn bản sau khi chia nhỏ kèm cột
   `search_vector tsvector GENERATED ALWAYS AS (...) STORED` và index `GIN` (được thêm bằng SQL trong
   migration, Drizzle hỗ trợ truy vấn trực tiếp bằng tag `sql`). Admin tải lên PDF/DOCX/TXT/MD,
-  `modules/chatbot/documentParser.ts` tách text (pdf-parse/mammoth), chia nhỏ theo đoạn, `documentParser`/`ingest`
+  `user/chatbot/documentParser.ts` tách text (pdf-parse/mammoth), chia nhỏ theo đoạn, `documentParser`/`ingest`
   lưu chunk. Bot tra **tsvector + từ khóa**: tìm bằng `websearch_to_tsquery` (`ts_rank_cd`), không
   tìm thấy thì chấm từ khóa như chấm món dự phòng (có unaccent/chuẩn hoá tiếng Việt 2 đầu).
   Câu trả lời chỉ từ đoạn tìm được, kèm `citations` hiện "Nguồn: ...". Không tìm thấy thì nói không rõ,
   không bịa giờ/giá ship. Món ăn vẫn lọc bằng code xác định, không đưa giá/cay/khả dụng vào bảng RAG.
-- **Định tuyến intent:** `modules/chatbot/service.ts` chia câu hỏi thành `FOOD`,
+- **Định tuyến intent:** `user/chatbot/service.ts` chia câu hỏi thành `FOOD`,
   `RESTAURANT_INFO`, `ORDER_GUIDE`, `OUT_OF_SCOPE` bằng các hàm cục bộ `isRestaurantInfoQuestion`,
   `isOrderGuideQuestion` và `genericInfoMatch`. Keyword được thử trước (không tốn mạng);
   không khớp gì mới tra tài liệu một lần — câu khớp thì coi là `RESTAURANT_INFO` (dùng
@@ -267,7 +267,7 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
   `quickReplies` giống `foods`). Nút `Món khác` do server xử lý bằng code — chọn món đang phục vụ
   ngoại trừ các ID vừa hiển thị, giá tăng dần, không gọi AI. Prompt trả lời có thêm luật 10
   (giải thích ngắn gọn vì sao các món hợp với yêu cầu của khách); prompt nằm ở
-  `modules/chatbot/prompts.ts`,
+  `user/chatbot/prompts.ts`,
   dự án tự thiết kế theo nghiệp vụ đặt món, không bản sao prompt mẫu của repo nào.
 - **Streaming chữ:** server vẫn trả nguyên câu về một lần, client chạy chữ dần theo từ
   (`useChatConversation`), có status text `Đang tìm món...` / `Đang tra tài liệu quán...` và nút Dừng.
@@ -278,7 +278,7 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
 
 Tiêu chí AI trả về gồm `categories` (loại món và số món mong muốn cho từng loại),
 `maxSpicyLevel`, `maxBudget` (TỔNG ngân sách của cả bữa), `people`, `excludeAllergens`,
-`dietaryTags` và `keywords`. `modules/chatbot/select.ts (selectFoods)` áp chúng bằng code, theo hai bước:
+`dietaryTags` và `keywords`. `user/chatbot/select.ts (selectFoods)` áp chúng bằng code, theo hai bước:
 
 1. **Lọc thuộc tính món**: còn phục vụ, độ cay, thành phần loại trừ (quét cả `allergens` lẫn
    `ingredients`), nhãn chế độ ăn, từ khóa. Danh mục và giá để dành cho bước 2.
@@ -333,7 +333,7 @@ dạng "N món, tổng ... trong ngân sách ...".
 - Từ `lg` chuông là nút riêng trên header (mang chấm đỏ chưa đọc), dưới `lg` mục "Thông báo" nằm
   trong menu tài khoản; cả hai đều mở
   `NotificationsDrawer` bên phải. Avatar có chấm đỏ khi còn thông báo chưa đọc; số chưa đọc
-  cũng hiện cạnh nhãn trong menu. `modules/notification/store.ts` là nguồn dữ liệu chung cho cả
+  cũng hiện cạnh nhãn trong menu. `user/notification/store.ts` là nguồn dữ liệu chung cho cả
   header và drawer, trước đây hai nơi gọi API riêng nên dễ lệch số.
 - Mỗi thông báo gắn `orderId` nullable của đơn liên quan, do `order` module (notify) set;
   từ migration `init` mọi thông báo đều có thể có `orderId`.
@@ -373,7 +373,7 @@ từ `/api/admin/reports/*` tính trong 30 ngày gần nhất. Doanh thu trên t
 Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang chủ / Thực đơn" làm một
 màn hình. Cấu trúc từ trên xuống:
 
-- **Hero** (`modules/menu/components/HomeHero.vue`) trải hết bề ngang vùng cuộn, chỉ hiện khi chưa có bộ
+- **Hero** (`user/menu/components/HomeHero.vue`) trải hết bề ngang vùng cuộn, chỉ hiện khi chưa có bộ
   lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ có tiêu đề
   `Hôm nay ăn gì?` kèm hai nút `Xem thực đơn` và `Hỏi trợ lý AI`. Cao 180/220/260px theo breakpoint.
 - **Dải danh mục** (`CategoryRail`) là chip cao 40px có ảnh tròn 32px, cuộn ngang; chọn danh mục
@@ -513,7 +513,7 @@ server/
       seed.ts            # dữ liệu demo; chỉ chạy khi bảng users trống
     lib/                 # db (drizzle client + connection pool), jwt, password, errors, validate, text-normalizer, businessTime, serializers, gemini
     middleware/          # auth (requireAuth/optionalAuth/requireRole), error (errorHandler), rateLimit
-    modules/
+    user/                             # module phục vụ khách
       auth/      routes.ts  service.ts  schema.ts
       menu/      routes.ts  service.ts   # GET /api/foods, /api/categories (public)
       review/    routes.ts  service.ts  schema.ts
@@ -523,13 +523,15 @@ server/
       pricing/   service.ts  engine.ts               # nơi duy nhất tính tiền và khuyến mãi
       notification/ routes.ts  service.ts
       chatbot/   routes.ts  service.ts  select.ts  criteria.ts  filters.ts  prompts.ts  retrieval.ts  ingest.ts  documentParser.ts
-      admin/     routes.ts  service.ts  schema.ts  report.ts   # gồm cả quản lý khuyến mãi
+    admin/                            # module phục vụ quản trị (import service từ user/<domain>)
+      routes.ts  service.ts  schema.ts  report.ts   # gồm cả quản lý khuyến mãi, khách, AI, upload
     app.ts  server.ts
   tests/                 # Vitest, chạy không cần DB
 
 client/src/
   main.ts  App.vue(router)  index.css  shared/(api/http, api/message, types, utils, stores)  composables/
-  modules/  (auth, cart, menu, order, review, notification, chatbot, admin, user — mỗi module api.ts/store.ts/components/pages)
+  user/  (auth, cart, menu, order, review, notification, chatbot, user — mỗi module api.ts/store.ts/components/pages)
+  admin/ (menu, order, customers, promotion, chatbot, report — api.ts/pages + shell UI dùng chung)
   router/index.ts  layouts/DefaultLayout.vue  layouts/AdminLayout.vue  components/
 ```
 
@@ -564,6 +566,6 @@ Khi chạy server ngoài Docker mà không có `DATABASE_URL`, server tự ghép
 - Schema quản lý bằng Drizzle ORM (`drizzle-kit`). Mọi thay đổi schema đi qua `schema.ts`, sinh migration SQL và commit kèm.
 - DB mới hoàn toàn: seed chỉ chạy khi bảng `users` trống; đổi dữ liệu mẫu thì DB cũ giữ nguyên — reset bằng
   `docker compose --profile prod down -v`.
-- Mọi quy tắc giảm giá sửa ở lớp pricing (`modules/pricing`), đừng tính lại ở Vue.
+- Mọi quy tắc giảm giá sửa ở lớp pricing (`user/pricing`), đừng tính lại ở Vue.
 - Sửa endpoint/DTO/quy tắc domain → cập nhật đồng bộ `AGENTS.md`, `ARCHITECTURE.md`, `TEST.md`.
 - Không giữ bí mật trong code; chỉ trong `.env`.

@@ -5,8 +5,8 @@ import { NConfigProvider, NMessageProvider, NLoadingBarProvider, NDialogProvider
 import viVN from 'naive-ui/es/locales/common/viVN'
 import dateViVN from 'naive-ui/es/locales/date/viVN'
 import ScrollManager from '@/components/ScrollManager.vue'
-import { useAuthStore } from '@/modules/auth/store'
-import { useCartStore } from '@/modules/cart/store'
+import { useAuthStore } from '@/user/auth/store'
+import { useCartStore } from '@/user/cart/store'
 
 // Dong bo gio khi doi trang thai dang nhap: da dang nhap thi tai gio tu server,
 // dang xuat thi xoa gio cua tai khoan khoi state. Khach vang lai khong co gio.

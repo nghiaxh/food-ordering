@@ -17,10 +17,10 @@ import {
   LogOutOutline,
 } from '@vicons/ionicons5'
 import BrandMark from '@/components/BrandMark.vue'
-import NotificationsDrawer from '@/modules/notification/components/NotificationsDrawer.vue'
-import { adminGetOrders } from '@/modules/admin/api'
-import { useAuthStore } from '@/modules/auth/store'
-import { useNotificationStore } from '@/modules/notification/store'
+import NotificationsDrawer from '@/user/notification/components/NotificationsDrawer.vue'
+import { adminGetOrders } from '@/admin/api'
+import { useAuthStore } from '@/user/auth/store'
+import { useNotificationStore } from '@/user/notification/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 
 interface NavItem {

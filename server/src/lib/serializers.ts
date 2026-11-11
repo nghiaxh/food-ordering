@@ -17,7 +17,7 @@ export const toCategoryJson = (c: Category) => ({
 
 /**
  * Shape Food tra ra client. `discountedPrice`/`discountAmount`/`discountPercent`/`discountLabel`
- * la truong transient do lop pricing dien (xem modules/pricing); chua co thi bo han khoi JSON.
+ * la truong transient do lop pricing dien (xem user/pricing); chua co thi bo han khoi JSON.
  */
 export const toFoodJson = (food: Food & { category?: Category | null } & Record<string, unknown>) => {
   const extras: Record<string, unknown> = {};
