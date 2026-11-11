@@ -74,7 +74,7 @@ watch(
 )
 
 watch(error, (e) => {
-  if (e) message.error('Không tải được danh sách đơn hàng')
+  if (e) message.error('Kh├┤ng tß║úi ─æ╞░ß╗úc danh s├ích ─æ╞ín h├áng')
 })
 
 const setFilter = (next: OrderStatus | 'ALL') => {
@@ -101,13 +101,13 @@ const reorder = async (order: Order) => {
     reorderingId.value = null
   }
   if (available.length === 0) {
-    message.warning('Các món trong đơn này đã ngừng phục vụ, không thể đặt lại')
+    message.warning('C├íc m├│n trong ─æ╞ín n├áy ─æ├ú ngß╗½ng phß╗Ñc vß╗Ñ, kh├┤ng thß╗â ─æß║╖t lß║íi')
     return
   }
   message.success(
     skipped.length > 0
-      ? `Đã thêm vào giỏ (bỏ qua món ngừng phục vụ: ${skipped.join(', ')})`
-      : 'Đã thêm toàn bộ món vào giỏ',
+      ? `─É├ú th├¬m v├áo giß╗Å (bß╗Å qua m├│n ngß╗½ng phß╗Ñc vß╗Ñ: ${skipped.join(', ')})`
+      : '─É├ú th├¬m to├án bß╗Ö m├│n v├áo giß╗Å',
   )
   ui.openDrawer('cart')
 }
@@ -115,10 +115,10 @@ const reorder = async (order: Order) => {
 const cancel = async (order: Order) => {
   try {
     await cancelOrder(order.id)
-    message.success(`Đã hủy đơn #${orderCode(order.id)}`)
+    message.success(`─É├ú hß╗ºy ─æ╞ín #${orderCode(order.id)}`)
     await refresh()
   } catch {
-    message.error('Không hủy được đơn này')
+    message.error('Kh├┤ng hß╗ºy ─æ╞░ß╗úc ─æ╞ín n├áy')
     await refresh()
   }
 }
@@ -126,10 +126,10 @@ const cancel = async (order: Order) => {
 // Huy la thao tac khong hoan tac duoc nen phai co buoc xac nhan; server cung kiem lai rang buoc.
 const confirmCancel = (order: Order) => {
   dialog.warning({
-    title: 'Hủy đơn này?',
-    content: 'Bạn chỉ có thể tự hủy đơn khi đơn chưa thanh toán và còn chờ xác nhận.',
-    positiveText: 'Hủy đơn',
-    negativeText: 'Giữ đơn',
+    title: 'Hß╗ºy ─æ╞ín n├áy?',
+    content: 'Bß║ín chß╗ë c├│ thß╗â tß╗▒ hß╗ºy ─æ╞ín khi ─æ╞ín ch╞░a thanh to├ín v├á c├▓n chß╗¥ x├íc nhß║¡n.',
+    positiveText: 'Hß╗ºy ─æ╞ín',
+    negativeText: 'Giß╗» ─æ╞ín',
     onPositiveClick: () => cancel(order),
   })
 }
@@ -138,11 +138,11 @@ const confirmPaid = async () => {
   if (!paying.value || qrExpired.value) return
   try {
     await payOrder(paying.value.id)
-    message.success('Đã ghi nhận thanh toán')
+    message.success('─É├ú ghi nhß║¡n thanh to├ín')
     paying.value = null
     await refresh()
   } catch {
-    message.error('Không ghi nhận được thanh toán')
+    message.error('Kh├┤ng ghi nhß║¡n ─æ╞░ß╗úc thanh to├ín')
   }
 }
 
@@ -162,19 +162,19 @@ const tabClass = (active: boolean) =>
   <div class="mx-auto max-w-4xl px-3 py-6 sm:px-6 sm:py-8">
     <div v-if="loading" class="py-10"><NSkeleton :repeat="6" height="64px" /></div>
 
-    <NAlert v-else-if="error" type="error" title="Không tải được đơn hàng" class="mt-5">
-      <p class="text-sm">Đã có lỗi khi kết nối máy chủ. Kiểm tra mạng rồi thử lại.</p>
-      <NButton class="mt-3" @click="refresh()">Thử lại</NButton>
+    <NAlert v-else-if="error" type="error" title="Kh├┤ng tß║úi ─æ╞░ß╗úc ─æ╞ín h├áng" class="mt-5">
+      <p class="text-sm">─É├ú c├│ lß╗ùi khi kß║┐t nß╗æi m├íy chß╗º. Kiß╗âm tra mß║íng rß╗ôi thß╗¡ lß║íi.</p>
+      <NButton class="mt-3" @click="refresh()">Thß╗¡ lß║íi</NButton>
     </NAlert>
 
-    <NEmpty v-else-if="orders?.length === 0" class="mt-16" description="Bạn chưa có đơn hàng nào">
-      <NButton type="primary" class="mt-4" @click="router.push('/')">Khám phá thực đơn ngay</NButton>
+    <NEmpty v-else-if="orders?.length === 0" class="mt-16" description="Bß║ín ch╞░a c├│ ─æ╞ín h├áng n├áo">
+      <NButton type="primary" class="mt-4" @click="router.push('/')">Kh├ím ph├í thß╗▒c ─æ╞ín ngay</NButton>
     </NEmpty>
 
     <template v-else>
-      <div class="-mx-3 mt-5 flex gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Lọc theo trạng thái đơn">
+      <div class="-mx-3 mt-5 flex gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Lß╗ìc theo trß║íng th├íi ─æ╞ín">
         <button type="button" role="tab" :aria-selected="filter === 'ALL'" :class="tabClass(filter === 'ALL')" @click="setFilter('ALL')">
-          Tất cả
+          Tß║Ñt cß║ú
           <span class="text-xs tabular-nums opacity-75">{{ orders?.length ?? 0 }}</span>
         </button>
         <button
@@ -191,7 +191,7 @@ const tabClass = (active: boolean) =>
         </button>
       </div>
 
-      <NEmpty v-if="visible.length === 0" class="mt-12" description="Không có đơn nào ở trạng thái này" />
+      <NEmpty v-if="visible.length === 0" class="mt-12" description="Kh├┤ng c├│ ─æ╞ín n├áo ß╗ƒ trß║íng th├íi n├áy" />
       <div v-else class="mt-4 space-y-4">
         <article
           v-for="o in visible"
@@ -202,14 +202,14 @@ const tabClass = (active: boolean) =>
         >
           <div class="flex flex-wrap items-start justify-between gap-2">
             <div class="min-w-0">
-              <p class="font-semibold text-stone-900">Đơn #{{ orderCode(o.id) }}</p>
+              <p class="font-semibold text-stone-900">─É╞ín #{{ orderCode(o.id) }}</p>
               <p class="mt-0.5 text-xs text-stone-500">
                 {{ new Date(o.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) }}
               </p>
             </div>
             <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="o.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'">
               <NIcon :size="11"><CheckmarkCircle v-if="o.paymentStatus === 'PAID'" /><TimeOutline v-else /></NIcon>
-              {{ o.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán' }}
+              {{ o.paymentStatus === 'PAID' ? '─É├ú thanh to├ín' : 'Ch╞░a thanh to├ín' }}
             </span>
           </div>
 
@@ -222,8 +222,8 @@ const tabClass = (active: boolean) =>
                 <NIcon :size="16"><ImageOutline /></NIcon>
               </span>
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-stone-800">{{ it.food?.name ?? 'Món đã xóa' }}</p>
-                <p class="text-xs text-stone-500">{{ it.quantity }} × {{ formatVND(it.price) }}</p>
+                <p class="truncate text-sm font-medium text-stone-800">{{ it.food?.name ?? 'M├│n ─æ├ú x├│a' }}</p>
+                <p class="text-xs text-stone-500">{{ it.quantity }} ├ù {{ formatVND(it.price) }}</p>
               </div>
               <span class="shrink-0 text-right text-sm tabular-nums">
                 <span v-if="(it.discountAmount ?? 0) > 0" class="mr-1.5 text-xs text-stone-400 line-through">{{ formatVND(it.price * it.quantity) }}</span>
@@ -233,12 +233,12 @@ const tabClass = (active: boolean) =>
           </div>
 
           <div v-if="(o.discountTotal ?? 0) > 0" class="mt-2 flex items-center justify-between text-sm text-emerald-700">
-            <span>Giảm giá</span>
+            <span>Giß║úm gi├í</span>
             <span class="tabular-nums">-{{ formatVND(o.discountTotal ?? 0) }}</span>
           </div>
 
           <p v-if="o.note" class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
-            <span class="font-semibold">Lưu ý cho quán:</span> {{ o.note }}
+            <span class="font-semibold">L╞░u ├╜ cho qu├ín:</span> {{ o.note }}
           </p>
 
           <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-stone-200 pt-3 text-sm">
@@ -247,10 +247,10 @@ const tabClass = (active: boolean) =>
           </div>
 
           <div class="mt-3 flex flex-wrap items-center gap-2">
-            <NButton v-if="o.status === 'COMPLETED'" :loading="reorderingId === o.id" @click="reorder(o)">Đặt lại</NButton>
+            <NButton v-if="o.status === 'COMPLETED'" :loading="reorderingId === o.id" @click="reorder(o)">─Éß║╖t lß║íi</NButton>
             <NButton v-if="o.status === 'PENDING' && o.paymentStatus !== 'PAID'" @click="paying = o">
               <template #icon><NIcon :size="16"><QrCodeOutline /></NIcon></template>
-              Thanh toán
+              Thanh to├ín
             </NButton>
             <NButton
               v-if="canCancelOrder(o)"
@@ -258,42 +258,42 @@ const tabClass = (active: boolean) =>
               ghost
               @click="confirmCancel(o)"
             >
-              Hủy đơn
+              Hß╗ºy ─æ╞ín
             </NButton>
             <span v-if="o.status === 'PENDING' && o.paymentStatus === 'PAID'" class="text-xs italic text-stone-500">
-              Đã thanh toán. Gọi {{ HOTLINE }} nếu cần hủy hoặc hoàn tiền.
+              ─É├ú thanh to├ín. Gß╗ìi {{ HOTLINE }} nß║┐u cß║ºn hß╗ºy hoß║╖c ho├án tiß╗ün.
             </span>
           </div>
         </article>
       </div>
     </template>
 
-    <NModal :show="paying !== null" preset="card" :title="paying ? `Thanh toán đơn #${orderCode(paying.id)}` : ''" :style="{ maxWidth: '28rem' }" @update:show="(v: boolean) => !v && (paying = null)">
+    <NModal :show="paying !== null" preset="card" :title="paying ? `Thanh to├ín ─æ╞ín #${orderCode(paying.id)}` : ''" :style="{ maxWidth: '28rem' }" @update:show="(v: boolean) => !v && (paying = null)">
       <div v-if="paying" class="flex flex-col items-center gap-3 py-2 text-center">
-        <div class="text-sm text-stone-500">Phương thức: {{ PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod }}</div>
+        <div class="text-sm text-stone-500">Ph╞░╞íng thß╗⌐c: {{ PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod }}</div>
         <div v-if="paying.paymentMethod === 'QR'" class="flex flex-col items-center gap-1.5">
           <div class="relative">
-            <img v-if="qrDataUrl" :src="qrDataUrl" alt="Mã QR thanh toán" width="168" height="168" />
+            <img v-if="qrDataUrl" :src="qrDataUrl" alt="M├ú QR thanh to├ín" width="168" height="168" />
             <div v-if="qrExpired" class="absolute inset-0 grid place-items-center bg-white/80 text-sm font-semibold text-stone-700">
-              Mã QR đã hết hạn
+              M├ú QR ─æ├ú hß║┐t hß║ín
             </div>
           </div>
           <button v-if="qrExpired" type="button" class="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50" @click="qrSeconds = 60">
-            Tạo mã mới
+            Tß║ío m├ú mß╗¢i
           </button>
-          <p v-else class="text-xs text-stone-500" aria-live="polite">Mã QR hết hạn sau {{ qrLabel }}</p>
+          <p v-else class="text-xs text-stone-500" aria-live="polite">M├ú QR hß║┐t hß║ín sau {{ qrLabel }}</p>
         </div>
         <div class="text-lg font-bold text-stone-900">{{ formatVND(paying.total) }}</div>
-        <NAlert type="warning" title="Thanh toán thử nghiệm" class="w-full text-left">
+        <NAlert type="warning" title="Thanh to├ín thß╗¡ nghiß╗çm" class="w-full text-left">
           <p class="text-xs">
-            {{ paying.paymentMethod === 'QR' ? 'Mã QR chỉ để nhận dạng đơn, chưa chuyển tiền thật. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' : 'Bạn trả tiền mặt khi nhận món. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' }}
+            {{ paying.paymentMethod === 'QR' ? 'M├ú QR chß╗ë ─æß╗â nhß║¡n dß║íng ─æ╞ín, ch╞░a chuyß╗ân tiß╗ün thß║¡t. Bß║Ñm "X├íc nhß║¡n ─æ├ú thanh to├ín" b├¬n d╞░ß╗¢i ─æß╗â ghi nhß║¡n.' : 'Bß║ín trß║ú tiß╗ün mß║╖t khi nhß║¡n m├│n. Bß║Ñm "X├íc nhß║¡n ─æ├ú thanh to├ín" b├¬n d╞░ß╗¢i ─æß╗â ghi nhß║¡n.' }}
           </p>
         </NAlert>
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <NButton @click="paying = null">Quay lại</NButton>
-          <NButton type="primary" size="large" :disabled="qrExpired" @click="confirmPaid">Xác nhận đã thanh toán</NButton>
+          <NButton @click="paying = null">Quay lß║íi</NButton>
+          <NButton type="primary" size="large" :disabled="qrExpired" @click="confirmPaid">X├íc nhß║¡n ─æ├ú thanh to├ín</NButton>
         </div>
       </template>
     </NModal>

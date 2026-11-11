@@ -26,7 +26,7 @@ export async function updateCategory(id: number, req: { name: string; slug?: str
     where: eq(categories.id, id),
     columns: { id: true },
   });
-  if (!exists) throw notFound("Không tìm thấy danh mục");
+  if (!exists) throw notFound("Kh├┤ng t├¼m thß║Ñy danh mß╗Ñc");
 
   const [updated] = await db
     .update(categories)
@@ -50,7 +50,7 @@ export async function deleteCategory(id: number) {
   const foodCount = totalRows[0]?.value ?? 0;
 
   if (foodCount > 0) {
-    throw conflict("Danh mục còn chứa món ăn, không thể xóa");
+    throw conflict("Danh mß╗Ñc c├▓n chß╗⌐a m├│n ─ân, kh├┤ng thß╗â x├│a");
   }
   await db.delete(categories).where(eq(categories.id, id));
 }
@@ -72,7 +72,7 @@ export async function createFood(req: {
     where: eq(categories.id, req.categoryId),
     columns: { id: true },
   });
-  if (!category) throw badRequest("Danh mục không tồn tại");
+  if (!category) throw badRequest("Danh mß╗Ñc kh├┤ng tß╗ôn tß║íi");
 
   const [created] = await db
     .insert(foods)
@@ -115,13 +115,13 @@ export async function updateFood(id: number, req: {
     where: eq(foods.id, id),
     columns: { id: true },
   });
-  if (!food) throw notFound("Không tìm thấy món ăn");
+  if (!food) throw notFound("Kh├┤ng t├¼m thß║Ñy m├│n ─ân");
 
   const category = await db.query.categories.findFirst({
     where: eq(categories.id, req.categoryId),
     columns: { id: true },
   });
-  if (!category) throw badRequest("Danh mục không tồn tại");
+  if (!category) throw badRequest("Danh mß╗Ñc kh├┤ng tß╗ôn tß║íi");
 
   await db
     .update(foods)
@@ -149,14 +149,14 @@ export async function updateFood(id: number, req: {
 
 export async function deleteFood(id: number) {
   const food = await db.query.foods.findFirst({ where: eq(foods.id, id) });
-  if (!food) throw notFound("Không tìm thấy món ăn");
+  if (!food) throw notFound("Kh├┤ng t├¼m thß║Ñy m├│n ─ân");
 
   const inOrder = await db.query.orderItems.findFirst({
     where: eq(orderItems.foodId, id),
     columns: { id: true },
   });
   if (inOrder) {
-    throw conflict(`Món "${food.name}" đang nằm trong đơn hàng. Hãy chuyển sang trạng thái ngừng phục vụ.`);
+    throw conflict(`M├│n "${food.name}" ─æang nß║▒m trong ─æ╞ín h├áng. H├úy chuyß╗ân sang trß║íng th├íi ngß╗½ng phß╗Ñc vß╗Ñ.`);
   }
 
   const inCart = await db.query.cartItems.findFirst({
@@ -164,7 +164,7 @@ export async function deleteFood(id: number) {
     columns: { id: true },
   });
   if (inCart) {
-    throw conflict(`Món "${food.name}" đang nằm trong giỏ hàng của khách. Hãy chuyển sang trạng thái ngừng phục vụ.`);
+    throw conflict(`M├│n "${food.name}" ─æang nß║▒m trong giß╗Å h├áng cß╗ºa kh├ích. H├úy chuyß╗ân sang trß║íng th├íi ngß╗½ng phß╗Ñc vß╗Ñ.`);
   }
 
   await db.delete(foods).where(eq(foods.id, id));
