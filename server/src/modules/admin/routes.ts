@@ -13,9 +13,9 @@ import {
   createFood,
   updateFood,
   deleteFood,
-} from "../menu/service.js";
-import { adminOrderSchema } from "../order/schema.js";
-import * as orderService from "../order/service.js";
+} from "../../user/menu/service.js";
+import { adminOrderSchema } from "../../user/order/schema.js";
+import * as orderService from "../../user/order/service.js";
 import * as adminService from "./service.js";
 import {
   foodRequestSchema,
@@ -36,7 +36,7 @@ import {
   ingestFile,
   reingestDocument,
   deleteDocument,
-} from "../chatbot/ingest.js";
+} from "../../user/chatbot/ingest.js";
 
 const idParam = (raw: string | string[] | undefined): number => {
   const id = Number(raw);

@@ -5,9 +5,9 @@ import {
   selectFoods,
   selectFoodsByCode,
   type FoodWithCategory,
-} from "../src/modules/chatbot/select.js";
-import type { NormalizedCriteria } from "../src/modules/chatbot/criteria.js";
-import { readFilters } from "../src/modules/chatbot/filters.js";
+} from "../src/user/chatbot/select.js";
+import type { NormalizedCriteria } from "../src/user/chatbot/criteria.js";
+import { readFilters } from "../src/user/chatbot/filters.js";
 
 const cat = (id: number, name: string): Category => ({
   id,

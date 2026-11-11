@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createOrderSchema } from "../src/modules/order/schema.js";
+import { createOrderSchema } from "../src/user/order/schema.js";
 
 // Rang buoc bien cua DTO tao don (port cua OrderDtosValidationTest).
 const base = {
