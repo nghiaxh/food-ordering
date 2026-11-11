@@ -13,7 +13,7 @@ import {
   type DataTableColumns,
 } from 'naive-ui'
 import { SearchOutline, TrashOutline } from '@vicons/ionicons5'
-import { adminDeleteUser, adminGetUsers, adminSaveUser, adminSetUserActive, type UserPayload } from '@/admin/api'
+import { adminDeleteUser, adminGetUsers, adminSaveUser, adminSetUserActive, type UserPayload } from '@/admin/customer/api'
 import useAsyncData from '@/composables/useAsyncData'
 import useAsyncAction from '@/composables/useAsyncAction'
 import useBusySet from '@/composables/useBusySet'

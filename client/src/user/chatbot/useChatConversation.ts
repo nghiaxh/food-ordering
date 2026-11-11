@@ -1,3 +1,4 @@
+// Trạng thái hội thoại chatbot: streaming chữ, lastFoodIds, xóa foods của tin bot cũ.
 import { ref, computed, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { chat, getChatbotStatus } from '@/user/chatbot/api'
 import type { ChatCitation, ChatMessage, ChatbotStatus } from '@/shared/types'

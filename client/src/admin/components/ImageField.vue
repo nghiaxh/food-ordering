@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { NButton, NInput, NIcon } from 'naive-ui'
 import { CloudUploadOutline } from '@vicons/ionicons5'
-import { adminUploadImage } from '@/admin/api'
+import { adminUploadImage } from '@/admin/menu/api'
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
 

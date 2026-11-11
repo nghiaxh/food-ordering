@@ -9,7 +9,7 @@ import {
   adminGetReportRevenue,
   adminGetReportSummary,
   adminGetReportTopFoods,
-} from '@/admin/api'
+} from '@/admin/report/api'
 import useAsyncData from '@/composables/useAsyncData'
 import { formatVND } from '@/shared/utils/format'
 import { message } from '@/shared/api/message'

@@ -5,7 +5,7 @@ import {
   SearchOutline,
   TrashOutline,
 } from '@vicons/ionicons5'
-import { adminDeleteCategory, adminSaveCategory } from '@/admin/api'
+import { adminDeleteCategory, adminSaveCategory } from '@/admin/menu/api'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
 import useAsyncAction from '@/composables/useAsyncAction'

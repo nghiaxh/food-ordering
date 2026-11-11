@@ -28,6 +28,4 @@ orderRouter.patch("/:id/cancel", async (req, res) => {
   res.json(await orderService.cancelOrder(req.user!.email, idParam(req.params.id)));
 });
 
-orderRouter.patch("/:id/pay", async (req, res) => {
-  res.json(await orderService.payOrder(req.user!.email, idParam(req.params.id)));
-});
+

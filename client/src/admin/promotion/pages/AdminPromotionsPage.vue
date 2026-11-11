@@ -13,7 +13,7 @@ import {
   NEmpty,
   type DataTableColumns,
 } from 'naive-ui'
-import { adminDeletePromotion, adminGetPromotions, adminSavePromotion } from '@/admin/api'
+import { adminDeletePromotion, adminGetPromotions, adminSavePromotion } from '@/admin/promotion/api'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
 import useAsyncAction from '@/composables/useAsyncAction'

@@ -7,8 +7,9 @@ import { menuRouter } from "./user/menu/routes.js";
 import { reviewRouter } from "./user/review/routes.js";
 import { cartRouter } from "./user/cart/routes.js";
 import { orderRouter } from "./user/order/routes.js";
+import { paymentRouter } from "./user/payment/routes.js";
 import { notificationRouter } from "./user/notification/routes.js";
-import { userRouter } from "./user/user/routes.js";
+import { profileRouter } from "./user/profile/routes.js";
 import { chatbotRouter } from "./user/chatbot/routes.js";
 import { adminRouter } from "./admin/routes.js";
 import { errorHandler } from "./middleware/error.js";
@@ -35,8 +36,9 @@ export function createApp() {
   app.use("/api/reviews", reviewRouter);
   app.use("/api/cart", cartRouter);
   app.use("/api/orders", orderRouter);
+app.use("/api/orders", paymentRouter);
   app.use("/api/notifications", notificationRouter);
-  app.use("/api", userRouter);
+  app.use("/api", profileRouter);
   app.use("/api/chatbot", chatbotRouter);
   app.use("/api/admin", adminRouter);
 

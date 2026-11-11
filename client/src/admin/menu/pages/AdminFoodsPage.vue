@@ -14,7 +14,7 @@ import {
   type DataTableColumns,
 } from 'naive-ui'
 import { SearchOutline } from '@vicons/ionicons5'
-import { adminDeleteFood, adminSaveFood } from '@/admin/api'
+import { adminDeleteFood, adminSaveFood } from '@/admin/menu/api'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
 import useAsyncAction from '@/composables/useAsyncAction'

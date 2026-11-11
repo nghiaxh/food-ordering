@@ -11,27 +11,27 @@ const idParam = (raw: string | string[] | undefined): number => {
   return id;
 };
 
-export const userRouter = Router();
+export const profileRouter = Router();
 
 // Dia chi da luu chi co y nghia khi dang nhap; guard theo tung route de router mount o "/api"
 // khong chan cac route mount truoc/sau no. Moi endpoint o day deu yeu cau dang nhap.
-userRouter.get("/addresses", requireAuth, async (req, res) => {
+profileRouter.get("/addresses", requireAuth, async (req, res) => {
   res.json(await userService.listAddresses(req.user!.email));
 });
 
-userRouter.post("/addresses", requireAuth, async (req, res) => {
+profileRouter.post("/addresses", requireAuth, async (req, res) => {
   res.json(await userService.createAddress(req.user!.email, parseBody(addressRequestSchema, req.body)));
 });
 
-userRouter.put("/addresses/:id", requireAuth, async (req, res) => {
+profileRouter.put("/addresses/:id", requireAuth, async (req, res) => {
   res.json(await userService.updateAddress(req.user!.email, idParam(req.params.id), parseBody(addressRequestSchema, req.body)));
 });
 
-userRouter.patch("/addresses/:id/default", requireAuth, async (req, res) => {
+profileRouter.patch("/addresses/:id/default", requireAuth, async (req, res) => {
   res.json(await userService.setDefaultAddress(req.user!.email, idParam(req.params.id)));
 });
 
-userRouter.delete("/addresses/:id", requireAuth, async (req, res) => {
+profileRouter.delete("/addresses/:id", requireAuth, async (req, res) => {
   await userService.deleteAddress(req.user!.email, idParam(req.params.id));
   res.json({});
 });

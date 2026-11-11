@@ -19,12 +19,12 @@ import { TrashOutline } from '@vicons/ionicons5'
 import {
   adminDeleteOrder,
   adminGetOrders,
-  adminGetUsers,
   adminSaveOrder,
-  adminUpdateOrderPayment,
   adminUpdateOrderStatus,
   type AdminOrderPayload,
-} from '@/admin/api'
+} from '@/admin/order/api'
+import { adminGetUsers } from '@/admin/customer/api'
+import { adminUpdateOrderPayment } from '@/admin/payment/api'
 import { getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
 import useAsyncAction from '@/composables/useAsyncAction'

@@ -32,7 +32,7 @@ import {
   adminDeleteDocument,
   adminUploadDocument,
   adminReingestDocument,
-} from '@/admin/api'
+} from '@/admin/chatbot/api'
 import { getChatbotStatus } from '@/user/chatbot/api'
 import useAsyncData from '@/composables/useAsyncData'
 import useAsyncAction from '@/composables/useAsyncAction'
