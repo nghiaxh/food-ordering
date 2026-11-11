@@ -2,7 +2,9 @@
 // Provider và tên mô hình đọc từ bảng cấu hình `ai_setting` (admin đặt trong trang Chatbot),
 // chỉ fallback về biến môi trường khi chưa đặt. Không log khóa, không trả khóa về client.
 
-import { prisma } from "./prisma.js";
+import { eq } from "drizzle-orm";
+import { aiSetting } from "../db/schema.js";
+import { db } from "./db.js";
 import { env } from "../config/env.js";
 
 export const PROVIDER_GEMINI = "gemini";
@@ -42,7 +44,7 @@ export const _resetKeyStateForTests = () => {
 };
 
 const setting = async (key: string, fallback: string): Promise<string> => {
-  const row = await prisma.aiSetting.findUnique({ where: { settingKey: key } });
+  const row = await db.query.aiSetting.findFirst({ where: eq(aiSetting.settingKey, key) });
   const value = row?.settingValue?.trim();
   return value ? value : fallback;
 };

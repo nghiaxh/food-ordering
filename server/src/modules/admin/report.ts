@@ -1,7 +1,9 @@
 // Báo cáo doanh thu cho quản trị + xuất Excel bằng write-excel-file.
 
+import { and, asc, gte, lte } from "drizzle-orm";
 import writeExcelFile from "write-excel-file/node";
-import { prisma } from "../../lib/prisma.js";
+import { orders } from "../../db/schema.js";
+import { db } from "../../lib/db.js";
 import { businessTimeParts, BUSINESS_UTC_OFFSET } from "../../lib/businessTime.js";
 
 export interface ReportRange {
@@ -28,22 +30,22 @@ const parseDate = (raw: string, endOfDay = false): Date => {
 };
 
 const loadOrders = async ({ from, to }: ReportRange) => {
-  const orders = await prisma.order.findMany({
-    where: { createdAt: { gte: from, lte: to } },
-    include: {
-      items: { include: { food: true } },
+  const orderList = await db.query.orders.findMany({
+    where: and(gte(orders.createdAt, from), lte(orders.createdAt, to)),
+    with: {
+      items: { with: { food: true } },
       user: true,
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [asc(orders.createdAt)],
   });
-  return orders;
+  return orderList;
 };
 
 export const summary = async (range: ReportRange) => {
-  const orders = await loadOrders(range);
-  const active = orders.filter((o) => o.status !== "CANCELLED");
+  const orderList = await loadOrders(range);
+  const active = orderList.filter((o) => o.status !== "CANCELLED");
   const revenue = active.reduce((sum, o) => sum + Number(o.total), 0);
-  const completed = orders.filter((o) => o.status === "COMPLETED").length;
+  const completed = orderList.filter((o) => o.status === "COMPLETED").length;
   const avgOrder = active.length === 0 ? 0 : Math.round((revenue / active.length) * 100) / 100;
   const customerCount = new Set(active.map((o) => o.userId)).size;
   const promotionDiscount = active.reduce((sum, o) => sum + Number(o.discountTotal ?? 0), 0);
@@ -58,9 +60,9 @@ export const summary = async (range: ReportRange) => {
 };
 
 export const revenueByDay = async (range: ReportRange) => {
-  const orders = await loadOrders(range);
+  const orderList = await loadOrders(range);
   const byDay = new Map<string, { revenue: number; orders: number }>();
-  for (const o of orders) {
+  for (const o of orderList) {
     if (o.status === "CANCELLED") continue;
     // Doanh thu theo ngày bucket theo ngày lịch VN, không theo ngày UTC.
     const day = businessTimeParts(o.createdAt).dayKey;
@@ -75,10 +77,10 @@ export const revenueByDay = async (range: ReportRange) => {
 };
 
 export const topFoods = async (range: ReportRange, limit: number) => {
-  const orders = await loadOrders(range);
+  const orderList = await loadOrders(range);
   const qty = new Map<string, number>();
   const rev = new Map<string, number>();
-  for (const o of orders) {
+  for (const o of orderList) {
     if (o.status === "CANCELLED") continue;
     for (const item of o.items) {
       if (!item.food) continue;
@@ -97,7 +99,7 @@ export const topFoods = async (range: ReportRange, limit: number) => {
 
 /** Xuất Excel 4 sheet: Tổng quan, Doanh thu, Top món, Đơn hàng. */
 export const exportExcel = async (range: ReportRange): Promise<Buffer> => {
-  const orders = await loadOrders(range);
+  const orderList = await loadOrders(range);
   const s = await summary(range);
   const byDay = await revenueByDay(range);
   const top = await topFoods(range, 20);
@@ -136,7 +138,7 @@ export const exportExcel = async (range: ReportRange): Promise<Buffer> => {
       sheet: "Don hang",
       data: [
         ["Mã đơn", "Ngày", "Trạng thái", "Tổng tiền", "Giảm giá", "Khách"],
-        ...orders.map((o) => [
+        ...orderList.map((o) => [
           o.id,
           o.createdAt.toISOString(),
           o.status,

@@ -2,7 +2,9 @@
 // Không embedding: tìm bằng websearch_to_tsquery trên cột search_vector đã tạo sẵn
 // (migration init), rồi fallback chấm từ khóa khi không có hit hoặc lỗi.
 
-import { prisma } from "../../lib/prisma.js";
+import { eq, inArray, sql } from "drizzle-orm";
+import { chatbotKnowledge } from "../../db/schema.js";
+import { db } from "../../lib/db.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { significantWords } from "./filters.js";
 
@@ -18,6 +20,7 @@ interface ChunkRow {
   chunk_index: number;
   content: string;
   rank: number;
+  [key: string]: unknown;
 }
 
 /**
@@ -26,20 +29,26 @@ interface ChunkRow {
  */
 export async function searchChunks(question: string, topK: number): Promise<ScoredChunk[]> {
   if (!question.trim()) return [];
-  const rows = await prisma.$queryRaw<ChunkRow[]>`
-    SELECT id, document_id, chunk_index, content,
-           ts_rank_cd(search_vector, websearch_to_tsquery('simple', ${question})) AS rank
-    FROM chatbot_knowledge_chunk
-    WHERE search_vector @@ websearch_to_tsquery('simple', ${question})
-      AND document_id IN (SELECT id FROM chatbot_knowledge WHERE enabled = true)
-    ORDER BY rank DESC
-    LIMIT ${topK * 3}
-  `.catch(() => [] as ChunkRow[]);
+  const limit = topK * 3;
+  const result = await db
+    .execute<ChunkRow>(sql`
+      SELECT id, document_id, chunk_index, content,
+             ts_rank_cd(search_vector, websearch_to_tsquery('simple', ${question})) AS rank
+      FROM chatbot_knowledge_chunk
+      WHERE search_vector @@ websearch_to_tsquery('simple', ${question})
+        AND document_id IN (SELECT id FROM chatbot_knowledge WHERE enabled = true)
+      ORDER BY rank DESC
+      LIMIT ${limit}
+    `)
+    .catch(() => ({ rows: [] as ChunkRow[] }));
 
-  if (rows.length === 0) return [];
+  const rows = result.rows;
+  if (!rows || rows.length === 0) return [];
 
   const docIds = [...new Set(rows.map((r) => r.document_id))];
-  const docs = await prisma.chatbotKnowledge.findMany({ where: { id: { in: docIds } } });
+  const docs = await db.query.chatbotKnowledge.findMany({
+    where: inArray(chatbotKnowledge.id, docIds),
+  });
   const docMap = new Map(docs.map((d) => [d.id, d]));
 
   return rows
@@ -49,7 +58,7 @@ export async function searchChunks(question: string, topK: number): Promise<Scor
         const d = docMap.get(r.document_id);
         return d ? { id: d.id, title: d.title, category: d.category } : null;
       })(),
-      score: r.rank,
+      score: Number(r.rank),
     }))
     .filter((s) => s.document !== null)
     .slice(0, topK);
@@ -65,7 +74,9 @@ export const keywordSearchKnowledge = async (
 ): Promise<Array<{ id: number; title: string | null; content: string | null }>> => {
   const words = significantWords(question);
   if (words.length === 0) return [];
-  const docs = await prisma.chatbotKnowledge.findMany({ where: { enabled: true } }).catch(() => []);
+  const docs = await db.query.chatbotKnowledge.findMany({
+    where: eq(chatbotKnowledge.enabled, true),
+  }).catch(() => []);
   const q = plain(question);
 
   const scored = docs

@@ -1,9 +1,17 @@
 // Nghiệp vụ đơn hàng: tạo đơn (giá từ DB), vòng đời trạng thái một chiều, thanh toán
-// giả lập COD/QR, và các entry point cho quản trị (admin routes mount ở branch sau).
+// giả lập COD/QR, và các entry point cho quản trị.
 
-import type { OrderStatus, Prisma } from "../../generated/prisma/client.js";
-import { prisma } from "../../lib/prisma.js";
-import { badRequest, forbidden, notFound } from "../../lib/errors.js";
+import { desc, eq } from "drizzle-orm";
+import {
+  foods,
+  notifications,
+  orderItems,
+  orders,
+  paymentTransactions,
+  users,
+} from "../../db/schema.js";
+import { db } from "../../lib/db.js";
+import { badRequest, forbidden, notFound, unauthorized } from "../../lib/errors.js";
 import { toOrderJson } from "../../lib/serializers.js";
 import { markUsed, priceOrder, type DbClient } from "../pricing/service.js";
 import {
@@ -11,6 +19,7 @@ import {
   isValidTransition,
   ORDER_STATUS_LABEL,
   parseStatus,
+  type OrderStatus,
 } from "./transitions.js";
 import type { createOrderSchema, adminOrderSchema } from "./schema.js";
 import type { z } from "zod";
@@ -20,8 +29,8 @@ export { canEditItems, isValidTransition, ORDER_STATUS_LABEL, parseStatus };
 type CreateOrderRequest = z.infer<typeof createOrderSchema>;
 type AdminOrderRequest = z.infer<typeof adminOrderSchema>;
 
-const ORDER_INCLUDE = {
-  items: { include: { food: { include: { category: true } } } },
+const ORDER_WITH = {
+  items: { with: { food: { with: { category: true } } } },
   user: true,
 } as const;
 
@@ -31,9 +40,14 @@ const trimNote = (note?: string | null): string | null => {
 };
 
 /** Chuyển trạng thái có kèm luật nghiệp vụ (QR phải đã thu tiền mới được xác nhận). */
-function transition(order: { status: OrderStatus; paymentMethod: string | null; paymentStatus: string }, next: OrderStatus) {
+function transition(
+  order: { status: OrderStatus; paymentMethod: string | null; paymentStatus: string },
+  next: OrderStatus,
+) {
   if (!isValidTransition(order.status, next)) {
-    throw badRequest(`Không thể chuyển đơn từ "${ORDER_STATUS_LABEL[order.status]}" sang "${ORDER_STATUS_LABEL[next]}"`);
+    throw badRequest(
+      `Không thể chuyển đơn từ "${ORDER_STATUS_LABEL[order.status]}" sang "${ORDER_STATUS_LABEL[next]}"`,
+    );
   }
   // QR thanh toán trước nên phải đã thu tiền mới xác nhận được; COD thu khi giao nên duyệt bình thường.
   if (next === "CONFIRMED" && order.paymentMethod === "QR" && order.paymentStatus !== "PAID") {
@@ -42,9 +56,9 @@ function transition(order: { status: OrderStatus; paymentMethod: string | null; 
   order.status = next;
 }
 
-async function requireSellable(items: Array<{ foodId: number }>, db: DbClient) {
+async function requireSellable(items: Array<{ foodId: number }>, client: DbClient) {
   for (const item of items) {
-    const food = await db.food.findUnique({ where: { id: item.foodId } });
+    const food = await client.query.foods.findFirst({ where: eq(foods.id, item.foodId) });
     if (!food) throw badRequest("Món không tồn tại");
     if (!food.available) throw badRequest(`Món "${food.name}" đã ngừng phục vụ`);
   }
@@ -52,11 +66,11 @@ async function requireSellable(items: Array<{ foodId: number }>, db: DbClient) {
 
 /** Chụp lại đơn từ DB; giá và giảm giá từng dòng do modules/pricing tính → khớp báo giá khách thấy. */
 async function fillItems(
-  tx: Prisma.TransactionClient,
+  client: DbClient,
   items: Array<{ foodId: number; quantity: number }>,
 ) {
-  await requireSellable(items, tx);
-  const priced = await priceOrder(items, tx);
+  await requireSellable(items, client);
+  const priced = await priceOrder(items, client);
   const created: Array<{ foodId: number; quantity: number; price: number; discountAmount: number }> = [];
   for (const line of priced.lines) {
     created.push({
@@ -70,58 +84,84 @@ async function fillItems(
 }
 
 const notify = async (
-  tx: DbClient,
-  order: { id: number; user: { id: number } },
+  client: DbClient,
+  order: { id: number; user?: { id: number } | null; userId?: number },
   content: string,
 ) => {
-  await tx.notification.create({
-    data: { userId: order.user.id, orderId: order.id, content },
+  const targetUserId = order.user?.id ?? order.userId;
+  if (!targetUserId) return;
+  await client.insert(notifications).values({
+    userId: targetUserId,
+    orderId: order.id,
+    content,
   });
 };
 
 export async function createOrder(email: string, req: CreateOrderRequest) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user) throw badRequest("Phiên đăng nhập không hợp lệ");
 
-  const order = await prisma.$transaction(async (tx) => {
+  const createdOrder = await db.transaction(async (tx) => {
     const { items, priced } = await fillItems(tx, req.items);
-    const created = await tx.order.create({
-      data: {
+    const [created] = await tx
+      .insert(orders)
+      .values({
         userId: user.id,
         receiverName: req.receiverName,
         phone: req.phone,
         address: req.address,
         paymentMethod: req.paymentMethod,
         note: trimNote(req.note),
-        total: priced.total,
-        discountTotal: priced.discountTotal,
-        items: { create: items },
-      },
-      include: ORDER_INCLUDE,
-    });
+        total: String(priced.total),
+        discountTotal: String(priced.discountTotal),
+      })
+      .returning();
+    if (!created) throw new Error("Không thể tạo đơn hàng");
+
+    if (items.length > 0) {
+      await tx.insert(orderItems).values(
+        items.map((it) => ({
+          orderId: created.id,
+          foodId: it.foodId,
+          quantity: it.quantity,
+          price: String(it.price),
+          discountAmount: String(it.discountAmount),
+        })),
+      );
+    }
+
     // Lượt dùng khuyến mãi chỉ bị trừ trong cùng transaction với việc tạo đơn.
     await markUsed(priced.appliedPromotions, tx);
-    await tx.paymentTransaction.create({
-      data: { orderId: created.id, method: created.paymentMethod, amount: created.total },
+    await tx.insert(paymentTransactions).values({
+      orderId: created.id,
+      method: created.paymentMethod,
+      amount: String(created.total),
     });
     await notify(
       tx,
-      created,
+      { id: created.id, userId: user.id },
       `Đơn hàng #${created.id} đã được tạo. Chúng tôi sẽ sớm xác nhận đơn của bạn.`,
     );
-    return created;
+
+    return tx.query.orders.findFirst({
+      where: eq(orders.id, created.id),
+      with: ORDER_WITH,
+    });
   });
-  return toOrderJson(order);
+
+  return toOrderJson(createdOrder!);
 }
 
 export async function myOrders(email: string) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const orders = await prisma.order.findMany({
-    where: { userId: user.id },
-    include: ORDER_INCLUDE,
-    orderBy: { createdAt: "desc" },
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
+
+  const orderList = await db.query.orders.findMany({
+    where: eq(orders.userId, user.id),
+    with: ORDER_WITH,
+    orderBy: [desc(orders.createdAt)],
   });
-  return orders.map(toOrderJson);
+  return orderList.map(toOrderJson);
 }
 
 /** Khách chỉ tự hủy được đơn còn chờ xác nhận; quán đã vào chế biến thì phải gọi hotline. */
@@ -135,16 +175,20 @@ export async function cancelOrder(email: string, id: number) {
       "Đơn hàng đã thanh toán không thể tự hủy trên hệ thống. Vui lòng liên hệ hotline quán để được hỗ trợ hoàn tiền.",
     );
   }
-  const saved = await prisma.$transaction(async (tx) => {
-    const updated = await tx.order.update({
-      where: { id: order.id },
-      data: { status: "CANCELLED" },
-      include: ORDER_INCLUDE,
+  const saved = await db.transaction(async (tx) => {
+    await tx
+      .update(orders)
+      .set({ status: "CANCELLED" })
+      .where(eq(orders.id, order.id));
+
+    await notify(tx, order, `Đơn hàng #${id} đã được hủy theo yêu cầu của bạn.`);
+
+    return tx.query.orders.findFirst({
+      where: eq(orders.id, order.id),
+      with: ORDER_WITH,
     });
-    await notify(tx, updated, `Đơn hàng #${id} đã được hủy theo yêu cầu của bạn.`);
-    return updated;
   });
-  return toOrderJson(saved);
+  return toOrderJson(saved!);
 }
 
 /** Thanh toán giả lập: khách tự xác nhận đã trả, hệ thống chỉ ghi nhận trạng thái. */
@@ -158,14 +202,14 @@ export async function payOrder(email: string, id: number) {
 }
 
 export const updatePaymentStatus = (
-  order: { id: number; user: { id: number }; paymentStatus: string },
+  order: { id: number; user?: { id: number } | null; userId?: number; paymentStatus: string },
   paid: boolean,
-  db: DbClient = prisma,
-) => updatePayment(order, paid, db);
+  client: DbClient = db,
+) => updatePayment(order, paid, client);
 
 /** Hoàn đổi trạng thái trong admin: transition một chiều + thông báo cho khách theo đúng nội dung. */
 export async function adminUpdateStatus(id: number, status: string) {
-  const order = await prisma.order.findUnique({ where: { id }, include: ORDER_INCLUDE });
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
   if (!order) throw notFound("Không tìm thấy đơn");
   const next = parseStatus(status);
   const draft = {
@@ -186,60 +230,79 @@ export async function adminUpdateStatus(id: number, status: string) {
             ? `Đơn hàng #${id} đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.`
             : null;
 
-  const saved = await prisma.$transaction(async (tx) => {
-    const updated = await tx.order.update({ where: { id }, data: { status: next }, include: ORDER_INCLUDE });
-    if (content) await notify(tx, updated, content);
-    return updated;
+  const saved = await db.transaction(async (tx) => {
+    await tx
+      .update(orders)
+      .set({ status: next })
+      .where(eq(orders.id, id));
+
+    if (content) await notify(tx, order, content);
+
+    return tx.query.orders.findFirst({
+      where: eq(orders.id, id),
+      with: ORDER_WITH,
+    });
   });
-  return toOrderJson(saved);
+  return toOrderJson(saved!);
 }
 
 /** Đồng bộ trạng thái thanh toán của đơn với giao dịch tương ứng; gửi thông báo (trong cùng transaction). */
 async function applyPaymentTx(
   tx: DbClient,
-  order: { id: number; user: { id: number }; paymentStatus: string },
+  order: { id: number; user?: { id: number } | null; userId?: number; paymentStatus: string },
   paid: boolean,
 ) {
   const next = paid ? "PAID" : "UNPAID";
-  const updated = await tx.order.update({
-    where: { id: order.id },
-    data: { paymentStatus: next },
-    include: ORDER_INCLUDE,
-  });
-  await tx.paymentTransaction.updateMany({
-    where: { orderId: order.id },
-    data: paid ? { status: "PAID", paidAt: new Date() } : { status: "PENDING", paidAt: null },
-  });
+  await tx
+    .update(orders)
+    .set({ paymentStatus: next })
+    .where(eq(orders.id, order.id));
+
+  await tx
+    .update(paymentTransactions)
+    .set(paid ? { status: "PAID", paidAt: new Date() } : { status: "PENDING", paidAt: null })
+    .where(eq(paymentTransactions.orderId, order.id));
+
   await notify(
     tx,
-    updated,
+    order,
     paid
       ? `Đơn hàng #${order.id} đã được ghi nhận thanh toán.`
       : `Đơn hàng #${order.id} chuyển về trạng thái chưa thanh toán.`,
   );
-  return updated;
+
+  const updated = await tx.query.orders.findFirst({
+    where: eq(orders.id, order.id),
+    with: ORDER_WITH,
+  });
+  return updated!;
 }
 
 async function updatePayment(
-  order: { id: number; user: { id: number }; paymentStatus: string },
+  order: { id: number; user?: { id: number } | null; userId?: number; paymentStatus: string },
   paid: boolean,
-  db: DbClient = prisma,
+  client: DbClient = db,
 ) {
   const next = paid ? "PAID" : "UNPAID";
   if (order.paymentStatus === next) {
-    return db.order.findUniqueOrThrow({ where: { id: order.id }, include: ORDER_INCLUDE });
+    const existing = await client.query.orders.findFirst({
+      where: eq(orders.id, order.id),
+      with: ORDER_WITH,
+    });
+    return existing!;
   }
-  // Bên ngoài một transaction thì mở transaction mới; bên trong (adminUpdate) thì dùng chung.
-  if (db !== prisma) {
-    return applyPaymentTx(db, order, paid);
+  if (client !== db) {
+    return applyPaymentTx(client, order, paid);
   }
-  return prisma.$transaction((tx) => applyPaymentTx(tx, order, paid));
+  return db.transaction((tx) => applyPaymentTx(tx, order, paid));
 }
 
 /** Chặn việc khách đọc hoặc thao tác lên đơn của người khác. */
 async function ownOrder(email: string, id: number) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const order = await prisma.order.findUnique({ where: { id }, include: ORDER_INCLUDE });
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
+
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
   if (!order) throw notFound("Không tìm thấy đơn");
   if (order.userId !== user.id) {
     throw forbidden("Bạn không có quyền với đơn hàng này");
@@ -247,16 +310,16 @@ async function ownOrder(email: string, id: number) {
   return order;
 }
 
-// ----- Quản trị: tạo, sửa, xoá đơn thay khách (UC12) — route mount ở branch admin -----
+// ----- Quản trị: tạo, sửa, xoá đơn thay khách (UC12) -----
 
 export async function adminCreateOrder(req: AdminOrderRequest) {
   if (!req.items || req.items.length === 0) {
     throw badRequest("Đơn phải có ít nhất một món");
   }
-  const user = await prisma.user.findUnique({ where: { email: req.customerEmail } });
+  const user = await db.query.users.findFirst({ where: eq(users.email, req.customerEmail) });
   if (!user) throw badRequest("Khách hàng không tồn tại");
 
-  const order = await prisma.$transaction(async (tx) => {
+  const order = await db.transaction(async (tx) => {
     const { items, priced } = await fillItems(tx, req.items!);
     let status = "PENDING" as OrderStatus;
     const paid = req.paid === true;
@@ -267,8 +330,9 @@ export async function adminCreateOrder(req: AdminOrderRequest) {
         throw badRequest("Đơn chưa thanh toán nên chưa thể xác nhận");
       }
     }
-    const created = await tx.order.create({
-      data: {
+    const [created] = await tx
+      .insert(orders)
+      .values({
         userId: user.id,
         receiverName: req.receiverName,
         phone: req.phone,
@@ -276,31 +340,48 @@ export async function adminCreateOrder(req: AdminOrderRequest) {
         paymentMethod: req.paymentMethod,
         note: trimNote(req.note),
         status,
-        total: priced.total,
-        discountTotal: priced.discountTotal,
-        items: { create: items },
-      },
-      include: ORDER_INCLUDE,
-    });
+        total: String(priced.total),
+        discountTotal: String(priced.discountTotal),
+      })
+      .returning();
+    if (!created) throw new Error("Không thể tạo đơn hàng");
+
+    if (items.length > 0) {
+      await tx.insert(orderItems).values(
+        items.map((it) => ({
+          orderId: created.id,
+          foodId: it.foodId,
+          quantity: it.quantity,
+          price: String(it.price),
+          discountAmount: String(it.discountAmount),
+        })),
+      );
+    }
+
     await markUsed(priced.appliedPromotions, tx);
-    await tx.paymentTransaction.create({
-      data: { orderId: created.id, method: created.paymentMethod, amount: created.total },
+    await tx.insert(paymentTransactions).values({
+      orderId: created.id,
+      method: created.paymentMethod,
+      amount: String(created.total),
     });
+
     if (paid) {
-      await tx.order.update({ where: { id: created.id }, data: { paymentStatus: "PAID" } });
-      await tx.paymentTransaction.updateMany({
-        where: { orderId: created.id },
-        data: { status: "PAID", paidAt: new Date() },
-      });
+      await tx.update(orders).set({ paymentStatus: "PAID" }).where(eq(orders.id, created.id));
+      await tx
+        .update(paymentTransactions)
+        .set({ status: "PAID", paidAt: new Date() })
+        .where(eq(paymentTransactions.orderId, created.id));
     }
     return created;
   });
-  const full = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: ORDER_INCLUDE });
-  return toOrderJson(full);
+
+  if (!order) throw new Error("Không thể tạo đơn hàng");
+  const full = await db.query.orders.findFirst({ where: eq(orders.id, order.id), with: ORDER_WITH });
+  return toOrderJson(full!);
 }
 
 export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
-  const order = await prisma.order.findUnique({ where: { id }, include: ORDER_INCLUDE });
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
   if (!order) throw notFound("Không tìm thấy đơn");
   if (order.status === "COMPLETED" || order.status === "CANCELLED") {
     throw badRequest(
@@ -308,8 +389,8 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
     );
   }
 
-  const order2 = await prisma.$transaction(async (tx) => {
-    const data: Prisma.OrderUpdateInput = {
+  const order2 = await db.transaction(async (tx) => {
+    const data: Record<string, unknown> = {
       receiverName: req.receiverName,
       phone: req.phone,
       address: req.address,
@@ -321,35 +402,49 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
       if (!canEditItems(order)) {
         throw badRequest("Chỉ sửa được món khi đơn đang chờ xác nhận và chưa thanh toán");
       }
-      // orphanRemoval: xoá dòng cũ khi thay cả danh sách món của đơn.
       const { items, priced } = await fillItems(tx, req.items);
-      await tx.orderItem.deleteMany({ where: { orderId: id } });
-      await tx.order.update({
-        where: { id },
-        data: { ...data, total: priced.total, discountTotal: priced.discountTotal,
-          items: { create: items } },
-      });
+      await tx.delete(orderItems).where(eq(orderItems.orderId, id));
+      await tx
+        .update(orders)
+        .set({
+          ...data,
+          total: String(priced.total),
+          discountTotal: String(priced.discountTotal),
+        })
+        .where(eq(orders.id, id));
+
+      await tx.insert(orderItems).values(
+        items.map((it) => ({
+          orderId: id,
+          foodId: it.foodId,
+          quantity: it.quantity,
+          price: String(it.price),
+          discountAmount: String(it.discountAmount),
+        })),
+      );
+
       await markUsed(priced.appliedPromotions, tx);
-      await tx.paymentTransaction.updateMany({
-        where: { orderId: id },
-        data: { amount: priced.total },
-      });
+      await tx
+        .update(paymentTransactions)
+        .set({ amount: String(priced.total) })
+        .where(eq(paymentTransactions.orderId, id));
     } else {
-      await tx.order.update({ where: { id }, data });
+      await tx.update(orders).set(data).where(eq(orders.id, id));
     }
 
     if (req.status && req.status.trim()) {
       const next = parseStatus(req.status.trim());
       if (next !== order.status) {
-        const current = await tx.order.findUniqueOrThrow({ where: { id } });
+        const current = await tx.query.orders.findFirst({ where: eq(orders.id, id) });
+        if (!current) throw notFound("Không tìm thấy đơn");
         const draft = {
           status: current.status,
           paymentMethod: current.paymentMethod,
           paymentStatus: current.paymentStatus,
         };
         transition(draft, next);
-        await tx.order.update({ where: { id }, data: { status: next } });
-        // Thông báo trạng thái cho khách theo đúng nội dung nghiệp vụ.
+        await tx.update(orders).set({ status: next }).where(eq(orders.id, id));
+
         const content =
           next === "CONFIRMED"
             ? `Đơn hàng #${id} đã được xác nhận.`
@@ -361,43 +456,52 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
                   ? `Đơn hàng #${id} đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.`
                   : null;
         if (content) {
-          const withUser = await tx.order.findUniqueOrThrow({ where: { id }, include: { user: true } });
-          await notify(tx, withUser, content);
+          const withUser = await tx.query.orders.findFirst({
+            where: eq(orders.id, id),
+            with: { user: true },
+          });
+          if (withUser) await notify(tx, withUser, content);
         }
       }
     }
 
-    // `paid` truyền từ admin: ghi đè trạng thái thanh toán và đồng bộ với giao dịch.
     if (req.paid != null) {
-      const current = await tx.order.findUniqueOrThrow({ where: { id }, include: { user: true } });
-      if (req.paid !== (current.paymentStatus === "PAID")) {
+      const current = await tx.query.orders.findFirst({
+        where: eq(orders.id, id),
+        with: { user: true },
+      });
+      if (current && req.paid !== (current.paymentStatus === "PAID")) {
         await updatePayment(current, req.paid, tx);
       }
     }
 
-    return tx.order.findUniqueOrThrow({ where: { id }, include: ORDER_INCLUDE });
+    return tx.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
   });
 
-  return toOrderJson(order2);
+  return toOrderJson(order2!);
 }
 
 export async function adminDeleteOrder(id: number) {
-  const order = await prisma.order.findUnique({ where: { id } });
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, id) });
   if (!order) throw notFound("Không tìm thấy đơn");
-  await prisma.paymentTransaction.deleteMany({ where: { orderId: id } });
-  await prisma.order.delete({ where: { id } });
+  await db.delete(paymentTransactions).where(eq(paymentTransactions.orderId, id));
+  await db.delete(orders).where(eq(orders.id, id));
 }
 
 export async function adminListOrders() {
-  const orders = await prisma.order.findMany({
-    include: ORDER_INCLUDE,
-    orderBy: { createdAt: "desc" },
+  const orderList = await db.query.orders.findMany({
+    with: ORDER_WITH,
+    orderBy: [desc(orders.createdAt)],
   });
-  return orders.map(toOrderJson);
+  return orderList.map(toOrderJson);
 }
 
 export async function adminGetOrder(id: number) {
-  const order = await prisma.order.findUnique({ where: { id }, include: ORDER_INCLUDE });
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
   if (!order) throw notFound("Không tìm thấy đơn");
-  return { id: order.id, user: order.user ? { id: order.user.id } : { id: order.userId }, paymentStatus: order.paymentStatus };
+  return {
+    id: order.id,
+    user: order.user ? { id: order.user.id } : { id: order.userId },
+    paymentStatus: order.paymentStatus,
+  };
 }

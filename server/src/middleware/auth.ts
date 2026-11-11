@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import { prisma } from "../lib/prisma.js";
+import { eq } from "drizzle-orm";
+import { db } from "../lib/db.js";
+import { users } from "../db/schema.js";
 import { verifyToken } from "../lib/jwt.js";
 import { forbidden, unauthorized } from "../lib/errors.js";
 
@@ -16,9 +18,9 @@ async function loadIdentity(req: Request): Promise<Identity | null> {
   if (!header?.startsWith("Bearer ")) return null;
   const identity = verifyToken(header.slice(7));
   if (!identity) return null;
-  const user = await prisma.user.findUnique({
-    where: { email: identity.email },
-    select: { id: true, email: true, role: true, active: true },
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, identity.email),
+    columns: { id: true, email: true, role: true, active: true },
   });
   if (!user || !user.active) return null;
   return { id: user.id, email: user.email, role: user.role };

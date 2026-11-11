@@ -1,5 +1,6 @@
-import type { UserAddress } from "../../generated/prisma/client.js";
-import { prisma } from "../../lib/prisma.js";
+import { and, asc, count, desc, eq } from "drizzle-orm";
+import { db } from "../../lib/db.js";
+import { userAddresses, users, type UserAddress } from "../../db/schema.js";
 import { notFound, unauthorized } from "../../lib/errors.js";
 import type { addressRequestSchema } from "./schema.js";
 import type { z } from "zod";
@@ -17,45 +18,56 @@ export const toAddressJson = (a: UserAddress) => ({
 });
 
 const currentUser = async (email: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
   return user;
 };
 
 export const listAddresses = async (email: string) => {
   const user = await currentUser(email);
-  const rows = await prisma.userAddress.findMany({
-    where: { userId: user.id },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+  const rows = await db.query.userAddresses.findMany({
+    where: eq(userAddresses.userId, user.id),
+    orderBy: [desc(userAddresses.isDefault), asc(userAddresses.createdAt)],
   });
   return rows.map(toAddressJson);
 };
 
 const clearDefaults = async (userId: number) => {
-  await prisma.userAddress.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
+  await db
+    .update(userAddresses)
+    .set({ isDefault: false })
+    .where(and(eq(userAddresses.userId, userId), eq(userAddresses.isDefault, true)));
 };
 
 export const createAddress = async (email: string, req: AddressRequest) => {
   const user = await currentUser(email);
-  const first = (await prisma.userAddress.count({ where: { userId: user.id } })) === 0;
+  const totalRows = await db
+    .select({ value: count() })
+    .from(userAddresses)
+    .where(eq(userAddresses.userId, user.id));
+  const first = (totalRows[0]?.value ?? 0) === 0;
+
   // Địa chỉ đầu tiên hoặc địa chỉ được đánh dấu luôn trở thành mặc định, các địa chỉ cũ bỏ mặc định.
   if (req.isDefault || first) await clearDefaults(user.id);
-  const created = await prisma.userAddress.create({
-    data: {
+
+  const [created] = await db
+    .insert(userAddresses)
+    .values({
       userId: user.id,
       addressLabel: req.label?.trim() ?? "",
       receiverName: req.receiverName.trim(),
       phone: req.phone,
       address: req.address.trim(),
       isDefault: req.isDefault || first,
-    },
-  });
-  return toAddressJson(created);
+    })
+    .returning();
+
+  return toAddressJson(created!);
 };
 
 const owned = async (email: string, id: number) => {
   const user = await currentUser(email);
-  const address = await prisma.userAddress.findUnique({ where: { id } });
+  const address = await db.query.userAddresses.findFirst({ where: eq(userAddresses.id, id) });
   // Địa chỉ của người khác cũng giả vờ không tồn tại để không lộ ID đang có hiệu lực.
   if (!address || address.userId !== user.id) {
     throw notFound("Địa chỉ không tồn tại");
@@ -66,38 +78,48 @@ const owned = async (email: string, id: number) => {
 export const updateAddress = async (email: string, id: number, req: AddressRequest) => {
   const address = await owned(email, id);
   if (req.isDefault) await clearDefaults(address.userId);
-  const updated = await prisma.userAddress.update({
-    where: { id: address.id },
-    data: {
+  const [updated] = await db
+    .update(userAddresses)
+    .set({
       addressLabel: req.label?.trim() ?? "",
       receiverName: req.receiverName.trim(),
       phone: req.phone,
       address: req.address.trim(),
       ...(req.isDefault ? { isDefault: true } : {}),
-    },
-  });
-  return toAddressJson(updated);
+    })
+    .where(eq(userAddresses.id, address.id))
+    .returning();
+
+  return toAddressJson(updated!);
 };
 
 export const setDefaultAddress = async (email: string, id: number) => {
   const address = await owned(email, id);
   await clearDefaults(address.userId);
-  const updated = await prisma.userAddress.update({ where: { id: address.id }, data: { isDefault: true } });
-  return toAddressJson(updated);
+  const [updated] = await db
+    .update(userAddresses)
+    .set({ isDefault: true })
+    .where(eq(userAddresses.id, address.id))
+    .returning();
+
+  return toAddressJson(updated!);
 };
 
 export const deleteAddress = async (email: string, id: number) => {
   const address = await owned(email, id);
-  await prisma.userAddress.delete({ where: { id: address.id } });
+  await db.delete(userAddresses).where(eq(userAddresses.id, address.id));
   // Nếu xóa địa chỉ mặc định, nâng địa chỉ đầu tiên còn lại lên làm mặc định.
   if (address.isDefault) {
-    const next = await prisma.userAddress.findFirst({
-      where: { userId: address.userId },
-      orderBy: { createdAt: "asc" },
+    const next = await db.query.userAddresses.findFirst({
+      where: eq(userAddresses.userId, address.userId),
+      orderBy: [asc(userAddresses.createdAt)],
     });
     if (next) {
       await clearDefaults(address.userId);
-      await prisma.userAddress.update({ where: { id: next.id }, data: { isDefault: true } });
+      await db
+        .update(userAddresses)
+        .set({ isDefault: true })
+        .where(eq(userAddresses.id, next.id));
     }
   }
 };

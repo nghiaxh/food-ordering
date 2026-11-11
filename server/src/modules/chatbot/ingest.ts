@@ -3,7 +3,9 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { prisma } from "../../lib/prisma.js";
+import { asc, count, eq } from "drizzle-orm";
+import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
+import { db } from "../../lib/db.js";
 import { env } from "../../config/env.js";
 import { chunkText, parseDocument } from "./documentParser.js";
 
@@ -35,7 +37,11 @@ const toDoc = async (d: {
   fileName: string | null;
   fileSize: number | null;
 }): Promise<KnowledgeDocJson> => {
-  const chunkCount = await prisma.chatbotKnowledgeChunk.count({ where: { documentId: d.id } });
+  const rows = await db
+    .select({ value: count() })
+    .from(chatbotKnowledgeChunk)
+    .where(eq(chatbotKnowledgeChunk.documentId, d.id));
+  const chunkCount = rows[0]?.value ?? 0;
   return { ...d, chunkCount };
 };
 
@@ -53,11 +59,13 @@ const storedFilePath = (id: number, fileName: string | null): string =>
   join(uploadDir(), safeName(id, fileName));
 
 const buildChunks = async (documentId: number, text: string) => {
-  await prisma.chatbotKnowledgeChunk.deleteMany({ where: { documentId } });
+  await db.delete(chatbotKnowledgeChunk).where(eq(chatbotKnowledgeChunk.documentId, documentId));
   const chunks = chunkText(text);
-  await prisma.chatbotKnowledgeChunk.createMany({
-    data: chunks.map((content, chunkIndex) => ({ documentId, chunkIndex, content })),
-  });
+  if (chunks.length > 0) {
+    await db.insert(chatbotKnowledgeChunk).values(
+      chunks.map((content, chunkIndex) => ({ documentId, chunkIndex, content })),
+    );
+  }
 };
 
 /** Nạp tài liệu từ văn bản nhập trên giao diện (tab Tài liệu). */
@@ -68,11 +76,12 @@ export const ingestText = async (
   content: string,
   enabled: boolean,
 ): Promise<KnowledgeDocJson> => {
-  const doc = await prisma.chatbotKnowledge.create({
-    data: { title, category, keywords, content, enabled, status: "READY" },
-  });
-  await buildChunks(doc.id, content);
-  return toDoc(doc);
+  const [doc] = await db
+    .insert(chatbotKnowledge)
+    .values({ title, category, keywords, content, enabled, status: "READY" })
+    .returning();
+  await buildChunks(doc!.id, content);
+  return toDoc(doc!);
 };
 
 /** Nạp tài liệu từ file admin tải lên (PDF/DOCX/TXT/MD, ≤ 10 MB — giới hạn ở route). */
@@ -83,8 +92,9 @@ export const ingestFile = async (
   category: string | null,
   keywords: string | null,
 ): Promise<KnowledgeDocJson> => {
-  const doc = await prisma.chatbotKnowledge.create({
-    data: {
+  const [doc] = await db
+    .insert(chatbotKnowledge)
+    .values({
       title: title ?? fileName,
       category,
       keywords,
@@ -93,31 +103,34 @@ export const ingestFile = async (
       status: "PENDING",
       fileName,
       fileSize: buffer.length,
-    },
-  });
+    })
+    .returning();
 
   // Lưu file gốc để reingest sau này không phải tải lên lại.
-  writeFileSync(storedFilePath(doc.id, fileName), buffer);
+  writeFileSync(storedFilePath(doc!.id, fileName), buffer);
 
   let text = "";
   try {
     text = await parseDocument(fileName, buffer);
   } catch {
-    await prisma.chatbotKnowledge.update({ where: { id: doc.id }, data: { status: "FAILED" } });
+    await db
+      .update(chatbotKnowledge)
+      .set({ status: "FAILED" })
+      .where(eq(chatbotKnowledge.id, doc!.id));
     throw new Error("Không đọc được nội dung file. Chỉ chấp nhận PDF, DOCX, TXT, MD.");
   }
 
-  await prisma.chatbotKnowledge.update({
-    where: { id: doc.id },
-    data: { content: truncate(text, 4000), status: "READY" },
-  });
-  await buildChunks(doc.id, text);
-  return toDoc({ ...doc, content: truncate(text, 4000), status: "READY" });
+  await db
+    .update(chatbotKnowledge)
+    .set({ content: truncate(text, 4000), status: "READY" })
+    .where(eq(chatbotKnowledge.id, doc!.id));
+  await buildChunks(doc!.id, text);
+  return toDoc({ ...doc!, content: truncate(text, 4000), status: "READY" });
 };
 
 /** Tạo lại chunk từ nội dung hiện tại (khi sửa bằng chữ). */
 export const reingestDocument = async (documentId: number): Promise<KnowledgeDocJson> => {
-  const doc = await prisma.chatbotKnowledge.findUnique({ where: { id: documentId } });
+  const doc = await db.query.chatbotKnowledge.findFirst({ where: eq(chatbotKnowledge.id, documentId) });
   if (!doc) throw new Error("Không tìm thấy tài liệu");
 
   let text = doc.content ?? "";
@@ -126,27 +139,34 @@ export const reingestDocument = async (documentId: number): Promise<KnowledgeDoc
       const { readFileSync } = await import("node:fs");
       const buffer = readFileSync(storedFilePath(documentId, doc.fileName));
       text = await parseDocument(doc.fileName, buffer);
-      await prisma.chatbotKnowledge.update({
-        where: { id: documentId },
-        data: { content: truncate(text, 4000) },
-      });
+      await db
+        .update(chatbotKnowledge)
+        .set({ content: truncate(text, 4000) })
+        .where(eq(chatbotKnowledge.id, documentId));
     } catch {
-      await prisma.chatbotKnowledge.update({ where: { id: documentId }, data: { status: "FAILED" } });
+      await db
+        .update(chatbotKnowledge)
+        .set({ status: "FAILED" })
+        .where(eq(chatbotKnowledge.id, documentId));
       throw new Error("Không đọc lại được file của tài liệu này.");
     }
   }
 
   if (!text.trim()) {
-    await prisma.chatbotKnowledge.update({ where: { id: documentId }, data: { status: "FAILED" } });
+    await db
+      .update(chatbotKnowledge)
+      .set({ status: "FAILED" })
+      .where(eq(chatbotKnowledge.id, documentId));
     throw new Error("Tài liệu rỗng, không nạp được.");
   }
 
   await buildChunks(documentId, text);
-  const updated = await prisma.chatbotKnowledge.update({
-    where: { id: documentId },
-    data: { status: "READY" },
-  });
-  return toDoc(updated);
+  const [updated] = await db
+    .update(chatbotKnowledge)
+    .set({ status: "READY" })
+    .where(eq(chatbotKnowledge.id, documentId))
+    .returning();
+  return toDoc(updated!);
 };
 
 /** Cập nhật thông tin tài liệu và nạp lại (reingest) trong cùng thao tác. */
@@ -154,25 +174,28 @@ export const updateDocument = async (
   documentId: number,
   patch: { title: string | null; category: string | null; keywords: string | null; content: string; enabled: boolean },
 ): Promise<KnowledgeDocJson> => {
-  const doc = await prisma.chatbotKnowledge.findUnique({ where: { id: documentId }, select: { id: true } });
+  const doc = await db.query.chatbotKnowledge.findFirst({
+    where: eq(chatbotKnowledge.id, documentId),
+    columns: { id: true },
+  });
   if (!doc) throw new Error("Không tìm thấy tài liệu");
-  await prisma.chatbotKnowledge.update({
-    where: { id: documentId },
-    data: {
+  await db
+    .update(chatbotKnowledge)
+    .set({
       title: patch.title,
       category: patch.category,
       keywords: patch.keywords,
       content: patch.content,
       enabled: patch.enabled,
-    },
-  });
+    })
+    .where(eq(chatbotKnowledge.id, documentId));
   // Nội dung có thể đã đổi nên phải chia đoạn lại; chi phí nhỏ với tài liệu < 10 MB.
   return reingestDocument(documentId);
 };
 
 export const deleteDocument = async (documentId: number) => {
-  await prisma.chatbotKnowledgeChunk.deleteMany({ where: { documentId } });
-  const doc = await prisma.chatbotKnowledge.findUnique({ where: { id: documentId } });
+  await db.delete(chatbotKnowledgeChunk).where(eq(chatbotKnowledgeChunk.documentId, documentId));
+  const doc = await db.query.chatbotKnowledge.findFirst({ where: eq(chatbotKnowledge.id, documentId) });
   if (doc?.fileName) {
     try {
       unlinkSync(storedFilePath(documentId, doc.fileName));
@@ -180,26 +203,27 @@ export const deleteDocument = async (documentId: number) => {
       // File gốc không còn thì bỏ qua — chunks và bản ghi đã xoá là đủ.
     }
   }
-  await prisma.chatbotKnowledge.delete({ where: { id: documentId } });
+  await db.delete(chatbotKnowledge).where(eq(chatbotKnowledge.id, documentId));
 };
 
 export const listDocuments = async (): Promise<KnowledgeDocJson[]> => {
-  const docs = await prisma.chatbotKnowledge.findMany({ orderBy: { id: "asc" } });
+  const docs = await db.query.chatbotKnowledge.findMany({ orderBy: [asc(chatbotKnowledge.id)] });
   return Promise.all(docs.map(toDoc));
 };
 
 export const documentStats = async () => {
-  const docs = await prisma.chatbotKnowledge.findMany({ select: { status: true } });
-  const chunks = await prisma.chatbotKnowledgeChunk.count();
+  const docs = await db.query.chatbotKnowledge.findMany({ columns: { status: true } });
+  const chunkRows = await db.select({ value: count() }).from(chatbotKnowledgeChunk);
+  const totalChunks = chunkRows[0]?.value ?? 0;
   const ready = docs.filter((d) => d.status === "READY").length;
   const failed = docs.filter((d) => d.status === "FAILED").length;
-  return { totalDocuments: docs.length, totalChunks: chunks, ready, failed };
+  return { totalDocuments: docs.length, totalChunks, ready, failed };
 };
 
 export const listChunks = async (documentId: number) => {
-  const rows = await prisma.chatbotKnowledgeChunk.findMany({
-    where: { documentId },
-    orderBy: { chunkIndex: "asc" },
+  const rows = await db.query.chatbotKnowledgeChunk.findMany({
+    where: eq(chatbotKnowledgeChunk.documentId, documentId),
+    orderBy: [asc(chatbotKnowledgeChunk.chunkIndex)],
   });
   return rows.map((r) => ({ id: r.id, chunkIndex: r.chunkIndex ?? 0, content: r.content }));
 };
