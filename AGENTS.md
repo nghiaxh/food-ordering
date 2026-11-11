@@ -18,8 +18,9 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   JSON, timeout 15s). Hỗ trợ Gemini và OpenAI; nhà cung cấp + tên mô hình đọc từ bảng `ai_setting`
   do admin đặt trong trang Chatbot, fallback về `AI_PROVIDER` / `AI_MODEL`. Muốn thêm
   nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không gửi xuống client.
-- **Infra** - `docker-compose.yml` 1 file, 2 profile: `prod` (db + server-prod +
-  client-prod) và `dev` (db + server-dev + client-dev với volume mount, hot reload).
+- **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
+  client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
+  (Drizzle Studio).
   Server dev reload nhờ `tsx watch` (không cần bước compile riêng).
   Một file `.env` duy nhất ở root chứa mọi bí mật; compose tự dựng `DATABASE_URL`.
 
@@ -33,13 +34,13 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [gemini.
 ```
 
 AI **không bao giờ** được tự nghĩ ra món/giá. Prompt truy vấn món chỉ nhận danh sách
-có sẵn từ `modules/menu`; nếu lỗi AI/JSON sai thì `criteria.ts` extractCriteria trả `null` và
+có sẵn từ `modules/menu`; nếu lỗi AI/JSON sai thì `service.ts` extractCriteria trả `null` và
 `chat()` chuyển sang nhánh dự phòng. Đừng coi `null` là tiêu chí rỗng: tiêu chí rỗng
 khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan gì tới câu hỏi, khách hỏi
 món chay lại nhận cà phê đá. Chỉ khách **đã đăng nhập** mới ghi lịch sử hội thoại; khách
 vãng lai chat được nhờ `history`/`lastFoodIds` client gửi kèm, không lưu vào DB.
 
-**Cách áp tiêu chí** (`modules/chatbot/service.ts (selectFoods)`): lọc thuộc tính món trước (còn phục
+**Cách áp tiêu chí** (`modules/chatbot/select.ts (selectFoods)`): lọc thuộc tính món trước (còn phục
 vụ, độ cay, thành phần loại trừ, nhãn chế độ ăn, từ khóa), rồi mới chọn món theo ngân
 sách. `maxBudget` là **TỔNG** tiền của cả bộ gợi ý, không phải giá một món. Số phần cần
 tính theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá × số phần`; đừng
@@ -51,7 +52,7 @@ Mỗi lượt trả tối đa **5 thẻ**; `maxSuggestions()` kẹp cấu hình 
 Số phần và tổng tiền phải tính ở server và gửi kèm thẻ món, không giao cho AI tự tính.
 
 **Nhánh dự phòng khi không gọi được AI** (429/5xx, hết thời gian chờ, JSON hỏng):
-`chat()` rơi sang `service.ts` selectFoodsByCode + `reply.ts` fallbackReply. Món được chấm điểm bằng code theo
+`chat()` rơi sang `select.ts` selectFoodsByCode + `select.ts` fallbackReply. Món được chấm điểm bằng code theo
 từ khóa trùng tên món/nguyên liệu/nhãn (không tính mô tả món, không tính từng từ của tên
 danh mục), rồi áp ràng buộc đọc chắc chắn từ câu: không cay, chay, loại trừ hải sản, ngân
 sách, số người. Câu trả lời chỉ tóm tắt một dòng rồi mời khách bấm thẻ món, **không** liệt
@@ -90,8 +91,9 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   Token sinh bằng `src/lib/jwt.ts`, middleware tra CSDL mỗi request để tài khoản bị
   khoá mất quyền ngay. CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `modules/order` `createOrder` set `price` = giá trong DB, không tin client.
-- **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; nút thêm món bị khoá kèm tooltip
-  "Đăng nhập để thêm món vào giỏ" (NTooltip trong thẻ món), `/checkout` nằm trong
+- **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; ở thẻ chatbot nút thêm món bị
+  khoá kèm tooltip "Đăng nhập để thêm món vào giỏ" (NTooltip trong thẻ chatbot), ở thẻ món
+  trang thực đơn thì bấm nút dấu cộng sẽ được đưa sang `/login`; `/checkout` nằm trong
   requireAuth còn `/cart` chỉ chuyển hướng về `/checkout`. Giỏ mở bằng drawer toàn cục
   (`modules/cart/components/CartDrawer.vue`), khách bấm giỏ khi chưa đăng nhập được đưa sang `/login` kèm cờ
   `openCart` để mở lại sau khi đăng nhập. `cartStore.add` trả `Promise<boolean>` và từ chối khi
@@ -106,8 +108,9 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   khuyến mãi tự động tốt nhất. `composables/useCartQuote.ts` là nơi duy nhất gọi quote, dùng chung cho
   drawer giỏ và `/checkout`.
 - **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`order` module `canEditItems`);
-  đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (`requireEditable`); các
-  trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `AdminOrderRequest.items`
+  đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (kiểm trong `adminUpdateOrder`);
+  các
+  trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `adminOrderSchema.items`
   được phép null, còn `adminCreate` tự kiểm danh sách món không rỗng. Khách cũng chỉ hủy được đơn
   `PENDING` + chưa thanh toán; client ẩn nút bằng `canCancelOrder` trong `client/src/shared/utils/orders.ts`.
 
@@ -136,20 +139,24 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
 - **Thanh điều hướng một hàng ở mọi kích thước**: logo (`BrandMark`, bấm về `/`), ô tìm kiếm
   co giãn, nút đơn hàng, nút giỏ, avatar/nút đăng nhập. Từ `lg` chuông và đơn hàng có nút riêng
   trên header (chuông mang chấm đỏ chưa đọc); dưới `lg` hai mục này nằm trong menu tài khoản
-  và mở drawer tương ứng. Nút đơn hàng (icon `inbox`) chỉ hiện từ `lg` khi đã đăng nhập vì
+  và mở drawer tương ứng. Nút đơn hàng (icon `ReceiptOutline` cho khách, `GridOutline` cho admin)
+  chỉ hiện từ `lg` khi đã đăng nhập vì
   `/orders` cần token; đừng thêm menu điều hướng, các trang con còn lại nằm trong menu tài khoản.
   Trang đăng nhập/đăng ký (`AuthShell`) không hiển thị thương hiệu/link về bảng món.
 - **Chiều cao header là `--header-h` (`3.25rem`)** trong `index.css`; khối chatbot dùng
   `top-[var(--header-h)]`, vùng cuộn của `FoodsPage` dùng `calc(100dvh-var(--header-h))`. Đổi
-  chiều cao chỉ sửa biến, đừng hard-code lại ở ba nơi. Trang chi tiết và checkout cũng dùng
-  `top-[calc(var(--header-h)+1rem)]` cho cột sticky.
+  chiều cao chỉ sửa biến, đừng hard-code lại ở ba nơi. Trang chi tiết dùng
+  `lg:top-[calc(var(--header-h)+1rem)]` cho ảnh sticky, checkout dùng cột tóm tắt sticky
+  với cùng giá trị.
 - **Chatbot mở bằng `shared/stores/uiStore.ts`** (`chatOpen`), không còn state cục bộ, để hero và empty
-  state mở được; nút làm mới hội thoại xoá ngữ cảnh cũ và cấp `sessionId` mới. Dải gợi ý luôn
-  nằm trên ô nhập, cuộn ngang trên mobile, thay vì biến mất sau tin đầu.
+  state mở được; nút làm mới hội thoại xoá ngữ cảnh cũ và cấp `sessionId` mới. Bốn điểm vào
+  (`GREETING_STARTERS`) chỉ hiện khi hội thoại còn mới; `quickReplies` do server quyết định
+  nằm dưới tin bot mới nhất, tin cũ bị tước `quickReplies` giống `foods`.
 - **Chatbot chỉ giữ thẻ của tin bot mới nhất** (tối đa 5); tin bot cũ vẫn còn chữ nhưng mất
   `foods`, nên khung chat không dồn thẻ. Không còn nút "Xem thực đơn" trong khung chat. Nút
-  thêm món trong thẻ yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip và bấm
-  không điều hướng theo link của thẻ.
+  thêm món trong thẻ chatbot yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip
+  và bấm không điều hướng theo link của thẻ. Nút dấu cộng trên thẻ món ở trang thực đơn thì
+  không disable: khách vãng lai bấm được và được đưa sang `/login`.
 - **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[var(--header-h)]` + `justify-end`,
   khung chat
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
@@ -168,13 +175,14 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 **Client** (`./client`):
 - Dev server: `npm run dev` (http://localhost:5173)
 - Build: `npm run build` (vue-tsc --noEmit + vite build → `dist/`)
-- Typecheck: `npm run typecheck` (vue-tsc --noEmit). Không có lint target, client chưa có test runner; kiểm tra bằng typecheck + build.
+- Typecheck: `npm run typecheck` (vue-tsc --noEmit). Không có lint target; kiểm tra bằng typecheck + build.
+- E2E: `npm run test:e2e` (Playwright, spec ở `client/e2e/`). Cần stack dev đang chạy; CI không chạy job này.
 - API client dùng `VITE_API_URL` làm `baseURL`; `vite.config.ts` không có proxy `/api`.
 
 **Server** (`./server`):
 - Dev: `npm run dev` (tsx watch, http://localhost:8080/api; cần Postgres ở localhost:5432
   và biến môi trường từ root `.env` — server tự đọc qua dotenv; hoặc `docker compose --profile dev up --build`)
-- Build/test: `npm run build` / `npm test`. Unit test Vitest trong `tests/`, chạy độc lập không cần DB.
+- Build/test: `npm run build` / `npm test` / `npm run typecheck`. Unit test Vitest trong `tests/`, chạy độc lập không cần DB.
 - Migration CSDL: `npm run db:generate` (tạo migration), `npm run db:migrate` (áp dụng), `npm run db:seed` (nạp demo), `npm run db:studio` (mở Drizzle Studio).
 - Prod: `docker compose --profile prod up --build -d`
 
@@ -188,9 +196,11 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 
 ## Quy ước comment và tài liệu
 
-- Comment mới dùng tiếng Việt, ngắn gọn và giải thích **vì sao**, ràng buộc nghiệp vụ,
+- Comment mới dùng **tiếng Việt không dấu**, ngắn gọn và giải thích **vì sao**, ràng buộc nghiệp vụ,
   nguồn dữ liệu, vòng đời state hoặc cách fallback; không lặp lại cú pháp hoặc từng dòng JSX.
 - Dùng `//` cho quyết định cục bộ, Javadoc/JSDoc cho hợp đồng hoặc ranh giới quan trọng.
+- Quy ước này chỉ áp cho **comment trong mã** (`client/src`, `server/src`, `server/tests`).
+  Chuỗi hiển thị cho người dùng, prompt AI, dữ liệu seed và thông báo lỗi vẫn viết có dấu.
 - Khi đổi endpoint, DTO, quy tắc domain hoặc luồng nghiệp vụ, cập nhật đồng bộ
   `ARCHITECTURE.md`, `TEST.md` và tài liệu liên quan. Khi đổi quy ước phân nhánh
   hoặc commit, cập nhật đồng bộ `BRANCHING.md`.
@@ -222,10 +232,10 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   `client/src/shared/api/http.ts` đọc token từ `localStorage` rồi fallback `sessionStorage`, nên ô
   "Ghi nhớ đăng nhập" hoạt động đúng cả hai chế độ.
 - **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
-  `AdminLayout` (menu trái 5 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
+  `AdminLayout` (menu trái 4 nhóm / 8 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
   báo trong `AdminLayout`, đừng gắn vào `DefaultLayout`.
-- **`useHasBottomBar` tính theo đường dẫn**: `/checkout` có thanh đặt món,
-  `/foods/*` có thanh thêm món trên mobile. Trang mới có thanh cố định đáy
+- **`useHasBottomBar` tính theo đường dẫn**: chỉ `/checkout` có thanh đặt món, và chỉ khi giỏ
+  còn món. Trang mới có thanh cố định đáy
   thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh che. Hai drawer giỏ/thông báo
   dùng `activeDrawer` trong `uiStore` để không chồng mask.
 - `requireAuth`/`optionalAuth` bọc lỗi không hợp lệ (coi như chưa đăng nhập) - đừng log token.

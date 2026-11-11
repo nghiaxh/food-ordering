@@ -111,18 +111,20 @@ Giỏ hàng **lưu trên server** theo tài khoản (bảng `cart_items`, unique
 
 ### 4b. Ràng buộc dữ liệu ở biên
 
-- Mật khẩu tối thiểu 8 ký tự (`@Size(min = 8)`), số điện thoại đúng 10 chữ số bắt đầu bằng 0
-  (`@Pattern("^0\\d{9}$")`). Client và server cùng kiểm tra để báo lỗi ngay tại trường nhập.
-- Phương thức thanh toán phải thuộc danh sách `COD|QR` (`@Pattern(regexp =
-  PAYMENT_METHOD_PATTERN)` trong `OrderDtos`). `COD` là **tiền mặt khi nhận**, `QR` là **quét
+- Mật khẩu tối thiểu 8 ký tự, số điện thoại đúng 10 chữ số bắt đầu bằng 0
+  (`/^0\d{9}$/` trong `auth/schema.ts` và `order/schema.ts`). Client và server cùng kiểm tra để báo
+  lỗi ngay tại trường nhập.
+- Phương thức thanh toán phải thuộc danh sách `COD|QR` (`PAYMENT_METHOD_PATTERN` trong
+  `order/schema.ts`). `COD` là **tiền mặt khi nhận**, `QR` là **quét
   mã QR để chuyển khoản**; không có phương thức khác. Nhãn hiển thị nằm ở
   `client/src/shared/utils/orders.ts` (`PAYMENT_METHOD_LABEL`) để trang khách và trang quản trị hiện
   giống nhau, không lộ mã thôi ra giao diện.
 - Giỏ hàng chỉ nhận món đang phục vụ (`cart` module (addToCart)); lỗi hiện ở lúc thêm chứ không đợi tới
   lúc đặt.
-- Món đã có trong đơn không xoá được (`FoodService.delete` trả 409 kèm gợi ý chuyển sang
+- Món đã có trong đơn không xoá được (`menu` module (deleteFood) trả 409 kèm gợi ý chuyển sang
   ngừng phục vụ), vì chi tiết đơn vẫn tham chiếu tới nó.
-- Admin không khoá hay xoá được tài khoản quản trị (`AuthService.requireCustomer`).
+- Admin không khoá hay xoá được tài khoản quản trị (`admin` module chặn ở `setUserActive` và
+  `adminDeleteUser`).
 
 ### 4c. Khuyến mãi tự động
 
@@ -144,7 +146,7 @@ lệch nhau.
   thị. Xoá sạch giỏ hoặc đăng xuất thì tăng "thế hệ" giỏ để response đang bay không dựng lại dòng
   vừa xoá.
 - **Số lượng dòng mới**: `cart` module (addToCart) tạo `CartItem` với `quantity = 0` trước khi cộng,
-  vì entity mặc định 1; thiếu bước này thì lần thêm đầu tiên dư 1 phần so với số khách chọn.
+  vì cột `quantity` mặc định 1; thiếu bước này thì lần thêm đầu tiên dư 1 phần so với số khách chọn.
 
 - **Một dòng, một khoản giảm.** `QuoteLine.lineDiscount` và `OrderItem.discountAmount` là số
   tiền giảm của **cả dòng** (đã nhân số lượng), không phải của một phần.
@@ -160,8 +162,9 @@ lệch nhau.
 - **Món may mắn mỗi ngày** (`randomCount > 0`): mỗi ngày chọn `randomCount` món bằng hàm băm
   `hash(foodId, promotionId, ngày)` rồi sắp theo giá trị băm, nên cùng một ngày mọi người thấy
   cùng bộ món và sang ngày mới tự đổi, không cần scheduler.
-- **Giá trên thẻ món**: `GET /api/foods` và `/api/foods` được `decorateFoods` (modules/pricing)
-  điền `discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel`; client chỉ hiện.
+- **Giá trên thẻ món**: `GET /api/foods` và `GET /api/foods/{id}` được `decorateFoods`
+  (`modules/pricing/service.ts`) điền `discountedPrice`, `discountAmount`, `discountPercent`,
+  `discountLabel`; client chỉ hiện.
   Đây là giá tham khảo cùng luật với giỏ, còn con số chốt vẫn là báo giá.
 
 ### 5. Trợ lý AI tư vấn món (chống bịa món/giá)
@@ -176,17 +179,18 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
 ```
 
 - Lượt AI đầu tiên trích xuất tiêu chí dưới dạng JSON; server lọc `Food` bằng code và chỉ
-  dùng các entity đang phục vụ.
+  dùng các món đang phục vụ.
 - Lượt AI thứ hai viết câu trả lời từ danh sách món đã lọc. Danh sách gửi vào prompt bị
   giới hạn 15 món; số thẻ trả về mỗi lượt luôn nằm trong **1..5**. Cấu hình `max_suggestions`
   trong trang Chatbot bị kẹp về khoảng này, nên giá trị cũ 8/10 cũng không vượt 5.
-- Thẻ món phía client được tạo từ entity đã lọc (`FoodCard.from`), nên ID và giá không lấy
-  từ câu trả lời AI. Thẻ mang thêm `portions` và `totalPrice` do server tính, nên giá hiển thị
-  khớp với tổng tiền khách sẽ phải trả.
+- Thẻ món phía client được dựng từ danh sách món đã lọc (mảng `foods` trong `ChatResponse`), nên ID và
+  giá không lấy từ câu trả lời AI. Thẻ mang thêm `portions` và `totalPrice` do server tính, nên giá
+  hiển thị khớp với tổng tiền khách sẽ phải trả.
 - `lib/gemini.ts` đọc nhà cung cấp và tên mô hình từ bảng cấu hình `ai_setting` (quản trị viên đặt
   trong trang Chatbot), chỉ fallback về `AI_PROVIDER` / `AI_MODEL` khi chưa đặt. Cả
-  Gemini và OpenAI đều được hỗ trợ; `fetch REST` có timeout 15 giâp cho cả kết nối và đọc.
-- **Ngữ cảnh hỏi tiếp nằm ở client, không lưu vào CSDL.** `ChatRequest` nhận thêm `history`
+  Gemini và OpenAI đều được hỗ trợ; `fetch REST` có timeout 15 giây cho cả kết nối và đọc.
+- **Ngữ cảnh hỏi tiếp nằm ở client, không lưu vào CSDL.** `chatSchema` (`modules/chatbot/routes.ts`)
+  nhận thêm `history`
   (tối đa 3 câu hỏi gần nhất) và `lastFoodIds` (ID các món ở tin bot gần nhất). Client xoá
   `foods` của mọi tin bot cũ nên chỉ tin mới nhất còn thẻ; ref `lastFoodIds` được cập nhật theo
   tin đó và clear khi tin mới không có món.
@@ -200,7 +204,7 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
   chủ đề mới bỏ qua context và tìm trên toàn thực đơn. Không dùng độ dài câu để đoán hỏi tiếp.
   Nhánh dự phòng khi AI lỗi cũng bám `lastFoodIds` nếu câu là hỏi tiếp.
 - Lỗi AI/JSON sai thì xử lý bằng `try/catch` → hệ thống vẫn chạy bình thường. JSON AI trả về có
-  thể có thêm trường lạ; mapper bỏ qua chúng (`FAIL_ON_UNKNOWN_PROPERTIES=false`) để một trường
+  thể có thêm trường lạ; zod schema dùng `.loose()` nên bỏ qua chúng, một trường
   thừa không làm mất gợi ý.
 - **Thiếu hoặc hỏng khóa API**: `lib/gemini.ts isConfigured()` kiểm tra `AI_API_KEY`; nếu rỗng,
   `chat()` ném `503 SERVICE_UNAVAILABLE` với câu "Trợ lý AI chưa được cấu hình, vui lòng thử
@@ -215,7 +219,7 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
   `extractCriteria`/`generateReply` để `chat()` đổi thành 503 thay vì dựng câu trả lời dự phòng.
   Lỗi 429/5xx, hết thời gian chờ mới đi nhánh dự phòng.
 - **Nhánh dự phòng khi không gọi được AI** (429/5xx, JSON sai, hết thời gian chờ): `chat()`
-  rơi sang `chatbot service.ts selectFoodsByCode` + `fallbackReply`. Món được chấm điểm bằng code
+  rơi sang `modules/chatbot/select.ts` (`selectFoodsByCode` + `fallbackReply`). Món được chấm điểm bằng code
   theo từ khoá trùng tên món/nguyên liệu/nhãn, tên danh mục chỉ tính khi câu hỏi có nguyên cụm
   tên danh mục, rồi áp các ràng buộc đọc được chắc chắn từ câu (không cay, chay, loại trừ hải
   sản, ngân sách, số người). Câu trả lời chỉ tóm tắt một dòng ("Mình tìm được 5 món chay, không
@@ -228,8 +232,8 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
   tin nhắn không ghi vào `chat_message`, nên lịch sử trong trang quản trị luôn gắn với tài khoản.
 - **Giải quyết đại từ tham chiếu**: khi câu hỏi có cụm tham chiếu rõ ("món đó", "cái đó", "món này",
   "món vừa gợi ý", "mấy món trên", "trong số đó") và client gửi `lastFoodIds`, server tra tên các
-  món đó (`findAllById`) và ghép vào câu hỏi trước khi trích tiêu chí; không dùng bộ nhớ theo
-  `sessionId` phía server.
+  món đó (đọc thẳng bảng `foods` theo ID) và ghép vào câu hỏi trước khi trích tiêu chí; không dùng
+  bộ nhớ theo `sessionId` phía server.
 - **Validate tiêu chí**: `normalizeCriteria` loại bỏ giá trị vô lý (độ cay ngoài 0–3, ngân sách ≤ 0, số người ≤ 0/>50, chuỗi rỗng) và bỏ từ khóa tham chiếu thuần ("món đó"...). Nếu bộ lọc từ khóa không khớp món nào, server bỏ lọc từ khóa nhưng vẫn giữ các ràng buộc thuộc tính, tránh trả danh sách rỗng vô lý.
 - **RAG cho thông tin quán:** bảng `chatbot_knowledge` lưu tài liệu do admin nhập ở tab Tài liệu
   (`/admin/chatbot`), bảng `chatbot_knowledge_chunk` lưu các đoạn văn bản sau khi chia nhỏ kèm cột
@@ -240,8 +244,9 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
   tìm thấy thì chấm từ khóa như chấm món dự phòng (có unaccent/chuẩn hoá tiếng Việt 2 đầu).
   Câu trả lời chỉ từ đoạn tìm được, kèm `citations` hiện "Nguồn: ...". Không tìm thấy thì nói không rõ,
   không bịa giờ/giá ship. Món ăn vẫn lọc bằng code xác định, không đưa giá/cay/khả dụng vào bảng RAG.
-- **Định tuyến intent:** `modules/chatbot/service.ts` classifyIntent chia câu hỏi thành `FOOD`,
-  `RESTAURANT_INFO`, `ORDER_GUIDE`, `OUT_OF_SCOPE`. Keyword được thử trước (không tốn mạng);
+- **Định tuyến intent:** `modules/chatbot/service.ts` chia câu hỏi thành `FOOD`,
+  `RESTAURANT_INFO`, `ORDER_GUIDE`, `OUT_OF_SCOPE` bằng các hàm cục bộ `isRestaurantInfoQuestion`,
+  `isOrderGuideQuestion` và `genericInfoMatch`. Keyword được thử trước (không tốn mạng);
   không khớp gì mới tra tài liệu một lần — câu khớp thì coi là `RESTAURANT_INFO` (dùng
   luôn các đoạn đã tra cho câu trả lời), không khớp thì `OUT_OF_SCOPE`. `RESTAURANT_INFO` và
   `ORDER_GUIDE` trả lời bằng tài liệu/quy trình cố định (không gọi AI), `ORDER_GUIDE` không trích
@@ -256,11 +261,13 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
 - **Quick replies theo từng lượt:** mỗi `ChatResponse` kèm `quickReplies` do server quyết định theo
   tình huống — FOOD có thẻ: `Món khác`, `Món chay không cay`, `Cách đặt món thế nào?`; FOOD rỗng:
   `Món khác`, `Món chay không cay`; bot hỏi follow-up: `1 người`/`2 người`/`4 người`;
-  RESTAURANT_INFO/ORDER_GUIDE/OUT_OF_SCOPE: lối vào gợi ý món/đặt hàng/giờ mở cửa. Bấm nút =
+  RESTAURANT_INFO/ORDER_GUIDE/OUT_OF_SCOPE: lối vào gợi ý món/đặt hàng/giờ mở cửa. Một lượt
+  không vượt quá 3 nút. Bấm nút =
   gửi đúng text đó như khách tự gõ; client render dưới tin bot mới nhất (tin cũ bị tước
   `quickReplies` giống `foods`). Nút `Món khác` do server xử lý bằng code — chọn món đang phục vụ
   ngoại trừ các ID vừa hiển thị, giá tăng dần, không gọi AI. Prompt trả lời có thêm luật 10
-  (giải thích ngắn gọn vì sao các món hợp với yêu cầu của khách); prompt nằm ở `modules/chatbot/prompts.ts,
+  (giải thích ngắn gọn vì sao các món hợp với yêu cầu của khách); prompt nằm ở
+  `modules/chatbot/prompts.ts`,
   dự án tự thiết kế theo nghiệp vụ đặt món, không bản sao prompt mẫu của repo nào.
 - **Streaming chữ:** server vẫn trả nguyên câu về một lần, client chạy chữ dần theo từ
   (`useChatConversation`), có status text `Đang tìm món...` / `Đang tra tài liệu quán...` và nút Dừng.
@@ -271,7 +278,7 @@ Người dùng → (1) AI trích xuất tiêu chí (JSON)   [lib/gemini.ts, json
 
 Tiêu chí AI trả về gồm `categories` (loại món và số món mong muốn cho từng loại),
 `maxSpicyLevel`, `maxBudget` (TỔNG ngân sách của cả bữa), `people`, `excludeAllergens`,
-`dietaryTags` và `keywords`. `chatbot service.ts (selectFoods)` áp chúng bằng code, theo hai bước:
+`dietaryTags` và `keywords`. `modules/chatbot/select.ts (selectFoods)` áp chúng bằng code, theo hai bước:
 
 1. **Lọc thuộc tính món**: còn phục vụ, độ cay, thành phần loại trừ (quét cả `allergens` lẫn
    `ingredients`), nhãn chế độ ăn, từ khóa. Danh mục và giá để dành cho bước 2.
@@ -307,8 +314,9 @@ dạng "N món, tổng ... trong ngân sách ...".
 ### 6. Đánh giá và đặt lại
 
 - Khách chỉ được đánh giá món có trong **đơn hoàn thành** của chính mình
-  (`existsByUserIdAndStatusAndItemsFoodId`), khớp yêu cầu "đánh giá sau khi dùng".
-- Nội dung nhận xét **không bắt buộc**: khách có thể chỉ chọn số sao. `ReviewController` chuẩn hóa
+  (truy vấn nối `orders` với `order_items` trong `review` module), khớp yêu cầu "đánh giá sau khi dùng".
+- Nội dung nhận xét **không bắt buộc**: khách có thể chỉ chọn số sao. `review` module (normalizeComment)
+  chuẩn hóa
   chuỗi rỗng hoặc chỉ khoảng trắng thành `null` ở cả tạo và sửa; cột `comment` vốn đã nullable nên
   không cần đổi CSDL.
 - `GET /api/reviews/food/{foodId}` trả kèm cờ `mine` để client biết đánh giá nào của chính
@@ -322,7 +330,8 @@ dạng "N món, tổng ... trong ngân sách ...".
 
 ### 7. Thông báo
 
-- Chuông không còn là nút riêng trên header: mục "Thông báo" nằm trong menu tài khoản và mở
+- Từ `lg` chuông là nút riêng trên header (mang chấm đỏ chưa đọc), dưới `lg` mục "Thông báo" nằm
+  trong menu tài khoản; cả hai đều mở
   `NotificationsDrawer` bên phải. Avatar có chấm đỏ khi còn thông báo chưa đọc; số chưa đọc
   cũng hiện cạnh nhãn trong menu. `modules/notification/store.ts` là nguồn dữ liệu chung cho cả
   header và drawer, trước đây hai nơi gọi API riêng nên dễ lệch số.
@@ -365,8 +374,8 @@ Trang chủ chính là trang thực đơn (`/`), khớp Bảng 2.22 gộp "Trang
 màn hình. Cấu trúc từ trên xuống:
 
 - **Hero** (`modules/menu/components/HomeHero.vue`) trải hết bề ngang vùng cuộn, chỉ hiện khi chưa có bộ
-  lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ nói địa bàn, thời
-  gian giao và `Hôm nay ăn gì?`. Cao 180/220/260px theo breakpoint.
+  lọc. Ảnh là `hero.webp` thật, phủ lớp tối để chữ trắng đạt AA; nội dung chỉ có tiêu đề
+  `Hôm nay ăn gì?` kèm hai nút `Xem thực đơn` và `Hỏi trợ lý AI`. Cao 180/220/260px theo breakpoint.
 - **Dải danh mục** (`CategoryRail`) là chip cao 40px có ảnh tròn 32px, cuộn ngang; chọn danh mục
   ghi `?category=` và cuộn tới lưới món.
 - **Ưu đãi hôm nay** (`DealRail`) là shelf cuộn ngang dùng chung `FoodCard` với lưới thực đơn,
@@ -382,23 +391,24 @@ màn hình. Cấu trúc từ trên xuống:
   và ô tìm kiếm trên header điều khiển được trang này. Bộ lọc nhanh (Còn món, Món chay, Không
   cay, Đang giảm) và 5 dải giá lọc trên danh sách đã tải; sắp xếp theo giá hoặc mức giảm chạy
   trên client vì dữ liệu từng món đã đủ.
-- **Thanh giỏ ghim đáy** hiện khi giỏ có món, ghi số món và số phần, nút "Xem giỏ" mở drawer
-  chứ không rời trang.
-- Tìm kiếm khớp **không dấu, không phân biệt hoa thường**: server bỏ điều kiện `LIKE` khỏi
-  Specification và lọc từ khoá bằng code qua `text-normalizer.ts` (NFD bỏ dấu, đ/Đ → d) sau
-  `findAll` — không cầu extension `unaccent` của PostgreSQL. Enter trong ô tìm kiếm áp dụng
+- Tìm kiếm khớp **không dấu, không phân biệt hoa thường**: server chỉ đẩy điều kiện danh mục,
+  khoảng giá xuống SQL rồi lọc từ khoá bằng code qua `text-normalizer.ts` (NFD bỏ dấu, đ/Đ → d)
+  trên tập món đã tải (`menu` module (searchFoods)) — không cầu extension `unaccent` của PostgreSQL.
+  Enter trong ô tìm kiếm áp dụng
   ngay qua `commitSearch` dùng chung với debounce: ở `/` giữ nguyên `category`/`min`/`max`,
   ở trang khác thì về `/` kèm từ khoá thay vì làm rỗng bộ lọc.
 
 Thẻ món giữ mật độ cũ: ảnh 16:10, đệm `p-2.5` trên mobile và `p-3` từ `sm`, tối đa 2 nhãn.
 Giá dùng `food.discountedPrice ?? food.price` và hiện giá gốc gạch ngang khi đang giảm. Nút
-tròn dấu cộng trên ảnh thêm nhanh: khách đã đăng nhập thêm xong chỉ thấy toast và ở lại trang chủ;
+tròn chỉ có icon dấu cộng trên ảnh thêm nhanh, có tooltip khi hover và hiện luôn trên thiết bị
+không có hover: khách đã đăng nhập thêm xong chỉ thấy toast và ở lại trang chủ;
 khách vãng lai được đưa sang `/login` rồi quay lại đúng bộ lọc. Cả thẻ mở trang chi tiết. Nhãn
 ưu đãi viết gọn thành `Ưu đãi hôm nay` / `Ưu đãi cuối tuần` qua `discountText` dùng chung.
 
 `/foods/:id` là **trang độc lập** trong `DefaultLayout`, không còn là route con hay Drawer.
-Trang có hai cột từ `lg`: ảnh `4/3` (mobile) hoặc `2/1` (từ `sm`), khối thông tin món và đánh
-giá; cột phải sticky chứa giá, số lượng và nút thêm. Dưới `lg` có thanh mua hàng cố định đáy.
+Trang có hai cột từ `lg`: cột ảnh `16/10` sticky (`lg:top-[calc(var(--header-h)+1rem)]`) và cột
+thông tin món, đánh giá; giá, số lượng và nút thêm nằm trong cột thông tin. Trang không có thanh
+mua hàng cố định đáy.
 Giá trên trang chi tiết dùng đúng một nguồn với thẻ món. Nút quay lại ưu tiên `state.from` do
 thẻ món truyền vào (kèm query bộ lọc); vị trí cuộn của lưới được lưu trong `sessionStorage`
 (`menu-scroll`) và khôi phục khi quay lại. Thêm món từ trang chi tiết mở drawer giỏ để khách
@@ -435,8 +445,9 @@ Trang không lặp lại danh sách món sửa được (việc đó nằm trong
 - Nút dùng trực tiếp `NButton` của Naive UI, không còn wrapper `UiButton`: mỗi màn hình giữ
   đúng một nút `type="primary"` chính; chiều cao mặc định của thư viện, không ghi đè bằng
   class `!h-*` đi ngược lại nó.
-- Thẻ món dùng nút "Thêm vào giỏ" **có nhãn** vì Bảng 2.22 ghi rõ tên thành phần này; món hết
-  hiện nhãn "Hết món" và nút bị vô hiệu hoá. Nút chỉ có chữ, không kèm icon dấu "+".
+- Thẻ món ở lưới dùng nút tròn chỉ có icon dấu cộng (có tooltip tên hành động); món hết
+  hiện nhãn "Hết món" và nút bị vô hiệu hoá. Trang chi tiết mới dùng nút "Thêm vào giỏ" **có nhãn**
+  vì Bảng 2.22 ghi rõ tên thành phần này.
 - Màu chính là `#b45309`, đặt qua `NConfigProvider` `theme-overrides` (App.vue), chữ trắng trên nền này đạt tương phản AA; sắc sáng
   hơn chỉ dùng cho logo và điểm nhấn lớn. `index.css` tôn trọng `prefers-reduced-motion` và giữ
   biến `--header-h` làm nguồn duy nhất cho chiều cao header.
@@ -447,8 +458,8 @@ Cụm widget bám trang: `fixed inset-x-0 bottom-0 top-[var(--header-h)]` cùng 
 chat `flex-1` nên tự co theo chiều cao màn hình thay vì hard-code. Vùng trống của cụm mang
 `pointer-events-none` nên không chặn thao tác lên thẻ món phía sau. Trạng thái mở/đóng nằm
 trong `shared/stores/uiStore.ts`, nhờ vậy hero và empty state mở chat được mà không cần đi qua nút nổi.
-Launcher là nút tròn 64px; `useHasBottomBar()` trả `checkout | detail | null`
-để launcher nhường chỗ cho thanh đặt món hoặc thanh mua hàng của trang chi tiết.
+Launcher là nút tròn 64px (56px trên mobile); `useHasBottomBar()` chỉ trả `checkout | null`
+để launcher nhường chỗ cho thanh đặt món ở trang checkout.
 
 Bố cục khung chat:
 
@@ -458,8 +469,8 @@ Bố cục khung chat:
 - Không còn dải chip gợi ý vĩnh viễn; lời chào gồm **hai bong trắng** (chào ngắn + hướng dẫn bắt đầu với ví dụ `Cho 2 người 200k, không cay`). Ngay dưới lời chào là **một hàng nút điểm vào** (`Gợi ý món cho 2 người`, `Món chay không cay`, `Giờ mở cửa là mấy giờ?`, `Cách đặt món thế nào?`), bấm là gửi tin như khách tự gõ; chỉ hiện khi hội thoại còn mới và biến mất sau tin đầu tiên. Placeholder là `Nhập yêu cầu món ăn...`.
 - Nút **Làm mới hội thoại** trên thanh tiêu đề xoá ngữ cảnh cũ (tin nhắn, `lastFoodIds`,
   `sessionId` mới) để câu hỏi tiếp không dính vào món của lượt trước. Tin bot chạy chữ dần theo từ;
-  ai bật `prefers-reduced-motion` thì thấy ngay toàn bộ câu trả lời. Chatbot chỉ mở bằng nút nổi,
-  không còn trang toàn màn hình.
+  ai bật `prefers-reduced-motion` thì thấy ngay toàn bộ câu trả lời. Chatbot không có trang toàn màn
+  hình riêng; mở khung bằng nút nổi, hero hoặc empty state của trang thực đơn.
 - Thẻ món gộp trong **một khung trắng**, các dòng ngăn bằng đường kẻ, không viền riêng từng
   thẻ: ảnh 40px, tên một dòng, giá hổ phách căn phải. Cả dòng là liên kết tới `/foods/:id`.
   Khung này canh cùng mép trái với bong bóng của bot.
@@ -471,7 +482,7 @@ Bố cục khung chat:
 - Khi server thiếu khóa AI, `GET /api/chatbot/status` trả `available = false`; khung chat hiện
   banner hổ phách ngay dưới thanh tiêu đề, khóa ô nhập và nút gửi. `ChatResponse`
   gồm `reply`, `foods`, `intent`, `citations` (citations chỉ có khi tra tài liệu quán) và
-  `quickReplies` (tối đa 4 nút hành động tiếp theo do server quyết định).
+  `quickReplies` (tối đa 3 nút hành động tiếp theo do server quyết định).
   Nếu vẫn nhận 503 lúc gửi (trạng thái đổi sau khi mở khung), client báo đúng câu đó và khóa
   khung chat thay vì mời thử lại.
 - Nút gửi nằm trong ô nhập (`suffix`) thay vì một nút tròn riêng, nên khung chat đỡ một phần
@@ -500,23 +511,30 @@ server/
       schema.ts          # toàn bộ 15 bảng + 7 enums định nghĩa bằng TypeScript
       relations.ts       # quan hệ giữa các bảng phục vụ Drizzle Relational Queries (`db.query.*`)
       seed.ts            # dữ liệu demo; chỉ chạy khi bảng users trống
-    lib/                 # db (drizzle client + connection pool), jwt, password, errors, validate, text-normalizer, serializers
-    middleware/          # auth (requireAuth/optionalAuth/requireRole), error (errorHandler)
+    lib/                 # db (drizzle client + connection pool), jwt, password, errors, validate, text-normalizer, businessTime, serializers, gemini
+    middleware/          # auth (requireAuth/optionalAuth/requireRole), error (errorHandler), rateLimit
     modules/
       auth/      routes.ts  service.ts  schema.ts
       menu/      routes.ts  service.ts   # GET /api/foods, /api/categories (public)
       review/    routes.ts  service.ts  schema.ts
-      ...        # cart/order/pricing/promotion/notification/chatbot/admin/report chuyển dần qua các branch
+      user/      routes.ts  service.ts  schema.ts   # địa chỉ đã lưu
+      cart/      routes.ts  service.ts  schema.ts
+      order/     routes.ts  service.ts  schema.ts  transitions.ts
+      pricing/   service.ts  engine.ts               # nơi duy nhất tính tiền và khuyến mãi
+      notification/ routes.ts  service.ts
+      chatbot/   routes.ts  service.ts  select.ts  criteria.ts  filters.ts  prompts.ts  retrieval.ts  ingest.ts  documentParser.ts
+      admin/     routes.ts  service.ts  schema.ts  report.ts   # gồm cả quản lý khuyến mãi
     app.ts  server.ts
   tests/                 # Vitest, chạy không cần DB
 
 client/src/
-  main.ts  App.vue(router)  shared/(api/http, types, utils)  composables/  stores/
-  modules/  (auth, cart, menu, order, review, notification, chatbot, admin — mỗi module api.ts/store.ts/components/pages)
+  main.ts  App.vue(router)  index.css  shared/(api/http, api/message, types, utils, stores)  composables/
+  modules/  (auth, cart, menu, order, review, notification, chatbot, admin, user — mỗi module api.ts/store.ts/components/pages)
   router/index.ts  layouts/DefaultLayout.vue  layouts/AdminLayout.vue  components/
 ```
 
-Sửa DTO/response phải cập nhật đồng thời server module tương ứng và `client/src/types/index.ts` + `client/src/api/api.ts`.
+Sửa DTO/response phải cập nhật đồng thời server module tương ứng và
+`client/src/shared/types/index.ts` + file `api.ts` của module client tương ứng.
 
 ## Môi trường & chạy
 
@@ -527,13 +545,18 @@ Khi chạy server ngoài Docker mà không có `DATABASE_URL`, server tự ghép
 
 - Dev: `docker compose --profile dev up --build` (client http://localhost:5173, server :8080). Server dev chạy `tsx watch` tự reload khi file đổi.
 - Prod: `docker compose --profile prod up --build -d` (client http://localhost)
+- Tools: `docker compose --profile tools up -d drizzle-studio` (Drizzle Studio ở http://localhost:4983)
 - `docker compose up` (không profile): chỉ Postgres.
 - Migration CSDL: `cd server && npm run db:generate` (sinh migration) / `npm run db:migrate` (áp dụng migration), seed bằng `npm run db:seed`. Cột `search_vector tsvector` (RAG) được tạo trực tiếp trong migration SQL.
 - Client dev dùng Vite HMR, không cần build lại image trừ khi đổi `package.json`.
 
 ## Kiểm thử
 
-Server có các unit test Vitest (`server/tests/`), chạy độc lập không cần DB (`npm test`). Client chưa có test runner; kiểm tra bằng `npm run typecheck` và `npm run build`.
+- Server có các unit test Vitest (`server/tests/`), chạy độc lập không cần DB (`npm test`).
+- Client kiểm tra bằng `npm run typecheck` và `npm run build`; E2E dùng Playwright ở `client/e2e/`
+  (`npm run test:e2e`), cần stack dev đang chạy và không được CI chạy.
+- CI (`.github/workflows/ci.yml`) chạy `typecheck` + `build` cho client và
+  `typecheck` + `test` + `build` cho server.
 
 ## Quy tắc quan trọng khi làm việc
 
