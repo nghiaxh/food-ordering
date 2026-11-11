@@ -47,8 +47,14 @@ services:
       retries: 20
       start_period: 30s
     volumes:
-      - ./server:/app
-      - /app/node_modules
+      # Chỉ mount source và migration để hot reload; node_modules giữ nguyên trong image.
+      # Anonymous volume /app/node_modules sẽ che mất node_modules của image (kể cả drizzle-kit),
+      # nên không dùng pattern đó ở đây.
+      - ./server/src:/app/src
+      - ./server/drizzle:/app/drizzle
+      - ./server/drizzle.config.ts:/app/drizzle.config.ts:ro
+      - ./server/tsconfig.json:/app/tsconfig.json:ro
+      - ./server/tsconfig.build.json:/app/tsconfig.build.json:ro
       - uploads:/app/uploads
 
   client-dev:
@@ -72,8 +78,12 @@ services:
       retries: 20
       start_period: 20s
     volumes:
-      - ./client:/app
-      - /app/node_modules
+      # Chỉ mount source để hot reload; node_modules giữ nguyên trong image.
+      - ./client/src:/app/src
+      - ./client/public:/app/public
+      - ./client/index.html:/app/index.html:ro
+      - ./client/vite.config.ts:/app/vite.config.ts:ro
+      - ./client/tsconfig.json:/app/tsconfig.json:ro
 
   server-prod:
     build:
