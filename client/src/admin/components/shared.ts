@@ -1,4 +1,3 @@
-// Thiet lap xac nhan xoa dung chung: moi thao tac xoa deu dong bo, khong tu viet lai tung lan.
 import { dialog } from '@/shared/api/message'
 import type { AsyncActionResult } from '@/composables/useAsyncAction'
 import { apiErrorMessage } from '@/shared/utils/api-error'

@@ -1,7 +1,3 @@
-// Luong chatbot tu van mon: hai luot goi AI, bon buoc xu ly chong AI bia mon/gia.
-// The mon tra ve client lay ID/gia tu DB, khong tu text AI. Chi khach da dang nhap
-// moi luu lich su hoi thoai; khach vang lai chat duoc nho history/lastFoodIds client gui kem.
-
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { HttpError } from "../../lib/errors.js";
@@ -319,6 +315,8 @@ const requireConfigured = () => {
 // Luong chinh
 // ---------------------------------------------------------------------------
 
+// Luong chatbot: hai luot goi AI, bon buoc xu ly chong AI bia mon/gia.
+// The mon tra ve client lay ID/gia tu DB; chi khach da dang nhap moi luu lich su.
 export const chat = async (
   email: string | null,
   input: { message: string; sessionId?: string; history?: string[]; lastFoodIds?: number[] },

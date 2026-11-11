@@ -1,9 +1,8 @@
-// Tieu chi do AI trich xuat + zod kiem tra lai; normalize de loai gia tri vo ly
-// va bo tu khoa tham chieu thuan ("mon do"...).
-
 import { z } from "zod";
 import { plain } from "../../lib/text-normalizer.js";
 
+// Tieu chi do AI trich xuat + zod kiem tra lai; normalize loai gia tri vo ly
+// va bo tu khoa tham chieu thuan ("mon do"...).
 export const criteriaSchema = z
   .object({
     categories: z.array(z.object({ name: z.string(), count: z.number().int().nullable().optional() })).nullable().optional(),

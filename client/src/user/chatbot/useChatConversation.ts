@@ -1,4 +1,3 @@
-// Trạng thái hội thoại chatbot: streaming chữ, lastFoodIds, xóa foods của tin bot cũ.
 import { ref, computed, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { chat, getChatbotStatus } from '@/user/chatbot/api'
 import type { ChatCitation, ChatMessage, ChatbotStatus } from '@/shared/types'
@@ -108,6 +107,7 @@ const loadSingleSession = () => {
  * Hoi thoai widget noi: mot session duy nhat luu qua localStorage nen mo lai
  * khung chat van giu nguyen ngu canh. Lam moi hoi thoai se cap sessionId moi.
  */
+// Trang thai hoi thoai chatbot: streaming chu, lastFoodIds, xoa foods cua tin bot cu.
 export const useChatConversation = () => {
   const input = ref('')
   const loading = ref(false)

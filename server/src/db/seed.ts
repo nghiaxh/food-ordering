@@ -1,7 +1,3 @@
-// Seed du lieu demo bang Drizzle ORM.
-// Chi chay khi bang users con trong de tranh nhan doi du lieu;
-// muon nap lai thi xoa volume db_data roi chay lai compose hoac migrate lai.
-
 import { count } from "drizzle-orm";
 import {
   aiSetting,
@@ -28,6 +24,8 @@ const minutesAgo = (n: number) => new Date(Date.now() - n * 60 * 1000);
 type UserRef = { id: number; fullName: string | null; phone: string | null; address: string | null };
 type FoodRef = { id: number; price: string };
 
+// Seed du lieu demo bang Drizzle ORM. Chi chay khi bang users con trong
+// de tranh nhan doi du lieu; muon nap lai thi xoa volume db_data.
 async function main() {
   const [totalRes] = await db.select({ value: count() }).from(users);
   if ((totalRes?.value ?? 0) > 0) {

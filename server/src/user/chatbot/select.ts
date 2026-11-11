@@ -1,6 +1,3 @@
-// Chon mon bang code xac dinh: loc thuoc tinh truoc, roi ghep/kiem tra ngan sach tong.
-// AI chi dien dat sau khi danh sach mon da co; the mon luon lay ID/gia tu DB.
-
 import type { Category, Food } from "../../db/schema.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { passesFilters, significantWords, vnd, isFoodQuestion, type Filters } from "./filters.js";
@@ -47,6 +44,8 @@ export const inCategory = (food: FoodWithCategory, categoryName: string): boolea
  * Chon mon theo tieu chi. Buoc 1 loc thuoc tinh, buoc 2 ghep va kiem tra ngan sach
  * TONG cua ca bo goi y (khong phai gia tung mon).
  */
+// Chon mon bang code xac dinh: loc thuoc tinh truoc, roi ghep/kiem tra ngan sach tong.
+// AI chi dien dat sau khi danh sach mon da co; the mon luon lay ID/gia tu DB.
 export function selectFoods(
   criteria: NormalizedCriteria,
   restrictIds: number[] | null,

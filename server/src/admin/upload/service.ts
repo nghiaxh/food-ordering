@@ -1,5 +1,3 @@
-// Tai anh mon an: kiem chu ky dau file (JPG/PNG/WEBP), luu vao UPLOAD_DIR.
-
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -43,6 +41,7 @@ const IMAGE_MIME: Record<string, string> = {
   ".webp": "image/webp",
 };
 
+// Tai anh mon an: kiem chu ky dau file (JPG/PNG/WEBP), luu vao UPLOAD_DIR.
 export const saveImage = async (buffer: Buffer, host: string, protocol: string) => {
   const ext = imageExtension(buffer.subarray(0, 12));
   if (!ext) throw badRequest("Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP");

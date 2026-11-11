@@ -1,6 +1,3 @@
-﻿// Nghiep vu don hang: tao don (gia tu DB), vong doi trang thai mot chieu, thanh toan
-// gia lap COD/QR, va cac entry point cho quan tri.
-
 import { desc, eq } from "drizzle-orm";
 import {
   foods,
@@ -28,6 +25,7 @@ import type { z } from "zod";
 type AdminOrderRequest = z.infer<typeof adminOrderSchema>;
 
 
+// Nghiep vu don hang: tao don (gia tu DB), vong doi trang thai mot chieu, thanh toan gia lap COD/QR.
 export const updatePaymentStatus = (
   order: { id: number; user?: { id: number } | null; userId?: number; paymentStatus: string },
   paid: boolean,

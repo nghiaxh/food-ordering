@@ -1,6 +1,3 @@
-// Hang so prompt cua chatbot tu van mon an, do du an tu thiet ke theo nghiep vu dat mon.
-// Khong sao chep prompt cua bat ky repo tham khao nao; cac kho tri gia nam trong chinh prompt.
-
 /** Prompt trich tieu chi: doc cau cua khach, tra ve JSON tieu chi loc mon. */
 export const EXTRACT_PROMPT = `Bạn là bộ phân tích yêu cầu của chatbot tư vấn món ăn cho một nhà hàng.
 Nhiệm vụ DUY NHẤT: đọc câu của khách và trả về JSON tiêu chí lọc món. Không giải thích, không tư vấn.

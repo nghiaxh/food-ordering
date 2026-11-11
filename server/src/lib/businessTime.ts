@@ -1,6 +1,5 @@
-// Mui gio nghiep vu cua quan la gio Viet Nam. May chu (dev, docker, CI) chay UTC nen
-// Date.getHours()/getDay()/toISOString() doc sai ngay va khung gio — moi cho can "ngay/thu/gio"
-// lich cua khach hang phai di qua helper nay, khong doc truc tiep Date.
+// Mui gio nghiep vu cua quan la gio Viet Nam; server (dev/docker/CI) chay UTC.
+// Code can "ngay/thu/gio" cua khach phai di qua helper nay, khong doc truc tiep Date.
 export const BUSINESS_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
 /** Offset co dinh +07:00 — Viet Nam khong co DST nen khong can

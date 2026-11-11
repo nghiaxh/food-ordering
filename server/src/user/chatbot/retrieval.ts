@@ -1,13 +1,12 @@
-// Tra cuu tai lieu quan (RAG muc co ban, PostgreSQL tsvector + GIN).
-// Khong embedding: tim bang websearch_to_tsquery tren cot search_vector da tao san
-// (migration init), roi fallback cham tu khoa khi khong co hit hoac loi.
-
 import { eq, inArray, sql } from "drizzle-orm";
 import { chatbotKnowledge } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { significantWords } from "./filters.js";
 
+// Tra cuu tai lieu quan (RAG muc co ban, PostgreSQL tsvector + GIN).
+// Khong embedding: tim bang websearch_to_tsquery tren cot search_vector,
+// roi fallback cham tu khoa khi khong co hit hoac loi.
 export interface ScoredChunk {
   chunk: { id: number; documentId: number; chunkIndex: number; content: string };
   document: { id: number; title: string | null; category: string | null } | null;
