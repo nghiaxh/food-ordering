@@ -3,9 +3,9 @@
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { badRequest } from "../../lib/errors.js";
-import { parseBody, parseQuery } from "../../lib/validate.js";
-import { requireRole } from "../../middleware/auth.js";
+import { badRequest } from "../lib/errors.js";
+import { parseBody, parseQuery } from "../lib/validate.js";
+import { requireRole } from "../middleware/auth.js";
 import {
   createCategory,
   updateCategory,
@@ -13,9 +13,9 @@ import {
   createFood,
   updateFood,
   deleteFood,
-} from "../../user/menu/service.js";
-import { adminOrderSchema } from "../../user/order/schema.js";
-import * as orderService from "../../user/order/service.js";
+} from "../user/menu/service.js";
+import { adminOrderSchema } from "../user/order/schema.js";
+import * as orderService from "../user/order/service.js";
 import * as adminService from "./service.js";
 import {
   foodRequestSchema,
@@ -36,7 +36,7 @@ import {
   ingestFile,
   reingestDocument,
   deleteDocument,
-} from "../../user/chatbot/ingest.js";
+} from "../user/chatbot/ingest.js";
 
 const idParam = (raw: string | string[] | undefined): number => {
   const id = Number(raw);

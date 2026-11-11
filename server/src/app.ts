@@ -10,7 +10,7 @@ import { orderRouter } from "./user/order/routes.js";
 import { notificationRouter } from "./user/notification/routes.js";
 import { userRouter } from "./user/user/routes.js";
 import { chatbotRouter } from "./user/chatbot/routes.js";
-import { adminRouter } from "./modules/admin/routes.js";
+import { adminRouter } from "./admin/routes.js";
 import { errorHandler } from "./middleware/error.js";
 
 export function createApp() {

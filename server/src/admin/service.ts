@@ -14,12 +14,12 @@ import {
   reviews,
   userAddresses,
   users,
-} from "../../db/schema.js";
-import { db } from "../../lib/db.js";
-import { badRequest, conflict, notFound } from "../../lib/errors.js";
-import { hashPassword } from "../../lib/password.js";
-import { toUserJson } from "../../lib/serializers.js";
-import { env } from "../../config/env.js";
+} from "../db/schema.js";
+import { db } from "../lib/db.js";
+import { badRequest, conflict, notFound } from "../lib/errors.js";
+import { hashPassword } from "../lib/password.js";
+import { toUserJson } from "../lib/serializers.js";
+import { env } from "../config/env.js";
 
 // ----- Khach hang (UC13) -----
 
