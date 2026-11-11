@@ -2,15 +2,15 @@ import { ref, watch, type Ref } from 'vue'
 import { quoteCart } from '@/modules/cart/api'
 import type { CartItem, CartQuote } from '@/shared/types'
 
-/** Bấm số lượng liên tục thì chỉ gửi báo giá một lần, tránh mỗi lần bấm một request. */
+/** Bam so luong lien tuc thi chi gui bao gia mot lan, tranh moi lan bam mot request. */
 const QUOTE_DEBOUNCE_MS = 250
 
 /**
- * Báo giá giỏ do server tính, dùng chung cho drawer giỏ và trang checkout.
+ * Bao gia gio do server tinh, dung chung cho drawer gio va trang checkout.
  *
- * Gửi đúng danh sách dòng đang hiển thị thay vì để server đọc lại giỏ DB (request cũ có
- * thể về sau và ghi đè giỏ mới). Abort request cũ để response muộn không thắng. Giữ số cũ
- * trong lúc tính lại để khối tổng tiền không nháy sang "Đang cập nhật giá..." mỗi lần bấm.
+ * Gui dung danh sach dong dang hien thi thay vi de server doc lai gio DB (request cu co
+ * the ve sau va ghi de gio moi). Abort request cu de response muon khong thang. Giu so cu
+ * trong luc tinh lai de khoi tong tien khong nhay sang "Dang cap nhat gia..." moi lan bam.
  */
 export default function useCartQuote(items: () => CartItem[]) {
   const quote: Ref<CartQuote | null> = ref(null)
@@ -57,7 +57,7 @@ export default function useCartQuote(items: () => CartItem[]) {
     { deep: true, immediate: true },
   )
 
-  /** Cho nút "Thử lại" gọi lại báo giá mà không cần đổi giỏ. */
+  /** Cho nut "Thu lai" goi lai bao gia ma khong can doi gio. */
   const retry = () => {
     attempt.value += 1
   }

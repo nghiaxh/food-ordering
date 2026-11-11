@@ -10,8 +10,8 @@ export interface ChatResponse {
 }
 
 /**
- * Gửi câu hỏi kèm 3 câu trước và ID các món vừa gợi ý để server hiểu câu hỏi tiếp; server
- * không lưu ngữ cảnh này vào CSDL nên khách vãng lai vẫn dùng được.
+ * Gui cau hoi kem 3 cau truoc va ID cac mon vua goi y de server hieu cau hoi tiep; server
+ * khong luu ngu canh nay vao CSDL nen khach vang lai van dung duoc.
  */
 export const chat = (
   message: string,

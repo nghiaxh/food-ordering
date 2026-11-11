@@ -10,8 +10,8 @@ export const updateCartItemSchema = z.object({
 });
 
 /**
- * Quote tính trên danh sách dòng client đang hiển thị, không đọc lại giỏ DB —
- * nhờ vậy số khách thấy luôn khớp con số dùng lúc tạo đơn.
+ * Quote tinh tren danh sach dong client dang hien thi, khong doc lai gio DB —
+ * nho vay so khach thay luon khop con so dung luc tao don.
  */
 export const quoteRequestSchema = z.object({
   items: z

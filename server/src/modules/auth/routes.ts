@@ -6,7 +6,7 @@ import * as authService from "./service.js";
 
 export const authRouter = Router();
 
-// Kết quả trả 200 kể cả đăng ký (giữ đúng hành vi bản Java, client không đọc mã trạng thái).
+// Ket qua tra 200 ke ca dang ky (giu dung hanh vi ban Java, client khong doc ma trang thai).
 authRouter.post("/register", async (req, res) => {
   res.json(await authService.register(parseBody(registerSchema, req.body)));
 });

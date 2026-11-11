@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Header chuẩn cho trang admin: tiêu đề trái, cụm hành động phải.
+// Header chuan cho trang admin: tieu de trai, cum hanh dong phai.
 defineProps<{ title: string }>()
 </script>
 

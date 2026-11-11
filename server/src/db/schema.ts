@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 // ==========================================
-// ENUMS (Khớp 100% với Postgres Enum hiện tại)
+// ENUMS (Khop 100% voi Postgres Enum hien tai)
 // ==========================================
 export const roleEnum = pgEnum("Role", ["CUSTOMER", "ADMIN"]);
 
@@ -238,7 +238,7 @@ export const aiSetting = pgTable("ai_setting", {
   settingValue: text("setting_value"),
 });
 
-// Infer types tiện dụng cho toàn bộ codebase
+// Infer types tien dung cho toan bo codebase
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Food = typeof foods.$inferSelect;

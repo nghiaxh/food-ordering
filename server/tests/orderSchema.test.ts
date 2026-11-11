@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createOrderSchema } from "../src/modules/order/schema.js";
 
-// Ràng buộc biên của DTO tạo đơn (port của OrderDtosValidationTest).
+// Rang buoc bien cua DTO tao don (port cua OrderDtosValidationTest).
 const base = {
   items: [{ foodId: 1, quantity: 1 }],
   receiverName: "Nguyễn Văn A",

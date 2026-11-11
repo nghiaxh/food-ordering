@@ -19,8 +19,8 @@ import AdminChatbotPage from '@/modules/admin/pages/AdminChatbotPage.vue'
 import { useAuthStore } from '@/modules/auth/store'
 
 /**
- * Route guard chỉ là UX — quyền thật vẫn do server kiểm tra ở /api/admin/** và
- * /api/cart/**. Admin không dùng luồng khách: bị đẩy về /admin.
+ * Route guard chi la UX — quyen that van do server kiem tra o /api/admin/** va
+ * /api/cart/**. Admin khong dung luong khach: bi day ve /admin.
  */
 const routes = [
   { path: '/login', component: LoginPage },

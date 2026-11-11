@@ -9,48 +9,48 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 }
 
 /**
- * Nhãn phương thức thanh toán. Hệ thống chỉ hỗ trợ hai cách trả tiền: tiền mặt khi nhận
- * (`COD`) và quét mã QR (`QR`). Nhãn nằm ở một chỗ để trang khách và trang quản trị hiện
- * giống nhau, không lộ mã thôi ra giao diện.
+ * Nhan phuong thuc thanh toan. He thong chi ho tro hai cach tra tien: tien mat khi nhan
+ * (`COD`) va quet ma QR (`QR`). Nhan nam o mot cho de trang khach va trang quan tri hien
+ * giong nhau, khong lo ma thoi ra giao dien.
  */
 export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   COD: 'Tiền mặt khi nhận',
   QR: 'Thanh toán bằng mã QR',
 }
 
-/** Các phương thức thanh toán mà khách và quản trị viên chọn khi đặt món. */
+/** Cac phuong thuc thanh toan ma khach va quan tri vien chon khi dat mon. */
 export const PAYMENT_METHODS = [
   { label: PAYMENT_METHOD_LABEL.COD, value: 'COD' },
   { label: PAYMENT_METHOD_LABEL.QR, value: 'QR' },
 ]
 
 /**
- * Mã hoá đơn hiển thị cho khách và quản trị viên: tiền tố `FO` kèm id đệm 4 chữ số.
- * Một chỗ sinh mã để hai bên không lệch nhau; id do server cấp nên không cần đổi dữ liệu.
+ * Ma hoa don hien thi cho khach va quan tri vien: tien to `FO` kem id dem 4 chu so.
+ * Mot cho sinh ma de hai ben khong lech nhau; id do server cap nen khong can doi du lieu.
  */
 export function orderCode(id: number): string {
   return `FO-${String(id).padStart(4, '0')}`
 }
 
-/** Trình tự quy trình của một đơn; Hủy là nhánh ngoài nên không nằm trong dãy này. */
+/** Trinh tu quy trinh cua mot don; Huy la nhanh ngoai nen khong nam trong day nay. */
 export const ORDER_FLOW: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED']
 
-/** Trạng thái kế tiếp hợp lệ, hoặc null khi đơn đã chốt. Server cũng kiểm tra lại quy tắc này. */
+/** Trang thai ke tiep hop le, hoac null khi don da chot. Server cung kiem tra lai quy tac nay. */
 export function nextStatus(status: OrderStatus): OrderStatus | null {
   const i = ORDER_FLOW.indexOf(status)
   if (i < 0 || i === ORDER_FLOW.length - 1) return null
   return ORDER_FLOW[i + 1]
 }
 
-/** Các trạng thái mà quản trị viên có thể chuyển tới từ trạng thái hiện tại. */
+/** Cac trang thai ma quan tri vien co the chuyen toi tu trang thai hien tai. */
 export function allowedNextStatuses(status: OrderStatus): OrderStatus[] {
   const next = nextStatus(status)
   return next ? [next, 'CANCELLED'] : []
 }
 
 /**
- * Khách tự hủy được đơn chỉ khi còn chờ xác nhận và chưa thanh toán; true khi đủ điều kiện.
- * OrderService.cancel áp cùng ràng buộc ở server nên client chỉ ẩn nút UX, không quyết định riêng.
+ * Khach tu huy duoc don chi khi con cho xac nhan va chua thanh toan; true khi du dieu kien.
+ * OrderService.cancel ap cung rang buoc o server nen client chi an nut UX, khong quyet dinh rieng.
  */
 export function canCancelOrder(order: Pick<Order, 'status' | 'paymentStatus'>): boolean {
   return order.status === 'PENDING' && order.paymentStatus !== 'PAID'

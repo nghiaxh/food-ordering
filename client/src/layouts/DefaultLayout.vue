@@ -9,16 +9,16 @@ import { useAuthStore } from '@/modules/auth/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 
 /**
- * Layout phía khách: thanh điều hướng. Giỏ/thông báo drawers và chatbot được các
- * branch sau mount vào đây — chưa có component nên chưa mount.
+ * Layout phia khach: thanh dieu huong. Gio/thong bao drawers va chatbot duoc cac
+ * branch sau mount vao day — chua co component nen chua mount.
  */
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const ui = useUiStore()
 
-// Khách bấm giỏ khi chưa đăng nhập được đưa sang login kèm cờ openCart;
-// quay lại thì mở drawer giỏ luôn.
+// Khach bam gio khi chua dang nhap duoc dua sang login kem co openCart;
+// quay lai thi mo drawer gio luon.
 watch(
   () => auth.user,
   (user) => {

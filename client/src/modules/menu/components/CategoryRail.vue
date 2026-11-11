@@ -17,7 +17,7 @@ const chip = (active: boolean) =>
 </script>
 
 <template>
-  <!-- Dải danh mục chip có ảnh tròn; cuộn ngang trên mobile, cùng ngôn ngữ với hàng chip bộ lọc. -->
+  <!-- Dai danh muc chip co anh tron; cuon ngang tren mobile, cung ngon ngu voi hang chip bo loc. -->
   <div v-if="props.categories.length > 0" class="-mx-1 flex snap-x gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     <button type="button" :class="chip(props.activeId === undefined)" @click="emit('pick', undefined)">
       <span

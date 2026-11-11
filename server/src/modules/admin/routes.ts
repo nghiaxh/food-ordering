@@ -1,4 +1,4 @@
-// API quản trị: món/danh mục/đơn/khách hàng/khuyến mãi/chatbot/tài liệu/báo cáo/upload.
+// API quan tri: mon/danh muc/don/khach hang/khuyen mai/chatbot/tai lieu/bao cao/upload.
 
 import { Router } from "express";
 import multer from "multer";
@@ -62,10 +62,10 @@ const reportQuerySchema = z.object({
 
 export const adminRouter = Router();
 
-// Toàn bộ khu vực quản trị yêu cầu role ADMIN; route guard phía client chỉ là UX.
+// Toan bo khu vuc quan tri yeu cau role ADMIN; route guard phia client chi la UX.
 adminRouter.use(requireRole("ADMIN"));
 
-// ----- Món ăn -----
+// ----- Mon an -----
 adminRouter.post("/foods", async (req, res) => {
   res.json(await createFood(parseBody(foodRequestSchema, req.body)));
 });
@@ -77,7 +77,7 @@ adminRouter.delete("/foods/:id", async (req, res) => {
   res.json({});
 });
 
-// ----- Danh mục -----
+// ----- Danh muc -----
 adminRouter.post("/categories", async (req, res) => {
   res.json(await createCategory(parseBody(categoryRequestSchema, req.body)));
 });
@@ -89,7 +89,7 @@ adminRouter.delete("/categories/:id", async (req, res) => {
   res.json({});
 });
 
-// ----- Đơn hàng -----
+// ----- Don hang -----
 adminRouter.get("/orders", async (_req, res) => {
   res.json(await orderService.adminListOrders());
 });
@@ -114,7 +114,7 @@ adminRouter.patch("/orders/:id/payment", async (req, res) => {
   res.json(await orderService.updatePaymentStatus(order, paidRaw === "true"));
 });
 
-// ----- Khách hàng -----
+// ----- Khach hang -----
 adminRouter.get("/users", async (_req, res) => {
   res.json(await adminService.listUsers());
 });
@@ -134,7 +134,7 @@ adminRouter.patch("/users/:id/active", async (req, res) => {
   res.json(await adminService.setUserActive(idParam(req.params.id), activeRaw === "true"));
 });
 
-// ----- Khuyến mãi -----
+// ----- Khuyen mai -----
 adminRouter.get("/promotions", async (_req, res) => {
   res.json(await adminService.listPromotions());
 });
@@ -149,7 +149,7 @@ adminRouter.delete("/promotions/:id", async (req, res) => {
   res.json({});
 });
 
-// ----- Chatbot: lịch sử hội thoại + cấu hình -----
+// ----- Chatbot: lich su hoi thoai + cau hinh -----
 adminRouter.get("/chatbot/history", async (_req, res) => {
   res.json(await adminService.chatHistory());
 });
@@ -161,7 +161,7 @@ adminRouter.put("/chatbot/settings", async (req, res) => {
   res.json(await adminService.saveAiSetting(body.settingKey, body.settingValue));
 });
 
-// ----- Chatbot: tài liệu (RAG tsvector) -----
+// ----- Chatbot: tai lieu (RAG tsvector) -----
 adminRouter.get("/chatbot/documents", async (_req, res) => {
   res.json(await listDocuments());
 });
@@ -201,7 +201,7 @@ adminRouter.post("/chatbot/documents/:id/reingest", async (req, res) => {
   res.json(await reingestDocument(idParam(req.params.id)));
 });
 
-// ----- Upload ảnh món (JPEG/PNG/WEBP ≤ 2 MB, kiểm chữ ký đầu file) -----
+// ----- Upload anh mon (JPEG/PNG/WEBP ≤ 2 MB, kiem chu ky dau file) -----
 adminRouter.post("/uploads/image", imageUpload.single("file"), async (req, res) => {
   const file = req.file;
   if (!file || file.size === 0) throw badRequest("Ảnh phải có dung lượng từ 1 byte đến 2 MB");
@@ -209,7 +209,7 @@ adminRouter.post("/uploads/image", imageUpload.single("file"), async (req, res) 
   res.json({ url });
 });
 
-// ----- Báo cáo + xuất Excel -----
+// ----- Bao cao + xuat Excel -----
 adminRouter.get("/reports/summary", async (req, res) => {
   const query = parseQuery(reportQuerySchema, req.query);
   res.json(await summary(parseRange(query.from, query.to)));

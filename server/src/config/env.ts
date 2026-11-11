@@ -2,12 +2,12 @@ import { config } from "dotenv";
 import { resolve } from "node:path";
 import { z } from "zod";
 
-// App đọc biến môi trường từ process.env (compose inject) hoặc .env ở root khi chạy local.
-// Thiếu biến bắt buộc thì dừng hẳn thay vì chạy lửng rồi trả 500 ở request đầu tiên.
+// App doc bien moi truong tu process.env (compose inject) hoac .env o root khi chay local.
+// Thieu bien bat buoc thi dung han thay vi chay lung roi tra 500 o request dau tien.
 config({ path: [resolve(import.meta.dirname, "../../.env"), resolve(import.meta.dirname, "../.env")], quiet: true });
 
 const schema = z.object({
-  // Compose dựng DATABASE_URL từ DB_*; chạy local không có thì tự ghép từ DB_* hoặc fallback mặc định.
+  // Compose dung DATABASE_URL tu DB_*; chay local khong co thi tu ghep tu DB_* hoac fallback mac dinh.
   DATABASE_URL: z.string().optional(),
   DB_NAME: z.string().default("food_ordering"),
   DB_USER: z.string().default("postgres"),

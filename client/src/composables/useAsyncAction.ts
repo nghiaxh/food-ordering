@@ -2,7 +2,7 @@ import { ref } from 'vue'
 
 export type AsyncActionResult<T> = { ok: true; data: T } | { ok: false; error: unknown }
 
-/** Khoá đồng bộ ngăn hai thao tác submit diễn ra cùng lúc. */
+/** Khoa dong bo ngan hai thao tac submit dien ra cung luc. */
 export default function useAsyncAction<TArgs extends unknown[], T>(fn: (...args: TArgs) => Promise<T>) {
   const pending = ref(false)
   let lock = false

@@ -11,8 +11,8 @@ import { message } from '@/shared/api/message'
 import PageCard from '@/modules/admin/components/PageCard.vue'
 
 /**
- * Tổng quan dành cho quản trị: chỉ số chính, đơn đang chờ và món bán chạy. Trang cố ý
- * không dùng thẻ nhiều màu hay biểu đồ cầu kỳ; việc cần làm (duyệt đơn) nằm ngay trên đầu.
+ * Tong quan danh cho quan tri: chi so chinh, don dang cho va mon ban chay. Trang co y
+ * khong dung the nhieu mau hay bieu do cau ky; viec can lam (duyet don) nam ngay tren dau.
  */
 const router = useRouter()
 const approving = ref<number | null>(null)

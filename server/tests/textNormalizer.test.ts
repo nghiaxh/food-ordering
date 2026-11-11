@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { plain } from "../src/lib/text-normalizer.js";
 
-// Chuẩn hoá tiếng Việt: tìm kiếm không dấu, không phân biệt hoa thường.
+// Chuan hoa tieng Viet: tim kiem khong dau, khong phan biet hoa thuong.
 describe("text-normalizer", () => {
   it("bỏ dấu kết hợp và quy về chữ thường", () => {
     expect(plain("Phở bò")).toBe("pho bo");

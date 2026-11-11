@@ -29,7 +29,7 @@ interface NavItem {
   icon: unknown
 }
 
-// Nhóm theo việc quán làm hằng ngày; thứ tự cố định theo quy trình bán hàng.
+// Nhom theo viec quan lam hang ngay; thu tu co dinh theo quy trinh ban hang.
 const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   { title: 'Bán hàng', items: [
     { label: 'Tổng quan', to: '/admin/dashboard', icon: HomeOutline },
@@ -60,7 +60,7 @@ const drawerOpen = ref(false)
 const pendingCount = ref(0)
 const unread = computed(() => notifications.unread)
 
-// Số đơn chờ xác nhận trên mục "Đơn hàng" — nạp lại mỗi lần vào khu quản trị.
+// So don cho xac nhan tren muc "Don hang" — nap lai moi lan vao khu quan tri.
 const loadPending = async () => {
   try {
     const orders = await adminGetOrders()

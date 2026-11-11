@@ -12,9 +12,9 @@ export function spicyLabel(level: number): string {
 }
 
 /**
- * Tên nhãn ưu đãi từ server viết theo chương trình ("Món may mắn hôm nay", "Cuối tuần mát
- * lạnh") nên dài và không đồng đều. Đổi sang cụm ngắn và nhất quán cho giao diện; chỉ ánh
- * xạ hai dịp đã có, nhãn mới không khớp thì giữ nguyên.
+ * Ten nhan uu dai tu server viet theo chuong trinh ("Mon may man hom nay", "Cuoi tuan mat
+ * lanh") nen dai va khong dong deu. Doi sang cum ngan va nhat quan cho giao dien; chi anh
+ * xa hai dip da co, nhan moi khong khop thi giu nguyen.
  */
 export function discountText(label?: string | null): string | null {
   if (!label) return null

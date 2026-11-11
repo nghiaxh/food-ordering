@@ -19,8 +19,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits<{ 'update:value': [value: number] }>()
 
-// Bộ chọn số lượng dùng chung cho giỏ, checkout và trang chi tiết món. Không dùng
-// NInputNumber vì ô nhập số mời người dùng gõ số âm hoặc số quá lớn.
+// Bo chon so luong dung chung cho gio, checkout va trang chi tiet mon. Khong dung
+// NInputNumber vi o nhap so moi nguoi dung go so am hoac so qua lon.
 const box = () => (props.size === 'sm' ? 'h-9 w-9' : 'h-11 w-11')
 const text = () => (props.size === 'sm' ? 'w-8 text-sm' : 'w-10 text-base')
 const iconSize = () => (props.size === 'sm' ? 10 : 12)

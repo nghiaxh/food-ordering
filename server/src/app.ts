@@ -17,12 +17,12 @@ export function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
-  // Ảnh admin tải lên phục vụ công khai cho mọi khách xem thực đơn nên phải cho cross-origin <img>.
+  // Anh admin tai len phuc vu cong khai cho moi khach xem thuc don nen phai cho cross-origin <img>.
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cors({ origin: true }));
   app.use(express.json({ limit: "1mb" }));
 
-  // API động không được cache: tránh 304 với body rỗng ở các client sau revalidation.
+  // API dong khong duoc cache: tranh 304 voi body rong o cac client sau revalidation.
   app.use("/api", (_req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     next();

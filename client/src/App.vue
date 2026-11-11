@@ -8,8 +8,8 @@ import ScrollManager from '@/components/ScrollManager.vue'
 import { useAuthStore } from '@/modules/auth/store'
 import { useCartStore } from '@/modules/cart/store'
 
-// Đồng bộ giỏ khi đổi trạng thái đăng nhập: đã đăng nhập thì tải giỏ từ server,
-// đăng xuất thì xoá giỏ của tài khoản khỏi state. Khách vãng lai không có giỏ.
+// Dong bo gio khi doi trang thai dang nhap: da dang nhap thi tai gio tu server,
+// dang xuat thi xoa gio cua tai khoan khoi state. Khach vang lai khong co gio.
 const auth = useAuthStore()
 const cart = useCartStore()
 watch(

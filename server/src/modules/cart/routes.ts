@@ -13,7 +13,7 @@ const idParam = (raw: string | string[] | undefined): number => {
 
 export const cartRouter = Router();
 
-// Giỏ hàng chỉ dành cho tài khoản khách hàng; admin dùng luồng /api/admin/orders.
+// Gio hang chi danh cho tai khoan khach hang; admin dung luong /api/admin/orders.
 cartRouter.use(requireRole("CUSTOMER"));
 
 cartRouter.get("/", async (req, res) => {

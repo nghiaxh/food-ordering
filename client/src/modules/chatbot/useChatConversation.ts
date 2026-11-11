@@ -8,7 +8,7 @@ export const GREETING_INTRO = 'Chào bạn! Mình là trợ lý đặt món củ
 export const GREETING_TASKS =
   'Bạn chưa biết ăn gì? Cứ nhắn mình số người và ngân sách, ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.'
 
-/** Bốn điểm vào đặt dưới lời chào; bấm là gửi tin như khách tự gõ. */
+/** Bon diem vao dat duoi loi chao; bam la gui tin nhu khach tu go. */
 export const GREETING_STARTERS = [
   'Gợi ý món cho 2 người',
   'Món chay không cay',
@@ -38,7 +38,7 @@ const greetingMessages = (): ChatMessage[] => [
   { sender: 'BOT', content: GREETING_TASKS },
 ]
 
-// Lời chào cũ được tách 2 bubble; lọc bỏ để hội thoại cũ của khách dùng lời chào mới.
+// Loi chao cu duoc tach 2 bubble; loc bo de hoi thoai cu cua khach dung loi chao moi.
 const OLD_GREETING_BUBBLES = new Set([
   'Mình giúp bạn 3 việc:\n1) Gợi ý món theo số người, ngân sách tổng, độ cay, dị ứng.\n2) Hỏi thông tin quán: giờ mở cửa, giao hàng, thanh toán.\n3) Hướng dẫn cách đặt và hủy đơn.\nVí dụ: Cho 2 người 200k, không cay.',
   'Chào bạn! Gợi ý món theo số người, ngân sách, độ cay hay dị ứng thì cứ nhắn. Ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.',
@@ -58,7 +58,7 @@ const withoutStaleGreeting = (messages: ChatMessage[]): ChatMessage[] => {
   }
   const hasTasks = kept.some((m) => m.sender === 'BOT' && m.content === GREETING_TASKS)
   const hasIntro = kept.some((m) => m.sender === 'BOT' && m.content === GREETING_INTRO)
-  // Tự chữa hội thoại từng bị bản migration lọc mất bubble mở đầu.
+  // Tu chua hoi thoai tung bi ban migration loc mat bubble mo dau.
   if (hasTasks && !hasIntro) {
     const idx = kept.findIndex((m) => m.sender === 'BOT' && m.content === GREETING_TASKS)
     const healed = [...kept]
@@ -69,7 +69,7 @@ const withoutStaleGreeting = (messages: ChatMessage[]): ChatMessage[] => {
 }
 
 const loadSingleSession = () => {
-  // Khách cũ còn hội thoại multi-session: lấy đoạn đang mở, thiếu thì lấy đoạn đầu tiên.
+  // Khach cu con hoi thoai multi-session: lay doan dang mo, thieu thi lay doan dau tien.
   const clearLegacy = () => {
     localStorage.removeItem('chatbot.sessions')
     localStorage.removeItem('chatbot.activeSessionId')
@@ -83,7 +83,7 @@ const loadSingleSession = () => {
       return { messages: withoutStaleGreeting(parsed), sessionId: legacyId || crypto.randomUUID() }
     }
   } catch {
-    // storage hỏng thì bỏ; dùng lời chào mới.
+    // storage hong thi bo; dung loi chao moi.
   }
   try {
     const raw = localStorage.getItem('chatbot.sessions')
@@ -97,15 +97,15 @@ const loadSingleSession = () => {
       }
     }
   } catch {
-    // storage hỏng thì bỏ; dùng lời chào mới.
+    // storage hong thi bo; dung loi chao moi.
   }
   clearLegacy()
   return freshGreeting()
 }
 
 /**
- * Hội thoại widget nổi: một session duy nhất lưu qua localStorage nên mở lại
- * khung chat vẫn giữ nguyên ngữ cảnh. Làm mới hội thoại sẽ cấp sessionId mới.
+ * Hoi thoai widget noi: mot session duy nhat luu qua localStorage nen mo lai
+ * khung chat van giu nguyen ngu canh. Lam moi hoi thoai se cap sessionId moi.
  */
 export const useChatConversation = () => {
   const input = ref('')
@@ -122,13 +122,13 @@ export const useChatConversation = () => {
 
   let streamTimer: number | undefined
 
-  // Lưu ngữ cảnh vào localStorage mỗi khi hội thoại hoặc session đổi.
+  // Luu ngu canh vao localStorage moi khi hoi thoai hoac session doi.
   watch([messages, sessionId], () => {
     try {
       localStorage.setItem('chatbot.messages', JSON.stringify(messages.value))
       localStorage.setItem('chatbot.sessionId', sessionId.value)
     } catch {
-      // quota đầy hoặc storage bị chặn: bỏ qua, hội thoại vẫn chạy trong phiên.
+      // quota day hoac storage bi chan: bo qua, hoi thoai van chay trong phien.
     }
   }, { deep: true })
 
@@ -141,7 +141,7 @@ export const useChatConversation = () => {
   })
 
   const pushBotMessage = (content: string, foods: ChatMessage['foods'] = [], citations?: ChatCitation[], intent?: string, quickReplies?: string[]) => {
-    // Chỉ tin bot mới nhất còn thẻ và nút hành động; tin cũ giữ nội dung chữ.
+    // Chi tin bot moi nhat con the va nut hanh dong; tin cu giu noi dung chu.
     messages.value = [
       ...messages.value.map((m) => (m.sender === 'BOT' ? { sender: 'BOT' as const, content: m.content } : m)),
       { sender: 'BOT', content, foods, citations, intent, quickReplies },
@@ -154,7 +154,7 @@ export const useChatConversation = () => {
     pushBotMessage(content, d.foods || [], d.citations, d.intent, d.quickReplies)
   }
 
-  // "Đang gõ" từng từ: mỗi tick tăng số từ đã hiện; panel đóng thì hiện thẳng, không chạy hiệu ứng.
+  // "Dang go" tung tu: moi tick tang so tu da hien; panel dong thi hien thang, khong chay hieu ung.
   watch(draft, (d) => {
     if (streamTimer) window.clearInterval(streamTimer)
     if (!d) return
@@ -195,7 +195,7 @@ export const useChatConversation = () => {
       : []
     messages.value = [...messages.value, { sender: 'USER', content: text }]
     loading.value = true
-    // Status text cho người mới biết bot đang làm gì.
+    // Status text cho nguoi moi biet bot dang lam gi.
     const p = text.toLowerCase()
     const isInfo = ['giờ', 'địa chỉ', 'giao hàng', 'ship', 'thanh toán', 'mở cửa', 'đóng cửa'].some((k) => p.includes(k))
     statusText.value = isInfo ? 'Đang tra tài liệu quán...' : 'Đang tìm món...'
@@ -207,7 +207,7 @@ export const useChatConversation = () => {
       const citations = res.citations || undefined
       const intent = res.intent || undefined
       const quickReplies = res.quickReplies || undefined
-      // Panel đóng giữa chừng thì ghi thẳng tin nhắn, không chạy animated reveal vô hình.
+      // Panel dong giua chung thi ghi thang tin nhan, khong chay animated reveal vo hinh.
       const ui = useUiStore()
       const canStream = ui.chatOpen && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (canStream) {
@@ -225,7 +225,7 @@ export const useChatConversation = () => {
       error.value = true
       pushBotMessage('Mình chưa gửi được câu hỏi, bạn thử lại nhé!', [])
     } finally {
-      // Panel đóng giữa chừng cũng phải mở lại ô nhập; đừng để loading kẹt vĩnh viễn.
+      // Panel dong giua chung cung phai mo lai o nhap; dung de loading ket vinh vien.
       loading.value = false
       statusText.value = null
     }
@@ -243,7 +243,7 @@ export const useChatConversation = () => {
   }
 
   const handleRetry = () => {
-    // Thử lại câu gần nhất của khách.
+    // Thu lai cau gan nhat cua khach.
     const lastUser = [...messages.value].reverse().find((m) => m.sender === 'USER')
     if (!lastUser) return
     error.value = false

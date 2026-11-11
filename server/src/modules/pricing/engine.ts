@@ -1,9 +1,9 @@
-// Tính tiền ở server — nguồn duy nhất về giá và khuyến mãi tự động. Client không tự
-// nhân phần trăm hay trừ khuyến mãi; đơn tạo ra dùng đúng hàm này nên số khách thấy và
-// số ghi vào đơn không thể lệch nhau.
+// Tinh tien o server — nguon duy nhat ve gia va khuyen mai tu dong. Client khong tu
+// nhan phan tram hay tru khuyen mai; don tao ra dung dung ham nay nen so khach thay va
+// so ghi vao don khong the lech nhau.
 //
-// Luật: mỗi dòng chọn MỘT khuyến mãi tự động tốt nhất đang chạy (GLOBAL/CATEGORY/FOOD),
-// hoà số tiền giảm thì xét priority. Khung giờ qua nửa đêm được hiểu start > end.
+// Luat: moi dong chon MOT khuyen mai tu dong tot nhat dang chay (GLOBAL/CATEGORY/FOOD),
+// hoa so tien giam thi xet priority. Khung gio qua nua dem duoc hieu start > end.
 
 import { createHash } from "node:crypto";
 import type { Food, Promotion } from "../../db/schema.js";
@@ -16,9 +16,9 @@ export interface PricingInputItem {
 
 export interface DiscountRule {
   now: Date;
-  /** Khuyến mãi đang chạy đã qua vòng lọc isValid. */
+  /** Khuyen mai dang chay da qua vong loc isValid. */
   auto: Promotion[];
-  /** Món được chọn ngẫu nhiên mỗi ngày cho các KM có randomCount > 0 (ổn định trong ngày). */
+  /** Mon duoc chon ngau nhien moi ngay cho cac KM co randomCount > 0 (on dinh trong ngay). */
   randomPicks: Map<number, Set<number>>;
   availableFoodIds: number[];
 }
@@ -27,11 +27,11 @@ export type FoodLike = Pick<Food, "id" | "categoryId" | "price" | "name" | "avai
   category?: { id: number } | null;
 };
 
-/** Khuyến mãi còn hiệu lực tại `now`: active, thời gian bắt đầu/kết thúc, ngày, khung giờ, usageLimit. */
+/** Khuyen mai con hieu luc tai `now`: active, thoi gian bat dau/ket thuc, ngay, khung gio, usageLimit. */
 export function isValid(p: Promotion, now: Date): boolean {
   if (!p.active) return false;
   if (now < p.startsAt || now > p.endsAt) return false;
-  // Ngày/thứ/giờ so theo giờ Việt Nam — máy chủ thường chạy UTC.
+  // Ngay/thu/gio so theo gio Viet Nam — may chu thuong chay UTC.
   const { weekday, minutes } = businessTimeParts(now);
   if (p.daysOfWeek && p.daysOfWeek.trim()) {
     const ok = p.daysOfWeek.split(",").some((d) => d.trim().toUpperCase() === weekday);
@@ -42,10 +42,10 @@ export function isValid(p: Promotion, now: Date): boolean {
     const end = toMinutes(p.endTime);
     if (start == null || end == null) return true;
     if (start <= end) {
-      // Khung giờ bình thường trong ngày.
+      // Khung gio binh thuong trong ngay.
       if (minutes < start || minutes > end) return false;
     } else {
-      // Khung qua nửa đêm: [start, 24h) ∪ [0, end].
+      // Khung qua nua dem: [start, 24h) ∪ [0, end].
       if (minutes < start && minutes > end) return false;
     }
   }
@@ -62,11 +62,11 @@ const toMinutes = (hhmm: string): number | null => {
   return h * 60 + min;
 };
 
-/** Số tiền giảm của một dòng theo khuyến mãi; PERCENT chia theo 100 làm tròn HALF_UP. */
+/** So tien giam cua mot dong theo khuyen mai; PERCENT chia theo 100 lam tron HALF_UP. */
 export function discountAmount(basePrice: number, p: Pick<Promotion, "discountType" | "discountValue" | "maxDiscount">): number {
   let amount: number;
   if (p.discountType === "PERCENT") {
-    // Làm tròn HALF_UP ở đúng 2 chữ số lẻ như BigDecimal(...).divide(100, 2, HALF_UP).
+    // Lam tron HALF_UP o dung 2 chu so le nhu BigDecimal(...).divide(100, 2, HALF_UP).
     amount = Math.round(basePrice * Number(p.discountValue)) / 100;
   } else {
     amount = Number(p.discountValue);
@@ -77,7 +77,7 @@ export function discountAmount(basePrice: number, p: Pick<Promotion, "discountTy
   return amount;
 }
 
-/** phạm vi GLOBAL/CATEGORY/FOOD — chương trình GLOBAL áp cho mọi món. */
+/** pham vi GLOBAL/CATEGORY/FOOD — chuong trinh GLOBAL ap cho moi mon. */
 export function matches(p: Pick<Promotion, "scope" | "targetIds">, food: FoodLike): boolean {
   switch (p.scope) {
     case "GLOBAL":
@@ -91,7 +91,7 @@ export function matches(p: Pick<Promotion, "scope" | "targetIds">, food: FoodLik
   }
 }
 
-/** Chọn khuyến mãi tốt nhất cho một dòng: giảm nhiều nhất, hoà thì priority cao hơn. */
+/** Chon khuyen mai tot nhat cho mot dong: giam nhieu nhat, hoa thi priority cao hon. */
 export function bestFor(
   unitPrice: number,
   food: FoodLike,
@@ -119,19 +119,19 @@ export function bestFor(
   return best;
 }
 
-/** Băm ổn định theo (món, KM, ngày) — cùng ngày mọi request ra cùng kết quả, không cần scheduler. */
+/** Bam on dinh theo (mon, KM, ngay) — cung ngay moi request ra cung ket qua, khong can scheduler. */
 export function dailyPick(foodId: number, promotionId: number, day: string): number {
   const hash = createHash("sha256").update(`${foodId}:${promotionId}:${day}`).digest("hex");
   return parseInt(hash.slice(0, 12), 16);
 }
 
-/** Danh sách món được ưu đãi ngẫu nhiên mỗi ngày (sắp theo băm, lấy `randomCount` món đầu). */
+/** Danh sach mon duoc uu dai ngau nhien moi ngay (sap theo bam, lay `randomCount` mon dau). */
 export function computeRandomPicks(
   auto: Pick<Promotion, "id" | "randomCount">[],
   availableFoodIds: number[],
   now: Date,
 ): Map<number, Set<number>> {
-  // Khóa "ngày" theo lịch VN để khớp khái niệm "mỗi ngày" của khách, không theo ngày UTC.
+  // Khoa "ngay" theo lich VN de khop khai niem "moi ngay" cua khach, khong theo ngay UTC.
   const day = businessTimeParts(now).dayKey;
   const picks = new Map<number, Set<number>>();
   for (const p of auto) {

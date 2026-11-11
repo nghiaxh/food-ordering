@@ -1,4 +1,4 @@
-// Báo cáo doanh thu cho quản trị + xuất Excel bằng write-excel-file.
+// Bao cao doanh thu cho quan tri + xuat Excel bang write-excel-file.
 
 import { and, asc, gte, lte } from "drizzle-orm";
 import writeExcelFile from "write-excel-file/node";
@@ -11,7 +11,7 @@ export interface ReportRange {
   to: Date;
 }
 
-/** from/to: ưu tiên ISO datetime, fallback cho "YYYY-MM-DD" (00:00 / 23:59:59). */
+/** from/to: uu tien ISO datetime, fallback cho "YYYY-MM-DD" (00:00 / 23:59:59). */
 export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange => {
   const now = new Date();
   const from = fromRaw ? parseDate(fromRaw) : new Date(now.getTime() - 30 * 24 * 3600 * 1000);
@@ -22,8 +22,8 @@ export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange => {
 const parseDate = (raw: string, endOfDay = false): Date => {
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed;
-  // Ngày trần "YYYY-MM-DD" hiểu là nửa đầu/cuối ngày theo giờ VN — báo cáo phục vụ khách Việt,
-  // không theo TZ máy chủ (CI/docker chạy UTC).
+  // Ngay tran "YYYY-MM-DD" hieu la nua dau/cuoi ngay theo gio VN — bao cao phuc vu khach Viet,
+  // khong theo TZ may chu (CI/docker chay UTC).
   const d = new Date(endOfDay ? `${raw}T23:59:59.999${BUSINESS_UTC_OFFSET}` : `${raw}T00:00:00${BUSINESS_UTC_OFFSET}`);
   if (Number.isNaN(d.getTime())) throw new Error("Khoảng ngày không hợp lệ");
   return d;
@@ -64,7 +64,7 @@ export const revenueByDay = async (range: ReportRange) => {
   const byDay = new Map<string, { revenue: number; orders: number }>();
   for (const o of orderList) {
     if (o.status === "CANCELLED") continue;
-    // Doanh thu theo ngày bucket theo ngày lịch VN, không theo ngày UTC.
+    // Doanh thu theo ngay bucket theo ngay lich VN, khong theo ngay UTC.
     const day = businessTimeParts(o.createdAt).dayKey;
     const entry = byDay.get(day) ?? { revenue: 0, orders: 0 };
     entry.revenue += Number(o.total);
@@ -86,7 +86,7 @@ export const topFoods = async (range: ReportRange, limit: number) => {
       if (!item.food) continue;
       const name = item.food.name;
       qty.set(name, (qty.get(name) ?? 0) + item.quantity);
-      // Doanh thu sau giảm giá của cả dòng.
+      // Doanh thu sau giam gia cua ca dong.
       const net = Number(item.price) * item.quantity - Number(item.discountAmount ?? 0);
       rev.set(name, (rev.get(name) ?? 0) + net);
     }
@@ -97,7 +97,7 @@ export const topFoods = async (range: ReportRange, limit: number) => {
     .slice(0, limit);
 };
 
-/** Xuất Excel 4 sheet: Tổng quan, Doanh thu, Top món, Đơn hàng. */
+/** Xuat Excel 4 sheet: Tong quan, Doanh thu, Top mon, Don hang. */
 export const exportExcel = async (range: ReportRange): Promise<Buffer> => {
   const orderList = await loadOrders(range);
   const s = await summary(range);

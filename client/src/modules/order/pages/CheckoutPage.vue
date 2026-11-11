@@ -36,9 +36,9 @@ const NOTE_MAX_LENGTH = 255
 const NOTE_SUGGESTIONS = ['Ít cay', 'Không hành', 'Gọi trước 10 phút']
 
 /**
- * Trang đặt món duy nhất. Danh sách món sửa được đã chuyển sang drawer giỏ; ở đây chỉ còn
- * thông tin giao hàng, thanh toán và tóm tắt tiền. Server vẫn là nơi tính tiền duy nhất
- * qua useCartQuote; client không tự nhân phần trăm hay trừ khuyến mãi.
+ * Trang dat mon duy nhat. Danh sach mon sua duoc da chuyen sang drawer gio; o day chi con
+ * thong tin giao hang, thanh toan va tom tat tien. Server van la noi tinh tien duy nhat
+ * qua useCartQuote; client khong tu nhan phan tram hay tru khuyen mai.
  */
 const router = useRouter()
 const auth = useAuthStore()
@@ -86,7 +86,7 @@ const applyAddress = (address: SavedAddress) => {
   form.address = address.address
 }
 
-// Khi danh sách địa chỉ trả về, chọn địa chỉ mặc định (hoặc đầu tiên) cho form.
+// Khi danh sach dia chi tra ve, chon dia chi mac dinh (hoac dau tien) cho form.
 watch(
   addresses,
   (list) => {
@@ -209,7 +209,7 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
 
   <div v-else class="mx-auto max-w-5xl px-3 py-6 pb-32 sm:px-6 lg:pb-10">
     <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
-      <!-- Form thông tin giao hàng + thanh toán + ghi chú -->
+      <!-- Form thong tin giao hang + thanh toan + ghi chu -->
       <NForm :id="CHECKOUT_FORM_ID" ref="formRef" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="checkout">
         <section class="rounded-2xl bg-white p-4 ring-1 ring-stone-200/60 sm:p-5">
           <div class="flex items-center justify-between gap-2">
@@ -290,7 +290,7 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
         </section>
       </NForm>
 
-      <!-- Cột tóm tắt sticky -->
+      <!-- Cot tom tat sticky -->
       <aside class="lg:sticky lg:top-[calc(var(--header-h)+1rem)]">
         <div class="rounded-2xl bg-white p-4 ring-1 ring-stone-200/60 sm:p-5">
           <div class="flex items-start justify-between gap-2">
@@ -358,7 +358,7 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
       </NForm>
     </FormModal>
 
-    <!-- Thanh đáy mobile: tổng tiền và CTA duy nhất -->
+    <!-- Thanh day mobile: tong tien va CTA duy nhat -->
     <div class="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 px-3 pt-2 backdrop-blur lg:hidden" :style="{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }">
       <div class="mx-auto flex max-w-3xl items-center gap-3">
         <div class="min-w-0 flex-1 text-sm">

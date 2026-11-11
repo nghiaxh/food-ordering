@@ -2,12 +2,12 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCartStore } from '@/modules/cart/store'
 
-/** Thanh cố định đáy đang chiếm chỗ, để nút chatbot biết phải nhường bao nhiêu. */
+/** Thanh co dinh day dang chiem cho, de nut chatbot biet phai nhuong bao nhieu. */
 export type BottomBar = 'checkout' | null
 
 /**
- * Trang nào đang có thanh cố định đáy. Checkout có thanh xác nhận. Widget chatbot là
- * nút nổi nên phải nhường chỗ, nếu không sẽ bị thanh che.
+ * Trang nao dang co thanh co dinh day. Checkout co thanh xac nhan. Widget chatbot la
+ * nut noi nen phai nhuong cho, neu khong se bi thanh che.
  */
 export const useHasBottomBar = () => {
   const route = useRoute()

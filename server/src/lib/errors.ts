@@ -1,4 +1,4 @@
-/** Lỗi nghiệp vụ mang sẵn HTTP status; errorHandler dịch ra `{ message }` tiếng Việt. */
+/** Loi nghiep vu mang san HTTP status; errorHandler dich ra `{ message }` tieng Viet. */
 export class HttpError extends Error {
   constructor(
     public readonly status: number,

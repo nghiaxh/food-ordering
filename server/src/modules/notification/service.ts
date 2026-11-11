@@ -34,7 +34,7 @@ export const deleteRead = async (email: string) => {
     .where(and(eq(notifications.userId, user.id), eq(notifications.read, true)));
 };
 
-/** Chỉ chủ sở hữu mới đọc hoặc xoá được thông báo; 404 khi không tồn tại, 403 khi của người khác. */
+/** Chi chu so huu moi doc hoac xoa duoc thong bao; 404 khi khong ton tai, 403 khi cua nguoi khac. */
 const ownNotification = async (email: string, id: number) => {
   const user = await getUserOrThrow(email);
   const notification = await db.query.notifications.findFirst({ where: eq(notifications.id, id) });

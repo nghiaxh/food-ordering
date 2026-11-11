@@ -35,7 +35,7 @@ const onSubmit = async () => {
     auth.setUser(data, remember.value)
     const state = history.state as { from?: { pathname?: string; search?: string }; openCart?: boolean } | null
     const from = state?.from
-    // Giữ cả query để quay lại đúng bộ lọc thực đơn, và giữ cờ mở giỏ nếu khách bấm giỏ trước.
+    // Giu ca query de quay lai dung bo loc thuc don, va giu co mo gio neu khach bam gio truoc.
     const returnTo = from?.pathname && from.pathname !== '/login' ? `${from.pathname}${from.search ?? ''}` : '/'
     const target = data.role === 'ADMIN' ? '/admin' : returnTo
     message.success('Đăng nhập thành công!')

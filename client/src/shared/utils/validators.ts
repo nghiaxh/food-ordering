@@ -1,6 +1,6 @@
 /**
- * Ràng buộc biên dùng chung toàn bộ client. Server kiểm lại bằng `^0\d{9}$` nên
- * thông báo phải khớp đúng từng chữ với TEST.md, không đổi tự do.
+ * Rang buoc bien dung chung toan bo client. Server kiem lai bang `^0\d{9}$` nen
+ * thong bao phai khop dung tung chu voi TEST.md, khong doi tu do.
  */
 export const PHONE_PATTERN = /^0\d{9}$/
 

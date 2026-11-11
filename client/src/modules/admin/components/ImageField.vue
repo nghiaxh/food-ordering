@@ -15,7 +15,7 @@ const emit = defineEmits<{ 'update:value': [value: string] }>()
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-// Chọn tệp để tải lên máy chủ, hoặc dán URL ngoài; server kiểm chữ ký file thật.
+// Chon tep de tai len may chu, hoac dan URL ngoai; server kiem chu ky file that.
 const onFile = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
