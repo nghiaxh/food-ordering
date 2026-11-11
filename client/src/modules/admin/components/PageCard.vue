@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Card nền trắng dùng chung cho admin.
+// Card nen trang dung chung cho admin.
 defineProps<{ class?: string }>()
 </script>
 

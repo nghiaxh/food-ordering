@@ -4,12 +4,12 @@ import { addCartItem, clearCart, getCart, removeCartItem, setCartItemQuantity } 
 import { useAuthStore } from '@/modules/auth/store'
 import { message } from '@/shared/api/message'
 
-/** Giỏ chỉ tồn tại cho tài khoản đã đăng nhập; khách vãng lai không có giỏ local. */
+/** Gio chi ton tai cho tai khoan da dang nhap; khach vang lai khong co gio local. */
 const loggedIn = () => !!useAuthStore().user
 
 /**
- * Thay dòng optimistic bằng CartItem server trả: food đầy đủ field, price là số và
- * available đúng, nên món thêm từ chatbot không còn hiện "Hết món" giả.
+ * Thay dong optimistic bang CartItem server tra: food day du field, price la so va
+ * available dung, nen mon them tu chatbot khong con hien "Het mon" gia.
  */
 const withServerItem = (items: CartItem[], item: CartItem): CartItem[] => {
   const id = item.food?.id
@@ -20,13 +20,13 @@ const withServerItem = (items: CartItem[], item: CartItem): CartItem[] => {
 }
 
 /**
- * Số thứ tự request theo từng món: chỉ response của request mới nhất được ghi vào giỏ.
- * So sánh số lượng không đủ tin vì response về muộn vẫn có thể mang số khác dòng đang hiển thị
- * (ví dụ server đã cộng dồn từ thiết bị khác) và khi đó dòng tạm giữ nguyên object thiếu field.
+ * So thu tu request theo tung mon: chi response cua request moi nhat duoc ghi vao gio.
+ * So sanh so luong khong du tin vi response ve muon van co the mang so khac dong dang hien thi
+ * (vi du server da cong don tu thiet bi khac) va khi do dong tam giu nguyen object thieu field.
  */
 const requestSeq = new Map<number, number>()
 
-/** Tăng khi xoá sạch giỏ để response đang bay không dựng lại dòng vừa xoá. */
+/** Tang khi xoa sach gio de response dang bay khong dung lai dong vua xoa. */
 let cartGeneration = 0
 
 const beginRequest = (foodId: number) => {
@@ -58,13 +58,13 @@ export const useCartStore = defineStore('cart', {
         this.items = await getCart()
         this.loaded = true
       } catch {
-        // Không cần báo lỗi; giỏ sẽ thử lại ở lần tải sau.
+        // Khong can bao loi; gio se thu lai o lan tai sau.
         this.loaded = true
       }
     },
 
     async add(food: Food, quantity = 1): Promise<boolean> {
-      // UI đã chặn khách; store vẫn kiểm tra lần nữa để không ai tạo được giỏ local.
+      // UI da chan khach; store van kiem tra lan nua de khong ai tao duoc gio local.
       if (!loggedIn()) return false
       const token = beginRequest(food.id)
       const before = this.items
@@ -101,7 +101,7 @@ export const useCartStore = defineStore('cart', {
 
     async remove(foodId: number) {
       if (!loggedIn()) return
-      // Request đang bay của chính món này không được dựng lại dòng vừa xoá.
+      // Request dang bay cua chinh mon nay khong duoc dung lai dong vua xoa.
       beginRequest(foodId)
       const before = this.items
       this.items = before.filter((i) => i.food?.id !== foodId)

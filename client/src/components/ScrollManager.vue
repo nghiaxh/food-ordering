@@ -22,7 +22,7 @@ const scrollToHash = (hash: string) => {
   attempt()
 }
 
-// Mỗi lần đổi path thì đưa trang về đầu; nếu đổi hash thì cuộn tới đúng neo.
+// Moi lan doi path thi dua trang ve dau; neu doi hash thi cuon toi dung neo.
 watch(
   () => [route.path, route.hash] as const,
   ([_path, hash]) => {

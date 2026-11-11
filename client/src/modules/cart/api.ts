@@ -15,8 +15,8 @@ export const removeCartItem = (foodId: number) => http.delete(`/cart/items/${foo
 export const clearCart = () => http.delete('/cart')
 
 /**
- * Báo giá do server tính trên đúng danh sách dòng client đang hiển thị; đây là nguồn
- * duy nhất cho mọi con số tiền trong giỏ. Quote không đọc lại giỏ DB.
+ * Bao gia do server tinh tren dung danh sach dong client dang hien thi; day la nguon
+ * duy nhat cho moi con so tien trong gio. Quote khong doc lai gio DB.
  */
 export const quoteCart = (items: { foodId?: number; quantity: number }[], signal?: AbortSignal) =>
   http.post<CartQuote>('/cart/quote', { items }, { signal }).then((r) => r.data)

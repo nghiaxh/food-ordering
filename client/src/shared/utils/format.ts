@@ -1,4 +1,4 @@
-// VND không dùng thập phân; làm tròn ở đây để số trung bình (avgOrder) không hiện "153.333,33đ".
+// VND khong dung thap phan; lam tron o day de so trung binh (avgOrder) khong hien "153.333,33d".
 export const formatVND = (value: number | string) =>
   `${Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`
 

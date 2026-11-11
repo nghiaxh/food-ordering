@@ -1,4 +1,4 @@
-// Luật chuyển trạng thái đơn hàng — tách khỏi service để test độc lập không cần DB.
+// Luat chuyen trang thai don hang — tach khoi service de test doc lap khong can DB.
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "COMPLETED" | "CANCELLED";
 import { badRequest } from "../../lib/errors.js";
 
@@ -10,11 +10,11 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: "Đã hủy",
 };
 
-/** Món chỉ thay được khi đơn còn chờ xác nhận và chưa thu tiền. */
+/** Mon chi thay duoc khi don con cho xac nhan va chua thu tien. */
 export const canEditItems = (order: { status: OrderStatus; paymentStatus: string }) =>
   order.status === "PENDING" && order.paymentStatus === "UNPAID";
 
-/** Một quy tắc chuyển trạng thái dùng chung cho mọi lối vào. */
+/** Mot quy tac chuyen trang thai dung chung cho moi loi vao. */
 export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
   if (from === "COMPLETED" || from === "CANCELLED") return false;
   if (to === "CANCELLED") return true;

@@ -8,7 +8,7 @@ import type { z } from "zod";
 type CreateReviewRequest = z.infer<typeof createReviewSchema>;
 type UpdateReviewRequest = z.infer<typeof updateReviewSchema>;
 
-/** Nhận xét không bắt buộc: chuỗi rỗng hoặc chỉ khoảng trắng được lưu thành null. */
+/** Nhan xet khong bat buoc: chuoi rong hoac chi khoang trang duoc luu thanh null. */
 const normalizeComment = (comment?: string | null): string | null => {
   const trimmed = comment?.trim();
   return trimmed ? trimmed : null;
@@ -23,7 +23,7 @@ const toReviewJson = (
   rating: r.rating,
   comment: r.comment,
   createdAt: r.createdAt.toISOString(),
-  // mine chỉ là gợi ý hiển thị nút Sửa/Xóa; quyền thật vẫn được kiểm ở server mỗi request.
+  // mine chi la goi y hien thi nut Sua/Xoa; quyen that van duoc kiem o server moi request.
   mine: currentUserId !== undefined && r.userId === currentUserId,
 });
 
@@ -37,7 +37,7 @@ export async function listByFood(foodId: number, currentUserId?: number) {
 }
 
 export async function create(userId: number, req: CreateReviewRequest) {
-  // Chỉ món trong đơn hoàn thành của chính mình mới được đánh giá ("đánh giá sau khi dùng").
+  // Chi mon trong don hoan thanh cua chinh minh moi duoc danh gia ("danh gia sau khi dung").
   const [ordered] = await db
     .select({ id: orders.id })
     .from(orders)
@@ -100,7 +100,7 @@ export async function remove(userId: number, id: number) {
   await db.delete(reviews).where(eq(reviews.id, review.id));
 }
 
-/** Sửa/xóa chỉ áp dụng cho đánh giá của chính người đang đăng nhập. */
+/** Sua/xoa chi ap dung cho danh gia cua chinh nguoi dang dang nhap. */
 async function ownReview(userId: number, id: number) {
   const review = await db.query.reviews.findFirst({ where: eq(reviews.id, id) });
   if (!review) throw notFound("Không tìm thấy đánh giá");

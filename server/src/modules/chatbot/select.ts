@@ -1,14 +1,14 @@
-// Chọn món bằng code xác định: lọc thuộc tính trước, rồi ghép/kiểm tra ngân sách tổng.
-// AI chỉ diễn đạt sau khi danh sách món đã có; thẻ món luôn lấy ID/giá từ DB.
+// Chon mon bang code xac dinh: loc thuoc tinh truoc, roi ghep/kiem tra ngan sach tong.
+// AI chi dien dat sau khi danh sach mon da co; the mon luon lay ID/gia tu DB.
 
 import type { Category, Food } from "../../db/schema.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { passesFilters, significantWords, vnd, isFoodQuestion, type Filters } from "./filters.js";
 import { wantedGroups, type NormalizedCriteria, type CategoryNeed } from "./criteria.js";
 
-/** Số món ứng viên rẻ nhất xét cho bộ chọn phẳng khi có ngân sách. */
+/** So mon ung vien re nhat xet cho bo chon phang khi co ngan sach. */
 export const FLAT_CANDIDATES = 20;
-/** Số món ứng viên giữ lại cho mỗi loại khi ghép tổ hợp. */
+/** So mon ung vien giu lai cho moi loai khi ghep to hop. */
 export const CANDIDATES_PER_GROUP = 5;
 
 export type FoodWithCategory = Food & { category: Category | null };
@@ -44,8 +44,8 @@ export const inCategory = (food: FoodWithCategory, categoryName: string): boolea
   !!food.category?.name && plain(food.category.name).includes(plain(categoryName));
 
 /**
- * Chọn món theo tiêu chí. Bước 1 lọc thuộc tính, bước 2 ghép và kiểm tra ngân sách
- * TỔNG của cả bộ gợi ý (không phải giá từng món).
+ * Chon mon theo tieu chi. Buoc 1 loc thuoc tinh, buoc 2 ghep va kiem tra ngan sach
+ * TONG cua ca bo goi y (khong phai gia tung mon).
  */
 export function selectFoods(
   criteria: NormalizedCriteria,
@@ -53,7 +53,7 @@ export function selectFoods(
   menu: FoodWithCategory[],
   maxSuggestions: number,
 ): Picked[] {
-  // Bước 1: lọc thuộc tính món; danh mục và giá để dành cho bước 2.
+  // Buoc 1: loc thuoc tinh mon; danh muc va gia de danh cho buoc 2.
   let pool = menu.filter((food) => {
     if (!food.available) return false;
     if (restrictIds && !restrictIds.includes(food.id)) return false;
@@ -65,7 +65,7 @@ export function selectFoods(
     return true;
   });
   if (pool.length === 0 && criteria.keywords?.length) {
-    // Từ khóa AI trích xuất quá chat không khớp món nào: bỏ lọc từ khóa, vẫn giữ ràng buộc thuộc tính.
+    // Tu khoa AI trich xuat qua chat khong khop mon nao: bo loc tu khoa, van giu rang buoc thuoc tinh.
     pool = menu.filter((food) => {
       if (!food.available) return false;
       if (criteria.maxSpicyLevel != null && food.spicyLevel > criteria.maxSpicyLevel) return false;
@@ -77,10 +77,10 @@ export function selectFoods(
   }
   if (pool.length === 0) return [];
 
-  // Câu hỏi tiếp không mở chủ đề mới nên không gom lại theo danh mục.
+  // Cau hoi tiep khong mo chu de moi nen khong gom lai theo danh muc.
   const groups = restrictIds == null ? wantedGroups(criteria) : [];
 
-  // Bước 2a: khách muốn kết hợp nhiều loại món ("một món chính và một món uống").
+  // Buoc 2a: khach muon ket hop nhieu loai mon ("mot mon chinh va mot mon uong").
   if (groups.length >= 2) {
     const byGroup: Picked[][] = [];
     const found: CategoryNeed[] = [];
@@ -94,19 +94,19 @@ export function selectFoods(
       byGroup.push(inGroup);
       found.push(g);
     }
-    // Một nhóm thiếu ứng viên và có ngân sách: không đủ điều kiện ghép → trả rỗng,
-    // giống tài liệu ARCHITECTURE ("không ghép được thì trả rỗng và câu trả lời nói rõ"),
-    // thay vì trả một món lệch loại so với câu hỏi.
+    // Mot nhom thieu ung vien va co ngan sach: khong du dieu kien ghep → tra rong,
+    // giong tai lieu ARCHITECTURE ("khong ghep duoc thi tra rong va cau tra loi noi ro"),
+    // thay vi tra mot mon lech loai so voi cau hoi.
     if (found.length < groups.length && criteria.maxBudget != null) return [];
     const combo = combine(byGroup, found, criteria.maxBudget ?? null);
     if (found.length === groups.length && combo.length > 0) return combo;
-    // Có ngân sách mà không ghép được đủ số món mỗi nhóm thì trả rỗng, không lấy lệch loại món khách yêu cầu.
+    // Co ngan sach ma khong ghep duoc du so mon moi nhom thi tra rong, khong lay lech loai mon khach yeu cau.
     if (criteria.maxBudget != null) return [];
     if (combo.length > 0) return combo;
-    // Không ngân sách và thiếu loại: rơi xuống chọn phẳng như cũ.
+    // Khong ngan sach va thieu loai: roi xuong chon phang nhu cu.
   }
 
-  // Bước 2b: một loại món, hoặc khách không nói rõ loại nào.
+  // Buoc 2b: mot loai mon, hoac khach khong noi ro loai nao.
   const first = groups[0];
   const candidates = (
     groups.length === 1 && first
@@ -121,8 +121,8 @@ export function selectFoods(
 }
 
 /**
- * Chọn 1..maxSuggestions món sao cho TỔNG tiền không vượt ngân sách và tổng tiền là lớn
- * nhất có thể. Chỉ dò trên 20 món rẻ nhất, bỏ trùng theo ID món. Hoà tổng thì ưu tiên nhiều món hơn.
+ * Chon 1..maxSuggestions mon sao cho TONG tien khong vuot ngan sach va tong tien la lon
+ * nhat co the. Chi do tren 20 mon re nhat, bo trung theo ID mon. Hoa tong thi uu tien nhieu mon hon.
  */
 export const pickWithinTotalBudget = (candidates: Picked[], limit: number, maxItems: number): Picked[] => {
   const byId = new Map<number, Picked>();
@@ -151,7 +151,7 @@ export const pickWithinTotalBudget = (candidates: Picked[], limit: number, maxIt
   return best.sort((a, b) => Number(a.food.price) - Number(b.food.price));
 };
 
-/** Câu hỏi tiếp ở nhánh dự phòng: chỉ xét các món vừa gợi ý và áp ràng buộc đọc được. */
+/** Cau hoi tiep o nhanh du phong: chi xet cac mon vua goi y va ap rang buoc doc duoc. */
 export const selectContextByCode = (
   ids: number[],
   filters: Filters,
@@ -168,9 +168,9 @@ export const selectContextByCode = (
 };
 
 /**
- * Lọc món bằng code khi không gọi được AI: chấm điểm món theo từ khóa trùng tên/nguyên liệu/nhãn.
- * Không từ khóa nào trùng thì câu hỏi chung về món vẫn gợi ý vài món đang phục vụ,
- * câu hỏi ngoài lề thì không gợi ý gì.
+ * Loc mon bang code khi khong goi duoc AI: cham diem mon theo tu khoa trung ten/nguyen lieu/nhan.
+ * Khong tu khoa nao trung thi cau hoi chung ve mon van goi y vai mon dang phuc vu,
+ * cau hoi ngoai le thi khong goi y gi.
  */
 export const selectFoodsByCode = (
   question: string,
@@ -185,11 +185,11 @@ export const selectFoodsByCode = (
     .filter((f) => f.available)
     .map((f) => {
       let score = 0;
-      // Mô tả không tính vào điểm: câu "Ai là Tổng thống Việt Nam" sẽ khớp chữ "thống" trong
-      // "truyền thống" và biến câu hỏi ngoài lề thành câu hỏi về món.
+      // Mo ta khong tinh vao diem: cau "Ai la Tong thong Viet Nam" se khop chu "thong" trong
+      // "truyen thong" va bien cau hoi ngoai le thanh cau hoi ve mon.
       const hay = plain(`${f.name} ${f.ingredients ?? ""} ${f.dietaryTags ?? ""}`);
       for (const w of words) if (hay.includes(w)) score++;
-      // Tên danh mục chỉ tính khi câu hỏi có nguyên cụm tên danh mục.
+      // Ten danh muc chi tinh khi cau hoi co nguyen cum ten danh muc.
       if (f.category?.name && p.includes(plain(f.category.name))) score++;
       return { food: f, score };
     })
@@ -204,7 +204,7 @@ export const selectFoodsByCode = (
   const portion = (f: FoodWithCategory) => portionsFor(f, filters.people);
   let kept = candidates.filter((s) => passesFilters(s.food, filters, portion(s.food)));
   if (kept.length === 0 && candidates.length > 0) {
-    // Món khớp từ khoá bị bộ lọc loại hết thì lấy trong toàn bộ món đang phục vụ, vẫn áp bộ lọc.
+    // Mon khop tu khoa bi bo loc loai het thi lay trong toan bo mon dang phuc vu, van ap bo loc.
     kept = menu
       .filter((f) => f.available && passesFilters(f, filters, portion(f)))
       .map((f) => ({ food: f, score: 0 }));
@@ -219,8 +219,8 @@ export const selectFoodsByCode = (
 };
 
 /**
- * Dò tổ hợp ghép món từ nhiều loại sao cho tổng tiền không vượt ngân sách; ưu tiên tổ hợp
- * có tổng tiền lớn nhất. Toàn bộ trạng thái tìm kiếm gói trong một đối tượng.
+ * Do to hop ghep mon tu nhieu loai sao cho tong tien khong vuot ngan sach; uu tien to hop
+ * co tong tien lon nhat. Toan bo trang thai tim kiem goi trong mot doi tuong.
  */
 class BudgetCombiner {
   private best: Picked[] = [];
@@ -271,7 +271,7 @@ class BudgetCombiner {
 const combine = (byGroup: Picked[][], groups: CategoryNeed[], maxBudget: number | null): Picked[] =>
   new BudgetCombiner(byGroup, groups, maxBudget).find();
 
-/** Câu trả lời dựng bằng code khi không gọi được AI; chỉ tóm tắt ngắn vì thẻ món đã hiện ngay. */
+/** Cau tra loi dung bang code khi khong goi duoc AI; chi tom tat ngan vi the mon da hien ngay. */
 export const fallbackReply = (dishes: Picked[], filters: Filters): string => {
   if (dishes.length === 0) {
     if (filters.budget != null) {

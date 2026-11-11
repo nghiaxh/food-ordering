@@ -9,7 +9,7 @@ import { formatVND } from '@/shared/utils/format'
 import { foodChips, discountText } from '@/shared/utils/food-tags'
 import { message } from '@/shared/api/message'
 
-/** Chỉ hiện 2 nhãn đầu: thẻ món phải còn chỗ cho giá và nút, thêm nhãn chỉ làm loãng. */
+/** Chi hien 2 nhan dau: the mon phai con cho cho gia va nut, them nhan chi lam loang. */
 const MAX_CHIPS = 2
 const MENU_SCROLL_KEY = 'menu-scroll'
 
@@ -21,7 +21,7 @@ const route = useRoute()
 const router = useRouter()
 const unit = () => props.food.discountedPrice ?? props.food.price
 
-// Cả thẻ mở trang chi tiết; lưu vị trí cuộn của bảng món để khôi phục khi quay lại.
+// Ca the mo trang chi tiet; luu vi tri cuon cua bang mon de khoi phuc khi quay lai.
 const saveScroll = () => {
   const scroller = document.querySelector<HTMLElement>('.kiosk-scroll')
   if (scroller) sessionStorage.setItem(MENU_SCROLL_KEY, String(scroller.scrollTop))
@@ -32,7 +32,7 @@ const openDetail = () => {
 }
 
 const onCardClick = (event: MouseEvent) => {
-  // Bỏ qua khi cú bấm rơi vào liên kết hoặc nút bên trong thẻ.
+  // Bo qua khi cu bam roi vao lien ket hoac nut ben trong the.
   if ((event.target as HTMLElement).closest('a, button')) return
   openDetail()
 }

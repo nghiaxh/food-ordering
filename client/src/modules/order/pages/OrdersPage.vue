@@ -28,7 +28,7 @@ const ui = useUiStore()
 
 const reorderingId = ref<number | null>(null)
 const paying = ref<Order | null>(null)
-// Mã QR chỉ hiển thị 1 phút rồi hết hạn ở phía giao diện; giây còn lại để khách đối chiếu.
+// Ma QR chi hien thi 1 phut roi het han o phia giao dien; giay con lai de khach doi chieu.
 const qrSeconds = ref(60)
 const qrDataUrl = ref('')
 let qrTimer: number | undefined
@@ -55,7 +55,7 @@ const qrLabel = computed(() => `${Math.floor(qrSeconds.value / 60)}:${String(qrS
 
 const statusParam = computed(() => route.query.status)
 const filter = computed<OrderStatus | 'ALL'>(() => (isOrderStatus(statusParam.value) ? statusParam.value : 'ALL'))
-// Thông báo dẫn tới `/orders?orderId=...`: cuộn tới đúng đơn sau khi dữ liệu tải xong.
+// Thong bao dan toi `/orders?orderId=...`: cuon toi dung don sau khi du lieu tai xong.
 const highlightId = computed(() => {
   const parsed = Number(route.query.orderId)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
@@ -122,7 +122,7 @@ const cancel = async (order: Order) => {
   }
 }
 
-// Hủy là thao tác không hoàn tác được nên phải có bước xác nhận; server cũng kiểm lại ràng buộc.
+// Huy la thao tac khong hoan tac duoc nen phai co buoc xac nhan; server cung kiem lai rang buoc.
 const confirmCancel = (order: Order) => {
   dialog.warning({
     title: 'Hủy đơn này?',

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// SĐT Việt Nam: 10 chữ số, bắt đầu bằng 0. Ràng buộc biên giữ nguyên như bản Java.
+// SDT Viet Nam: 10 chu so, bat dau bang 0. Rang buoc bien giu nguyen nhu ban Java.
 export const PHONE_PATTERN = /^0\d{9}$/;
 
 export const registerSchema = z.object({

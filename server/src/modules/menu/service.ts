@@ -7,8 +7,8 @@ import { toCategoryJson, toFoodJson } from "../../lib/serializers.js";
 import { decorateFoods } from "../pricing/service.js";
 
 /**
- * Tìm món: chỉ lọc thuộc tính tới được trong DB (danh mục, giá, còn bán). Từ khoá lọc bằng JS
- * qua text-normalizer để "pho bo" ra "Phở bò" mà không cần extension unaccent của PostgreSQL.
+ * Tim mon: chi loc thuoc tinh toi duoc trong DB (danh muc, gia, con ban). Tu khoa loc bang JS
+ * qua text-normalizer de "pho bo" ra "Pho bo" ma khong can extension unaccent cua PostgreSQL.
  */
 export async function searchFoods(filter: {
   keyword?: string;

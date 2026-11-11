@@ -1,5 +1,5 @@
-// Tiêu chí do AI trích xuất + zod kiểm tra lại; normalize để loại giá trị vô lý
-// và bỏ từ khóa tham chiếu thuần ("món đó"...).
+// Tieu chi do AI trich xuat + zod kiem tra lai; normalize de loai gia tri vo ly
+// va bo tu khoa tham chieu thuan ("mon do"...).
 
 import { z } from "zod";
 import { plain } from "../../lib/text-normalizer.js";
@@ -14,7 +14,7 @@ export const criteriaSchema = z
     dietaryTags: z.array(z.string()).nullable().optional(),
     keywords: z.array(z.string()).nullable().optional(),
   })
-  // AI có thể trả về thêm trường lạ; bỏ qua chúng thay vì coi cả câu trả lời là lỗi.
+  // AI co the tra ve them truong la; bo qua chung thay vi coi ca cau tra loi la loi.
   .loose()
   .nullable()
   .optional();
@@ -22,7 +22,7 @@ export const criteriaSchema = z
 export type CriteriaInput = z.infer<typeof criteriaSchema>;
 export type CategoryNeed = { name: string; count: number };
 
-/** Tiêu chí đã chuẩn hóa: thiếu trường nào thì giữ null, không có undefined. */
+/** Tieu chi da chuan hoa: thieu truong nao thi giu null, khong co undefined. */
 export interface NormalizedCriteria {
   categories: CategoryNeed[] | null;
   maxSpicyLevel: number | null;
@@ -48,7 +48,7 @@ export const isFollowUp = (message: string | null | undefined): boolean => {
   return FOLLOW_UP_PHRASES.some((phrase) => p.includes(phrase));
 };
 
-/** Từ khóa AI có thể trả cho câu hỏi tiếp ("món đó"...) — không phải chủ đề mới. */
+/** Tu khoa AI co the tra cho cau hoi tiep ("mon do"...) — khong phai chu de moi. */
 export const isReferenceKeyword = (keyword: string): boolean => {
   const p = plain(keyword).trim();
   if (!p) return true;
@@ -56,7 +56,7 @@ export const isReferenceKeyword = (keyword: string): boolean => {
     || p.split(/\s+/).every((token) => REFERENCE_TOKENS.has(token));
 };
 
-/** Chuẩn hóa tiêu chí AI trích xuất: bỏ giá trị vô lý, trim, bỏ từ khóa tham chiếu thuần. */
+/** Chuan hoa tieu chi AI trich xuat: bo gia tri vo ly, trim, bo tu khoa tham chieu thuan. */
 export const normalizeCriteria = (raw: CriteriaInput): NormalizedCriteria | null => {
   if (!raw) return null;
   let spicy = raw.maxSpicyLevel;

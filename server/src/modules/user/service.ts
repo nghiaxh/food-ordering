@@ -47,7 +47,7 @@ export const createAddress = async (email: string, req: AddressRequest) => {
     .where(eq(userAddresses.userId, user.id));
   const first = (totalRows[0]?.value ?? 0) === 0;
 
-  // Địa chỉ đầu tiên hoặc địa chỉ được đánh dấu luôn trở thành mặc định, các địa chỉ cũ bỏ mặc định.
+  // Dia chi dau tien hoac dia chi duoc danh dau luon tro thanh mac dinh, cac dia chi cu bo mac dinh.
   if (req.isDefault || first) await clearDefaults(user.id);
 
   const [created] = await db
@@ -68,7 +68,7 @@ export const createAddress = async (email: string, req: AddressRequest) => {
 const owned = async (email: string, id: number) => {
   const user = await currentUser(email);
   const address = await db.query.userAddresses.findFirst({ where: eq(userAddresses.id, id) });
-  // Địa chỉ của người khác cũng giả vờ không tồn tại để không lộ ID đang có hiệu lực.
+  // Dia chi cua nguoi khac cung gia vo khong ton tai de khong lo ID dang co hieu luc.
   if (!address || address.userId !== user.id) {
     throw notFound("Địa chỉ không tồn tại");
   }
@@ -108,7 +108,7 @@ export const setDefaultAddress = async (email: string, id: number) => {
 export const deleteAddress = async (email: string, id: number) => {
   const address = await owned(email, id);
   await db.delete(userAddresses).where(eq(userAddresses.id, address.id));
-  // Nếu xóa địa chỉ mặc định, nâng địa chỉ đầu tiên còn lại lên làm mặc định.
+  // Neu xoa dia chi mac dinh, nang dia chi dau tien con lai len lam mac dinh.
   if (address.isDefault) {
     const next = await db.query.userAddresses.findFirst({
       where: eq(userAddresses.userId, address.userId),

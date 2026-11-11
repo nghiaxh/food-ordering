@@ -76,7 +76,7 @@ export async function updateMe(email: string, req: UpdateProfileRequest) {
   return toUserJson(user!);
 }
 
-/** Đổi mật khẩu phải xác minh mật khẩu cũ trước, nếu không ai có token cũng đổi được. */
+/** Doi mat khau phai xac minh mat khau cu truoc, neu khong ai co token cung doi duoc. */
 export async function changePassword(email: string, req: ChangePasswordRequest) {
   const user = await db.query.users.findFirst({
     where: eq(users.email, email),

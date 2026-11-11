@@ -5,14 +5,14 @@
 }
 
 /*
-  Header là nguồn duy nhất của chiều cao; đổi header thì chatbot, vùng cuộn kiosk và
-  thanh đáy tự theo, không hard-code lại.
+  Header la nguon duy nhat cua chieu cao; doi header thi chatbot, vung cuon kiosk va
+  thanh day tu theo, khong hard-code lai.
 */
 :root {
   --header-h: 3.25rem;
 }
 
-/* Người dùng tắt chuyển động thì bỏ mọi animation trang trí, vẫn giữ thay đổi trạng thái. */
+/* Nguoi dung tat chuyen dong thi bo moi animation trang tri, van giu thay doi trang thai. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -24,7 +24,7 @@
   }
 }
 
-/* Khung chat nở lên từ góc dưới phải khi mở: nhanh, nhỏ và không đẩy nội dung. */
+/* Khung chat no len tu goc duoi phai khi mo: nhanh, nho va khong day noi dung. */
 @keyframes chat-in {
   from {
     opacity: 0;
@@ -96,9 +96,9 @@ html:has(.auth-shell)::-webkit-scrollbar {
 }
 
 /*
-  Trang thực đơn tự cuộn trong vùng riêng. Khoá cuộn tài liệu để không hiện thêm scrollbar
-  của html: chiều cao `calc(100dvh - header)` lẻ vài phần mười px nên html vẫn đủ điều kiện
-  cuộn, sinh scrollbar thứ hai và kéo lệch header.
+  Trang thuc don tu cuon trong vung rieng. Khoa cuon tai lieu de khong hien them scrollbar
+  cua html: chieu cao `calc(100dvh - header)` le vai phan muoi px nen html van du dieu kien
+  cuon, sinh scrollbar thu hai va keo lech header.
 */
 html:has(.kiosk-scroll) {
   overflow-y: hidden;

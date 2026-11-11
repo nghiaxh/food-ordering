@@ -13,8 +13,8 @@ const idParam = (raw: string | string[] | undefined): number => {
 
 export const userRouter = Router();
 
-// Địa chỉ đã lưu chỉ có ý nghĩa khi đăng nhập; guard theo từng route để router mount ở "/api"
-// không chặn các route mount trước/sau nó. Mọi endpoint ở đây đều yêu cầu đăng nhập.
+// Dia chi da luu chi co y nghia khi dang nhap; guard theo tung route de router mount o "/api"
+// khong chan cac route mount truoc/sau no. Moi endpoint o day deu yeu cau dang nhap.
 userRouter.get("/addresses", requireAuth, async (req, res) => {
   res.json(await userService.listAddresses(req.user!.email));
 });

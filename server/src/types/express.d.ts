@@ -1,4 +1,4 @@
-// Gắn danh tính đã xác thực vào request; requireAuth/optionalAuth là nơi duy nhất set.
+// Gan danh tinh da xac thuc vao request; requireAuth/optionalAuth la noi duy nhat set.
 declare global {
   namespace Express {
     interface Request {

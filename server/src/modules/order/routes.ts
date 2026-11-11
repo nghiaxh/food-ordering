@@ -13,7 +13,7 @@ const idParam = (raw: string | string[] | undefined): number => {
 
 export const orderRouter = Router();
 
-// Đơn hàng chỉ dành cho tài khoản khách hàng; admin dùng luồng /api/admin/orders.
+// Don hang chi danh cho tai khoan khach hang; admin dung luong /api/admin/orders.
 orderRouter.use(requireRole("CUSTOMER"));
 
 orderRouter.post("/", async (req, res) => {

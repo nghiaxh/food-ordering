@@ -1,6 +1,6 @@
-// Lớp DUY NHẤT gọi API AI; đổi nhà cung cấp chỉ cần thay file này.
-// Provider và tên mô hình đọc từ bảng cấu hình `ai_setting` (admin đặt trong trang Chatbot),
-// chỉ fallback về biến môi trường khi chưa đặt. Không log khóa, không trả khóa về client.
+// Lop DUY NHAT goi API AI; doi nha cung cap chi can thay file nay.
+// Provider va ten mo hinh doc tu bang cau hinh `ai_setting` (admin dat trong trang Chatbot),
+// chi fallback ve bien moi truong khi chua dat. Khong log khoa, khong tra khoa ve client.
 
 import { eq } from "drizzle-orm";
 import { aiSetting } from "../db/schema.js";
@@ -18,7 +18,7 @@ const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng 
 const PROBE_USER = "ping";
 const PROBE_RETRY_MS = 5 * 60 * 1000;
 
-/** Khóa API bị nhà cung cấp từ chối (sai, hết hạn, chưa bật API) — không phải lỗi tạm thời. */
+/** Khoa API bi nha cung cap tu choi (sai, het han, chua bat API) — khong phai loi tam thoi. */
 export class AiKeyRejectedException extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -30,13 +30,13 @@ let credentialsRejected = false;
 let keyAccepted: boolean | null = null;
 let probeFailedAt = 0;
 
-/** Trợ lý có dùng được không: khóa đã cấu hình và chưa bị nhà cung cấp từ chối. */
+/** Tro ly co dung duoc khong: khoa da cau hinh va chua bi nha cung cap tu choi. */
 export const isConfigured = (): boolean => {
   const apiKey = env.AI_API_KEY;
   return !!apiKey && apiKey.trim().length > 0 && !credentialsRejected;
 };
 
-/** Reset bộ nhớ cache — chỉ dùng trong test hoặc khi khởi động lại tiến trình. */
+/** Reset bo nho cache — chi dung trong test hoac khi khoi dong lai tien trinh. */
 export const _resetKeyStateForTests = () => {
   credentialsRejected = false;
   keyAccepted = null;
@@ -52,7 +52,7 @@ const setting = async (key: string, fallback: string): Promise<string> => {
 const fetchWithTimeout = (url: string, init: RequestInit): Promise<Response> =>
   fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 
-/** Khóa có được nhà cung cấp chấp nhận không. Lần đầu gọi thử một câu tối giản rồi giữ kết quả. */
+/** Khoa co duoc nha cung cap chap nhan khong. Lan dau goi thu mot cau toi gian roi giu ket qua. */
 export const verifyKey = async (): Promise<boolean> => {
   if (!isConfigured()) return false;
   if (keyAccepted !== null) return keyAccepted;
@@ -66,7 +66,7 @@ export const verifyKey = async (): Promise<boolean> => {
       credentialsRejected = true;
       return false;
     }
-    // Lỗi mạng/quota: coi như dùng được, chỉ thử lại sau một lúc.
+    // Loi mang/quota: coi nhu dung duoc, chi thu lai sau mot luc.
     probeFailedAt = Date.now();
     return true;
   }
@@ -82,7 +82,7 @@ const isKeyRejectionBody = (status: number, body: string): boolean => {
   );
 };
 
-/** Gọi dịch vụ AI; lỗi tạm thời thì ném RuntimeException để chatbot tự rơi sang nhánh dự phòng. */
+/** Goi dich vu AI; loi tam thoi thi nem RuntimeException de chatbot tu roi sang nhanh du phong. */
 export const generate = async (
   systemPrompt: string,
   userPrompt: string,
@@ -185,7 +185,7 @@ const callOpenAI = async (
   return response.text();
 };
 
-/** Đọc text từ cấu trúc phản hồi; mỗi nhà cung cấp một vị trí khác nhau. */
+/** Doc text tu cau truc phan hoi; moi nha cung cap mot vi tri khac nhau. */
 const text = (provider: string, raw: string): string => {
   try {
     const root = JSON.parse(raw) as Record<string, unknown>;

@@ -13,13 +13,13 @@ import CategoryRail from '@/modules/menu/components/CategoryRail.vue'
 import DealRail from '@/modules/menu/components/DealRail.vue'
 import { message } from '@/shared/api/message'
 
-/** Số món mỗi lượt. 12 chia hết cho 2 và 4 cột nên không lượt nào lẻ hàng. */
+/** So mon moi luot. 12 chia het cho 2 va 4 cot nen khong luot nao le hang. */
 const PAGE_SIZE = 12
-/** 2 cột trên mobile, 4 cột từ `md`, giữ đúng mật độ hiện tại. */
+/** 2 cot tren mobile, 4 cot tu `md`, giu dung mat do hien tai. */
 const GRID_COLS = 'grid-cols-2 md:grid-cols-4'
 const MENU_SCROLL_KEY = 'menu-scroll'
 
-/** Khoảng giá dạng sẵn dễ chạm hơn hai ô nhập số. */
+/** Khoang gia dang san de cham hon hai o nhap so. */
 const PRICE_BANDS = [
   { label: 'Mọi giá', min: undefined, max: undefined },
   { label: 'Dưới 50k', min: undefined, max: 50000 },
@@ -55,7 +55,7 @@ const router = useRouter()
 const scroller = ref<HTMLElement | null>(null)
 const ui = useUiStore()
 
-// Bộ lọc nằm trên URL nên chia sẻ được và nút quay lại không mất trạng thái.
+// Bo loc nam tren URL nen chia se duoc va nut quay lai khong mat trang thai.
 const categoryId = computed(() => num(route.query.category))
 const keyword = computed(() => str(route.query.keyword))
 const minPrice = computed(() => num(route.query.min))
@@ -83,7 +83,7 @@ watch(error, (e) => {
   if (e) message.error('Không tải được thực đơn')
 })
 
-// Sửa query giữ nguyên các param khác (keyword do header điều khiển, page, ...).
+// Sua query giu nguyen cac param khac (keyword do header dieu khien, page, ...).
 const patch = (next: Record<string, string | undefined>) => {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(route.query)) {
@@ -126,7 +126,7 @@ const filtered = computed(() => {
   return sorted
 })
 
-// Đổi bộ lọc thì về trang đầu, tránh đang ở trang 3 mà danh sách ngắn lại.
+// Doi bo loc thi ve trang dau, tranh dang o trang 3 ma danh sach ngan lai.
 watch(
   [categoryId, keyword, minPrice, maxPrice, sort, diet, noSpicy, onlyAvailable, onlyDeals],
   () => {
@@ -134,7 +134,7 @@ watch(
   },
 )
 
-// Quay lại từ trang chi tiết: trả đúng vị trí cuộn của bảng món sau khi dữ liệu đã về.
+// Quay lai tu trang chi tiet: tra dung vi tri cuon cua bang mon sau khi du lieu da ve.
 watch([loading, foods], ([isLoading]) => {
   if (isLoading || !foods.value) return
   const saved = sessionStorage.getItem(MENU_SCROLL_KEY)
@@ -163,7 +163,7 @@ const goToPage = (next: number) => {
   document.getElementById('thuc-don')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-// Danh sách trang gọn: đủ ít thì hiện hết, nhiều thì rút gọn quanh trang hiện tại.
+// Danh sach trang gon: du it thi hien het, nhieu thi rut gon quanh trang hien tai.
 const pageItems = computed<Array<number | '…'>>(() => {
   if (pageCount.value <= 7) return Array.from({ length: pageCount.value }, (_, i) => i + 1)
   const around = new Set([1, currentPage.value - 1, currentPage.value, currentPage.value + 1, pageCount.value])
@@ -186,7 +186,7 @@ const askAi = () => ui.openChat()
 </script>
 
 <template>
-  <!-- Trang chủ kiểu kiosk: hero ngắn, danh mục có ảnh, ưu đãi thật, rồi tới thực đơn. -->
+  <!-- Trang chu kieu kiosk: hero ngan, danh muc co anh, uu dai that, roi toi thuc don. -->
   <div ref="scroller" class="kiosk-scroll h-[calc(100dvh-var(--header-h))] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
     <HomeHero v-if="!filtersActive" :on-ask="askAi" :on-browse="scrollToMenu" />
 

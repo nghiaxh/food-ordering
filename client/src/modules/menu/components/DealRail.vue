@@ -10,7 +10,7 @@ const emit = defineEmits<{ seeAll: [] }>()
 </script>
 
 <template>
-  <!-- Ưu đãi lấy từ discountPercent server đã tính; dùng chung thẻ món với lưới thực đơn. -->
+  <!-- Uu dai lay tu discountPercent server da tinh; dung chung the mon voi luoi thuc don. -->
   <section v-if="props.foods.length > 0">
     <div class="flex items-end justify-between gap-3">
       <div class="flex items-baseline gap-2">

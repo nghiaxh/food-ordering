@@ -1,14 +1,14 @@
 import http from '@/shared/api/http'
 import type { Order, OrderStatus, Promotion, User, ChatHistoryMessage, KnowledgeChunkView, KnowledgeDoc, KnowledgeStats, AiSetting } from '@/shared/types'
 
-/** Dữ liệu biểu mẫu quản trị tạo/sửa đơn hàng. */
+/** Du lieu bieu mau quan tri tao/sua don hang. */
 export interface AdminOrderPayload {
   customerEmail: string
-  /** Bỏ trống khi chỉ sửa thông tin giao hàng của đơn đã xác nhận. */
+  /** Bo trong khi chi sua thong tin giao hang cua don da xac nhan. */
   items?: { foodId?: number; quantity: number }[]
   receiverName: string
   phone: string
-  /** Bỏ trống khi chỉ sửa thông tin giao hàng. */
+  /** Bo trong khi chi sua thong tin giao hang. */
   address: string
   paymentMethod: string
   note?: string
@@ -16,17 +16,17 @@ export interface AdminOrderPayload {
   paid?: boolean
 }
 
-/** Dữ liệu biểu mẫu quản trị tạo/sửa tài khoản khách hàng. */
+/** Du lieu bieu mau quan tri tao/sua tai khoan khach hang. */
 export interface UserPayload {
   email: string
   fullName: string
   phone?: string
   address?: string
-  /** Để trống khi sửa nghĩa là giữ mật khẩu hiện tại. */
+  /** De trong khi sua nghia la giu mat khau hien tai. */
   password?: string
 }
 
-// ----- Món ăn -----
+// ----- Mon an -----
 export const adminSaveFood = (id: number | null, data: object) =>
   id ? http.put(`/admin/foods/${id}`, data) : http.post('/admin/foods', data)
 
@@ -46,7 +46,7 @@ export const adminUploadImage = (file: File) => {
   return http.post<{ url: string }>('/admin/uploads/image', form).then((r) => r.data)
 }
 
-// ----- Đơn hàng -----
+// ----- Don hang -----
 export const adminGetOrders = () => http.get<Order[]>('/admin/orders').then((r) => r.data)
 
 export const adminSaveOrder = (id: number | null, data: AdminOrderPayload) =>
@@ -60,7 +60,7 @@ export const adminUpdateOrderStatus = (id: number, status: string) =>
 export const adminUpdateOrderPayment = (id: number, paid: boolean) =>
   http.patch(`/admin/orders/${id}/payment`, null, { params: { paid } })
 
-// ----- Khách hàng -----
+// ----- Khach hang -----
 export const adminGetUsers = () => http.get<User[]>('/admin/users').then((r) => r.data)
 
 export const adminSaveUser = (id: number | null, data: UserPayload) =>
@@ -71,7 +71,7 @@ export const adminDeleteUser = (id: number) => http.delete(`/admin/users/${id}`)
 export const adminSetUserActive = (id: number, active: boolean) =>
   http.patch(`/admin/users/${id}/active`, null, { params: { active } })
 
-// ----- Khuyến mãi -----
+// ----- Khuyen mai -----
 export const adminGetPromotions = () => http.get<Promotion[]>('/admin/promotions').then((r) => r.data)
 
 export const adminSavePromotion = (id: number | null, data: object) =>
@@ -113,7 +113,7 @@ export const adminUploadDocument = (file: File, title: string, category: string,
 export const adminReingestDocument = (id: number) =>
   http.post<KnowledgeDoc>(`/admin/chatbot/documents/${id}/reingest`, {}).then((r) => r.data)
 
-// ----- Báo cáo -----
+// ----- Bao cao -----
 export interface ReportSummary {
   revenue: number
   orderCount: number

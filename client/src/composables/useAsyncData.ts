@@ -13,8 +13,8 @@ interface UseAsyncDataOptions {
 }
 
 /**
- * Tải dữ liệu có huỷ request cũ khi dependencies đổi (watch sâu) và chỉ retry lỗi mạng.
- * Mỗi lần chạy tăng sequence để response cũ không ghi đè dữ liệu mới hơn.
+ * Tai du lieu co huy request cu khi dependencies doi (watch sau) va chi retry loi mang.
+ * Moi lan chay tang sequence de response cu khong ghi de du lieu moi hon.
  */
 export default function useAsyncData<T>(
   fn: (signal: AbortSignal) => Promise<T>,

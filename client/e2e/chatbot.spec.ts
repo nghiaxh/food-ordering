@@ -2,20 +2,20 @@ import { expect, test, type Page } from '@playwright/test'
 import { API_URL } from './support/extended-api'
 
 /**
- * Chatbot: câu hỏi tư vấn món chay không cay.
+ * Chatbot: cau hoi tu van mon chay khong cay.
  *
- * Server cần khóa AI thật để gọi model. Khi `/chatbot/status` báo `available = false`
- * (khóa rỗng, sai hoặc bị từ chối), khung chat hiện banner "Trợ lý AI chưa được cấu
- * hình" và khóa ô nhập — nhánh đó cũng được kiểm tra thay vì fail, vì CI dùng khóa giả
+ * Server can khoa AI that de goi model. Khi `/chatbot/status` bao `available = false`
+ * (khoa rong, sai hoac bi tu choi), khung chat hien banner "Tro ly AI chua duoc cau
+ * hinh" va khoa o nhap — nhanh do cung duoc kiem tra thay vi fail, vi CI dung khoa gia
  * trong `.env.example`.
  */
 const SKIP_REASON =
-  'Chatbot chưa cấu hình khóa AI (AI_API_KEY rỗng hoặc bị từ chối); đặt khóa thật rồi chạy lại.'
+  'Chatbot has no AI key configured (AI_API_KEY empty or rejected); set a real key and rerun.'
 
-// Lượt chat là hai cuộc gọi AI 15s timeout nên nới test timeout so với mặc định 30s.
+// Luot chat la hai cuoc goi AI 15s timeout nen noi test timeout so voi mac dinh 30s.
 test.describe.configure({ timeout: 60_000 })
 
-// Tin bot chạy chữ dần; reducedMotion làm chữ hiện đủ ngay, thẻ món xuất hiện sớm hơn.
+// Tin bot chay chu dan; reducedMotion lam chu hien du ngay, the mon xuat hien som hon.
 test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 async function chatbotAvailable(request: import('@playwright/test').APIRequestContext) {
@@ -31,7 +31,7 @@ async function openChat(page: Page) {
   await expect(page.getByTestId('chatbot-panel')).toBeVisible()
 }
 
-test('hỏi tư vấn món chay không cay', async ({ page, request }) => {
+test('Ask for non-spicy vegetarian dishes', async ({ page, request }) => {
   const available = await chatbotAvailable(request)
   await openChat(page)
 
@@ -52,7 +52,7 @@ test('hỏi tư vấn món chay không cay', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Gửi câu hỏi' }).click()
 
   const response = await responsePromise
-  expect(response.status(), 'Chatbot phải trả 200 khi đã cấu hình khóa').toBe(200)
+  expect(response.status(), 'Chatbot should return 200 once the key is configured').toBe(200)
 
   await expect(botMessages).toHaveCount(before + 1, { timeout: 20_000 })
   await expect(page.getByTestId('chatbot-food-card').first()).toBeVisible({ timeout: 20_000 })

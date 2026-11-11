@@ -7,7 +7,7 @@ export const getReviews = (foodId: number, signal?: AbortSignal) =>
 export const createReview = (data: { foodId: number; rating: number; comment?: string }) =>
   http.post<Review>('/reviews', data).then((r) => r.data)
 
-/** Sửa và xóa chỉ áp dụng cho đánh giá của chính người đang đăng nhập. */
+/** Sua va xoa chi ap dung cho danh gia cua chinh nguoi dang dang nhap. */
 export const updateReview = (id: number, data: { rating: number; comment?: string }) =>
   http.put<Review>(`/reviews/${id}`, data).then((r) => r.data)
 

@@ -81,8 +81,8 @@ const rows = computed(() => {
   return list.filter((o) => o.status === statusFilter.value)
 })
 const finalState = (o: Order) => o.status === 'COMPLETED' || o.status === 'CANCELLED'
-// Đơn đã giao hoặc đã hủy thì khoá hoàn toàn; đơn đã thu tiền hoặc đã xác nhận chỉ sửa
-// được thông tin giao hàng, không đổi món. Server kiểm lại đúng luật này.
+// Don da giao hoac da huy thi khoa hoan toan; don da thu tien hoac da xac nhan chi sua
+// duoc thong tin giao hang, khong doi mon. Server kiem lai dung luat nay.
 const itemsLocked = computed(() =>
   !!editing.value && !(editing.value.status === 'PENDING' && editing.value.paymentStatus === 'UNPAID'),
 )
@@ -108,7 +108,7 @@ const changePayment = async (id: number, paid: boolean) => {
   })
 }
 
-// ----- Form tạo/sửa đơn -----
+// ----- Form tao/sua don -----
 const form = reactive({
   customerEmail: '',
   receiverName: '',
@@ -161,8 +161,8 @@ const submit = async () => {
     message.error('Vui lòng nhập đầy đủ thông tin')
     return
   }
-  // Khi đơn đã qua bước đặt món, không gửi danh sách món lên để server không hiểu là
-  // đang thay món (server chặn thao tác đó sau khi đơn đã xác nhận hoặc đã thu tiền).
+  // Khi don da qua buoc dat mon, khong gui danh sach mon len de server khong hieu la
+  // dang thay mon (server chan thao tac do sau khi don da xac nhan hoac da thu tien).
   const { items, ...rest } = form
   const data: AdminOrderPayload = {
     ...rest,
@@ -265,7 +265,7 @@ const STATUS_TABS = computed<Array<{ key: OrderStatus | 'ALL'; label: string; do
   ...ORDER_STATUSES.map((s) => ({ key: s as OrderStatus | 'ALL', label: `${ORDER_STATUS_LABEL[s]}${counts.value.get(s) ? ` (${counts.value.get(s)})` : ''}`, dot: STATUS_HEX[s] })),
 ])
 
-// Options cho NSelect đổi trạng thái trong drawer; tính ở script để template không phải narrow trong callback.
+// Options cho NSelect doi trang thai trong drawer; tinh o script de template khong phai narrow trong callback.
 const onDetailStatusChange = (s: string) => {
   if (detail.value) changeStatus(detail.value.id, s as OrderStatus)
 }
@@ -310,7 +310,7 @@ const statusSelectOptions = computed(() => {  const d = detail.value
       <NDataTable v-else :columns="columns" :data="rows" :row-key="(row: Order) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="1200" size="small" />
     </PageCard>
 
-    <!-- Chi tiết đơn -->
+    <!-- Chi tiet don -->
     <NDrawer :show="detailId !== null" placement="right" :width="480" :auto-focus="false" @update:show="(v: boolean) => !v && (detailId = null)">
       <template #header>
         <span class="text-base font-semibold text-stone-900">{{ detail ? `Đơn #${orderCode(detail.id)}` : 'Chi tiết đơn' }}</span>
@@ -384,7 +384,7 @@ const statusSelectOptions = computed(() => {  const d = detail.value
       </div>
     </NDrawer>
 
-    <!-- Form tạo/sửa đơn -->
+    <!-- Form tao/sua don -->
     <FormModal :title="editing ? `Sửa đơn #${editing.id}` : 'Thêm đơn hàng'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
       <NForm ref="formRef" :model="form" :show-require-mark="false" class="mt-4">
         <NFormItem label="Khách hàng" path="customerEmail" :rule="[{ required: true, message: 'Chọn khách hàng', trigger: 'change' }]">

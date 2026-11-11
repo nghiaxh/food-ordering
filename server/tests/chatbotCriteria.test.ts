@@ -5,7 +5,7 @@ import {
   normalizeCriteria,
 } from "../src/modules/chatbot/criteria.js";
 
-// AI có thể trả về thêm trường lạ, giá trị vô lý hoặc từ khóa tham chiếu thuần.
+// AI co the tra ve them truong la, gia tri vo ly hoac tu khoa tham chieu thuan.
 describe("normalizeCriteria", () => {
   it("chuẩn hóa tiêu chí hợp lệ, bỏ trường ngoài schema", () => {
     const result = normalizeCriteria({
@@ -16,7 +16,7 @@ describe("normalizeCriteria", () => {
       excludeAllergens: ["hải sản"],
       dietaryTags: ["chay"],
       keywords: ["phở"],
-      // Trường lạ AI hay bịa thêm:
+      // Truong la AI hay bia them:
       mucDoCay: "khong",
       note: "abc",
     });

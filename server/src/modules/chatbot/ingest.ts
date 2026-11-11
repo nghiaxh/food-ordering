@@ -1,5 +1,5 @@
-// Nạp tài liệu quán vào kho của chatbot: lưu file, tách text, chia đoạn, lưu chunk.
-// Không embedding — chunk được tìm bằng tsvector (migration init có cột search_vector GENERATED).
+// Nap tai lieu quan vao kho cua chatbot: luu file, tach text, chia doan, luu chunk.
+// Khong embedding — chunk duoc tim bang tsvector (migration init co cot search_vector GENERATED).
 import { createHash } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -68,7 +68,7 @@ const buildChunks = async (documentId: number, text: string) => {
   }
 };
 
-/** Nạp tài liệu từ văn bản nhập trên giao diện (tab Tài liệu). */
+/** Nap tai lieu tu van ban nhap tren giao dien (tab Tai lieu). */
 export const ingestText = async (
   title: string | null,
   category: string | null,
@@ -84,7 +84,7 @@ export const ingestText = async (
   return toDoc(doc!);
 };
 
-/** Nạp tài liệu từ file admin tải lên (PDF/DOCX/TXT/MD, ≤ 10 MB — giới hạn ở route). */
+/** Nap tai lieu tu file admin tai len (PDF/DOCX/TXT/MD, ≤ 10 MB — gioi han o route). */
 export const ingestFile = async (
   fileName: string,
   buffer: Buffer,
@@ -106,7 +106,7 @@ export const ingestFile = async (
     })
     .returning();
 
-  // Lưu file gốc để reingest sau này không phải tải lên lại.
+  // Luu file goc de reingest sau nay khong phai tai len lai.
   writeFileSync(storedFilePath(doc!.id, fileName), buffer);
 
   let text = "";
@@ -128,7 +128,7 @@ export const ingestFile = async (
   return toDoc({ ...doc!, content: truncate(text, 4000), status: "READY" });
 };
 
-/** Tạo lại chunk từ nội dung hiện tại (khi sửa bằng chữ). */
+/** Tao lai chunk tu noi dung hien tai (khi sua bang chu). */
 export const reingestDocument = async (documentId: number): Promise<KnowledgeDocJson> => {
   const doc = await db.query.chatbotKnowledge.findFirst({ where: eq(chatbotKnowledge.id, documentId) });
   if (!doc) throw new Error("Không tìm thấy tài liệu");
@@ -169,7 +169,7 @@ export const reingestDocument = async (documentId: number): Promise<KnowledgeDoc
   return toDoc(updated!);
 };
 
-/** Cập nhật thông tin tài liệu và nạp lại (reingest) trong cùng thao tác. */
+/** Cap nhat thong tin tai lieu va nap lai (reingest) trong cung thao tac. */
 export const updateDocument = async (
   documentId: number,
   patch: { title: string | null; category: string | null; keywords: string | null; content: string; enabled: boolean },
@@ -189,7 +189,7 @@ export const updateDocument = async (
       enabled: patch.enabled,
     })
     .where(eq(chatbotKnowledge.id, documentId));
-  // Nội dung có thể đã đổi nên phải chia đoạn lại; chi phí nhỏ với tài liệu < 10 MB.
+  // Noi dung co the da doi nen phai chia doan lai; chi phi nho voi tai lieu < 10 MB.
   return reingestDocument(documentId);
 };
 
@@ -200,7 +200,7 @@ export const deleteDocument = async (documentId: number) => {
     try {
       unlinkSync(storedFilePath(documentId, doc.fileName));
     } catch {
-      // File gốc không còn thì bỏ qua — chunks và bản ghi đã xoá là đủ.
+      // File goc khong con thi bo qua — chunks va ban ghi da xoa la du.
     }
   }
   await db.delete(chatbotKnowledge).where(eq(chatbotKnowledge.id, documentId));
@@ -228,6 +228,6 @@ export const listChunks = async (documentId: number) => {
   return rows.map((r) => ({ id: r.id, chunkIndex: r.chunkIndex ?? 0, content: r.content }));
 };
 
-/** Hash nội dung — dành cho báo cáo/đối soát nếu cần; hiện chưa hiển thị trên UI. */
+/** Hash noi dung — danh cho bao cao/doi soat neu can; hien chua hien thi tren UI. */
 export const contentHash = (text: string): string =>
   createHash("sha256").update(text).digest("hex").slice(0, 16);
