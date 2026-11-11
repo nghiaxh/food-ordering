@@ -517,21 +517,30 @@ server/
       auth/      routes.ts  service.ts  schema.ts
       menu/      routes.ts  service.ts   # GET /api/foods, /api/categories (public)
       review/    routes.ts  service.ts  schema.ts
-      user/      routes.ts  service.ts  schema.ts   # địa chỉ đã lưu
+      profile/   routes.ts  service.ts  schema.ts   # địa chỉ đã lưu
       cart/      routes.ts  service.ts  schema.ts
       order/     routes.ts  service.ts  schema.ts  transitions.ts
+      payment/   routes.ts  service.ts
       pricing/   service.ts  engine.ts               # nơi duy nhất tính tiền và khuyến mãi
       notification/ routes.ts  service.ts
       chatbot/   routes.ts  service.ts  select.ts  criteria.ts  filters.ts  prompts.ts  retrieval.ts  ingest.ts  documentParser.ts
-    admin/                            # module phục vụ quản trị (import service từ user/<domain>)
-      routes.ts  service.ts  schema.ts  report.ts   # gồm cả quản lý khuyến mãi, khách, AI, upload
+    admin/                            # module phục vụ quản trị
+      menu/      routes.ts  service.ts  schema.ts
+      order/     routes.ts  service.ts  schema.ts
+      customer/  routes.ts  service.ts  schema.ts
+      promotion/ routes.ts  service.ts  schema.ts
+      chatbot/   routes.ts  service.ts  schema.ts
+      payment/   routes.ts  service.ts
+      report/    routes.ts  service.ts
+      upload/    routes.ts  service.ts
+      routes.ts                          # aggregator, apply requireRole 1 lần
     app.ts  server.ts
   tests/                 # Vitest, chạy không cần DB
 
 client/src/
   main.ts  App.vue(router)  index.css  shared/(api/http, api/message, types, utils, stores)  composables/
-  user/  (auth, cart, menu, order, review, notification, chatbot, user — mỗi module api.ts/store.ts/components/pages)
-  admin/ (menu, order, customers, promotion, chatbot, report — api.ts/pages + shell UI dùng chung)
+  user/  (auth, cart, menu, order, payment, profile, review, notification, chatbot — mỗi module api.ts/store.ts/components/pages)
+  admin/ (menu, order, payment, customer, promotion, chatbot, report, dashboard — api.ts/pages + shell UI dùng chung)
   router/index.ts  layouts/DefaultLayout.vue  layouts/AdminLayout.vue  components/
 ```
 
