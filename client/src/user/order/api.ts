@@ -16,9 +16,6 @@ export const getMyOrders = (signal?: AbortSignal) =>
 /** Chi don con cho xac nhan moi huy duoc; server tra loi neu don da vao che bien. */
 export const cancelOrder = (id: number) => http.patch<Order>(`/orders/${id}/cancel`).then((r) => r.data)
 
-/** Thanh toan gia lap: khach tu xac nhan da tra. */
-export const payOrder = (id: number) => http.patch<Order>(`/orders/${id}/pay`).then((r) => r.data)
-
 export interface AddressPayload {
   label?: string
   receiverName: string

@@ -1,3 +1,4 @@
+// Báo giá duy nhất cho giỏ và checkout: debounce, abort request cũ, giữ giá cũ khi chờ.
 import { ref, watch, type Ref } from 'vue'
 import { quoteCart } from '@/user/cart/api'
 import type { CartItem, CartQuote } from '@/shared/types'

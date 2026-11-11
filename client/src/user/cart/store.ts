@@ -1,3 +1,4 @@
+// Giỏ hàng theo tài khoản: thêm món theo thứ tự request, thay dòng tạm bằng CartItem server trả.
 import { defineStore } from 'pinia'
 import type { CartItem, Food } from '@/shared/types'
 import { addCartItem, clearCart, getCart, removeCartItem, setCartItemQuantity } from '@/user/cart/api'

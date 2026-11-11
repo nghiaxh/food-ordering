@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { NButton, NInput, NIcon } from 'naive-ui'
 import { CloudUploadOutline } from '@vicons/ionicons5'
-import { adminUploadImage } from '@/admin/api'
+import { adminUploadImage } from '@/admin/menu/api'
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
 
@@ -10,7 +10,7 @@ interface Props {
   value?: string
   label?: string
 }
-const props = withDefaults(defineProps<Props>(), { label: 'URL Ảnh', value: '' })
+const props = withDefaults(defineProps<Props>(), { label: 'URL ß║ónh', value: '' })
 const emit = defineEmits<{ 'update:value': [value: string] }>()
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -21,7 +21,7 @@ const onFile = async (event: Event) => {
   const file = input.files?.[0]
   if (!file) return
   if (file.size > 2 * 1024 * 1024) {
-    message.error('Ảnh vượt quá 2 MB')
+    message.error('ß║ónh v╞░ß╗út qu├í 2 MB')
     input.value = ''
     return
   }
@@ -29,9 +29,9 @@ const onFile = async (event: Event) => {
     uploading.value = true
     const { url } = await adminUploadImage(file)
     emit('update:value', url)
-    message.success('Đã tải ảnh lên')
+    message.success('─É├ú tß║úi ß║únh l├¬n')
   } catch (error) {
-    message.error(apiErrorMessage(error) ?? 'Tải ảnh thất bại')
+    message.error(apiErrorMessage(error) ?? 'Tß║úi ß║únh thß║Ñt bß║íi')
   } finally {
     uploading.value = false
     input.value = ''
@@ -48,14 +48,14 @@ const onFile = async (event: Event) => {
       </div>
       <NButton :loading="uploading" @click="fileInput?.click()">
         <template #icon><NIcon :size="16"><CloudUploadOutline /></NIcon></template>
-        Chọn ảnh
+        Chß╗ìn ß║únh
       </NButton>
       <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onFile" />
     </div>
     <div class="mt-2">
-      <img v-if="props.value" :src="props.value" alt="Xem trước ảnh" class="aspect-[4/3] w-full max-w-xs rounded-xl border border-stone-100 object-cover" />
+      <img v-if="props.value" :src="props.value" alt="Xem tr╞░ß╗¢c ß║únh" class="aspect-[4/3] w-full max-w-xs rounded-xl border border-stone-100 object-cover" />
       <div v-else class="grid aspect-[4/3] w-full max-w-xs place-items-center rounded-xl border border-dashed border-stone-200 text-stone-300">
-        <span class="text-xs">Chưa có ảnh</span>
+        <span class="text-xs">Ch╞░a c├│ ß║únh</span>
       </div>
     </div>
   </div>
