@@ -119,8 +119,7 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   (`ORDER_STATUS_LABEL`, `order` module, thông báo "đang được vận chuyển"); nút admin
   `CONFIRMED → PREPARING` là "Giao hàng", nút **Đặt lại** ở `/orders` chỉ hiện khi `COMPLETED`.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
-  trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết và cách kiểm
-  từng mục nằm trong `TEST.md`.
+  trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết kiểm thử xem README và CI.
 - **Types client phải đồng bộ với DTO server** (thủ công). Sửa DTO nhớ cập nhật
   `client/src/shared/types/index.ts` và file `api.ts` của module tương ứng.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
@@ -204,8 +203,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   `server/src`, `server/tests`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `*.css`).
   Chuỗi hiển thị cho người dùng, prompt AI, dữ liệu seed và thông báo lỗi vẫn viết có dấu.
 - Khi đổi endpoint, DTO, quy tắc domain hoặc luồng nghiệp vụ, cập nhật đồng bộ
-  `ARCHITECTURE.md`, `TEST.md` và tài liệu liên quan. Khi đổi quy ước phân nhánh
-  hoặc commit, cập nhật đồng bộ `BRANCHING.md`.
+  `AGENTS.md` và tài liệu liên quan. Khi đổi quy ước phân nhánh hoặc commit,
+  cập nhật đồng bộ `AGENTS.md`.
 
 ## Phân nhánh và Git
 
@@ -213,7 +212,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Luôn đồng bộ trước khi tách branch: `git checkout main` rồi `git pull origin main`.
 - Mọi thay đổi tách từ `main` thành branch riêng: `feat/<ten>`, `fix/<ten>`,
   `docs/<ten>`, `refactor/<ten>`, `test/<ten>`. Không dùng `dev` hay `draft`.
-- Mở PR ngược về `main`, merge bằng squash merge để lịch sử gọn. Chi tiết xem `BRANCHING.md`.
+- Mở PR ngược về `main`, merge bằng squash merge để lịch sử gọn. Chi tiết xem mục này.
 - Commit theo Conventional Commits, dùng tiếng Anh: `<type>[optional scope]: <description>`,
   lowercase, imperative, no period. Một commit một mục đích, một commit một loại thay đổi.
 - Không commit, push hay rewrite history trừ khi user yêu cầu rõ ràng.
