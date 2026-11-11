@@ -1,5 +1,3 @@
-// Quan ly tai khoan khach hang: tao, sua, khoa, xoa khi chua co don hang.
-
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -24,6 +22,7 @@ import { env } from "../../config/env.js";
 
 // ----- Khach hang (UC13) -----
 
+// Quan ly tai khoan khach hang: tao, sua, khoa, xoa khi chua co don hang.
 export const listUsers = async () => {
   const userList = await db.query.users.findMany({ orderBy: [asc(users.id)] });
   return userList.map(toUserJson);

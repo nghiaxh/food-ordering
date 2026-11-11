@@ -1,11 +1,10 @@
-// Bao cao doanh thu cho quan tri + xuat Excel bang write-excel-file.
-
 import { and, asc, gte, lte } from "drizzle-orm";
 import writeExcelFile from "write-excel-file/node";
 import { orders } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { businessTimeParts, BUSINESS_UTC_OFFSET } from "../../lib/businessTime.js";
 
+// Bao cao doanh thu cho quan tri + xuat Excel bang write-excel-file.
 export interface ReportRange {
   from: Date;
   to: Date;

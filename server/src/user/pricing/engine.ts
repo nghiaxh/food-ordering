@@ -1,14 +1,9 @@
-// Tinh tien o server — nguon duy nhat ve gia va khuyen mai tu dong. Client khong tu
-// nhan phan tram hay tru khuyen mai; don tao ra dung dung ham nay nen so khach thay va
-// so ghi vao don khong the lech nhau.
-//
-// Luat: moi dong chon MOT khuyen mai tu dong tot nhat dang chay (GLOBAL/CATEGORY/FOOD),
-// hoa so tien giam thi xet priority. Khung gio qua nua dem duoc hieu start > end.
-
 import { createHash } from "node:crypto";
 import type { Food, Promotion } from "../../db/schema.js";
 import { businessTimeParts } from "../../lib/businessTime.js";
 
+// Tinh tien o server: nguon duy nhat ve gia va khuyen mai tu dong.
+// Moi dong chon MOT khuyen mai tu dong tot nhat; khung gio qua nua dem hieu start > end.
 export interface PricingInputItem {
   foodId: number | null;
   quantity: number;

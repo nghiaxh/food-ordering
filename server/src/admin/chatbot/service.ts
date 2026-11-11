@@ -1,5 +1,3 @@
-// Cau hinh AI, lich su hoi thoai va tai lieu chatbot danh cho quan tri.
-
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -24,6 +22,7 @@ import { env } from "../../config/env.js";
 
 // ----- Cau hinh AI / lich su hoi thoai -----
 
+// Cau hinh AI, lich su hoi thoai va tai lieu chatbot danh cho quan tri.
 export const listAiSettings = async () => {
   const rows = await db.query.aiSetting.findMany({ orderBy: [asc(aiSetting.settingKey)] });
   return rows.map((r) => ({ settingKey: r.settingKey, settingValue: r.settingValue }));

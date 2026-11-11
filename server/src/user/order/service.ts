@@ -1,6 +1,3 @@
-// Nghiep vu don hang: tao don (gia tu DB), vong doi trang thai mot chieu, thanh toan
-// gia lap COD/QR, va cac entry point cho quan tri.
-
 import { desc, eq } from "drizzle-orm";
 import {
   foods,
@@ -28,6 +25,7 @@ export { canEditItems, isValidTransition, ORDER_STATUS_LABEL, parseStatus };
 
 type CreateOrderRequest = z.infer<typeof createOrderSchema>;
 
+// Nghiep vu don hang: tao don (gia tu DB), vong doi trang thai mot chieu, thanh toan gia lap COD/QR.
 export const ORDER_WITH = {
   items: { with: { food: { with: { category: true } } } },
   user: true,

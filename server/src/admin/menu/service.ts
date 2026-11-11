@@ -1,4 +1,3 @@
-// Quan ly thuc don: tao, sua, xoa mon va danh muc; chan xoa mon da co trong don.
 import { and, asc, count, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../lib/db.js";
 import { categories, cartItems, foods, orderItems } from "../../db/schema.js";
@@ -8,6 +7,7 @@ import { toCategoryJson, toFoodJson } from "../../lib/serializers.js";
 import { decorateFoods } from "../../user/pricing/service.js";
 
 
+// Quan ly thuc don: tao, sua, xoa mon va danh muc; chan xoa mon da co trong don.
 export async function createCategory(req: { name: string; slug?: string; imageUrl?: string; description?: string }) {
   const [created] = await db
     .insert(categories)
