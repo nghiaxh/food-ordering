@@ -6,20 +6,20 @@ import LoginPage from '@/user/auth/pages/LoginPage.vue'
 import RegisterPage from '@/user/auth/pages/RegisterPage.vue'
 import CheckoutPage from '@/user/order/pages/CheckoutPage.vue'
 import OrdersPage from '@/user/order/pages/OrdersPage.vue'
-import ProfilePage from '@/user/user/pages/ProfilePage.vue'
+import ProfilePage from '@/user/profile/pages/ProfilePage.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
-import AdminDashboardPage from '@/admin/pages/AdminDashboardPage.vue'
-import AdminFoodsPage from '@/admin/pages/AdminFoodsPage.vue'
-import AdminCategoriesPage from '@/admin/pages/AdminCategoriesPage.vue'
-import AdminOrdersPage from '@/admin/pages/AdminOrdersPage.vue'
-import AdminCustomersPage from '@/admin/pages/AdminCustomersPage.vue'
-import AdminPromotionsPage from '@/admin/pages/AdminPromotionsPage.vue'
-import AdminReportsPage from '@/admin/pages/AdminReportsPage.vue'
-import AdminChatbotPage from '@/admin/pages/AdminChatbotPage.vue'
+import AdminDashboardPage from '@/admin/dashboard/pages/AdminDashboardPage.vue'
+import AdminFoodsPage from '@/admin/menu/pages/AdminFoodsPage.vue'
+import AdminCategoriesPage from '@/admin/menu/pages/AdminCategoriesPage.vue'
+import AdminOrdersPage from '@/admin/order/pages/AdminOrdersPage.vue'
+import AdminCustomersPage from '@/admin/customer/pages/AdminCustomersPage.vue'
+import AdminPromotionsPage from '@/admin/promotion/pages/AdminPromotionsPage.vue'
+import AdminReportsPage from '@/admin/report/pages/AdminReportsPage.vue'
+import AdminChatbotPage from '@/admin/chatbot/pages/AdminChatbotPage.vue'
 import { useAuthStore } from '@/user/auth/store'
 
 /**
- * Route guard chi la UX — quyen that van do server kiem tra o /api/admin/** va
+ * Route guard chi la UX ΓÇö quyen that van do server kiem tra o /api/admin/** va
  * /api/cart/**. Admin khong dung luong khach: bi day ve /admin.
  */
 const routes = [

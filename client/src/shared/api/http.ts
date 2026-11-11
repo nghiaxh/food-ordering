@@ -1,3 +1,4 @@
+// HTTP client: gắn Bearer token từ localStorage/sessionStorage, xử lý 401 toàn cục.
 import axios from 'axios'
 
 // Moi request di qua lop HTTP nay de viec gan token va xu ly 401 nhat quan.
