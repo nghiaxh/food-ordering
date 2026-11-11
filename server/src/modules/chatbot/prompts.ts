@@ -1,7 +1,7 @@
-// Hằng số prompt của chatbot tư vấn món ăn, do dự án tự thiết kế theo nghiệp vụ đặt món.
-// Không sao chép prompt của bất kỳ repo tham khảo nào; các kho trị giá nằm trong chính prompt.
+// Hang so prompt cua chatbot tu van mon an, do du an tu thiet ke theo nghiep vu dat mon.
+// Khong sao chep prompt cua bat ky repo tham khao nao; cac kho tri gia nam trong chinh prompt.
 
-/** Prompt trích tiêu chí: đọc câu của khách, trả về JSON tiêu chí lọc món. */
+/** Prompt trich tieu chi: doc cau cua khach, tra ve JSON tieu chi loc mon. */
 export const EXTRACT_PROMPT = `Bạn là bộ phân tích yêu cầu của chatbot tư vấn món ăn cho một nhà hàng.
 Nhiệm vụ DUY NHẤT: đọc câu của khách và trả về JSON tiêu chí lọc món. Không giải thích, không tư vấn.
 
@@ -31,7 +31,7 @@ Danh mục hiện có: %s
 Chỉ trả về JSON hợp lệ.
 `;
 
-/** Prompt viết câu trả lời: chỉ được nhắc tới món do server lọc, không tự bịa. */
+/** Prompt viet cau tra loi: chi duoc nhac toi mon do server loc, khong tu bia. */
 export const ANSWER_PROMPT = `Bạn là Chatbot tư vấn món ăn của nhà hàng. Trả lời bằng tiếng Việt, thân thiện, ngắn gọn.
 
 QUY TẮC BẮT BUỘC:

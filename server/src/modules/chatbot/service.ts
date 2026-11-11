@@ -1,6 +1,6 @@
-// Luồng chatbot tư vấn món: hai lượt gọi AI, bốn bước xử lý chống AI bịa món/giá.
-// Thẻ món trả về client lấy ID/giá từ DB, không từ text AI. Chỉ khách đã đăng nhập
-// mới lưu lịch sử hội thoại; khách vãng lai chat được nhờ history/lastFoodIds client gửi kèm.
+// Luong chatbot tu van mon: hai luot goi AI, bon buoc xu ly chong AI bia mon/gia.
+// The mon tra ve client lay ID/gia tu DB, khong tu text AI. Chi khach da dang nhap
+// moi luu lich su hoi thoai; khach vang lai chat duoc nho history/lastFoodIds client gui kem.
 
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -45,7 +45,7 @@ const QR_GUIDE = ["Gợi ý món cho 2 người"];
 const QR_DECLINE = ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?"];
 const QR_FOLLOWUP = ["1 người", "2 người", "4 người"];
 
-/** Câu hỏi gốc bị hoãn khi bot hỏi "mấy người?" để ghép với câu trả lời ngắn của khách. */
+/** Cau hoi goc bi hoan khi bot hoi "may nguoi?" de ghep voi cau tra loi ngan cua khach. */
 const pendingFollowUp = new Map<string, { originalMessage: string; expiresAtMs: number }>();
 const FOLLOW_UP_TTL_MS = 10 * 60 * 1000;
 
@@ -100,7 +100,7 @@ const extraRules = async (): Promise<string> => {
 };
 
 // ---------------------------------------------------------------------------
-// Intent + nhánh trả lời
+// Intent + nhanh tra loi
 // ---------------------------------------------------------------------------
 
 const isOrderGuideQuestion = (p: string): boolean =>
@@ -147,7 +147,7 @@ const isWaitingFollowUpAnswer = (message: string): boolean => {
   return parsePeople(trimmed) !== null || parseBudget(trimmed) !== null;
 };
 
-/** Gộp câu trả lời gọn ("2", "200k") với câu hỏi gốc đang chờ; không gộp nếu khách đổi chủ đề. */
+/** Gop cau tra loi gon ("2", "200k") voi cau hoi goc dang cho; khong gop neu khach doi chu de. */
 const resolveFollowUpAnswer = (sessionId: string, message: string): { message: string; continued: boolean } => {
   prunePendingFollowUp();
   const pending = pendingFollowUp.get(sessionId);
@@ -165,7 +165,7 @@ const resolveFollowUpAnswer = (sessionId: string, message: string): { message: s
   return { message: `${pending.originalMessage} ${answer}`, continued: true };
 };
 
-/** Giải quyết đại từ tham chiếu: ghép tên các món vừa gợi ý vào để AI trích tiêu chí chính xác hơn. */
+/** Giai quyet dai tu tham chieu: ghep ten cac mon vua goi y vao de AI trich tieu chi chinh xac hon. */
 const enrichWithLastPicked = (message: string, lastFoodIds: number[] | undefined | null, menu: FoodWithCategory[]): string => {
   if (!isFollowUp(message) || !lastFoodIds?.length) return message;
   const names = menu.filter((f) => lastFoodIds.includes(f.id)).map((f) => f.name);
@@ -173,7 +173,7 @@ const enrichWithLastPicked = (message: string, lastFoodIds: number[] | undefined
   return `Dựa trên các món vừa gợi ý: ${names.join(", ")}. ${message}`;
 };
 
-/** Hỏi follow-up từng bước cho câu hỏi quá chung; null nếu nên gợi ý ngay. */
+/** Hoi follow-up tung buoc cho cau hoi qua chung; null neu nen goi y ngay. */
 const followUpQuestion = (message: string, filters: Filters, menu: FoodWithCategory[]): string | null => {
   const p = plain(message);
   if (p.includes("tuy ban") || p.includes("goi y luon") || p.includes("cu") || p.includes("ngon la duoc")) return null;
@@ -186,7 +186,7 @@ const followUpQuestion = (message: string, filters: Filters, menu: FoodWithCateg
   return "Bạn đang muốn ăn cho mấy người? (Ví dụ: 2 người)";
 };
 
-/** ID các món được dùng làm ngữ cảnh cho lượt này, hoặc null nếu phải tìm trên toàn thực đơn. */
+/** ID cac mon duoc dung lam ngu canh cho luot nay, hoac null neu phai tim tren toan thuc don. */
 const contextIds = (
   message: string,
   lastFoodIds: number[] | undefined | null,
@@ -212,7 +212,7 @@ const hasNewTopicByCode = (question: string, categoryNamesPlain: string[]): bool
   return categoryNamesPlain.some((name) => p.includes(name));
 };
 
-/** Ghép ràng buộc khách nêu vắn tắt trong câu trả lời ("2", "200k") vào tiêu chí AI trích. */
+/** Ghep rang buoc khach neu van tat trong cau tra loi ("2", "200k") vao tieu chi AI trich. */
 const withAnsweredConstraints = (c: NormalizedCriteria, message: string): NormalizedCriteria => {
   const bare = BARE_NUMBER.exec(message.trim());
   const barePeople = bare?.[1] ? Number(bare[1]) : null;
@@ -231,10 +231,10 @@ const requestHistory = (history: string[] | undefined | null): string[] => {
 };
 
 // ---------------------------------------------------------------------------
-// Gọi AI + kiểm tra + chọn món
+// Goi AI + kiem tra + chon mon
 // ---------------------------------------------------------------------------
 
-/** Trích tiêu chí bằng AI; lỗi khóa → AiKeyRejectedException (chat() đổi thành 503); lỗi khác → null. */
+/** Trich tieu chi bang AI; loi khoa → AiKeyRejectedException (chat() doi thanh 503); loi khac → null. */
 const extractCriteria = async (message: string, history: string[], categoryNames: string): Promise<NormalizedCriteria | null> => {
   const previous = history.length ? history.join("\n") : "(không có)";
   const prompt = EXTRACT_PROMPT.replace("%s", previous).replace("%s", categoryNames);
@@ -254,7 +254,7 @@ const extractCriteria = async (message: string, history: string[], categoryNames
   }
 };
 
-/** Sinh câu trả lời từ danh sách món đã lọc; lỗi khóa → AiKeyRejectedException; lỗi khác → null. */
+/** Sinh cau tra loi tu danh sach mon da loc; loi khoa → AiKeyRejectedException; loi khac → null. */
 const generateReply = async (
   question: string,
   criteria: NormalizedCriteria,
@@ -316,7 +316,7 @@ const requireConfigured = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Luồng chính
+// Luong chinh
 // ---------------------------------------------------------------------------
 
 export const chat = async (
@@ -339,7 +339,7 @@ export const chat = async (
   const p = plain(classifyMessage);
   const maxSugg = await maxSuggestions();
 
-  // Thông tin quán: trả lời từ tài liệu admin nhập, không gọi AI để tránh bịa.
+  // Thong tin quan: tra loi tu tai lieu admin nhap, khong goi AI de tranh bia.
   if (isRestaurantInfoQuestion(p)) {
     const chunks = await searchChunks(input.message, 5);
     let reply: string;
@@ -363,7 +363,7 @@ export const chat = async (
     return { reply, foods: [], intent: "RESTAURANT_INFO", citations, quickReplies: QR_INFO };
   }
 
-  // Hướng dẫn đặt hàng: quy trình cố định bằng code, không gọi AI.
+  // Huong dan dat hang: quy trinh co dinh bang code, khong goi AI.
   if (isOrderGuideQuestion(p)) {
     const reply = guideReply();
     if (user) await saveMessage(user.id, sessionId, "BOT", reply);
@@ -388,7 +388,7 @@ export const chat = async (
     return { reply, foods: [], intent: "OUT_OF_SCOPE", citations: null, quickReplies: QR_DECLINE };
   }
 
-  // "Món khác" (khách bấm nút): do code quyết định, không gọi AI.
+  // "Mon khac" (khach bam nut): do code quyet dinh, khong goi AI.
   if (isDifferentRequest(input.message)) {
     const exclude = input.lastFoodIds ?? [];
     const fresh = menu
@@ -403,7 +403,7 @@ export const chat = async (
     return { reply, foods: fresh.map(toCard), intent: "FOOD", citations: null, quickReplies: fresh.length ? QR_FOOD : QR_FOOD_EMPTY };
   }
 
-  // FOOD: hỏi follow-up từng bước cho câu hỏi quá chung của người mới.
+  // FOOD: hoi follow-up tung buoc cho cau hoi qua chung cua nguoi moi.
   const earlyFilters = readFilters(classifyMessage);
   const followUp = followUpQuestion(classifyMessage, earlyFilters, menu);
   if (followUp !== null) {

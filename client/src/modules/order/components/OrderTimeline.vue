@@ -6,9 +6,9 @@ import type { OrderStatus } from '@/shared/types'
 import { ORDER_FLOW, ORDER_STATUS_LABEL } from '@/shared/utils/orders'
 
 /**
- * Tiến trình đơn tự vẽ: chỉ đánh dấu bước hiện tại, không bịa mốc giờ; đơn đã hủy thì
- * không vẽ dãy bước. Đường nối chạy từ tâm bước đầu tới tâm bước cuối.
- * Tính ở script (isCompleted boolean) để template không bị narrow type lẫn lộn.
+ * Tien trinh don tu ve: chi danh dau buoc hien tai, khong bia moc gio; don da huy thi
+ * khong ve day buoc. Duong noi chay tu tam buoc dau toi tam buoc cuoi.
+ * Tinh o script (isCompleted boolean) de template khong bi narrow type lan lon.
  */
 const props = defineProps<{ status: OrderStatus }>()
 const isCompleted = computed(() => props.status === 'COMPLETED')

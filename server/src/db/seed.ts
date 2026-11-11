@@ -1,6 +1,6 @@
-// Seed dữ liệu demo bằng Drizzle ORM.
-// Chỉ chạy khi bảng users còn trống để tránh nhân đôi dữ liệu;
-// muốn nạp lại thì xoá volume db_data rồi chạy lại compose hoặc migrate lại.
+// Seed du lieu demo bang Drizzle ORM.
+// Chi chay khi bang users con trong de tranh nhan doi du lieu;
+// muon nap lai thi xoa volume db_data roi chay lai compose hoac migrate lai.
 
 import { count } from "drizzle-orm";
 import {
@@ -36,7 +36,7 @@ async function main() {
   }
 
   await db.transaction(async (tx) => {
-    // Mật khẩu được băm trước vì không lưu plain text, kể cả với tài khoản demo.
+    // Mat khau duoc bam truoc vi khong luu plain text, ke ca voi tai khoan demo.
     const createUser = async (
       email: string,
       pass: string,
@@ -164,7 +164,7 @@ async function main() {
     const bunChaChay = await createFood("Bún chả chay", chay!, "Chả chay từ đậu hũ, nước chấm chua ngọt",
       "bún, đậu hũ, nấm mèo, nước mắm chay", 55000, 1, 0, "chay", "gluten,đậu nành", "bun-cha-chay");
 
-    // Khuyến mãi
+    // Khuyen mai
     const promoStart = daysAgo(1);
     const promoEnd = new Date(Date.now() + 183 * 24 * 3600 * 1000);
 
@@ -193,7 +193,7 @@ async function main() {
       },
     ]);
 
-    // 15 đơn rải trên 8 khách
+    // 15 don rai tren 8 khach
     type Line = { food: FoodRef; qty: number };
     const L = (food: FoodRef, qty: number): Line => ({ food, qty });
     const createOrder = async (
@@ -242,7 +242,7 @@ async function main() {
     await createOrder(linh, "COMPLETED", "QR", "PAID", linh.address, null, daysAgo(9), [L(saladCaesar, 1), L(saladGa, 1), L(caPhe, 1)]);
     await createOrder(son, "PENDING", "QR", "UNPAID", son.address, null, minutesAgo(10), [L(burger, 1), L(nuocCam, 1)]);
 
-    // Đánh giá
+    // Danh gia
     await tx.insert(reviews).values([
       { userId: tuan.id, foodId: pho.id, rating: 5, comment: "Nước dùng ngon, đậm đà." },
       { userId: tuan.id, foodId: bunCha.id, rating: 4, comment: "Nướng than rất thơm, chấm nước mắm vừa ăn." },
@@ -258,7 +258,7 @@ async function main() {
       { userId: linh.id, foodId: saladGa.id, rating: 5, comment: "Gà nướng mềm, rau tươi." },
     ]);
 
-    // Thông báo
+    // Thong bao
     await tx.insert(notifications).values([
       { userId: tuan.id, orderId: o1.id, content: "Đơn hàng của bạn đã được giao. Cảm ơn bạn đã ủng hộ!", read: true, createdAt: daysAgo(12) },
       { userId: tuan.id, orderId: o6.id, content: "Đơn hàng của bạn đang được vận chuyển.", read: false, createdAt: hoursAgo(3) },
@@ -267,7 +267,7 @@ async function main() {
       { userId: trung.id, orderId: o11.id, content: "Đơn hàng của bạn đã được xác nhận.", read: false, createdAt: hoursAgo(10) },
     ]);
 
-    // Giỏ hàng
+    // Gio hang
     await tx.insert(cartItems).values([
       { userId: tuan.id, foodId: pho.id, quantity: 1 },
       { userId: tuan.id, foodId: traDao.id, quantity: 1 },
@@ -275,14 +275,14 @@ async function main() {
       { userId: linh.id, foodId: banhFlan.id, quantity: 1 },
     ]);
 
-    // Cấu hình AI
+    // Cau hinh AI
     await tx.insert(aiSetting).values([
       { settingKey: "max_suggestions", settingValue: "5" },
       { settingKey: "provider", settingValue: "gemini" },
       { settingKey: "model", settingValue: "gemini-2.0-flash" },
     ]);
 
-    // Tài liệu quán
+    // Tai lieu quan
     const docs = await tx.insert(chatbotKnowledge).values([
       { title: "Giờ mở cửa", category: "HOURS", keywords: "giờ mở cửa, mấy giờ đóng cửa, mở cửa, đóng cửa", content: "Quán mở cửa từ 07:00 đến 22:00 hằng ngày. Sau 21:30 món có thể hết dần, bạn cân nhắc đặt sớm hơn nhé!", enabled: true, status: "READY" },
       { title: "Địa chỉ quán", category: "SHOP", keywords: "địa chỉ, ở đâu, quán ở đâu", content: "Quán ở Cần Thơ (địa chỉ chi tiết xem ở chân trang). Bạn có thể đặt giao hàng tới địa chỉ của bạn.", enabled: true, status: "READY" },
@@ -294,7 +294,7 @@ async function main() {
       { title: "Giỏ hàng đăng nhập", category: "ORDER", keywords: "giỏ hàng, đăng nhập, tài khoản", content: "Giỏ hàng cần đăng nhập, khách vãng lai xem món được nhưng chưa thêm vào giỏ được.", enabled: true, status: "READY" },
     ]).returning();
 
-    // Chunk tài liệu cho tsvector RAG
+    // Chunk tai lieu cho tsvector RAG
     for (const d of docs) {
       if (d.content) {
         await tx.insert(chatbotKnowledgeChunk).values({

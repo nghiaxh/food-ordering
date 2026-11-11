@@ -7,8 +7,8 @@ interface DatabaseError {
 }
 
 /**
- * Handler lỗi cuối cùng: client chỉ nhận `{ message }` tiếng Việt, chi tiết kỹ thuật nằm ở log.
- * Tránh lộ tên bảng/ràng buộc CSDL ra ngoài như khi exception lọt thẳng.
+ * Handler loi cuoi cung: client chi nhan `{ message }` tieng Viet, chi tiet ky thuat nam o log.
+ * Tranh lo ten bang/rang buoc CSDL ra ngoai nhu khi exception lot thang.
  */
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
@@ -16,7 +16,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
-  // Bắt lỗi cơ sở dữ liệu PostgreSQL (qua pg driver/Drizzle)
+  // Bat loi co so du lieu PostgreSQL (qua pg driver/Drizzle)
   if (isDatabaseError(err)) {
     // 23505: unique_violation
     if (err.code === "23505") {
@@ -33,7 +33,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     }
   }
 
-  // Body JSON sai cú pháp do express.json() ném ra.
+  // Body JSON sai cu phap do express.json() nem ra.
   if (isBodyParseError(err)) {
     res.status(400).json({ message: "Dữ liệu gửi lên không hợp lệ." });
     return;

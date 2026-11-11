@@ -20,7 +20,7 @@ import { useUiStore } from '@/shared/stores/uiStore'
 import { message } from '@/shared/api/message'
 
 /**
- * Widget chatbot nổi ở mọi trang khách với một session duy nhất lưu qua localStorage.
+ * Widget chatbot noi o moi trang khach voi mot session duy nhat luu qua localStorage.
  */
 const route = useRoute()
 const bottomBar = useHasBottomBar()
@@ -35,7 +35,7 @@ const {
 } = useChatConversation()
 
 const listRef = ref<HTMLElement | null>(null)
-// Tự cuộn xuống cuối mỗi khi có tin mới, bot đang trả lời hoặc draft đổi.
+// Tu cuon xuong cuoi moi khi co tin moi, bot dang tra loi hoac draft doi.
 watch(
   [messages, loading, () => draft.value],
   () => {
@@ -48,7 +48,7 @@ const isAdmin = computed(() => route.path.startsWith('/admin') || auth.user?.rol
 const canAdd = computed(() => auth.user !== null && auth.user.role !== 'ADMIN')
 
 const showBody = computed(() => !unavailable.value || messages.value.some((m) => m.sender === 'USER'))
-// Điểm vào chỉ hiện khi hội thoại mới tinh (hai bubble lời chào); biến mất sau tin đầu tiên.
+// Diem vao chi hien khi hoi thoai moi tinh (hai bubble loi chao); bien mat sau tin dau tien.
 const showStarters = computed(
   () => !unavailable.value && !loading.value && messages.value.length === 2 && messages.value.every((m) => m.sender === 'BOT'),
 )

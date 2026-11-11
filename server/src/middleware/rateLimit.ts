@@ -1,8 +1,8 @@
 import { rateLimit } from "express-rate-limit";
 
 /**
- * Giới hạn lượt gọi chatbot: mỗi IP tối đa 30 câu / 5 phút. Đủ cho demo và tránh chi phí
- * AI gọi qua mạng khi bị quét tự động; status/banner không tính vào giới hạn.
+ * Gioi han luot goi chatbot: moi IP toi da 30 cau / 5 phut. Du cho demo va tranh chi phi
+ * AI goi qua mang khi bi quet tu dong; status/banner khong tinh vao gioi han.
  */
 export const chatRateLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,

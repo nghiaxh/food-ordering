@@ -1,23 +1,23 @@
-// Múi giờ nghiệp vụ của quán là giờ Việt Nam. Máy chủ (dev, docker, CI) chạy UTC nên
-// Date.getHours()/getDay()/toISOString() đọc sai ngày và khung giờ — mọi chỗ cần "ngày/thứ/giờ"
-// lịch của khách hàng phải đi qua helper này, không đọc trực tiếp Date.
+// Mui gio nghiep vu cua quan la gio Viet Nam. May chu (dev, docker, CI) chay UTC nen
+// Date.getHours()/getDay()/toISOString() doc sai ngay va khung gio — moi cho can "ngay/thu/gio"
+// lich cua khach hang phai di qua helper nay, khong doc truc tiep Date.
 export const BUSINESS_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
-/** Offset cố định +07:00 — Việt Nam không có DST nên không cần
- *  xử lý theo mùa. Dùng cho các mốc ISO "YYYY-MM-DDT..." cần nghĩa theo ngày VN. */
+/** Offset co dinh +07:00 — Viet Nam khong co DST nen khong can
+ *  xu ly theo mua. Dung cho cac moc ISO "YYYY-MM-DDT..." can nghia theo ngay VN. */
 export const BUSINESS_UTC_OFFSET = "+07:00";
 
 export interface BusinessTimeParts {
-  /** Ngày lịch VN dạng YYYY-MM-DD — khóa nhóm "Món may mắn mỗi ngày" và doanh thu theo ngày. */
+  /** Ngay lich VN dang YYYY-MM-DD — khoa nhom "Mon may man moi ngay" va doanh thu theo ngay. */
   dayKey: string;
-  /** Thứ viết hoa 3 ký tự (SUN..SAT), khớp `daysOfWeek` trong khuyến mãi. */
+  /** Thu viet hoa 3 ky tu (SUN..SAT), khop `daysOfWeek` trong khuyen mai. */
   weekday: string;
-  /** Số phút tính từ 00:00 giờ VN — so với `startTime`/`endTime`. */
+  /** So phut tinh tu 00:00 gio VN — so voi `startTime`/`endTime`. */
   minutes: number;
 }
 
-// Tách formatter ra module-level: isValid chạy trong vòng lặp theo từng dòng giỏ hàng,
-// không dựng Intl.DateTimeFormat mỗi lần gọi.
+// Tach formatter ra module-level: isValid chay trong vong lap theo tung dong gio hang,
+// khong dung Intl.DateTimeFormat moi lan goi.
 const partsFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: BUSINESS_TIME_ZONE,
   year: "numeric",
@@ -29,7 +29,7 @@ const partsFormatter = new Intl.DateTimeFormat("en-US", {
   hourCycle: "h23",
 });
 
-/** Đọc `now` theo giờ Việt Nam: ngày lịch, thứ và phút trong ngày (không phụ thuộc TZ máy chủ). */
+/** Doc `now` theo gio Viet Nam: ngay lich, thu va phut trong ngay (khong phu thuoc TZ may chu). */
 export const businessTimeParts = (now: Date): BusinessTimeParts => {
   const parts = Object.fromEntries(partsFormatter.formatToParts(now).map((p) => [p.type, p.value]));
   const year = parts.year ?? "1970";

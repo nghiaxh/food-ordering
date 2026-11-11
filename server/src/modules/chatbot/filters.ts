@@ -1,5 +1,5 @@
-// Ràng buộc đọc chắc chắn từ câu hỏi (không cay, chay, loại trừ hải sản, ngân sách,
-// số người) — dùng cho cả lọc món lẫn câu tóm tắt trong câu trả lời dự phòng.
+// Rang buoc doc chac chan tu cau hoi (khong cay, chay, loai tru hai san, ngan sach,
+// so nguoi) — dung cho ca loc mon lan cau tom tat trong cau tra loi du phong.
 
 import { plain } from "../../lib/text-normalizer.js";
 
@@ -23,19 +23,19 @@ const STOP_WORDS = new Set([
   "chon", "đặt", "dat", "tôi", "toi", "cay", "thức", "thuc", "loại", "loai",
 ]);
 
-/** Câu hỏi có chứa từ này thì mới coi là hỏi về món ăn; hỏi ngoài lề thì không gợi ý món. */
+/** Cau hoi co chua tu nay thi moi coi la hoi ve mon an; hoi ngoai le thi khong goi y mon. */
 const FOOD_QUESTION_WORDS = ["mon", "thuc don", "menu", "goi y", "quan", "dat", "food", "dishes"];
 
 export const isFoodQuestion = (plainText: string): boolean =>
   FOOD_QUESTION_WORDS.some((w) => plainText.includes(w));
 
-/** Số tiền trong câu hỏi: "100.000", "150k", "2 triệu", "50.000 đồng". */
+/** So tien trong cau hoi: "100.000", "150k", "2 trieu", "50.000 dong". */
 const MONEY = /(\d+(?:\.\d{3})+)|(?:(\d+)\s*(k|nghìn|nghin|ngan|ngàn|triệu|trieu))|(?:(\d+)\s*(đồng|dong|đ))/gi;
 const PEOPLE = /(\d+)\s*(người|nguoi|people)/i;
-/** Số đứng một mình ("2") — chỉ có nghĩa khi bot vừa hỏi "mấy người?". */
+/** So dung mot minh ("2") — chi co nghia khi bot vua hoi "may nguoi?". */
 export const BARE_NUMBER = /^\s*(\d{1,2})\s*$/;
 
-/** Số người ăn nằm trong câu hỏi, hoặc null nếu khách không nói. */
+/** So nguoi an nam trong cau hoi, hoac null neu khach khong noi. */
 export const parsePeople = (question: string): number | null => {
   const m = PEOPLE.exec(question);
   if (!m) return null;
@@ -43,7 +43,7 @@ export const parsePeople = (question: string): number | null => {
   return people > 0 ? people : null;
 };
 
-/** Ngân sách trong câu hỏi, hoặc null nếu khách không nói. Nhiều mức thì lấy mức cao nhất. */
+/** Ngan sach trong cau hoi, hoac null neu khach khong noi. Nhieu muc thi lay muc cao nhat. */
 export const parseBudget = (question: string): number | null => {
   let best: number | null = null;
   MONEY.lastIndex = 0;
@@ -61,7 +61,7 @@ export const parseBudget = (question: string): number | null => {
   return best;
 };
 
-/** Đọc các ràng buộc trong câu hỏi; so khớp bỏ dấu để "khong cay" ≡ "không cay". */
+/** Doc cac rang buoc trong cau hoi; so khop bo dau de "khong cay" ≡ "khong cay". */
 export const readFilters = (question: string): Filters => {
   const p = plain(question);
   const noSpicy = p.includes("khong cay");
@@ -81,7 +81,7 @@ export const readFilters = (question: string): Filters => {
 const containsPlain = (field: string | null | undefined, word: string): boolean =>
   !!field && plain(field).includes(plain(word));
 
-/** Món có vượt các ràng buộc khách nêu trong câu hỏi không. */
+/** Mon co vuot cac rang buoc khach neu trong cau hoi khong. */
 export const passesFilters = (
   food: { spicyLevel: number; dietaryTags: string | null; allergens: string | null; ingredients: string | null; price: number | { toString(): string } | null },
   filters: Filters,
@@ -103,10 +103,10 @@ export const passesFilters = (
   return true;
 };
 
-/** Từ khoá của câu hỏi sau khi bỏ từ dừng và từ quá ngắn. */
+/** Tu khoa cua cau hoi sau khi bo tu dung va tu qua ngan. */
 export const significantWords = (question: string): string[] =>
   [...new Set(plain(question).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2 && !STOP_WORDS.has(w)))];
 
-/** Số tiền kiểu Việt Nam: 65.000đ. */
+/** So tien kieu Viet Nam: 65.000d. */
 export const vnd = (amount: number): string =>
   `${Math.round(amount).toLocaleString("vi-VN").replace(/,/g, ".")}đ`;

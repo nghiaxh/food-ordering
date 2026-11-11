@@ -14,7 +14,7 @@ import { discountText } from '@/shared/utils/food-tags'
 import { message } from '@/shared/api/message'
 import QuantityStepper from '@/components/QuantityStepper.vue'
 
-/** Chỉ gợi ý nhóm dễ ghép thêm vào bữa, không đẩy món chính trùng với giỏ. */
+/** Chi goi y nhom de ghep them vao bua, khong day mon chinh trung voi gio. */
 const RELATED_CATEGORIES = ['Đồ uống', 'Tráng miệng']
 
 const ui = useUiStore()
@@ -25,7 +25,7 @@ const onClose = () => ui.closeDrawer()
 
 const { quote, quoteLoading, quoteError, quoteStale, retry } = useCartQuote(() => cart.items)
 
-// Món gợi ý lấy một lần khi mở drawer; lọc lại theo giỏ hiện tại để vừa thêm xong là biến mất.
+// Mon goi y lay mot lan khi mo drawer; loc lai theo gio hien tai de vua them xong la bien mat.
 const { data: relatedItems } = useAsyncData((signal) => getFoods(undefined, signal), () => [])
 const suggestions = computed(() => {
   const inCart = new Set(cart.items.map((i) => i.food?.id))
@@ -42,9 +42,9 @@ const suggestions = computed(() => {
 })
 
 /**
- * Xoá thẳng không hỏi lại, nhưng để đường lùi trong 5 giây: khách bấm nhầm vẫn lấy lại
- * được đúng món và đúng số phần. naive-ui message không có action prop nhưng content
- * nhận render function nên dựng nút Hoàn tác trực tiếp trong thông báo.
+ * Xoa thang khong hoi lai, nhung de duong lui trong 5 giay: khach bam nham van lay lai
+ * duoc dung mon va dung so phan. naive-ui message khong co action prop nhung content
+ * nhan render function nen dung nut Hoan tac truc tiep trong thong bao.
  */
 const removeLine = (food: Food, quantity: number) => {
   void cart.remove(food.id)
@@ -89,7 +89,7 @@ const discountTotal = computed(() => quote.value?.discountTotal ?? 0)
     </template>
 
     <template #default>
-      <!-- Nội dung mount khi mở để không gọi báo giá ở mọi trang. -->
+      <!-- Noi dung mount khi mo de khong goi bao gia o moi trang. -->
       <div v-if="!cart.loaded" class="p-5">
         <NSkeleton :repeat="4" height="52px" />
       </div>

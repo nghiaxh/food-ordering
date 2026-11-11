@@ -1,4 +1,4 @@
-// Nghiệp vụ quản trị: tài khoản khách, khuyến mãi, cấu hình AI, lịch sử hội thoại, upload ảnh.
+// Nghiep vu quan tri: tai khoan khach, khuyen mai, cau hinh AI, lich su hoi thoai, upload anh.
 
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
@@ -21,7 +21,7 @@ import { hashPassword } from "../../lib/password.js";
 import { toUserJson } from "../../lib/serializers.js";
 import { env } from "../../config/env.js";
 
-// ----- Khách hàng (UC13) -----
+// ----- Khach hang (UC13) -----
 
 export const listUsers = async () => {
   const userList = await db.query.users.findMany({ orderBy: [asc(users.id)] });
@@ -86,7 +86,7 @@ export const adminUpdateUser = async (
   return toUserJson(updated!);
 };
 
-/** Khóa hoặc xóa tài khoản quản trị sẽ làm mất quyền truy cập hệ thống nên bị chặn. */
+/** Khoa hoac xoa tai khoan quan tri se lam mat quyen truy cap he thong nen bi chan. */
 export const setUserActive = async (id: number, active: boolean) => {
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!user) throw notFound("Không tìm thấy tài khoản");
@@ -130,7 +130,7 @@ export const adminDeleteUser = async (id: number) => {
   });
 };
 
-// ----- Khuyến mãi -----
+// ----- Khuyen mai -----
 
 export const toPromotionJson = (p: {
   id: number;
@@ -265,7 +265,7 @@ export const deletePromotion = async (id: number) => {
   await db.delete(promotions).where(eq(promotions.id, id));
 };
 
-// ----- Cấu hình AI / lịch sử hội thoại -----
+// ----- Cau hinh AI / lich su hoi thoai -----
 
 export const listAiSettings = async () => {
   const rows = await db.query.aiSetting.findMany({ orderBy: [asc(aiSetting.settingKey)] });
@@ -303,9 +303,9 @@ export const chatHistory = async () => {
   }));
 };
 
-// ----- Ảnh món ăn -----
+// ----- Anh mon an -----
 
-/** Trả về phần mở rộng nếu 12 byte đầu khớp chữ ký JPEG, PNG hoặc WEBP. */
+/** Tra ve phan mo rong neu 12 byte dau khop chu ky JPEG, PNG hoac WEBP. */
 const imageExtension = (head: Buffer): string | null => {
   if (head[0] === 0xff && head[1] === 0xd8) return ".jpg";
   if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47) return ".png";

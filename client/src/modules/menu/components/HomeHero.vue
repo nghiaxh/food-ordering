@@ -5,7 +5,7 @@ defineProps<{ onBrowse: () => void; onAsk: () => void }>()
 </script>
 
 <template>
-  <!-- Banner mở đầu thực đơn, trải hết bề ngang vùng cuộn. Chỉ hiện khi chưa có bộ lọc. -->
+  <!-- Banner mo dau thuc don, trai het be ngang vung cuon. Chi hien khi chua co bo loc. -->
   <section class="relative isolate overflow-hidden">
     <img
       src="/images/hero.webp"

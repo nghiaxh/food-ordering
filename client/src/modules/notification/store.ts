@@ -9,8 +9,8 @@ import {
 } from '@/modules/notification/api'
 
 /**
- * Một nguồn dữ liệu thông báo cho cả header (số chưa đọc) và drawer (danh sách).
- * Header và drawer cùng đọc store này nên hai nơi không bao giờ lệch số.
+ * Mot nguon du lieu thong bao cho ca header (so chua doc) va drawer (danh sach).
+ * Header va drawer cung doc store nay nen hai noi khong bao gio lech so.
  */
 export const useNotificationStore = defineStore('notifications', {
   state: () => ({
@@ -26,7 +26,7 @@ export const useNotificationStore = defineStore('notifications', {
       try {
         this.items = await getNotifications()
       } catch {
-        // Lỗi mạng không được làm hỏng header; lần mở sau sẽ thử lại.
+        // Loi mang khong duoc lam hong header; lan mo sau se thu lai.
         this.items = []
       } finally {
         this.loading = false
@@ -38,7 +38,7 @@ export const useNotificationStore = defineStore('notifications', {
         await markNotificationsRead()
         this.items = this.items.map((n) => ({ ...n, read: true }))
       } catch {
-        // Thao tác phụ, để lần tải sau phản ánh trạng thái thật.
+        // Thao tac phu, de lan tai sau phan anh trang thai that.
       }
     },
 
@@ -47,7 +47,7 @@ export const useNotificationStore = defineStore('notifications', {
         await deleteReadNotifications()
         this.items = this.items.filter((n) => !n.read)
       } catch {
-        // Bỏ qua lỗi phụ.
+        // Bo qua loi phu.
       }
     },
 
@@ -56,18 +56,18 @@ export const useNotificationStore = defineStore('notifications', {
         await deleteNotification(id)
         this.items = this.items.filter((n) => n.id !== id)
       } catch {
-        // Bỏ qua lỗi phụ.
+        // Bo qua loi phu.
       }
     },
 
-    /** Đánh dấu đã đọc rồi trả id đơn để nơi gọi tự điều hướng. */
+    /** Danh dau da doc roi tra id don de noi goi tu dieu huong. */
     async open(item: NotificationItem): Promise<number | null> {
       if (!item.read) {
         try {
           await markNotificationRead(item.id)
           this.items = this.items.map((n) => (n.id === item.id ? { ...n, read: true } : n))
         } catch {
-          // Đánh dấu thất bại không chặn việc mở đơn.
+          // Danh dau that bai khong chan viec mo don.
         }
       }
       return item.orderId

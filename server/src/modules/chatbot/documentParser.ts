@@ -1,5 +1,5 @@
-// Tách text từ file admin tải lên: TXT/MD đọc thẳng UTF-8, PDF bằng pdf-parse,
-// DOCX bằng mammoth. Chỉ nhận file không vượt 10 MB (kiểm ở route upload).
+// Tach text tu file admin tai len: TXT/MD doc thang UTF-8, PDF bang pdf-parse,
+// DOCX bang mammoth. Chi nhan file khong vuot 10 MB (kiem o route upload).
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 
@@ -24,7 +24,7 @@ export const parseDocument = async (fileName: string, buffer: Buffer): Promise<s
   throw new Error("Chỉ chấp nhận PDF, DOCX, TXT, MD");
 };
 
-/** Chia văn bản thành các đoạn ~600 ký tự, overlap ~80 ký tự để không vỡ ý. */
+/** Chia van ban thanh cac doan ~600 ky tu, overlap ~80 ky tu de khong vo y. */
 export const chunkText = (text: string): string[] => {
   if (!text?.trim()) return [];
   const t = text.replaceAll(/\s+/g, " ").trim();

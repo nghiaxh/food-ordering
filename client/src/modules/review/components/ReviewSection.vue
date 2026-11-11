@@ -26,12 +26,12 @@ const props = withDefaults(defineProps<Props>(), { reviews: () => [], loading: f
 
 const rating = ref(0)
 const comment = ref('')
-// Đánh giá đang sửa; cùng một biểu mẫu dùng cho tạo mới và cập nhật.
+// Danh gia dang sua; cung mot bieu mau dung cho tao moi va cap nhat.
 const editingId = ref<number | null>(null)
 const deletingId = ref<number | null>(null)
 
 const stats = computed(() => reviewStats(props.reviews))
-// Nội dung nhận xét không bắt buộc, chỉ cần chọn số sao.
+// Noi dung nhan xet khong bat buoc, chi can chon so sao.
 const canSubmit = computed(() => rating.value > 0 && !props.submitting)
 
 const resetForm = () => {
@@ -60,7 +60,7 @@ const remove = async (review: Review) => {
   deletingId.value = review.id
   const res = await props.onDelete(review.id)
   deletingId.value = null
-  // Đang sửa chính đánh giá vừa xóa thì đóng luôn biểu mẫu.
+  // Dang sua chinh danh gia vua xoa thi dong luon bieu mau.
   if (res.ok && editingId.value === review.id) resetForm()
 }
 </script>
@@ -82,7 +82,7 @@ const remove = async (review: Review) => {
     </div>
 
     <template v-else>
-      <!-- Bảng 2.22 chỉ yêu cầu điểm trung bình và các đánh giá, không vẽ biểu đồ phân bố sao. -->
+      <!-- Bang 2.22 chi yeu cau diem trung binh va cac danh gia, khong ve bieu do phan bo sao. -->
       <div v-if="props.reviews.length > 0" class="flex flex-wrap items-end gap-x-3 gap-y-1 rounded-2xl border border-stone-200/70 bg-white px-5 py-4">
         <span class="text-4xl font-bold tracking-tight tabular-nums text-stone-900">{{ stats.avg?.toFixed(1) }}</span>
         <span class="pb-1 text-sm text-stone-400">/5</span>
@@ -134,7 +134,7 @@ const remove = async (review: Review) => {
               <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-px text-[10px] font-medium text-emerald-700">
                 <NIcon :size="9"><Checkmark /></NIcon> Đã đặt hàng
               </span>
-              <!-- Chỉ đánh giá của chính người đang xem mới có nút thao tác. -->
+              <!-- Chi danh gia cua chinh nguoi dang xem moi co nut thao tac. -->
               <span v-if="r.mine" class="ml-auto flex shrink-0 items-center gap-2 text-xs font-medium">
                 <button type="button" class="text-amber-700 hover:underline" @click="startEdit(r)">Sửa</button>
                 <button

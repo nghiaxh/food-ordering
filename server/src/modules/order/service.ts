@@ -1,5 +1,5 @@
-// Nghiệp vụ đơn hàng: tạo đơn (giá từ DB), vòng đời trạng thái một chiều, thanh toán
-// giả lập COD/QR, và các entry point cho quản trị.
+// Nghiep vu don hang: tao don (gia tu DB), vong doi trang thai mot chieu, thanh toan
+// gia lap COD/QR, va cac entry point cho quan tri.
 
 import { desc, eq } from "drizzle-orm";
 import {
@@ -39,7 +39,7 @@ const trimNote = (note?: string | null): string | null => {
   return trimmed ? trimmed : null;
 };
 
-/** Chuyển trạng thái có kèm luật nghiệp vụ (QR phải đã thu tiền mới được xác nhận). */
+/** Chuyen trang thai co kem luat nghiep vu (QR phai da thu tien moi duoc xac nhan). */
 function transition(
   order: { status: OrderStatus; paymentMethod: string | null; paymentStatus: string },
   next: OrderStatus,
@@ -49,7 +49,7 @@ function transition(
       `Không thể chuyển đơn từ "${ORDER_STATUS_LABEL[order.status]}" sang "${ORDER_STATUS_LABEL[next]}"`,
     );
   }
-  // QR thanh toán trước nên phải đã thu tiền mới xác nhận được; COD thu khi giao nên duyệt bình thường.
+  // QR thanh toan truoc nen phai da thu tien moi xac nhan duoc; COD thu khi giao nen duyet binh thuong.
   if (next === "CONFIRMED" && order.paymentMethod === "QR" && order.paymentStatus !== "PAID") {
     throw badRequest("Đơn chưa thanh toán nên chưa thể xác nhận");
   }
@@ -64,7 +64,7 @@ async function requireSellable(items: Array<{ foodId: number }>, client: DbClien
   }
 }
 
-/** Chụp lại đơn từ DB; giá và giảm giá từng dòng do modules/pricing tính → khớp báo giá khách thấy. */
+/** Chup lai don tu DB; gia va giam gia tung dong do modules/pricing tinh → khop bao gia khach thay. */
 async function fillItems(
   client: DbClient,
   items: Array<{ foodId: number; quantity: number }>,
@@ -130,7 +130,7 @@ export async function createOrder(email: string, req: CreateOrderRequest) {
       );
     }
 
-    // Lượt dùng khuyến mãi chỉ bị trừ trong cùng transaction với việc tạo đơn.
+    // Luot dung khuyen mai chi bi tru trong cung transaction voi viec tao don.
     await markUsed(priced.appliedPromotions, tx);
     await tx.insert(paymentTransactions).values({
       orderId: created.id,
@@ -164,7 +164,7 @@ export async function myOrders(email: string) {
   return orderList.map(toOrderJson);
 }
 
-/** Khách chỉ tự hủy được đơn còn chờ xác nhận; quán đã vào chế biến thì phải gọi hotline. */
+/** Khach chi tu huy duoc don con cho xac nhan; quan da vao che bien thi phai goi hotline. */
 export async function cancelOrder(email: string, id: number) {
   const order = await ownOrder(email, id);
   if (order.status !== "PENDING") {
@@ -191,7 +191,7 @@ export async function cancelOrder(email: string, id: number) {
   return toOrderJson(saved!);
 }
 
-/** Thanh toán giả lập: khách tự xác nhận đã trả, hệ thống chỉ ghi nhận trạng thái. */
+/** Thanh toan gia lap: khach tu xac nhan da tra, he thong chi ghi nhan trang thai. */
 export async function payOrder(email: string, id: number) {
   const order = await ownOrder(email, id);
   if (order.status === "CANCELLED") {
@@ -207,7 +207,7 @@ export const updatePaymentStatus = (
   client: DbClient = db,
 ) => updatePayment(order, paid, client);
 
-/** Hoàn đổi trạng thái trong admin: transition một chiều + thông báo cho khách theo đúng nội dung. */
+/** Hoan doi trang thai trong admin: transition mot chieu + thong bao cho khach theo dung noi dung. */
 export async function adminUpdateStatus(id: number, status: string) {
   const order = await db.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
   if (!order) throw notFound("Không tìm thấy đơn");
@@ -246,7 +246,7 @@ export async function adminUpdateStatus(id: number, status: string) {
   return toOrderJson(saved!);
 }
 
-/** Đồng bộ trạng thái thanh toán của đơn với giao dịch tương ứng; gửi thông báo (trong cùng transaction). */
+/** Dong bo trang thai thanh toan cua don voi giao dich tuong ung; gui thong bao (trong cung transaction). */
 async function applyPaymentTx(
   tx: DbClient,
   order: { id: number; user?: { id: number } | null; userId?: number; paymentStatus: string },
@@ -297,7 +297,7 @@ async function updatePayment(
   return db.transaction((tx) => applyPaymentTx(tx, order, paid));
 }
 
-/** Chặn việc khách đọc hoặc thao tác lên đơn của người khác. */
+/** Chan viec khach doc hoac thao tac len don cua nguoi khac. */
 async function ownOrder(email: string, id: number) {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
@@ -310,7 +310,7 @@ async function ownOrder(email: string, id: number) {
   return order;
 }
 
-// ----- Quản trị: tạo, sửa, xoá đơn thay khách (UC12) -----
+// ----- Quan tri: tao, sua, xoa don thay khach (UC12) -----
 
 export async function adminCreateOrder(req: AdminOrderRequest) {
   if (!req.items || req.items.length === 0) {
@@ -325,7 +325,7 @@ export async function adminCreateOrder(req: AdminOrderRequest) {
     const paid = req.paid === true;
     if (req.status && req.status.trim()) {
       status = parseStatus(req.status.trim());
-      // Tạo thẳng sau bước chờ xác nhận với QR thì phải đã thu tiền, như đường duyệt đơn.
+      // Tao thang sau buoc cho xac nhan voi QR thi phai da thu tien, nhu duong duyet don.
       if (status !== "PENDING" && status !== "CANCELLED" && req.paymentMethod === "QR" && !paid) {
         throw badRequest("Đơn chưa thanh toán nên chưa thể xác nhận");
       }

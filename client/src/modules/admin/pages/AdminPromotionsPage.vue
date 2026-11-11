@@ -117,7 +117,7 @@ const submit = async () => {
     maxDiscount: form.maxDiscount ?? null,
     scope: form.scope,
     targetIds: form.targetIds ?? [],
-    // zod coerce.date ở server đọc được ISO string kể cả có múi giờ.
+    // zod coerce.date o server doc duoc ISO string ke ca co mui gio.
     startsAt: new Date(form.range[0]).toISOString(),
     endsAt: new Date(form.range[1]).toISOString(),
     daysOfWeek: form.daysOfWeek.trim() || null,

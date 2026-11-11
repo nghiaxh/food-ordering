@@ -10,7 +10,7 @@ import {
   type DiscountRule,
 } from "../src/modules/pricing/engine.js";
 
-// 2026-11-08 là Chủ nhật; các test ngày/khung giờ lấy mốc này.
+// 2026-11-08 la Chu nhat; cac test ngay/khung gio lay moc nay.
 const NOW = new Date("2026-11-08T12:00:00+07:00");
 
 const promo = (partial: Partial<Promotion>): Promotion =>
@@ -74,7 +74,7 @@ describe("isValid", () => {
   it("khung giờ bình thường và khung giờ qua nửa đêm", () => {
     expect(isValid(promo({ startTime: "11:00", endTime: "13:00" }), NOW)).toBe(true);
     expect(isValid(promo({ startTime: "13:00", endTime: "14:00" }), NOW)).toBe(false);
-    // Qua nửa đêm: 22:00 → 02:00; 12h trưa không thuộc khung
+    // Qua nua dem: 22:00 → 02:00; 12h trua khong thuoc khung
     expect(isValid(promo({ startTime: "22:00", endTime: "02:00" }), NOW)).toBe(false);
     const lateNight = new Date("2026-11-08T23:00:00+07:00");
     expect(isValid(promo({ startTime: "22:00", endTime: "02:00" }), lateNight)).toBe(true);

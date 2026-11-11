@@ -19,7 +19,7 @@ import type { ChartData, ChartOptions } from 'chart.js'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
-// Khoảng ngày đang xem; null = 30 ngày gần nhất. Input dạng timestamp [from, to] ms.
+// Khoang ngay dang xem; null = 30 ngay gan nhat. Input dang timestamp [from, to] ms.
 const range = ref<[number, number] | null>(null)
 const applied = ref<[number, number] | null>(null)
 

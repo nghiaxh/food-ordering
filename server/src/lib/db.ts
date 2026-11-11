@@ -16,5 +16,5 @@ export const db = drizzle(pool, {
 
 export type Database = typeof db;
 
-/** DECIMAL trong DB đọc ra string/number; client nhận VND nguyên nên ép về number. */
+/** DECIMAL trong DB doc ra string/number; client nhan VND nguyen nen ep ve number. */
 export const toNumber = (v: unknown): number => Number(v);

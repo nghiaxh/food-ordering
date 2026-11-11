@@ -4,20 +4,20 @@
 FROM node:26-alpine AS dev
 WORKDIR /app
 COPY package*.json ./
-# Cache /root/.npm giữ tarball giữa các lần build nên retry không tải lại từ đầu;
-# mạng đứt giữa chừng vẫn được npm thử lại tối đa 5 lần.
+# Cache /root/.npm giu tarball giua cac lan build nen retry khong tai lai tu dau;
+# mang dut giua chung van duoc npm thu lai toi da 5 lan.
 RUN --mount=type=cache,id=npm,target=/root/.npm \
     npm ci --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000
 COPY . .
 EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
-# ===== PROD: build tĩnh rồi phục vụ bằng nginx =====
+# ===== PROD: build tinh roi phuc vu bang nginx =====
 FROM node:26-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-# Cache /root/.npm giữ tarball giữa các lần build nên retry không tải lại từ đầu;
-# mạng đứt giữa chừng vẫn được npm thử lại tối đa 5 lần.
+# Cache /root/.npm giu tarball giua cac lan build nen retry khong tai lai tu dau;
+# mang dut giua chung van duoc npm thu lai toi da 5 lan.
 RUN --mount=type=cache,id=npm,target=/root/.npm \
     npm ci --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000
 COPY . .

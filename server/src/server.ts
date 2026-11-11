@@ -6,5 +6,5 @@ mkdirSync(env.UPLOAD_DIR, { recursive: true });
 
 const app = createApp();
 app.listen(env.PORT, () => {
-  console.log(`FoodOrdering server đang lắng nghe tại http://localhost:${env.PORT}/api`);
+  console.log(`Server is listening on http://localhost:${env.PORT}/api`);
 });

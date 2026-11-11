@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 
-// Subject là email (các service tra user theo email), role đặt trong claim để requireRole đọc.
-// Ký HS256 bằng đúng secret cấu hình; token hợp lệ mới đọc được identity.
+// Subject la email (cac service tra user theo email), role dat trong claim de requireRole doc.
+// Ky HS256 bang dung secret cau hinh; token hop le moi doc duoc identity.
 export function generateToken(email: string, role: string): string {
   return jwt.sign({ role }, env.JWT_SECRET, {
     subject: email,
@@ -16,7 +16,7 @@ export function verifyToken(token: string): { email: string; role: string } | nu
     if (typeof claims.sub !== "string" || typeof claims.role !== "string") return null;
     return { email: claims.sub, role: claims.role };
   } catch {
-    // Token sai/hết hạn được coi như chưa đăng nhập; request vẫn đi tiếp và bị middleware chặn.
+    // Token sai/het han duoc coi nhu chua dang nhap; request van di tiep va bi middleware chan.
     return null;
   }
 }

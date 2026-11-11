@@ -11,8 +11,8 @@ interface Identity {
   role: "CUSTOMER" | "ADMIN";
 }
 
-// Tra CSDL mỗi request để tài khoản bị khoá mất quyền ngay cả khi token còn hạn;
-// bỏ qua bước này thì token bị khoá vẫn dùng được tới khi hết hạn.
+// Tra CSDL moi request de tai khoan bi khoa mat quyen ngay ca khi token con han;
+// bo qua buoc nay thi token bi khoa van dung duoc toi khi het han.
 async function loadIdentity(req: Request): Promise<Identity | null> {
   const header = req.get("authorization");
   if (!header?.startsWith("Bearer ")) return null;
@@ -33,7 +33,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   next();
 }
 
-/** Không chặn request lạ; chỉ gắn req.user khi token hợp lệ (dùng cho trang review công khai). */
+/** Khong chan request la; chi gan req.user khi token hop le (dung cho trang review cong khai). */
 export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   req.user = (await loadIdentity(req)) ?? undefined;
   next();

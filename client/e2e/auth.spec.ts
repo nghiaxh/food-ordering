@@ -1,19 +1,19 @@
 import { expect, test } from '@playwright/test'
 import { demoPassword } from './support/extended-api'
 
-test.describe('E2E - Xác thực người dùng', () => {
-  test('Đăng nhập thành công với tài khoản demo', async ({ page }) => {
+test.describe('E2E - User authentication', () => {
+  test('Demo account can sign in', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('tuanpham@demo.com')
     await page.getByLabel('Mật khẩu').fill(demoPassword('tuanpham@demo.com'))
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
 
     await page.waitForURL((url) => url.pathname === '/')
-    // Header chỉ hiện avatar với aria-label "Menu tài khoản" (kèm số thông báo chưa đọc nếu có).
+    // Header chi hien avatar voi aria-label "Menu tai khoan" (kem so thong bao chua doc neu co).
     await expect(page.getByRole('button', { name: /Menu tài khoản/ })).toBeVisible()
   })
 
-  test('Hiển thị lỗi khi sai mật khẩu', async ({ page }) => {
+  test('Wrong password shows an error', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('tuanpham@demo.com')
     await page.getByLabel('Mật khẩu').fill('sai_mat_khau')
@@ -23,7 +23,7 @@ test.describe('E2E - Xác thực người dùng', () => {
     await expect(page).toHaveURL(/\/login$/)
   })
 
-  test('Tài khoản quản trị đăng nhập được đưa về khu quản trị', async ({ page }) => {
+  test('Admin account is redirected to the admin area', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('namnguyen@demo.com')
     await page.getByLabel('Mật khẩu').fill(demoPassword('namnguyen@demo.com'))

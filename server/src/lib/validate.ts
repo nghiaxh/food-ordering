@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { badRequest } from "./errors.js";
 
-/** Validate body theo zod; lỗi trả 400 kèm thông báo tiếng Việt đầu tiên thay vì ném ZodError ra ngoài. */
+/** Validate body theo zod; loi tra 400 kem thong bao tieng Viet dau tien thay vi nem ZodError ra ngoai. */
 export function parseBody<T extends z.ZodType>(schema: T, body: unknown): z.output<T> {
   const result = schema.safeParse(body);
   if (!result.success) {

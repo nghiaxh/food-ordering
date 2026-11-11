@@ -9,9 +9,9 @@ import { formatRelativeTime } from '@/shared/utils/format'
 import type { NotificationItem } from '@/shared/types'
 
 /**
- * Thông báo chuyển từ popover trên header sang drawer để header còn một hàng ở mobile.
- * Thao tác giữ nguyên: đánh dấu đã đọc, xóa từng cái, xóa các thông báo đã đọc,
- * bấm vào thông báo có đơn thì mở đúng đơn.
+ * Thong bao chuyen tu popover tren header sang drawer de header con mot hang o mobile.
+ * Thao tac giu nguyen: danh dau da doc, xoa tung cai, xoa cac thong bao da doc,
+ * bam vao thong bao co don thi mo dung don.
  */
 const router = useRouter()
 const ui = useUiStore()

@@ -1,6 +1,6 @@
-// Tra cứu tài liệu quán (RAG mức cơ bản, PostgreSQL tsvector + GIN).
-// Không embedding: tìm bằng websearch_to_tsquery trên cột search_vector đã tạo sẵn
-// (migration init), rồi fallback chấm từ khóa khi không có hit hoặc lỗi.
+// Tra cuu tai lieu quan (RAG muc co ban, PostgreSQL tsvector + GIN).
+// Khong embedding: tim bang websearch_to_tsquery tren cot search_vector da tao san
+// (migration init), roi fallback cham tu khoa khi khong co hit hoac loi.
 
 import { eq, inArray, sql } from "drizzle-orm";
 import { chatbotKnowledge } from "../../db/schema.js";
@@ -24,8 +24,8 @@ interface ChunkRow {
 }
 
 /**
- * Tìm chunk theo tsvector; không có hit thì trả rỗng để service rơi sang chấm từ khóa.
- * `websearch_to_tsquery('simple', $1)` khớp cụm từ như khách tự gõ, không cần cú pháp tsquery.
+ * Tim chunk theo tsvector; khong co hit thi tra rong de service roi sang cham tu khoa.
+ * `websearch_to_tsquery('simple', $1)` khop cum tu nhu khach tu go, khong can cu phap tsquery.
  */
 export async function searchChunks(question: string, topK: number): Promise<ScoredChunk[]> {
   if (!question.trim()) return [];
@@ -65,8 +65,8 @@ export async function searchChunks(question: string, topK: number): Promise<Scor
 }
 
 /**
- * Chấm điểm tài liệu bằng từ khóa; dùng khi tsvector không có hit hoặc lỗi.
- * Khớp cụm từ khóa (ví dụ "giờ mở cửa") được cộng thêm điểm. Bỏ qua từ dừng và từ quá ngắn.
+ * Cham diem tai lieu bang tu khoa; dung khi tsvector khong co hit hoac loi.
+ * Khop cum tu khoa (vi du "gio mo cua") duoc cong them diem. Bo qua tu dung va tu qua ngan.
  */
 export const keywordSearchKnowledge = async (
   question: string,

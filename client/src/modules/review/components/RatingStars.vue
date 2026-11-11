@@ -17,7 +17,7 @@ const active = computed(() => (hovered.value > 0 ? hovered.value : Math.max(0, M
 </script>
 
 <template>
-  <!-- Chế độ chỉ đọc không dựng nút: tránh nút lồng trong nút khi đặt cạnh liên kết hoặc tiêu đề bấm được. -->
+  <!-- Che do chi doc khong dung nut: tranh nut long trong nut khi dat canh lien ket hoac tieu de bam duoc. -->
   <span
     v-if="!interactive"
     role="img"

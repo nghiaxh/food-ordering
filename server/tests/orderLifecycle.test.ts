@@ -6,7 +6,7 @@ import {
   parseStatus,
 } from "../src/modules/order/transitions.js";
 
-// Vòng đời đơn: PENDING → CONFIRMED → PREPARING → COMPLETED, CANCELLED từ mọi trạng thái chưa chốt.
+// Vong doi don: PENDING → CONFIRMED → PREPARING → COMPLETED, CANCELLED tu moi trang thai chua chot.
 describe("isValidTransition", () => {
   it("đi đúng một chiều theo quy trình", () => {
     expect(isValidTransition("PENDING", "CONFIRMED")).toBe(true);

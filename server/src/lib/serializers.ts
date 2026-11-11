@@ -16,8 +16,8 @@ export const toCategoryJson = (c: Category) => ({
 });
 
 /**
- * Shape Food trả ra client. `discountedPrice`/`discountAmount`/`discountPercent`/`discountLabel`
- * là trường transient do lớp pricing điền (xem modules/pricing); chưa có thì bỏ hẳn khỏi JSON.
+ * Shape Food tra ra client. `discountedPrice`/`discountAmount`/`discountPercent`/`discountLabel`
+ * la truong transient do lop pricing dien (xem modules/pricing); chua co thi bo han khoi JSON.
  */
 export const toFoodJson = (food: Food & { category?: Category | null } & Record<string, unknown>) => {
   const extras: Record<string, unknown> = {};
@@ -62,7 +62,7 @@ export const toOrderItemJson = (item: OrderItem & { food: (Food & { category?: C
   id: item.id,
   food: item.food ? toFoodJson(item.food) : null,
   quantity: item.quantity,
-  /** Giá được chụp lại lúc đặt món, không phải giá hiện tại của món. */
+  /** Gia duoc chup lai luc dat mon, khong phai gia hien tai cua mon. */
   price: Number(item.price),
   discountAmount: Number(item.discountAmount),
 });
@@ -93,6 +93,6 @@ export const toNotificationJson = (n: Notification) => ({
   content: n.content,
   read: n.read,
   createdAt: n.createdAt.toISOString(),
-  /** Đơn liên quan; null với thông báo cũ nên chỉ đánh dấu đã đọc, không điều hướng. */
+  /** Don lien quan; null voi thong bao cu nen chi danh dau da doc, khong dieu huong. */
   orderId: n.orderId,
 });

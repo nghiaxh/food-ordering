@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<Props>(), { saving: false, width: 460 })
 </script>
 
 <template>
-  <!-- Modal chứa Form: bấm Lưu vẫn chạy form.submit() qua onSubmit; các hộp biểu mẫu đều có cùng nút Lưu/Hủy + loading. -->
+  <!-- Modal chua Form: bam Luu van chay form.submit() qua onSubmit; cac hop bieu mau deu co cung nut Luu/Huy + loading. -->
   <NModal :show="props.show" preset="card" :title="props.title" :style="{ width: `${props.width}px`, maxWidth: '95vw' }" @update:show="(v: boolean) => !v && props.onClose()">
     <slot />
     <template #footer>

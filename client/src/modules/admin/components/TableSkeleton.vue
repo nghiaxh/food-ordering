@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Xương bảng dùng chung: 5 cột giả, số dòng tuỳ chỉnh.
+// Xuong bang dung chung: 5 cot gia, so dong tuy chinh.
 withDefaults(defineProps<{ rows?: number }>(), { rows: 7 })
 </script>
 

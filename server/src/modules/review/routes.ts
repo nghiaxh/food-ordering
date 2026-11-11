@@ -13,7 +13,7 @@ const idParam = (raw: string | string[] | undefined): number => {
 
 export const reviewRouter = Router();
 
-// Route công khai; optionalAuth để biết đánh giá nào của chính người đang đăng nhập.
+// Route cong khai; optionalAuth de biet danh gia nao cua chinh nguoi dang dang nhap.
 reviewRouter.get("/food/:foodId", optionalAuth, async (req, res) => {
   res.json(await reviewService.listByFood(idParam(req.params.foodId), req.user?.id));
 });

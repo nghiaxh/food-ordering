@@ -1,18 +1,18 @@
 import { expect, test } from '@playwright/test'
 import { demoPassword, loginInBrowser } from './support/extended-api'
 
-test.describe('E2E - Phân quyền Quản trị viên', () => {
-  test('Khách hàng thường bị chặn khi truy cập trang quản trị', async ({ page }) => {
+test.describe('E2E - Admin access guard', () => {
+  test('Regular customer is blocked from the admin page', async ({ page }) => {
     await loginInBrowser(page, 'tuanpham@demo.com')
 
     await page.goto('/admin/dashboard')
 
-    // RequireAuth phía client điều hướng về trang chủ; quyền thật vẫn do server kiểm tra.
+    // RequireAuth phia client dieu huong ve trang chu; quyen that van do server kiem tra.
     await expect(page).toHaveURL('/')
     await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toHaveCount(0)
   })
 
-  test('Admin đăng nhập được và quản lý đơn hàng', async ({ page }) => {
+  test('Admin signs in and manages orders', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('namnguyen@demo.com')
     await page.getByLabel('Mật khẩu').fill(demoPassword('namnguyen@demo.com'))
@@ -21,7 +21,7 @@ test.describe('E2E - Phân quyền Quản trị viên', () => {
 
     await page.goto('/admin/orders')
     await expect(page).toHaveURL('/admin/orders')
-    // PageHeader render h2; menu bên trái dùng link nên không trùng role heading.
+    // PageHeader render h2; menu ben trai dung link nen khong trung role heading.
     await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
   })
 })

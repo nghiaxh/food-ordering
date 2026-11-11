@@ -33,7 +33,7 @@ export async function addToCart(email: string, foodId: number, quantity: number)
     throw badRequest(`Món "${food.name}" hiện không phục vụ`);
   }
 
-  // Dùng insert on conflict do update để cộng dồn quantity
+  // Dung insert on conflict do update de cong don quantity
   const [item] = await db
     .insert(cartItems)
     .values({ userId: user.id, foodId, quantity })

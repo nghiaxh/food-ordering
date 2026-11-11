@@ -1,5 +1,5 @@
-// Lớp truy vấn + điều phối: gọi engine để tính, đọc khuyến mãi từ DB, và cung cấp
-// các hàm dùng chung cho cart/order (priceOrder, quote, decorate).
+// Lop truy van + dieu phoi: goi engine de tinh, doc khuyen mai tu DB, va cung cap
+// cac ham dung chung cho cart/order (priceOrder, quote, decorate).
 
 import { eq, sql } from "drizzle-orm";
 import type { Food, Promotion } from "../../db/schema.js";
@@ -36,13 +36,13 @@ export interface PricedCart {
   appliedPromotions: Promotion[];
 }
 
-/** Đọc khuyến mãi active từ DB rồi lọc bằng isValid; pure logic nằm ở engine. */
+/** Doc khuyen mai active tu DB roi loc bang isValid; pure logic nam o engine. */
 export async function activePromotions(now: Date, client: DbClient = db): Promise<Promotion[]> {
   const all = await client.query.promotions.findMany({ where: eq(promotions.active, true) });
   return all.filter((p) => isValid(p, now));
 }
 
-/** Dựng rule set dùng chung cho mọi lần tính trong một request. */
+/** Dung rule set dung chung cho moi lan tinh trong mot request. */
 async function buildRules(now: Date, client: DbClient): Promise<DiscountRule> {
   const auto = await activePromotions(now, client);
   const needsPicks = auto.some((p) => p.randomCount > 0);
@@ -130,7 +130,7 @@ export type DecoratedFood<TFood extends FoodLike & { name: string; imageUrl: str
   discountLabel: string | null;
 };
 
-/** Điền giá sau khuyến mãi cho cả danh sách; tính rules một lần cho cả danh sách. */
+/** Dien gia sau khuyen mai cho ca danh sach; tinh rules mot lan cho ca danh sach. */
 export async function decorateFoods<TFood extends FoodLike & { name: string; imageUrl: string | null; price: number | string }>(
   foodList: TFood[],
   client: DbClient = db,
@@ -151,7 +151,7 @@ export async function decorateFoods<TFood extends FoodLike & { name: string; ima
   });
 }
 
-/** Ghi nhận lượt dùng của các KM đã áp; gọi trong cùng transaction với tạo đơn. */
+/** Ghi nhan luot dung cua cac KM da ap; goi trong cung transaction voi tao don. */
 export async function markUsed(applied: Promotion[], tx: DbClient) {
   for (const p of applied) {
     await tx

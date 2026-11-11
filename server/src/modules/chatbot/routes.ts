@@ -14,7 +14,7 @@ const chatSchema = z.object({
 
 export const chatbotRouter = Router();
 
-// Khách vãng lai vẫn chat được; email chỉ dùng để quyết định có lưu lịch sử hay không.
+// Khach vang lai van chat duoc; email chi dung de quyet dinh co luu lich su hay khong.
 chatbotRouter.get("/status", optionalAuth, async (_req, res) => {
   res.json(await chatbotStatus());
 });

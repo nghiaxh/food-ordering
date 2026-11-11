@@ -21,7 +21,7 @@ import QuantityStepper from '@/components/QuantityStepper.vue'
 
 const route = useRoute()
 const router = useRouter()
-// Nút quay lại ưu tiên `state.from` do thẻ món truyền (kèm query bộ lọc); ngược lại về "/".
+// Nut quay lai uu tien `state.from` do the mon truyen (kem query bo loc); nguoc lai ve "/".
 const from = computed(() => (history.state as { from?: string } | null)?.from)
 const foodId = computed(() => Number(route.params.id))
 const qty = ref(1)
@@ -120,12 +120,12 @@ const specs = computed(() => [
   { label: 'Chế độ ăn', value: food.value?.dietaryTags || 'Thông thường' },
 ])
 
-// Đổi món (điều hướng từ trang chi tiết này sang món khác) thì reset số lượng về 1.
+// Doi mon (dieu huong tu trang chi tiet nay sang mon khac) thi reset so luong ve 1.
 watch(foodId, () => { qty.value = 1 })
 </script>
 
 <template>
-  <!-- Skeleton khi đang tải. -->
+  <!-- Skeleton khi dang tai. -->
   <div v-if="foodLoading" class="mx-auto max-w-6xl px-4 py-6">
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div class="aspect-[4/3] animate-pulse rounded-2xl bg-stone-200/70" />

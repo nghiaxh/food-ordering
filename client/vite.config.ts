@@ -13,6 +13,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    watch: { usePolling: true }, // bắt buộc khi chạy trong Docker (đặc biệt Windows/macOS)
+    watch: { usePolling: true }, // bat buoc khi chay trong Docker (dac biet Windows/macOS)
   },
 })

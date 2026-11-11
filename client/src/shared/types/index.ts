@@ -12,21 +12,21 @@ export interface Food {
   category: Category | null
   description: string
   ingredients: string
-  /** Đơn vị tiền tệ là VND. */
+  /** Don vi tien te la VND. */
   price: number
   imageUrl: string
   servingSize: number
-  /** 0 là không cay, 3 là mức cay cao nhất. */
+  /** 0 la khong cay, 3 la muc cay cao nhat. */
   spicyLevel: number
-  /** Các nhãn được lưu trong một chuỗi, phân tách bằng dấu phẩy. */
+  /** Cac nhan duoc luu trong mot chuoi, phan tach bang dau phay. */
   dietaryTags: string
   allergens: string
   available: boolean
-  /** Giá sau khuyến mãi tự động; server tính, client chỉ hiển thị. */
+  /** Gia sau khuyen mai tu dong; server tinh, client chi hien thi. */
   discountedPrice?: number | null
   discountAmount?: number | null
   discountPercent?: number | null
-  /** Nhãn ưu đãi, ví dụ "Cuối tuần", "Hôm nay". */
+  /** Nhan uu dai, vi du "Cuoi tuan", "Hom nay". */
   discountLabel?: string | null
 }
 
@@ -53,7 +53,7 @@ export interface OrderItem {
   id: number
   food: Food | null
   quantity: number
-  /** Giá được chụp lại lúc đặt món, không phải giá hiện tại của món. */
+  /** Gia duoc chup lai luc dat mon, khong phai gia hien tai cua mon. */
   price: number
   discountAmount?: number
 }
@@ -72,7 +72,7 @@ export interface Order {
   receiverName: string
   phone: string
   address: string
-  /** Ghi chú của khách cho quán; null hoặc rỗng nghĩa là không có. */
+  /** Ghi chu cua khach cho quan; null hoac rong nghia la khong co. */
   note?: string | null
   createdAt: string
   items: OrderItem[]
@@ -84,7 +84,7 @@ export interface CartItem {
   quantity: number
 }
 
-/** Địa chỉ đã lưu của user; đơn hàng vẫn chụp riêng thông tin giao hàng khi đặt. */
+/** Dia chi da luu cua user; don hang van chup rieng thong tin giao hang khi dat. */
 export interface SavedAddress {
   id: number
   label: string
@@ -100,7 +100,7 @@ export interface NotificationItem {
   content: string
   read: boolean
   createdAt: string
-  /** Đơn liên quan; null với thông báo cũ nên chỉ đánh dấu đã đọc, không điều hướng. */
+  /** Don lien quan; null voi thong bao cu nen chi danh dau da doc, khong dieu huong. */
   orderId: number | null
 }
 
@@ -108,10 +108,10 @@ export interface Review {
   id: number
   userName: string
   rating: number
-  /** Nhận xét không bắt buộc, khách có thể chỉ chấm sao. */
+  /** Nhan xet khong bat buoc, khach co the chi cham sao. */
   comment: string | null
   createdAt: string
-  /** Đánh giá do chính người đang đăng nhập viết thì mới hiện nút Sửa/Xóa. */
+  /** Danh gia do chinh nguoi dang dang nhap viet thi moi hien nut Sua/Xoa. */
   mine: boolean
 }
 
@@ -122,15 +122,15 @@ export interface FoodCard {
   imageUrl: string
   categoryName: string | null
   /**
-   * Số phần khách cần để đủ cho số người ăn. Lớn hơn 1 khi khách nói rõ số người và khẩu
-   * phần của món nhỏ hơn số đó; server đã tính sẵn nên client không tự suy luận lại.
+   * So phan khach can de du cho so nguoi an. Lon hon 1 khi khach noi ro so nguoi va khau
+   * phan cua mon nho hon so do; server da tinh san nen client khong tu suy luan lai.
    */
   portions?: number
-  /** Tổng tiền của `portions` phần, dùng để khách thấy đúng số tiền phải trả. */
+  /** Tong tien cua `portions` phan, dung de khach thay dung so tien phai tra. */
   totalPrice?: string
 }
 
-/** Nguồn trích dẫn khi bot tra tài liệu quán; client hiện dưới câu trả lời. */
+/** Nguon trich dan khi bot tra tai lieu quan; client hien duoi cau tra loi. */
 export interface ChatCitation {
   sourceName: string
   snippet: string
@@ -140,14 +140,14 @@ export interface ChatMessage {
   sender: 'USER' | 'BOT'
   content: string
   foods?: FoodCard[]
-  /** Nhóm câu hỏi: FOOD | RESTAURANT_INFO | ORDER_GUIDE | OUT_OF_SCOPE */
+  /** Nhom cau hoi: FOOD | RESTAURANT_INFO | ORDER_GUIDE | OUT_OF_SCOPE */
   intent?: string
   citations?: ChatCitation[]
-  /** Các nút hành động tiếp theo do server quyết định; chỉ tin bot mới nhất còn quickReplies. */
+  /** Cac nut hanh dong tiep theo do server quyet dinh; chi tin bot moi nhat con quickReplies. */
   quickReplies?: string[]
 }
 
-/** Trạng thái trợ lý; `notice` có câu nhắc khi server chưa cấu hình khóa API. */
+/** Trang thai tro ly; `notice` co cau nhac khi server chua cau hinh khoa API. */
 export interface ChatbotStatus {
   available: boolean
   notice: string | null
@@ -155,7 +155,7 @@ export interface ChatbotStatus {
 
 export interface ChatHistoryMessage {
   id: number
-  /** Lịch sử của khách vãng lai có thể không gắn với user đã đăng nhập. */
+  /** Lich su cua khach vang lai co the khong gan voi user da dang nhap. */
   user: User | null
   sessionId: string
   sender: 'USER' | 'BOT'
@@ -168,7 +168,7 @@ export interface AiSetting {
   settingValue: string
 }
 
-/** Tài liệu quán do admin nhập để chatbot tra cứu. */
+/** Tai lieu quan do admin nhap de chatbot tra cuu. */
 export interface KnowledgeDoc {
   id: number
   title: string
@@ -214,7 +214,7 @@ export interface Promotion {
   randomCount?: number
 }
 
-/** Một dòng trong báo giá giỏ hàng; số tiền giảm do server tính. */
+/** Mot dong trong bao gia gio hang; so tien giam do server tinh. */
 export interface QuoteLine {
   foodId: number | null
   name: string

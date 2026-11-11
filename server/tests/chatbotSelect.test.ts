@@ -87,7 +87,7 @@ describe("selectFoods (AI criteria)", () => {
       5,
     );
     expect(result.every((p) => p.food.spicyLevel === 0)).toBe(true);
-    // Không gợi ý món có hải sản nếu khách dị ứng hải sản.
+    // Khong goi y mon co hai san neu khach di ung hai san.
     const noSeafood = selectFoods(
       emptyCriteria({ excludeAllergens: ["hải sản"] }),
       null,
@@ -138,7 +138,7 @@ describe("selectFoods (AI criteria)", () => {
       emptyCriteria({
         categories: [
           { name: "Món Việt", count: 1 },
-          { name: "Tráng miệng", count: 1 }, // menu không có tráng miệng
+          { name: "Tráng miệng", count: 1 }, // menu khong co trang mieng
         ],
         maxBudget: 150000,
       }),
@@ -152,7 +152,7 @@ describe("selectFoods (AI criteria)", () => {
   it("hỏi tiếp: restrictIds chỉ xét đúng các món vừa gợi ý", () => {
     const result = selectFoods(
       emptyCriteria({ maxSpicyLevel: 0 }),
-      [1, 3], // Phở bò và Bún bò Huế (cay) — chỉ Phở bò qua lọc
+      [1, 3], // Pho bo va Bun bo Hue (cay) — chi Pho bo qua loc
       menu,
       5,
     );
@@ -163,10 +163,10 @@ describe("selectFoods (AI criteria)", () => {
 
 describe("picked / portions", () => {
   it("số phần = ceil(people / khẩu phần), tổng tiền = giá × số phần", () => {
-    const p = picked(menu[0]!, 4); // Phở bò khẩu phần 1, 4 người → 4 phần
+    const p = picked(menu[0]!, 4); // Pho bo khau phan 1, 4 nguoi → 4 phan
     expect(p.portions).toBe(4);
     expect(p.totalPrice).toBe(65000 * 4);
-    const g = picked(menu[3]!, 4); // Gỏi cuốn khẩu phần 2, 4 người → 2 phần
+    const g = picked(menu[3]!, 4); // Goi cuon khau phan 2, 4 nguoi → 2 phan
     expect(g.portions).toBe(2);
     expect(g.totalPrice).toBe(45000 * 2);
   });

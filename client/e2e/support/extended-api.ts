@@ -1,11 +1,11 @@
 import type { APIRequestContext, Page } from '@playwright/test'
 
-// Nếu dự án chưa cài @types/node, khai báo tối thiểu này đủ cho `process.env.API_URL`.
+// Neu du an chua cai @types/node, khai bao toi thieu nay du cho `process.env.API_URL`.
 declare const process: { env: Record<string, string | undefined> }
 
 /**
- * Dữ liệu E2E dùng API thật để dựng/ dọn trạng thái thay vì đụng CSDL trực tiếp.
- * `VITE_API_URL` của client trỏ thẳng cổng 8080 nên test cũng gọi cùng địa chỉ đó.
+ * Du lieu E2E dung API that de dung/ don trang thai thay vi dung CSDL truc tiep.
+ * `VITE_API_URL` cua client tro thang cong 8080 nen test cung goi cung dia chi do.
  */
 export const API_URL = process.env.API_URL ?? 'http://localhost:8080/api'
 
@@ -44,7 +44,7 @@ export interface ApiNotification {
   orderId: number | null
 }
 
-/** Mật khẩu của tài khoản demo luôn là phần trước dấu `@`. */
+/** Mat khau cua tai khoan demo luon la phan truoc dau `@`. */
 export function demoPassword(email: string): string {
   return email.split('@')[0]
 }
@@ -58,18 +58,18 @@ export async function apiLogin(request: APIRequestContext, email: string): Promi
     data: { email, password: demoPassword(email) },
   })
   if (!res.ok()) {
-    throw new Error(`Đăng nhập API thất bại cho ${email}: ${res.status()} ${await res.text()}`)
+    throw new Error(`API login failed for ${email}: ${res.status()} ${await res.text()}`)
   }
   return (await res.json()) as DemoSession
 }
 
-/** Đăng nhập qua giao diện; dừng khi đã về trang chủ để form và store giỏ đã sẵn sàng. */
+/** Dang nhap qua giao dien; dung khi da ve trang chu de form va store gio da san sang. */
 export async function loginInBrowser(page: Page, email: string): Promise<void> {
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Mật khẩu').fill(demoPassword(email))
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
-  // Absolute pathname check vì `waitForURL('/')` so khớp cả URL gốc có origin.
+  // Absolute pathname check vi `waitForURL('/')` so khop ca URL goc co origin.
   await page.waitForURL((url) => url.pathname === '/')
 }
 
@@ -79,19 +79,19 @@ export async function clearCart(request: APIRequestContext, token: string): Prom
 
 export async function listFoods(request: APIRequestContext): Promise<ApiFood[]> {
   const res = await request.get(`${API_URL}/foods`)
-  if (!res.ok()) throw new Error(`Không tải được thực đơn: ${res.status()}`)
+  if (!res.ok()) throw new Error(`Could not load the menu: ${res.status()}`)
   return (await res.json()) as ApiFood[]
 }
 
 export async function foodIdByName(request: APIRequestContext, name: string): Promise<number> {
   const food = (await listFoods(request)).find((f) => f.name === name)
-  if (!food) throw new Error(`Không tìm thấy món "${name}" trong dữ liệu seed`)
+  if (!food) throw new Error(`Food "${name}" not found in the seed data`)
   return food.id
 }
 
 export async function firstAvailableFoodId(request: APIRequestContext): Promise<number> {
   const food = (await listFoods(request)).find((f) => f.available)
-  if (!food) throw new Error('Không có món nào đang phục vụ')
+  if (!food) throw new Error('No available dish in the menu')
   return food.id
 }
 
@@ -103,7 +103,7 @@ export async function getReviews(
   const res = await request.get(`${API_URL}/reviews/food/${foodId}`, {
     headers: authHeaders(token),
   })
-  if (!res.ok()) throw new Error(`Không tải được đánh giá: ${res.status()}`)
+  if (!res.ok()) throw new Error(`Could not load reviews: ${res.status()}`)
   return (await res.json()) as ApiReview[]
 }
 
@@ -136,7 +136,7 @@ export async function createReview(
     headers: authHeaders(token),
     data: { foodId, rating, comment },
   })
-  if (!res.ok()) throw new Error(`Không tạo được đánh giá: ${res.status()} ${await res.text()}`)
+  if (!res.ok()) throw new Error(`Could not create the review: ${res.status()} ${await res.text()}`)
 }
 
 export interface ApiOrder {
@@ -144,7 +144,7 @@ export interface ApiOrder {
   total: number
 }
 
-/** Mỗi đơn mới sinh một thông báo "đã được tạo" nên test thông báo không phụ thuộc seed. */
+/** Moi don moi sinh mot thong bao "da duoc tao" nen test thong bao khong phu thuoc seed. */
 export async function createOrder(
   request: APIRequestContext,
   token: string,
@@ -161,7 +161,7 @@ export async function createOrder(
       paymentMethod: 'COD',
     },
   })
-  if (!res.ok()) throw new Error(`Không tạo được đơn: ${res.status()} ${await res.text()}`)
+  if (!res.ok()) throw new Error(`Could not create the order: ${res.status()} ${await res.text()}`)
   return (await res.json()) as ApiOrder
 }
 
@@ -170,7 +170,7 @@ export async function getNotifications(
   token: string,
 ): Promise<ApiNotification[]> {
   const res = await request.get(`${API_URL}/notifications`, { headers: authHeaders(token) })
-  if (!res.ok()) throw new Error(`Không tải được thông báo: ${res.status()}`)
+  if (!res.ok()) throw new Error(`Could not load notifications: ${res.status()}`)
   return (await res.json()) as ApiNotification[]
 }
 
@@ -182,7 +182,7 @@ export async function markNotificationRead(
   await request.post(`${API_URL}/notifications/${id}/read`, { headers: authHeaders(token) })
 }
 
-/** Dọn thông báo do chính test tạo để lần chạy sau không phình danh sách. */
+/** Don thong bao do chinh test tao de lan chay sau khong phinh danh sach. */
 export async function deleteNotificationsForOrder(
   request: APIRequestContext,
   token: string,

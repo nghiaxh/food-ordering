@@ -20,8 +20,8 @@ import { useUiStore } from '@/shared/stores/uiStore'
 import { message } from '@/shared/api/message'
 
 /**
- * Thanh điều hướng một hàng ở mọi kích thước: logo, ô tìm kiếm, đơn hàng, giỏ, tài khoản.
- * Từ `lg` thông báo và đơn hàng có nút riêng; dưới `lg` chúng nằm trong menu tài khoản.
+ * Thanh dieu huong mot hang o moi kich thuoc: logo, o tim kiem, don hang, gio, tai khoan.
+ * Tu `lg` thong bao va don hang co nut rieng; duoi `lg` chung nam trong menu tai khoan.
  */
 const route = useRoute()
 const router = useRouter()
@@ -33,14 +33,14 @@ const ui = useUiStore()
 const user = computed(() => auth.user)
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
-// Ô tìm kiếm ghi thẳng vào URL để trang thực đơn đọc được và chia sẻ được đường dẫn đã lọc.
+// O tim kiem ghi thang vao URL de trang thuc don doc duoc va chia se duoc duong dan da loc.
 const keyword = computed(() => (Array.isArray(route.query.keyword) ? route.query.keyword[0] : route.query.keyword) ?? '')
 const draft = ref(keyword.value)
 watch(keyword, (value) => {
   draft.value = value
 })
 
-// Nạp lại số chưa đọc khi đổi tài khoản hoặc quay về từ trang đơn hàng.
+// Nap lai so chua doc khi doi tai khoan hoac quay ve tu trang don hang.
 onMounted(() => {
   if (user.value) void notifications.load()
 })
@@ -55,7 +55,7 @@ watch(
   },
 )
 
-/** Ghi từ khoá vào URL: ở trang chủ đè lên bộ lọc hiện có, ở trang khác thì về "/" kèm từ khoá. */
+/** Ghi tu khoa vao URL: o trang chu de len bo loc hien co, o trang khac thi ve "/" kem tu khoa. */
 const commitSearch = (value: string) => {
   const params = new URLSearchParams()
   for (const [key, raw] of Object.entries(route.query)) {
@@ -72,14 +72,14 @@ const commitSearch = (value: string) => {
   }
 }
 
-// Debounce 300ms; input trống vẫn ghi qua commitSearch để xoá từ khoá.
+// Debounce 300ms; input trong van ghi qua commitSearch de xoa tu khoa.
 watch(draft, (value, _oldValue, onCleanup) => {
   if (value === keyword.value) return
   const timer = window.setTimeout(() => commitSearch(value), 300)
   onCleanup(() => window.clearTimeout(timer))
 })
 
-/** Giỏ cần đăng nhập; khách vãng lai được đưa sang đăng nhập rồi mở lại giỏ. */
+/** Gio can dang nhap; khach vang lai duoc dua sang dang nhap roi mo lai gio. */
 const openCart = () => {
   if (!user.value) {
     message.info('Đăng nhập để xem giỏ hàng')

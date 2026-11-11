@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 
 export type DrawerKind = 'cart' | 'notifications' | null
 
-/** Chỉ một drawer mở tại một thời điểm để hai lớp mask không chồng lên nhau. */
+/** Chi mot drawer mo tai mot thoi diem de hai lop mask khong chong len nhau. */
 export const useUiStore = defineStore('ui', {
   state: () => ({
     activeDrawer: null as DrawerKind,

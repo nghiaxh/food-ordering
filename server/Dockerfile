@@ -1,27 +1,27 @@
 # syntax=docker/dockerfile:1
 
-# ---- deps: cài toàn bộ deps (kể cả devDeps) ----
+# ---- deps: cai toan bo deps (ke ca devDeps) ----
 FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Cache /root/.npm giữ tarball giữa các lần build; retry tối đa 5 lần khi mạng bất ổn.
+# Cache /root/.npm giu tarball giua cac lan build; retry toi da 5 lan khi mang bat on.
 RUN --mount=type=cache,id=npm,target=/root/.npm \
     npm ci --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000
 
-# ---- dev: tsx watch + source mount, không cần build ----
+# ---- dev: tsx watch + source mount, khong can build ----
 FROM deps AS dev
 COPY . .
 ENV NODE_ENV=development
 EXPOSE 8080
-# Áp migration Drizzle và seed (bỏ qua nếu DB đã có dữ liệu) trước khi khởi động server.
+# Ap migration Drizzle va seed (bo qua neu DB da co du lieu) truoc khi khoi dong server.
 CMD ["sh", "-c", "npm run db:migrate && npm run db:seed && npm run dev"]
 
-# ---- build: biên dịch TS sang dist/ ----
+# ---- build: bien dich TS sang dist/ ----
 FROM deps AS build
 COPY . .
 RUN npm run build
 
-# ---- prod: chỉ runtime deps + dist/ ----
+# ---- prod: chi runtime deps + dist/ ----
 FROM node:26-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
@@ -29,7 +29,7 @@ COPY package.json package-lock.json ./
 RUN --mount=type=cache,id=npm,target=/root/.npm \
     npm ci --omit=dev --ignore-scripts --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000
 COPY --from=build /app/dist ./dist
-# Drizzle migration SQL cần có ở prod để db:migrate chạy khi khởi động container.
+# Drizzle migration SQL can co o prod de db:migrate chay khi khoi dong container.
 COPY drizzle ./drizzle
 COPY drizzle.config.ts ./
 EXPOSE 8080
