@@ -1,4 +1,3 @@
-// Giỏ hàng theo tài khoản: thêm món theo thứ tự request, thay dòng tạm bằng CartItem server trả.
 import { defineStore } from 'pinia'
 import type { CartItem, Food } from '@/shared/types'
 import { addCartItem, clearCart, getCart, removeCartItem, setCartItemQuantity } from '@/user/cart/api'
@@ -39,6 +38,7 @@ const beginRequest = (foodId: number) => {
 const canApply = (foodId: number, token: { seq: number; generation: number }) =>
   token.generation === cartGeneration && requestSeq.get(foodId) === token.seq
 
+// Gio hang theo tai khoan: them mon theo thu tu request, thay dong tam bang CartItem server tra.
 export const useCartStore = defineStore('cart', {
   state: () => ({
     items: [] as CartItem[],

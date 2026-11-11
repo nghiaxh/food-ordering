@@ -1,4 +1,3 @@
-// Luat chuyen trang thai don hang — tach khoi service de test doc lap khong can DB.
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "COMPLETED" | "CANCELLED";
 import { badRequest } from "../../lib/errors.js";
 
@@ -15,6 +14,7 @@ export const canEditItems = (order: { status: OrderStatus; paymentStatus: string
   order.status === "PENDING" && order.paymentStatus === "UNPAID";
 
 /** Mot quy tac chuyen trang thai dung chung cho moi loi vao. */
+// Luat chuyen trang thai don hang mot chieu; tach khoi service de test doc lap khong can DB.
 export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
   if (from === "COMPLETED" || from === "CANCELLED") return false;
   if (to === "CANCELLED") return true;

@@ -1,8 +1,7 @@
-// Rang buoc doc chac chan tu cau hoi (khong cay, chay, loai tru hai san, ngan sach,
-// so nguoi) — dung cho ca loc mon lan cau tom tat trong cau tra loi du phong.
-
 import { plain } from "../../lib/text-normalizer.js";
 
+// Rang buoc doc chac chan tu cau hoi (khong cay, chay, loai tru hai san,
+// ngan sach, so nguoi) — dung cho ca loc mon lan cau tom tat trong cau tra loi du phong.
 export interface Filters {
   maxSpicyLevel: number | null;
   spicyRequired: boolean;

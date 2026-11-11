@@ -1,12 +1,11 @@
-// Lop DUY NHAT goi API AI; doi nha cung cap chi can thay file nay.
-// Provider va ten mo hinh doc tu bang cau hinh `ai_setting` (admin dat trong trang Chatbot),
-// chi fallback ve bien moi truong khi chua dat. Khong log khoa, khong tra khoa ve client.
-
 import { eq } from "drizzle-orm";
 import { aiSetting } from "../db/schema.js";
 import { db } from "./db.js";
 import { env } from "../config/env.js";
 
+// Lop duy nhat goi API AI. Doi nha cung cap chi can sua file nay.
+// Provider/model doc tu bang cau hinh `ai_setting`, chi fallback ve bien moi truong khi chua dat.
+// Khong log khoa va khong tra khoa ve client.
 export const PROVIDER_GEMINI = "gemini";
 export const PROVIDER_OPENAI = "openai";
 export const SUPPORTED_PROVIDERS = [PROVIDER_GEMINI, PROVIDER_OPENAI] as const;

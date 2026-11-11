@@ -1,8 +1,8 @@
-// Tach text tu file admin tai len: TXT/MD doc thang UTF-8, PDF bang pdf-parse,
-// DOCX bang mammoth. Chi nhan file khong vuot 10 MB (kiem o route upload).
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
 
+// Tach text tu file admin tai len: TXT/MD doc thang UTF-8, PDF bang pdf-parse,
+// DOCX bang mammoth. Chi nhan file khong vuot 10 MB (kiem o route upload).
 export const parseDocument = async (fileName: string, buffer: Buffer): Promise<string> => {
   const name = fileName.toLowerCase();
   if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".markdown")) {
