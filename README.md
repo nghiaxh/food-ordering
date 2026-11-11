@@ -4,8 +4,9 @@
 [![Vue](https://img.shields.io/badge/Vue%203-3.5-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9%2F7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Naive UI](https://img.shields.io/badge/Naive%20UI-2.45-18a058?logo=vuedotjs&logoColor=white)](https://www.naiveui.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
-[![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle%20ORM-0.45-9BC7F5?logo=drizzle&logoColor=white)](https://orm.drizzle.team)
 [![Node](https://img.shields.io/badge/Node.js-26-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-2496ed?logo=docker&logoColor=white)](https://www.docker.com)
@@ -29,7 +30,7 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 
 ## Bắt đầu nhanh
 
-Yêu cầu: Docker + Docker Compose, hoặc Node.js 26 để chạy từng phần lẻ.
+Yêu cầu: Docker + Docker Compose, hoặc Node.js 20.19 trở lên (khuyến nghị 26) để chạy từng phần lẻ.
 
 Tạo file `.env` từ mẫu rồi điền `AI_API_KEY` và `JWT_SECRET`.
 
@@ -61,6 +62,12 @@ docker compose --profile prod up --build -d
 
 Profile dev không cần thêm watcher biên dịch: server chạy `tsx watch` và tự reload khi file đổi.
 
+Profile `tools` chạy Drizzle Studio để xem trực tiếp CSDL ở http://localhost:4983:
+
+```bash
+docker compose --profile tools up -d drizzle-studio
+```
+
 ## Tài khoản demo
 
 Server tự tạo dữ liệu mẫu khi bảng người dùng còn trống: 5 danh mục, 32 món, 4 khuyến mãi, 15 đơn, 12 đánh giá. Đã có người dùng thì toàn bộ seed bị bỏ qua nên không nhân đôi dữ liệu.
@@ -87,10 +94,10 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại (`docker compos
 | Tầng | Công nghệ |
 |---|---|
 | Client | Vue 3, TypeScript 5.9, Vite 8, Naive UI, Tailwind CSS 4, Pinia, Axios, Vue Router |
-| Server | Express 5, TypeScript 7, Prisma 7, JWT (jsonwebtoken), bcrypt, zod |
+| Server | Express 5, TypeScript 7, Drizzle ORM 0.45, JWT (jsonwebtoken), bcrypt, zod |
 | Database | PostgreSQL 18 (full-text search bằng `tsvector` cho RAG) |
 | AI | Gemini hoặc OpenAI qua REST, lớp AI (`server/src/lib/gemini.ts`) |
-| Hạ tầng | Docker Compose, 1 file 2 profile dev và prod |
+| Hạ tầng | Docker Compose, 1 file 3 profile dev, prod và tools |
 
 ## Kiểm tra nhanh
 
@@ -102,9 +109,16 @@ npm run build
 
 # Server
 cd ../server
-npx prisma generate
+npm run typecheck
 npm test
 npm run build
+```
+
+Kiểm thử E2E phía client dùng Playwright, chạy local khi cần stack dev đang bật:
+
+```bash
+cd client
+npm run test:e2e
 ```
 
 ## Tài liệu
