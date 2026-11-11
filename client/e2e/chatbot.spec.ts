@@ -10,7 +10,7 @@ import { API_URL } from './support/extended-api'
  * trong `.env.example`.
  */
 const SKIP_REASON =
-  'Chatbot chưa cấu hình khóa AI (AI_API_KEY rỗng hoặc bị từ chối); đặt khóa thật rồi chạy lại.'
+  'Chatbot has no AI key configured (AI_API_KEY empty or rejected); set a real key and rerun.'
 
 // Luot chat la hai cuoc goi AI 15s timeout nen noi test timeout so voi mac dinh 30s.
 test.describe.configure({ timeout: 60_000 })
@@ -31,7 +31,7 @@ async function openChat(page: Page) {
   await expect(page.getByTestId('chatbot-panel')).toBeVisible()
 }
 
-test('hỏi tư vấn món chay không cay', async ({ page, request }) => {
+test('Ask for non-spicy vegetarian dishes', async ({ page, request }) => {
   const available = await chatbotAvailable(request)
   await openChat(page)
 
@@ -52,7 +52,7 @@ test('hỏi tư vấn món chay không cay', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Gửi câu hỏi' }).click()
 
   const response = await responsePromise
-  expect(response.status(), 'Chatbot phải trả 200 khi đã cấu hình khóa').toBe(200)
+  expect(response.status(), 'Chatbot should return 200 once the key is configured').toBe(200)
 
   await expect(botMessages).toHaveCount(before + 1, { timeout: 20_000 })
   await expect(page.getByTestId('chatbot-food-card').first()).toBeVisible({ timeout: 20_000 })

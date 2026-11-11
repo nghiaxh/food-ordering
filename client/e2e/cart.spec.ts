@@ -32,7 +32,7 @@ async function openCart(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Giỏ hàng', exact: true }).click()
 }
 
-test('thêm món từ thẻ hiện thông báo và không tự mở giỏ', async ({ page }) => {
+test('Adding from a card shows a toast and keeps the cart closed', async ({ page }) => {
   await addFromCard(page)
 
   await expect(page.getByText(`Đã thêm ${FOOD_NAME} vào giỏ`, { exact: true })).toBeVisible()
@@ -42,7 +42,7 @@ test('thêm món từ thẻ hiện thông báo và không tự mở giỏ', asyn
   await expect(page.getByText('Giỏ hàng đang trống')).toHaveCount(0)
 })
 
-test('tăng giảm số lượng trong giỏ cập nhật lại báo giá', async ({ page }) => {
+test('Changing quantity in the cart refreshes the quote', async ({ page }) => {
   await addFromCard(page)
   await openCart(page)
 
@@ -57,7 +57,7 @@ test('tăng giảm số lượng trong giỏ cập nhật lại báo giá', asyn
   await expect(page.getByTestId('cart-line-total')).toHaveText(UNIT_PRICE)
 })
 
-test('nút đặt món trong giỏ mở trang thanh toán', async ({ page }) => {
+test('Checkout button in the cart opens the checkout page', async ({ page }) => {
   await addFromCard(page)
   await openCart(page)
 
@@ -70,7 +70,7 @@ test('nút đặt món trong giỏ mở trang thanh toán', async ({ page }) => 
   await expect(page.getByText('Tổng thanh toán')).toBeVisible()
 })
 
-test('giỏ trống có lối quay lại thực đơn', async ({ page }) => {
+test('Empty cart offers a way back to the menu', async ({ page }) => {
   await openCart(page)
 
   await expect(page.getByText('Giỏ hàng đang trống')).toBeVisible()

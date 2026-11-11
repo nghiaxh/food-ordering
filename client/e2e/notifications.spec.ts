@@ -63,7 +63,7 @@ async function openNotifications(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('notification-item').first()).toBeVisible()
 }
 
-test('đánh dấu tất cả đã đọc xoá huy hiệu chưa đọc', async ({ page, request }) => {
+test('Mark all as read clears the unread badge', async ({ page, request }) => {
   const orderId = await createNotificationOrder(request)
   await page.goto('/')
   await openNotifications(page)
@@ -78,7 +78,7 @@ test('đánh dấu tất cả đã đọc xoá huy hiệu chưa đọc', async (
   await expect(page.getByText(/\d+ mới/)).toHaveCount(0)
 })
 
-test('bấm thông báo mở đúng đơn và đánh dấu đã đọc', async ({ page, request }) => {
+test('Clicking a notification opens the matching order and marks it read', async ({ page, request }) => {
   const orderId = await createNotificationOrder(request)
   await page.goto('/')
   await openNotifications(page)
@@ -94,7 +94,7 @@ test('bấm thông báo mở đúng đơn và đánh dấu đã đọc', async (
   await expect(itemFor(page, orderId)).toHaveAttribute('data-read', 'true')
 })
 
-test('xóa đã đọc chỉ xoá thông báo đã đọc, giữ lại thông báo mới', async ({ page, request }) => {
+test('Delete read keeps unread notifications', async ({ page, request }) => {
   const readOrderId = await createNotificationOrder(request)
   const unreadOrderId = await createNotificationOrder(request)
 

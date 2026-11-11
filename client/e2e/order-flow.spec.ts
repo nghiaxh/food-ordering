@@ -9,14 +9,14 @@ const FOOD_NAME = 'Phở bò'
  * de khong phu thuoc du lieu cu, va dat voi ten/dien thoai/dia chi co dinh.
  * Moi lan chay tao mot don moi trong CSDL dev (CI dung `down -v` nen sach).
  */
-test.describe('E2E - Luồng Đặt món & Thanh toán', () => {
+test.describe('E2E - Order and payment flow', () => {
   test.beforeEach(async ({ request, page }) => {
     const session = await apiLogin(request, CUSTOMER_EMAIL)
     await clearCart(request, session.token)
     await loginInBrowser(page, CUSTOMER_EMAIL)
   })
 
-  test('Thêm món vào giỏ và đặt hàng COD thành công', async ({ page }) => {
+  test('Add a dish to the cart and place a COD order', async ({ page }) => {
     const addButton = page.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
     await expect(addButton).toBeVisible()
     await addButton.hover()

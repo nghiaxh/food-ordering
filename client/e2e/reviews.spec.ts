@@ -55,7 +55,7 @@ async function expectApiReview(
     .toEqual(expect.objectContaining(expected))
 }
 
-test('chỉ chấm sao vẫn gửi được đánh giá và không lưu nhận xét rỗng', async ({ page, request }) => {
+test('Rating only still submits a review without an empty comment', async ({ page, request }) => {
   await openFoodPage(page)
 
   await page.getByRole('radio', { name: '5 trên 5 sao' }).click()
@@ -73,7 +73,7 @@ test('chỉ chấm sao vẫn gửi được đánh giá và không lưu nhận x
   await expectApiReview(request, { rating: 5, comment: null })
 })
 
-test('sửa đánh giá và xoá nhận xét thì lưu comment null', async ({ page, request }) => {
+test('Editing a review and clearing the comment stores a null comment', async ({ page, request }) => {
   await createReview(request, session.token, foodId, 4, COMMENT)
   await openFoodPage(page)
 

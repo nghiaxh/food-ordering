@@ -58,7 +58,7 @@ export async function apiLogin(request: APIRequestContext, email: string): Promi
     data: { email, password: demoPassword(email) },
   })
   if (!res.ok()) {
-    throw new Error(`Đăng nhập API thất bại cho ${email}: ${res.status()} ${await res.text()}`)
+    throw new Error(`API login failed for ${email}: ${res.status()} ${await res.text()}`)
   }
   return (await res.json()) as DemoSession
 }
@@ -79,19 +79,19 @@ export async function clearCart(request: APIRequestContext, token: string): Prom
 
 export async function listFoods(request: APIRequestContext): Promise<ApiFood[]> {
   const res = await request.get(`${API_URL}/foods`)
-  if (!res.ok()) throw new Error(`Không tải được thực đơn: ${res.status()}`)
+  if (!res.ok()) throw new Error(`Could not load the menu: ${res.status()}`)
   return (await res.json()) as ApiFood[]
 }
 
 export async function foodIdByName(request: APIRequestContext, name: string): Promise<number> {
   const food = (await listFoods(request)).find((f) => f.name === name)
-  if (!food) throw new Error(`Không tìm thấy món "${name}" trong dữ liệu seed`)
+  if (!food) throw new Error(`Food "${name}" not found in the seed data`)
   return food.id
 }
 
 export async function firstAvailableFoodId(request: APIRequestContext): Promise<number> {
   const food = (await listFoods(request)).find((f) => f.available)
-  if (!food) throw new Error('Không có món nào đang phục vụ')
+  if (!food) throw new Error('No available dish in the menu')
   return food.id
 }
 
@@ -103,7 +103,7 @@ export async function getReviews(
   const res = await request.get(`${API_URL}/reviews/food/${foodId}`, {
     headers: authHeaders(token),
   })
-  if (!res.ok()) throw new Error(`Không tải được đánh giá: ${res.status()}`)
+  if (!res.ok()) throw new Error(`Could not load reviews: ${res.status()}`)
   return (await res.json()) as ApiReview[]
 }
 
@@ -136,7 +136,7 @@ export async function createReview(
     headers: authHeaders(token),
     data: { foodId, rating, comment },
   })
-  if (!res.ok()) throw new Error(`Không tạo được đánh giá: ${res.status()} ${await res.text()}`)
+  if (!res.ok()) throw new Error(`Could not create the review: ${res.status()} ${await res.text()}`)
 }
 
 export interface ApiOrder {
@@ -161,7 +161,7 @@ export async function createOrder(
       paymentMethod: 'COD',
     },
   })
-  if (!res.ok()) throw new Error(`Không tạo được đơn: ${res.status()} ${await res.text()}`)
+  if (!res.ok()) throw new Error(`Could not create the order: ${res.status()} ${await res.text()}`)
   return (await res.json()) as ApiOrder
 }
 
@@ -170,7 +170,7 @@ export async function getNotifications(
   token: string,
 ): Promise<ApiNotification[]> {
   const res = await request.get(`${API_URL}/notifications`, { headers: authHeaders(token) })
-  if (!res.ok()) throw new Error(`Không tải được thông báo: ${res.status()}`)
+  if (!res.ok()) throw new Error(`Could not load notifications: ${res.status()}`)
   return (await res.json()) as ApiNotification[]
 }
 
