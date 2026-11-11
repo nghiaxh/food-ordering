@@ -1,5 +1,7 @@
-import { prisma } from "../../lib/prisma.js";
-import { badRequest, notFound } from "../../lib/errors.js";
+import { and, asc, eq, sql } from "drizzle-orm";
+import { db } from "../../lib/db.js";
+import { cartItems, foods, users } from "../../db/schema.js";
+import { badRequest, notFound, unauthorized } from "../../lib/errors.js";
 import { toCartItemJson } from "../../lib/serializers.js";
 import { priceOrder, toQuote } from "../pricing/service.js";
 import type { quoteRequestSchema } from "./schema.js";
@@ -7,66 +9,78 @@ import type { z } from "zod";
 
 type QuoteRequest = z.infer<typeof quoteRequestSchema>;
 
-const FOOD_INCLUDE = { food: { include: { category: true } } } as const;
+const getUserOrThrow = async (email: string) => {
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
+  return user;
+};
 
 export async function listCart(email: string) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const items = await prisma.cartItem.findMany({
-    where: { userId: user.id },
-    include: FOOD_INCLUDE,
-    orderBy: { id: "asc" },
+  const user = await getUserOrThrow(email);
+  const items = await db.query.cartItems.findMany({
+    where: eq(cartItems.userId, user.id),
+    with: { food: { with: { category: true } } },
+    orderBy: [asc(cartItems.id)],
   });
   return items.map(toCartItemJson);
 }
 
 export async function addToCart(email: string, foodId: number, quantity: number) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const food = await prisma.food.findUnique({ where: { id: foodId } });
+  const user = await getUserOrThrow(email);
+  const food = await db.query.foods.findFirst({ where: eq(foods.id, foodId) });
   if (!food) throw badRequest("Món không tồn tại");
   if (!food.available) {
     throw badRequest(`Món "${food.name}" hiện không phục vụ`);
   }
-  // Dòng mới bắt đầu từ 0 rồi cộng quantity, vì entity mặc định 1 sẽ làm lần thêm đầu dư 1 phần.
-  const item = await prisma.cartItem.upsert({
-    where: { userId_foodId: { userId: user.id, foodId } },
-    create: { userId: user.id, foodId, quantity: 0 },
-    update: {},
-    include: FOOD_INCLUDE,
+
+  // Dùng insert on conflict do update để cộng dồn quantity
+  const [item] = await db
+    .insert(cartItems)
+    .values({ userId: user.id, foodId, quantity })
+    .onConflictDoUpdate({
+      target: [cartItems.userId, cartItems.foodId],
+      set: { quantity: sql`${cartItems.quantity} + ${quantity}` },
+    })
+    .returning();
+
+  const saved = await db.query.cartItems.findFirst({
+    where: eq(cartItems.id, item!.id),
+    with: { food: { with: { category: true } } },
   });
-  const saved = await prisma.cartItem.update({
-    where: { id: item.id },
-    data: { quantity: { increment: quantity } },
-    include: FOOD_INCLUDE,
-  });
-  return toCartItemJson(saved);
+  return toCartItemJson(saved!);
 }
 
 export async function updateCartItem(email: string, foodId: number, quantity: number) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const item = await prisma.cartItem.findUnique({
-    where: { userId_foodId: { userId: user.id, foodId } },
+  const user = await getUserOrThrow(email);
+  const item = await db.query.cartItems.findFirst({
+    where: and(eq(cartItems.userId, user.id), eq(cartItems.foodId, foodId)),
   });
   if (!item) throw notFound("Món chưa có trong giỏ hàng");
-  const saved = await prisma.cartItem.update({
-    where: { id: item.id },
-    data: { quantity },
-    include: FOOD_INCLUDE,
+
+  await db
+    .update(cartItems)
+    .set({ quantity })
+    .where(eq(cartItems.id, item.id));
+
+  const saved = await db.query.cartItems.findFirst({
+    where: eq(cartItems.id, item!.id),
+    with: { food: { with: { category: true } } },
   });
-  return toCartItemJson(saved);
+  return toCartItemJson(saved!);
 }
 
 export async function removeCartItem(email: string, foodId: number) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  const item = await prisma.cartItem.findUnique({
-    where: { userId_foodId: { userId: user.id, foodId } },
+  const user = await getUserOrThrow(email);
+  const item = await db.query.cartItems.findFirst({
+    where: and(eq(cartItems.userId, user.id), eq(cartItems.foodId, foodId)),
   });
   if (!item) throw notFound("Món chưa có trong giỏ hàng");
-  await prisma.cartItem.delete({ where: { id: item.id } });
+  await db.delete(cartItems).where(eq(cartItems.id, item.id));
 }
 
 export async function clearCart(email: string) {
-  const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-  await prisma.cartItem.deleteMany({ where: { userId: user.id } });
+  const user = await getUserOrThrow(email);
+  await db.delete(cartItems).where(eq(cartItems.userId, user.id));
 }
 
 export async function quote(items: QuoteRequest["items"]) {

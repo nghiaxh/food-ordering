@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Food, Category } from "../src/generated/prisma/client.js";
+import type { Food, Category } from "../src/db/schema.js";
 import {
   picked,
   selectFoods,

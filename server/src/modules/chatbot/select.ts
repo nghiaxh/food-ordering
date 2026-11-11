@@ -1,7 +1,7 @@
 // Chọn món bằng code xác định: lọc thuộc tính trước, rồi ghép/kiểm tra ngân sách tổng.
 // AI chỉ diễn đạt sau khi danh sách món đã có; thẻ món luôn lấy ID/giá từ DB.
 
-import type { Category, Food } from "../../generated/prisma/client.js";
+import type { Category, Food } from "../../db/schema.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { passesFilters, significantWords, vnd, isFoodQuestion, type Filters } from "./filters.js";
 import { wantedGroups, type NormalizedCriteria, type CategoryNeed } from "./criteria.js";

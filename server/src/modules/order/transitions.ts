@@ -1,5 +1,5 @@
 // Luật chuyển trạng thái đơn hàng — tách khỏi service để test độc lập không cần DB.
-import type { OrderStatus } from "../../generated/prisma/client.js";
+export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "COMPLETED" | "CANCELLED";
 import { badRequest } from "../../lib/errors.js";
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {

@@ -10,7 +10,7 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   module chức năng (`modules/auth/`, `modules/menu/`...), mỗi module gồm `api.ts`, `store.ts`
   (nếu có store) và `components/`, `pages/`; hạ tầng dùng chung ở `shared/` (`api/http.ts`,
   `types/`, `utils/`, `stores/`). Toast/message dùng naive-ui (`createDiscreteApi`). UI tiếng Việt.
-- **server/** - Express 5 + TypeScript, Prisma 7 (driver adapter `@prisma/adapter-pg`), PostgreSQL 18.
+- **server/** - Express 5 + TypeScript, Drizzle ORM (node-postgres), PostgreSQL 18.
   JWT bằng `jsonwebtoken` (HS256) + `bcrypt`; validate đầu vào bằng `zod`. Cấu trúc `src/modules/`
   theo module chức năng giống client, lớp chính `src/server.ts`; middleware tập trung ở
   `src/middleware/` (auth, error), tiện ích ở `src/lib/`.
@@ -77,8 +77,8 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
 
 ### Key wiring (không rõ từ tên file)
 
-- **Không dùng Flyway.** Schema do `prisma migrate` quản lý (`server/prisma/migrations/`);
-  seed nạp qua `server/prisma/seed.ts`, bỏ qua nếu bảng `users` đã có dữ liệu,
+- **Không dùng Flyway.** Schema do Drizzle ORM (`drizzle-kit`) quản lý (`server/drizzle/`);
+  seed nạp qua `server/src/db/seed.ts`, bỏ qua nếu bảng `users` đã có dữ liệu,
   nên không nhân đôi dữ liệu demo khi chạy lại.
 - **Security**: middleware stateless `requireAuth`/`optionalAuth`/`requireRole` ở
   `src/middleware/auth.ts`, không session. Public: `/api/auth/register`,
@@ -157,7 +157,7 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   không chặn bấm vào thẻ món.
 - **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
   Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
-  sửa `server/prisma/seed.ts` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
+  sửa `server/src/db/seed.ts` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua
   khi DB đã có dữ liệu. Cỡ ảnh theo ô hiển thị: `foods` 1200px, `categories` 800px,
   `hero` 1280px (hero vốn đã blur + opacity nên quality thấp vẫn đẹp).
 
@@ -175,7 +175,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Dev: `npm run dev` (tsx watch, http://localhost:8080/api; cần Postgres ở localhost:5432
   và biến môi trường từ root `.env` — server tự đọc qua dotenv; hoặc `docker compose --profile dev up --build`)
 - Build/test: `npm run build` / `npm test`. Unit test Vitest trong `tests/`, chạy độc lập không cần DB.
-- Migration CSDL: `npx prisma migrate dev` (tạo migration), `npx prisma migrate deploy` (áp dụng), `npx prisma db seed` (nạp demo).
+- Migration CSDL: `npm run db:generate` (tạo migration), `npm run db:migrate` (áp dụng), `npm run db:seed` (nạp demo), `npm run db:studio` (mở Drizzle Studio).
 - Prod: `docker compose --profile prod up --build -d`
 
 **Full stack** (repo root):

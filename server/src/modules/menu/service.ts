@@ -1,4 +1,6 @@
-import { prisma } from "../../lib/prisma.js";
+import { and, asc, count, eq, gte, lte } from "drizzle-orm";
+import { db } from "../../lib/db.js";
+import { categories, cartItems, foods, orderItems } from "../../db/schema.js";
 import { badRequest, conflict, notFound } from "../../lib/errors.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { toCategoryJson, toFoodJson } from "../../lib/serializers.js";
@@ -14,62 +16,91 @@ export async function searchFoods(filter: {
   minPrice?: number;
   maxPrice?: number;
 }) {
-  const price =
-    filter.minPrice !== undefined || filter.maxPrice !== undefined
-      ? {
-          ...(filter.minPrice !== undefined && { gte: filter.minPrice }),
-          ...(filter.maxPrice !== undefined && { lte: filter.maxPrice }),
-        }
-      : undefined;
-  const foods = await prisma.food.findMany({
-    where: {
-      ...(filter.categoryId !== undefined && { categoryId: filter.categoryId }),
-      ...(price && { price }),
-    },
-    include: { category: true },
-    orderBy: { id: "asc" },
+  const conditions = [];
+  if (filter.categoryId !== undefined) {
+    conditions.push(eq(foods.categoryId, filter.categoryId));
+  }
+  if (filter.minPrice !== undefined) {
+    conditions.push(gte(foods.price, String(filter.minPrice)));
+  }
+  if (filter.maxPrice !== undefined) {
+    conditions.push(lte(foods.price, String(filter.maxPrice)));
+  }
+
+  const foodList = await db.query.foods.findMany({
+    where: conditions.length > 0 ? and(...conditions) : undefined,
+    with: { category: true },
+    orderBy: [asc(foods.id)],
   });
+
   const keyword = plain(filter.keyword);
-  const matched = keyword ? foods.filter((f) => plain(f.name).includes(keyword)) : foods;
+  const matched = keyword ? foodList.filter((f) => plain(f.name).includes(keyword)) : foodList;
   const decorated = await decorateFoods(matched);
   return decorated.map((f) => toFoodJson(f));
 }
 
 export async function getFood(id: number) {
-  const food = await prisma.food.findUnique({ where: { id }, include: { category: true } });
+  const food = await db.query.foods.findFirst({
+    where: eq(foods.id, id),
+    with: { category: true },
+  });
   if (!food) throw notFound("Không tìm thấy món ăn");
   const [decorated] = await decorateFoods([food]);
   return toFoodJson(decorated!);
 }
 
 export async function listCategories() {
-  const categories = await prisma.category.findMany({ orderBy: { id: "asc" } });
-  return categories.map(toCategoryJson);
+  const catList = await db.query.categories.findMany({
+    orderBy: [asc(categories.id)],
+  });
+  return catList.map(toCategoryJson);
 }
 
 export async function createCategory(req: { name: string; slug?: string; imageUrl?: string; description?: string }) {
-  const created = await prisma.category.create({
-    data: { name: req.name, slug: req.slug ?? null, imageUrl: req.imageUrl ?? null, description: req.description ?? null },
-  });
-  return toCategoryJson(created);
+  const [created] = await db
+    .insert(categories)
+    .values({
+      name: req.name,
+      slug: req.slug ?? null,
+      imageUrl: req.imageUrl ?? null,
+      description: req.description ?? null,
+    })
+    .returning();
+  return toCategoryJson(created!);
 }
 
 export async function updateCategory(id: number, req: { name: string; slug?: string; imageUrl?: string; description?: string }) {
-  const exists = await prisma.category.findUnique({ where: { id }, select: { id: true } });
-  if (!exists) throw notFound("Không tìm thấy danh mục");
-  const updated = await prisma.category.update({
-    where: { id },
-    data: { name: req.name, slug: req.slug ?? null, imageUrl: req.imageUrl ?? null, description: req.description ?? null },
+  const exists = await db.query.categories.findFirst({
+    where: eq(categories.id, id),
+    columns: { id: true },
   });
-  return toCategoryJson(updated);
+  if (!exists) throw notFound("Không tìm thấy danh mục");
+
+  const [updated] = await db
+    .update(categories)
+    .set({
+      name: req.name,
+      slug: req.slug ?? null,
+      imageUrl: req.imageUrl ?? null,
+      description: req.description ?? null,
+    })
+    .where(eq(categories.id, id))
+    .returning();
+
+  return toCategoryJson(updated!);
 }
 
 export async function deleteCategory(id: number) {
-  const foods = await prisma.food.count({ where: { categoryId: id } });
-  if (foods > 0) {
+  const totalRows = await db
+    .select({ value: count() })
+    .from(foods)
+    .where(eq(foods.categoryId, id));
+  const foodCount = totalRows[0]?.value ?? 0;
+
+  if (foodCount > 0) {
     throw conflict("Danh mục còn chứa món ăn, không thể xóa");
   }
-  await prisma.category.delete({ where: { id } });
+  await db.delete(categories).where(eq(categories.id, id));
 }
 
 export async function createFood(req: {
@@ -85,25 +116,34 @@ export async function createFood(req: {
   allergens?: string;
   available?: boolean;
 }) {
-  const category = await prisma.category.findUnique({ where: { id: req.categoryId }, select: { id: true } });
+  const category = await db.query.categories.findFirst({
+    where: eq(categories.id, req.categoryId),
+    columns: { id: true },
+  });
   if (!category) throw badRequest("Danh mục không tồn tại");
-  const created = await prisma.food.create({
-    data: {
+
+  const [created] = await db
+    .insert(foods)
+    .values({
       name: req.name,
       categoryId: req.categoryId,
       description: req.description ?? null,
       ingredients: req.ingredients ?? null,
-      price: req.price,
+      price: String(req.price),
       imageUrl: req.imageUrl ?? null,
       servingSize: req.servingSize && req.servingSize > 0 ? req.servingSize : 1,
       spicyLevel: req.spicyLevel ?? 0,
       dietaryTags: req.dietaryTags ?? null,
       allergens: req.allergens ?? null,
       available: req.available ?? true,
-    },
-    include: { category: true },
+    })
+    .returning();
+
+  const withCat = await db.query.foods.findFirst({
+    where: eq(foods.id, created!.id),
+    with: { category: true },
   });
-  return toFoodJson(created);
+  return toFoodJson(withCat!);
 }
 
 export async function updateFood(id: number, req: {
@@ -119,44 +159,61 @@ export async function updateFood(id: number, req: {
   allergens?: string;
   available?: boolean;
 }) {
-  const food = await prisma.food.findUnique({ where: { id }, select: { id: true } });
+  const food = await db.query.foods.findFirst({
+    where: eq(foods.id, id),
+    columns: { id: true },
+  });
   if (!food) throw notFound("Không tìm thấy món ăn");
-  const category = await prisma.category.findUnique({ where: { id: req.categoryId }, select: { id: true } });
+
+  const category = await db.query.categories.findFirst({
+    where: eq(categories.id, req.categoryId),
+    columns: { id: true },
+  });
   if (!category) throw badRequest("Danh mục không tồn tại");
-  const updated = await prisma.food.update({
-    where: { id },
-    data: {
+
+  await db
+    .update(foods)
+    .set({
       name: req.name,
       categoryId: req.categoryId,
       description: req.description ?? null,
       ingredients: req.ingredients ?? null,
-      price: req.price,
+      price: String(req.price),
       imageUrl: req.imageUrl ?? null,
       servingSize: req.servingSize && req.servingSize > 0 ? req.servingSize : 1,
       spicyLevel: req.spicyLevel ?? 0,
       dietaryTags: req.dietaryTags ?? null,
       allergens: req.allergens ?? null,
       available: req.available ?? true,
-    },
-    include: { category: true },
+    })
+    .where(eq(foods.id, id));
+
+  const updated = await db.query.foods.findFirst({
+    where: eq(foods.id, id),
+    with: { category: true },
   });
-  return toFoodJson(updated);
+  return toFoodJson(updated!);
 }
 
-/**
- * Món đã phát sinh đơn không xoá vật lý được, vì chi tiết đơn còn tham chiếu tới nó; admin phải
- * chuyển sang trạng thái ngừng phục vụ. Món còn nằm trong giỏ của khách cũng vậy.
- */
 export async function deleteFood(id: number) {
-  const food = await prisma.food.findUnique({ where: { id } });
+  const food = await db.query.foods.findFirst({ where: eq(foods.id, id) });
   if (!food) throw notFound("Không tìm thấy món ăn");
-  const inOrder = await prisma.orderItem.findFirst({ where: { foodId: id }, select: { id: true } });
+
+  const inOrder = await db.query.orderItems.findFirst({
+    where: eq(orderItems.foodId, id),
+    columns: { id: true },
+  });
   if (inOrder) {
     throw conflict(`Món "${food.name}" đang nằm trong đơn hàng. Hãy chuyển sang trạng thái ngừng phục vụ.`);
   }
-  const inCart = await prisma.cartItem.findFirst({ where: { foodId: id }, select: { id: true } });
+
+  const inCart = await db.query.cartItems.findFirst({
+    where: eq(cartItems.foodId, id),
+    columns: { id: true },
+  });
   if (inCart) {
     throw conflict(`Món "${food.name}" đang nằm trong giỏ hàng của khách. Hãy chuyển sang trạng thái ngừng phục vụ.`);
   }
-  await prisma.food.delete({ where: { id } });
+
+  await db.delete(foods).where(eq(foods.id, id));
 }

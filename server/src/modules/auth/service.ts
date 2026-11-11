@@ -1,4 +1,6 @@
-import { prisma } from "../../lib/prisma.js";
+import { eq } from "drizzle-orm";
+import { db } from "../../lib/db.js";
+import { users } from "../../db/schema.js";
 import { hashPassword, verifyPassword } from "../../lib/password.js";
 import { generateToken } from "../../lib/jwt.js";
 import { badRequest, forbidden, unauthorized } from "../../lib/errors.js";
@@ -20,22 +22,30 @@ const toAuthResponse = (u: { id: number; email: string; fullName: string | null;
 });
 
 export async function register(req: RegisterRequest) {
-  const exists = await prisma.user.findUnique({ where: { email: req.email }, select: { id: true } });
+  const exists = await db.query.users.findFirst({
+    where: eq(users.email, req.email),
+    columns: { id: true },
+  });
   if (exists) throw badRequest("Email đã tồn tại");
-  const user = await prisma.user.create({
-    data: {
+
+  const [user] = await db
+    .insert(users)
+    .values({
       email: req.email,
       password: await hashPassword(req.password),
       fullName: req.fullName,
       phone: req.phone ?? null,
       address: req.address ?? null,
-    },
-  });
-  return toAuthResponse(user);
+    })
+    .returning();
+
+  return toAuthResponse(user!);
 }
 
 export async function login(req: LoginRequest) {
-  const user = await prisma.user.findUnique({ where: { email: req.email } });
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, req.email),
+  });
   if (!user) throw unauthorized("Email không tồn tại");
   if (!(await verifyPassword(req.password, user.password))) {
     throw unauthorized("Mật khẩu không đúng");
@@ -45,32 +55,38 @@ export async function login(req: LoginRequest) {
 }
 
 export async function getMe(email: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
   if (!user) throw unauthorized("Bạn cần đăng nhập");
   return toUserJson(user);
 }
 
 export async function updateMe(email: string, req: UpdateProfileRequest) {
-  const user = await prisma.user.update({
-    where: { email },
-    data: {
+  const [user] = await db
+    .update(users)
+    .set({
       fullName: req.fullName,
       phone: req.phone ?? null,
       address: req.address ?? null,
-    },
-  });
-  return toUserJson(user);
+    })
+    .where(eq(users.email, email))
+    .returning();
+
+  return toUserJson(user!);
 }
 
 /** Đổi mật khẩu phải xác minh mật khẩu cũ trước, nếu không ai có token cũng đổi được. */
 export async function changePassword(email: string, req: ChangePasswordRequest) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
   if (!user) throw unauthorized("Bạn cần đăng nhập");
   if (!(await verifyPassword(req.currentPassword, user.password))) {
     throw badRequest("Mật khẩu hiện tại không đúng");
   }
-  await prisma.user.update({
-    where: { email },
-    data: { password: await hashPassword(req.newPassword) },
-  });
+  await db
+    .update(users)
+    .set({ password: await hashPassword(req.newPassword) })
+    .where(eq(users.email, email));
 }
