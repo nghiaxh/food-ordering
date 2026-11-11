@@ -1,11 +1,11 @@
 import type { APIRequestContext, Page } from '@playwright/test'
 
-// Nếu dự án chưa cài @types/node, khai báo tối thiểu này đủ cho `process.env.API_URL`.
+// Neu du an chua cai @types/node, khai bao toi thieu nay du cho `process.env.API_URL`.
 declare const process: { env: Record<string, string | undefined> }
 
 /**
- * Dữ liệu E2E dùng API thật để dựng/ dọn trạng thái thay vì đụng CSDL trực tiếp.
- * `VITE_API_URL` của client trỏ thẳng cổng 8080 nên test cũng gọi cùng địa chỉ đó.
+ * Du lieu E2E dung API that de dung/ don trang thai thay vi dung CSDL truc tiep.
+ * `VITE_API_URL` cua client tro thang cong 8080 nen test cung goi cung dia chi do.
  */
 export const API_URL = process.env.API_URL ?? 'http://localhost:8080/api'
 
@@ -44,7 +44,7 @@ export interface ApiNotification {
   orderId: number | null
 }
 
-/** Mật khẩu của tài khoản demo luôn là phần trước dấu `@`. */
+/** Mat khau cua tai khoan demo luon la phan truoc dau `@`. */
 export function demoPassword(email: string): string {
   return email.split('@')[0]
 }
@@ -63,13 +63,13 @@ export async function apiLogin(request: APIRequestContext, email: string): Promi
   return (await res.json()) as DemoSession
 }
 
-/** Đăng nhập qua giao diện; dừng khi đã về trang chủ để form và store giỏ đã sẵn sàng. */
+/** Dang nhap qua giao dien; dung khi da ve trang chu de form va store gio da san sang. */
 export async function loginInBrowser(page: Page, email: string): Promise<void> {
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Mật khẩu').fill(demoPassword(email))
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
-  // Absolute pathname check vì `waitForURL('/')` so khớp cả URL gốc có origin.
+  // Absolute pathname check vi `waitForURL('/')` so khop ca URL goc co origin.
   await page.waitForURL((url) => url.pathname === '/')
 }
 
@@ -144,7 +144,7 @@ export interface ApiOrder {
   total: number
 }
 
-/** Mỗi đơn mới sinh một thông báo "đã được tạo" nên test thông báo không phụ thuộc seed. */
+/** Moi don moi sinh mot thong bao "da duoc tao" nen test thong bao khong phu thuoc seed. */
 export async function createOrder(
   request: APIRequestContext,
   token: string,
@@ -182,7 +182,7 @@ export async function markNotificationRead(
   await request.post(`${API_URL}/notifications/${id}/read`, { headers: authHeaders(token) })
 }
 
-/** Dọn thông báo do chính test tạo để lần chạy sau không phình danh sách. */
+/** Don thong bao do chinh test tao de lan chay sau khong phinh danh sach. */
 export async function deleteNotificationsForOrder(
   request: APIRequestContext,
   token: string,

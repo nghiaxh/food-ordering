@@ -12,5 +12,5 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Uploads local (volume docker quản lý)
+# Uploads local (volume docker quan ly)
 uploads/

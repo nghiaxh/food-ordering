@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-// JWT_SECRET giả chỉ để các module import (env validation) không dừng tiến trình test.
+// JWT_SECRET gia chi de cac module import (env validation) khong dung tien trinh test.
 export default defineConfig({
   test: {
     environment: "node",

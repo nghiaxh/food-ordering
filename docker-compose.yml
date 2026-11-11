@@ -39,7 +39,7 @@ services:
       UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
-    # tsx watch tự reload khi file đổi; không cần bước compile riêng.
+    # tsx watch tu reload khi file doi; khong can buoc compile rieng.
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
       interval: 5s
@@ -47,9 +47,9 @@ services:
       retries: 20
       start_period: 30s
     volumes:
-      # Chỉ mount source và migration để hot reload; node_modules giữ nguyên trong image.
-      # Anonymous volume /app/node_modules sẽ che mất node_modules của image (kể cả drizzle-kit),
-      # nên không dùng pattern đó ở đây.
+      # Chi mount source va migration de hot reload; node_modules giu nguyen trong image.
+      # Anonymous volume /app/node_modules se che mat node_modules cua image (ke ca drizzle-kit),
+      # nen khong dung pattern do o day.
       - ./server/src:/app/src
       - ./server/drizzle:/app/drizzle
       - ./server/drizzle.config.ts:/app/drizzle.config.ts:ro
@@ -70,7 +70,7 @@ services:
       VITE_API_URL: http://localhost:8080/api
     ports:
       - "5173:5173"
-    # Chỉ coi là sẵn sàng khi Vite thật sự phục vụ, tránh client gọi vào backend chưa chạy.
+    # Chi coi la san sang khi Vite that su phuc vu, tranh client goi vao backend chua chay.
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1"]
       interval: 5s
@@ -78,7 +78,7 @@ services:
       retries: 20
       start_period: 20s
     volumes:
-      # Chỉ mount source để hot reload; node_modules giữ nguyên trong image.
+      # Chi mount source de hot reload; node_modules giu nguyen trong image.
       - ./client/src:/app/src
       - ./client/public:/app/public
       - ./client/index.html:/app/index.html:ro

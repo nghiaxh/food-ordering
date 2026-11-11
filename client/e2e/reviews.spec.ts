@@ -10,16 +10,16 @@ import {
 } from './support/extended-api'
 
 /**
- * Đánh giá món. `thaotran` có đơn hoàn thành chứa `Nước cam ép` và món này chưa có
- * đánh giá seed, nên mỗi test sở hữu đúng một đánh giá của chính mình.
+ * Danh gia mon. `thaotran` co don hoan thanh chua `Nuoc cam ep` va mon nay chua co
+ * danh gia seed, nen moi test so huu dung mot danh gia cua chinh minh.
  */
 const REVIEW_EMAIL = 'thaotran@demo.com'
 const FOOD_NAME = 'Nước cam ép'
 const REVIEWER_NAME = 'Trần Phương Thảo'
 const COMMENT = 'Ngon, sẽ quay lại'
 
-// Chung một tài khoản + một món: chạy song song thì bước dọn đánh giá của test này xoá mất
-// đánh giá test kia vừa tạo.
+// Chung mot tai khoan + mot mon: chay song song thi buoc don danh gia cua test nay xoa mat
+// danh gia test kia vua tao.
 test.describe.configure({ mode: 'serial' })
 
 let session: DemoSession
@@ -67,7 +67,7 @@ test('chỉ chấm sao vẫn gửi được đánh giá và không lưu nhận x
   const item = myReviewItem(page)
   await expect(item).toHaveCount(1)
   await expect(item.getByLabel('5 trên 5 sao')).toBeVisible()
-  // Nhận xét không bắt buộc: chấm sao xong không nhập gì thì không được hiện đoạn văn rỗng.
+  // Nhan xet khong bat buoc: cham sao xong khong nhap gi thi khong duoc hien doan van rong.
   await expect(item.getByTestId('review-comment')).toHaveCount(0)
 
   await expectApiReview(request, { rating: 5, comment: null })

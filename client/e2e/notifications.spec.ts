@@ -11,8 +11,8 @@ import {
 } from './support/extended-api'
 
 /**
- * Thông báo. `duchoang` không có thông báo seed nên mỗi test tự tạo đơn để sinh thông báo
- * "đã được tạo", rồi dọn đúng thông báo của đơn mình tạo trong `afterEach`.
+ * Thong bao. `duchoang` khong co thong bao seed nen moi test tu tao don de sinh thong bao
+ * "da duoc tao", roi don dung thong bao cua don minh tao trong `afterEach`.
  */
 const NOTIFICATION_EMAIL = 'duchoang@demo.com'
 const RECEIVER = {
@@ -21,11 +21,11 @@ const RECEIVER = {
   address: '123 Đường Test, Ninh Kiều, Cần Thơ',
 }
 
-// Cùng một tài khoản và cùng danh sách thông báo; chạy song song sẽ xoá lẫn thông báo của nhau.
+// Cung mot tai khoan va cung danh sach thong bao; chay song song se xoa lan thong bao cua nhau.
 test.describe.configure({ mode: 'serial' })
 
-// Chuông thông báo chỉ có nút riêng trên header từ `lg`; ép viewport desktop để test
-// không phụ thuộc project mobile của cấu hình Playwright.
+// Chuong thong bao chi co nut rieng tren header tu `lg`; ep viewport desktop de test
+// khong phu thuoc project mobile cua cau hinh Playwright.
 test.use({ viewport: { width: 1280, height: 900 } })
 
 let session: DemoSession
@@ -53,13 +53,13 @@ async function createNotificationOrder(request: APIRequestContext): Promise<numb
 }
 
 function itemFor(page: import('@playwright/test').Page, orderId: number) {
-  // `\b` để `#16` không khớp nhầm nội dung `#160`.
+  // `\b` de `#16` khong khop nham noi dung `#160`.
   return page.getByTestId('notification-item').filter({ hasText: new RegExp(`#${orderId}\\b`) })
 }
 
 async function openNotifications(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: /^Thông báo/ }).click()
-  // Chờ danh sách tải xong thay vì bám vào class nội bộ của AntD.
+  // Cho danh sach tai xong thay vi bam vao class noi bo cua AntD.
   await expect(page.getByTestId('notification-item').first()).toBeVisible()
 }
 

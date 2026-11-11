@@ -9,7 +9,7 @@ test.describe('E2E - Xác thực người dùng', () => {
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
 
     await page.waitForURL((url) => url.pathname === '/')
-    // Header chỉ hiện avatar với aria-label "Menu tài khoản" (kèm số thông báo chưa đọc nếu có).
+    // Header chi hien avatar voi aria-label "Menu tai khoan" (kem so thong bao chua doc neu co).
     await expect(page.getByRole('button', { name: /Menu tài khoản/ })).toBeVisible()
   })
 

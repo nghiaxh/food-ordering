@@ -7,7 +7,7 @@ test.describe('E2E - Phân quyền Quản trị viên', () => {
 
     await page.goto('/admin/dashboard')
 
-    // RequireAuth phía client điều hướng về trang chủ; quyền thật vẫn do server kiểm tra.
+    // RequireAuth phia client dieu huong ve trang chu; quyen that van do server kiem tra.
     await expect(page).toHaveURL('/')
     await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toHaveCount(0)
   })
@@ -21,7 +21,7 @@ test.describe('E2E - Phân quyền Quản trị viên', () => {
 
     await page.goto('/admin/orders')
     await expect(page).toHaveURL('/admin/orders')
-    // PageHeader render h2; menu bên trái dùng link nên không trùng role heading.
+    // PageHeader render h2; menu ben trai dung link nen khong trung role heading.
     await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
   })
 })

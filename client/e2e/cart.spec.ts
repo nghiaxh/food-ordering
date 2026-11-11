@@ -2,15 +2,15 @@ import { expect, test } from '@playwright/test'
 import { apiLogin, clearCart, loginInBrowser } from './support/extended-api'
 
 /**
- * Giỏ hàng và báo giá. Dùng tài khoản không có giỏ seed (`tunghoang`) và món không nằm
- * trong khuyến mãi nào (`Bún chả Hà Nội`) để tổng tiền không phụ thuộc ngày chạy.
+ * Gio hang va bao gia. Dung tai khoan khong co gio seed (`tunghoang`) va mon khong nam
+ * trong khuyen mai nao (`Bun cha Ha Noi`) de tong tien khong phu thuoc ngay chay.
  */
 const CART_EMAIL = 'tunghoang@demo.com'
 const FOOD_NAME = 'Bún chả Hà Nội'
 const UNIT_PRICE = '60.000đ'
 
-// Các test dùng chung một tài khoản và cùng xoá giỏ ở `beforeEach`; chạy song song sẽ
-// tranh nhau xoá đúng dòng món test khác vừa thêm.
+// Cac test dung chung mot tai khoan va cung xoa gio o `beforeEach`; chay song song se
+// tranh nhau xoa dung dong mon test khac vua them.
 test.describe.configure({ mode: 'serial' })
 
 test.beforeEach(async ({ request, page }) => {
@@ -20,7 +20,7 @@ test.beforeEach(async ({ request, page }) => {
   await page.goto('/')
 })
 
-/** Thêm món qua nút dấu cộng trên thẻ; nút chỉ hiện rõ khi rê chuột vào thẻ. */
+/** Them mon qua nut dau cong tren the; nut chi hien ro khi re chuot vao the. */
 async function addFromCard(page: import('@playwright/test').Page) {
   const addButton = page.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
   await expect(addButton).toBeVisible()
@@ -36,7 +36,7 @@ test('thêm món từ thẻ hiện thông báo và không tự mở giỏ', asyn
   await addFromCard(page)
 
   await expect(page.getByText(`Đã thêm ${FOOD_NAME} vào giỏ`, { exact: true })).toBeVisible()
-  // Thêm nhanh không được đẩy khách ra khỏi bảng món hay mở drawer ngoài ý muốn.
+  // Them nhanh khong duoc day khach ra khoi bang mon hay mo drawer ngoai y muon.
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('button', { name: 'Đặt món', exact: true })).toHaveCount(0)
   await expect(page.getByText('Giỏ hàng đang trống')).toHaveCount(0)

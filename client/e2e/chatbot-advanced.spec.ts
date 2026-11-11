@@ -2,11 +2,11 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 import { API_URL, listFoods } from './support/extended-api'
 
 /**
- * Chatbot thật: server gọi AI hai lượt rồi trả thẻ món dựng từ DB. Test chỉ khẳng định
- * trên `response.foods` (dữ liệu server) chứ không đọc câu chữ do AI viết.
+ * Chatbot that: server goi AI hai luot roi tra the mon dung tu DB. Test chi khang dinh
+ * tren `response.foods` (du lieu server) chu khong doc cau chu do AI viet.
  *
- * Cần `AI_API_KEY` thật ở server. Khi `/chatbot/status` báo `available = false`, cả file
- * được skip thay vì fail: CI dùng khóa giả trong `.env.example` nên nhánh này bỏ qua.
+ * Can `AI_API_KEY` that o server. Khi `/chatbot/status` bao `available = false`, ca file
+ * duoc skip thay vi fail: CI dung khoa gia trong `.env.example` nen nhanh nay bo qua.
  */
 interface ChatFoodCard {
   id: number
@@ -31,10 +31,10 @@ interface ChatPayload {
 const SKIP_REASON =
   'Chatbot chưa cấu hình khóa AI (AI_API_KEY rỗng hoặc bị từ chối); đặt khóa thật rồi chạy lại.'
 
-// Mỗi lượt chat gọi AI hai lần, mỗi lần timeout 15s ở server.
+// Moi luot chat goi AI hai lan, moi lan timeout 15s o server.
 test.describe.configure({ mode: 'serial', timeout: 120_000 })
 
-// Tắt hiệu ứng chạy chữ để tin bot hiện đủ ngay, không phải chờ vài giây.
+// Tat hieu ung chay chu de tin bot hien du ngay, khong phai cho vai giay.
 test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 test.beforeEach(async ({ request }) => {
@@ -50,7 +50,7 @@ async function openChat(page: Page) {
   await expect(page.getByLabel('Nhập câu hỏi cho chatbot')).toBeEnabled()
 }
 
-/** Gửi một câu và trả về body server cùng payload client đã gửi (để kiểm tra ngữ cảnh). */
+/** Gui mot cau va tra ve body server cung payload client da gui (de kiem tra ngu canh). */
 async function ask(page: Page, question: string) {
   const botMessages = page.getByTestId('chatbot-bot-message')
   const before = await botMessages.count()
@@ -66,7 +66,7 @@ async function ask(page: Page, question: string) {
   const payload = response.request().postDataJSON() as ChatPayload
   const body = (await response.json()) as ChatResponse
 
-  // Đợi tin bot mới render xong (kèm thẻ) trước khi hỏi tiếp.
+  // Doi tin bot moi render xong (kem the) truoc khi hoi tiep.
   await expect(botMessages).toHaveCount(before + 1)
   await expect(page.getByRole('button', { name: 'Gửi câu hỏi' })).toBeEnabled()
   return { body, payload }
@@ -107,7 +107,7 @@ test('gợi ý cho 4 người nằm trong tổng ngân sách 200.000đ', async (
     total += Number(card.totalPrice ?? card.price)
   }
   expect(total, 'Tổng tiền cả bộ phải nằm trong ngân sách').toBeLessThanOrEqual(200_000)
-  // Số người phải được áp vào khẩu phần, không chỉ dùng để trang trí câu trả lời.
+  // So nguoi phai duoc ap vao khau phan, khong chi dung de trang tri cau tra loi.
   expect(body.foods.some((card) => (card.portions ?? 1) > 1)).toBe(true)
 })
 
@@ -166,7 +166,7 @@ test('chủ đề mới bỏ qua ngữ cảnh của lượt trước', async ({ 
 
   const second = await ask(page, 'Có món chay nào ngon không?')
 
-  // Client vẫn gửi ngữ cảnh cũ; server phải bỏ qua vì câu này mở chủ đề mới.
+  // Client van gui ngu canh cu; server phai bo qua vi cau nay mo chu de moi.
   expect(second.payload.lastFoodIds).toEqual(firstIds)
   expect(second.body.foods.length).toBeGreaterThan(0)
 
