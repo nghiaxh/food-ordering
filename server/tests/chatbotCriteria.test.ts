@@ -3,7 +3,7 @@ import {
   isFollowUp,
   isReferenceKeyword,
   normalizeCriteria,
-} from "../src/modules/chatbot/criteria.js";
+} from "../src/user/chatbot/criteria.js";
 
 // AI co the tra ve them truong la, gia tri vo ly hoac tu khoa tham chieu thuan.
 describe("normalizeCriteria", () => {

@@ -2,10 +2,10 @@
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { watch } from 'vue'
 import HeaderGlobal from '@/components/HeaderGlobal.vue'
-import CartDrawer from '@/modules/cart/components/CartDrawer.vue'
-import NotificationsDrawer from '@/modules/notification/components/NotificationsDrawer.vue'
-import ChatbotWidget from '@/modules/chatbot/components/ChatbotWidget.vue'
-import { useAuthStore } from '@/modules/auth/store'
+import CartDrawer from '@/user/cart/components/CartDrawer.vue'
+import NotificationsDrawer from '@/user/notification/components/NotificationsDrawer.vue'
+import ChatbotWidget from '@/user/chatbot/components/ChatbotWidget.vue'
+import { useAuthStore } from '@/user/auth/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 
 /**

@@ -1,5 +1,5 @@
 import { ref, watch, type Ref } from 'vue'
-import { quoteCart } from '@/modules/cart/api'
+import { quoteCart } from '@/user/cart/api'
 import type { CartItem, CartQuote } from '@/shared/types'
 
 /** Bam so luong lien tuc thi chi gui bao gia mot lan, tranh moi lan bam mot request. */

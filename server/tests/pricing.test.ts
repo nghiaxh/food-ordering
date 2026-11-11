@@ -8,7 +8,7 @@ import {
   matches,
   toQuoteLine,
   type DiscountRule,
-} from "../src/modules/pricing/engine.js";
+} from "../src/user/pricing/engine.js";
 
 // 2026-11-08 la Chu nhat; cac test ngay/khung gio lay moc nay.
 const NOW = new Date("2026-11-08T12:00:00+07:00");

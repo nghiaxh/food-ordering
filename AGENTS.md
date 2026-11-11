@@ -6,12 +6,12 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
 ## Kiến trúc
 
 - **client/** - Vue 3 (Composition API, `<script setup>`) + TypeScript, Vite, Naive UI,
-  Tailwind CSS 4, Pinia, Axios, Vue Router. SPA thuần, không SSR. Cấu trúc `modules/` theo
-  module chức năng (`modules/auth/`, `modules/menu/`...), mỗi module gồm `api.ts`, `store.ts`
+  Tailwind CSS 4, Pinia, Axios, Vue Router. SPA thuần, không SSR. Cấu trúc `user/` và `admin/` theo
+  module chức năng (`user/auth/`, `user/menu/`, `admin/menu/`...), mỗi module gồm `api.ts`, `store.ts`
   (nếu có store) và `components/`, `pages/`; hạ tầng dùng chung ở `shared/` (`api/http.ts`,
   `types/`, `utils/`, `stores/`). Toast/message dùng naive-ui (`createDiscreteApi`). UI tiếng Việt.
 - **server/** - Express 5 + TypeScript, Drizzle ORM (node-postgres), PostgreSQL 18.
-  JWT bằng `jsonwebtoken` (HS256) + `bcrypt`; validate đầu vào bằng `zod`. Cấu trúc `src/modules/`
+  JWT bằng `jsonwebtoken` (HS256) + `bcrypt`; validate đầu vào bằng `zod`. Cấu trúc `src/user/` và `src/admin/`
   theo module chức năng giống client, lớp chính `src/server.ts`; middleware tập trung ở
   `src/middleware/` (auth, error), tiện ích ở `src/lib/`.
 - **AI** - `server/src/lib/gemini.ts` là lớp DUY NHẤT gọi API AI (REST bằng `fetch`, `jsonMode` ép
@@ -35,13 +35,13 @@ Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [gemini.
 ```
 
 AI **không bao giờ** được tự nghĩ ra món/giá. Prompt truy vấn món chỉ nhận danh sách
-có sẵn từ `modules/menu`; nếu lỗi AI/JSON sai thì `service.ts` extractCriteria trả `null` và
+có sẵn từ `user/menu`; nếu lỗi AI/JSON sai thì `service.ts` extractCriteria trả `null` và
 `chat()` chuyển sang nhánh dự phòng. Đừng coi `null` là tiêu chí rỗng: tiêu chí rỗng
 khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan gì tới câu hỏi, khách hỏi
 món chay lại nhận cà phê đá. Chỉ khách **đã đăng nhập** mới ghi lịch sử hội thoại; khách
 vãng lai chat được nhờ `history`/`lastFoodIds` client gửi kèm, không lưu vào DB.
 
-**Cách áp tiêu chí** (`modules/chatbot/select.ts (selectFoods)`): lọc thuộc tính món trước (còn phục
+**Cách áp tiêu chí** (`user/chatbot/select.ts (selectFoods)`): lọc thuộc tính món trước (còn phục
 vụ, độ cay, thành phần loại trừ, nhãn chế độ ăn, từ khóa), rồi mới chọn món theo ngân
 sách. `maxBudget` là **TỔNG** tiền của cả bộ gợi ý, không phải giá một món. Số phần cần
 tính theo khẩu phần (`ceil(people / servingSize)`) và tổng tiền là `giá × số phần`; đừng
@@ -91,18 +91,18 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   `{ message }` tiếng Việt với đúng mã 4xx/5xx, không lộ chi tiết nội bộ.
   Token sinh bằng `src/lib/jwt.ts`, middleware tra CSDL mỗi request để tài khoản bị
   khoá mất quyền ngay. CORS mở cho demo.
-- **Giá luôn lấy từ DB**: `modules/order` `createOrder` set `price` = giá trong DB, không tin client.
+- **Giá luôn lấy từ DB**: `user/order` `createOrder` set `price` = giá trong DB, không tin client.
 - **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; ở thẻ chatbot nút thêm món bị
   khoá kèm tooltip "Đăng nhập để thêm món vào giỏ" (NTooltip trong thẻ chatbot), ở thẻ món
   trang thực đơn thì bấm nút dấu cộng sẽ được đưa sang `/login`; `/checkout` nằm trong
   requireAuth còn `/cart` chỉ chuyển hướng về `/checkout`. Giỏ mở bằng drawer toàn cục
-  (`modules/cart/components/CartDrawer.vue`), khách bấm giỏ khi chưa đăng nhập được đưa sang `/login` kèm cờ
+  (`user/cart/components/CartDrawer.vue`), khách bấm giỏ khi chưa đăng nhập được đưa sang `/login` kèm cờ
   `openCart` để mở lại sau khi đăng nhập. `cartStore.add` trả `Promise<boolean>` và từ chối khi
   chưa đăng nhập. Store thay dòng optimistic
   bằng `CartItem` server trả để món thêm từ chatbot có đủ field và giá đúng; response chỉ được áp
   theo số thứ tự request của từng món. `CartItem.quantity` mặc định `1`, nên `cart` module tạo
   dòng mới với `quantity = 0` trước khi cộng, không thì lần thêm đầu tiên dư 1 phần.
-- **Tiền chỉ tính ở `modules/pricing` (server)**: `POST /api/cart/quote` nhận `{ items }` đúng danh sách dòng
+- **Tiền chỉ tính ở `user/pricing` (server)**: `POST /api/cart/quote` nhận `{ items }` đúng danh sách dòng
   client đang hiển thị và tính bằng `priceOrder`; lúc tạo đơn dùng chung module này. Quote **không
   đọc lại giỏ DB** để response cũ không ghi đè giỏ mới. Client không nhân phần trăm hay trừ khuyến
   mãi, chỉ hiện lại `QuoteLine.lineDiscount` (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một

@@ -13,9 +13,9 @@ import {
 } from '@vicons/ionicons5'
 import BrandMark from '@/components/BrandMark.vue'
 import useMediaQuery from '@/composables/useMediaQuery'
-import { useAuthStore } from '@/modules/auth/store'
-import { useCartStore } from '@/modules/cart/store'
-import { useNotificationStore } from '@/modules/notification/store'
+import { useAuthStore } from '@/user/auth/store'
+import { useCartStore } from '@/user/cart/store'
+import { useNotificationStore } from '@/user/notification/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 import { message } from '@/shared/api/message'
 

@@ -4,7 +4,7 @@ import {
   isValidTransition,
   ORDER_STATUS_LABEL,
   parseStatus,
-} from "../src/modules/order/transitions.js";
+} from "../src/user/order/transitions.js";
 
 // Vong doi don: PENDING → CONFIRMED → PREPARING → COMPLETED, CANCELLED tu moi trang thai chua chot.
 describe("isValidTransition", () => {
