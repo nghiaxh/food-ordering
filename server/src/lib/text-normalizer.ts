@@ -5,8 +5,8 @@ export function plain(input: string | null | undefined): string {
   return input
     .normalize("NFD")
     .replace(/\p{M}+/gu, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
+    .replace(/d/g, "d")
+    .replace(/D/g, "D")
     .toLowerCase()
     .trim();
 }

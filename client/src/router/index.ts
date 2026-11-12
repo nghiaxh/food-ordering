@@ -19,7 +19,7 @@ import AdminChatbotPage from '@/admin/chatbot/pages/AdminChatbotPage.vue'
 import { useAuthStore } from '@/user/auth/store'
 
 /**
- * Route guard chi la UX ΓÇö quyen that van do server kiem tra o /api/admin/** va
+ * Route guard chi la UX - quyen that van do server kiem tra o /api/admin/** va
  * /api/cart/**. Admin khong dung luong khach: bi day ve /admin.
  */
 const routes = [

@@ -2,16 +2,16 @@
 // Code can "ngay/thu/gio" cua khach phai di qua helper nay, khong doc truc tiep Date.
 export const BUSINESS_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
-/** Offset co dinh +07:00 — Viet Nam khong co DST nen khong can
+/** Offset co dinh +07:00 - Viet Nam khong co DST nen khong can
  *  xu ly theo mua. Dung cho cac moc ISO "YYYY-MM-DDT..." can nghia theo ngay VN. */
 export const BUSINESS_UTC_OFFSET = "+07:00";
 
 export interface BusinessTimeParts {
-  /** Ngay lich VN dang YYYY-MM-DD — khoa nhom "Mon may man moi ngay" va doanh thu theo ngay. */
+  /** Ngay lich VN dang YYYY-MM-DD - khoa nhom "Mon may man moi ngay" va doanh thu theo ngay. */
   dayKey: string;
   /** Thu viet hoa 3 ky tu (SUN..SAT), khop `daysOfWeek` trong khuyen mai. */
   weekday: string;
-  /** So phut tinh tu 00:00 gio VN — so voi `startTime`/`endTime`. */
+  /** So phut tinh tu 00:00 gio VN - so voi `startTime`/`endTime`. */
   minutes: number;
 }
 
@@ -39,7 +39,7 @@ export const businessTimeParts = (now: Date): BusinessTimeParts => {
   const minute = Number(parts.minute ?? "0");
   return {
     dayKey: `${year}-${month}-${day}`,
-    weekday, // en-US "Sun".."Sat" → "SUN".."SAT"
+    weekday, // en-US "Sun".."Sat"  "SUN".."SAT"
     minutes: hour * 60 + minute,
   };
 };
