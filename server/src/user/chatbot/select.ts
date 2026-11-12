@@ -93,7 +93,7 @@ export function selectFoods(
       byGroup.push(inGroup);
       found.push(g);
     }
-    // Mot nhom thieu ung vien va co ngan sach: khong du dieu kien ghep → tra rong,
+    // Mot nhom thieu ung vien va co ngan sach: khong du dieu kien ghep -> tra rong,
     // giong tai lieu ARCHITECTURE ("khong ghep duoc thi tra rong va cau tra loi noi ro"),
     // thay vi tra mot mon lech loai so voi cau hoi.
     if (found.length < groups.length && criteria.maxBudget != null) return [];

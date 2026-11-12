@@ -230,7 +230,7 @@ const requestHistory = (history: string[] | undefined | null): string[] => {
 // Goi AI + kiem tra + chon mon
 // ---------------------------------------------------------------------------
 
-/** Trich tieu chi bang AI; loi khoa → AiKeyRejectedException (chat() doi thanh 503); loi khac → null. */
+/** Trich tieu chi bang AI; loi khoa -> AiKeyRejectedException (chat() doi thanh 503); loi khac -> null. */
 const extractCriteria = async (message: string, history: string[], categoryNames: string): Promise<NormalizedCriteria | null> => {
   const previous = history.length ? history.join("\n") : "(không có)";
   const prompt = EXTRACT_PROMPT.replace("%s", previous).replace("%s", categoryNames);
@@ -250,7 +250,7 @@ const extractCriteria = async (message: string, history: string[], categoryNames
   }
 };
 
-/** Sinh cau tra loi tu danh sach mon da loc; loi khoa → AiKeyRejectedException; loi khac → null. */
+/** Sinh cau tra loi tu danh sach mon da loc; loi khoa -> AiKeyRejectedException; loi khac -> null. */
 const generateReply = async (
   question: string,
   criteria: NormalizedCriteria,

@@ -26,7 +26,7 @@ export type FoodLike = Pick<Food, "id" | "categoryId" | "price" | "name" | "avai
 export function isValid(p: Promotion, now: Date): boolean {
   if (!p.active) return false;
   if (now < p.startsAt || now > p.endsAt) return false;
-  // Ngay/thu/gio so theo gio Viet Nam — may chu thuong chay UTC.
+  // Ngay/thu/gio so theo gio Viet Nam - may chu thuong chay UTC.
   const { weekday, minutes } = businessTimeParts(now);
   if (p.daysOfWeek && p.daysOfWeek.trim()) {
     const ok = p.daysOfWeek.split(",").some((d) => d.trim().toUpperCase() === weekday);
@@ -40,7 +40,7 @@ export function isValid(p: Promotion, now: Date): boolean {
       // Khung gio binh thuong trong ngay.
       if (minutes < start || minutes > end) return false;
     } else {
-      // Khung qua nua dem: [start, 24h) ∪ [0, end].
+      // Khung qua nua dem: [start, 24h) hoac [0, end].
       if (minutes < start && minutes > end) return false;
     }
   }
@@ -72,7 +72,7 @@ export function discountAmount(basePrice: number, p: Pick<Promotion, "discountTy
   return amount;
 }
 
-/** pham vi GLOBAL/CATEGORY/FOOD — chuong trinh GLOBAL ap cho moi mon. */
+/** pham vi GLOBAL/CATEGORY/FOOD - chuong trinh GLOBAL ap cho moi mon. */
 export function matches(p: Pick<Promotion, "scope" | "targetIds">, food: FoodLike): boolean {
   switch (p.scope) {
     case "GLOBAL":
@@ -114,7 +114,7 @@ export function bestFor(
   return best;
 }
 
-/** Bam on dinh theo (mon, KM, ngay) — cung ngay moi request ra cung ket qua, khong can scheduler. */
+/** Bam on dinh theo (mon, KM, ngay) - cung ngay moi request ra cung ket qua, khong can scheduler. */
 export function dailyPick(foodId: number, promotionId: number, day: string): number {
   const hash = createHash("sha256").update(`${foodId}:${promotionId}:${day}`).digest("hex");
   return parseInt(hash.slice(0, 12), 16);

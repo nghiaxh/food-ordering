@@ -61,7 +61,7 @@ async function requireSellable(items: Array<{ foodId: number }>, client: DbClien
   }
 }
 
-/** Chup lai don tu DB; gia va giam gia tung dong do user/pricing tinh → khop bao gia khach thay. */
+/** Chup lai don tu DB; gia va giam gia tung dong do user/pricing tinh -> khop bao gia khach thay. */
 export async function fillItems(
   client: DbClient,
   items: Array<{ foodId: number; quantity: number }>,

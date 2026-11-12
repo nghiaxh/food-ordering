@@ -12,7 +12,7 @@ const uploadDir = () => env.UPLOAD_DIR;
 mkdirSync(uploadDir(), { recursive: true });
 
 // Nap tai lieu quan vao kho cua chatbot: luu file, tach text, chia doan, luu chunk.
-// Khong embedding — chunk duoc tim bang tsvector (migration init co cot search_vector GENERATED).
+// Khong embedding - chunk duoc tim bang tsvector (migration init co cot search_vector GENERATED).
 export interface KnowledgeDocJson {
   id: number;
   title: string | null;
@@ -84,7 +84,7 @@ export const ingestText = async (
   return toDoc(doc!);
 };
 
-/** Nap tai lieu tu file admin tai len (PDF/DOCX/TXT/MD, ≤ 10 MB — gioi han o route). */
+/** Nap tai lieu tu file admin tai len (PDF/DOCX/TXT/MD, <= 10 MB - gioi han o route). */
 export const ingestFile = async (
   fileName: string,
   buffer: Buffer,
@@ -200,7 +200,7 @@ export const deleteDocument = async (documentId: number) => {
     try {
       unlinkSync(storedFilePath(documentId, doc.fileName));
     } catch {
-      // File goc khong con thi bo qua — chunks va ban ghi da xoa la du.
+      // File goc khong con thi bo qua - chunks va ban ghi da xoa la du.
     }
   }
   await db.delete(chatbotKnowledge).where(eq(chatbotKnowledge.id, documentId));
@@ -228,6 +228,6 @@ export const listChunks = async (documentId: number) => {
   return rows.map((r) => ({ id: r.id, chunkIndex: r.chunkIndex ?? 0, content: r.content }));
 };
 
-/** Hash noi dung — danh cho bao cao/doi soat neu can; hien chua hien thi tren UI. */
+/** Hash noi dung - danh cho bao cao/doi soat neu can; hien chua hien thi tren UI. */
 export const contentHash = (text: string): string =>
   createHash("sha256").update(text).digest("hex").slice(0, 16);

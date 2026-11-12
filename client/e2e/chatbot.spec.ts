@@ -6,7 +6,7 @@ import { API_URL } from './support/extended-api'
  *
  * Server can khoa AI that de goi model. Khi `/chatbot/status` bao `available = false`
  * (khoa rong, sai hoac bi tu choi), khung chat hien banner "Tro ly AI chua duoc cau
- * hinh" va khoa o nhap — nhanh do cung duoc kiem tra thay vi fail, vi CI dung khoa gia
+ * hinh" va khoa o nhap - nhanh do cung duoc kiem tra thay vi fail, vi CI dung khoa gia
  * trong `.env.example`.
  */
 const SKIP_REASON =

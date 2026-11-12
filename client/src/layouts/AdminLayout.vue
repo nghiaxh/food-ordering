@@ -60,7 +60,7 @@ const drawerOpen = ref(false)
 const pendingCount = ref(0)
 const unread = computed(() => notifications.unread)
 
-// So don cho xac nhan tren muc "Don hang" — nap lai moi lan vao khu quan tri.
+// So don cho xac nhan tren muc "Don hang" - nap lai moi lan vao khu quan tri.
 const loadPending = async () => {
   try {
     const orders = await adminGetOrders()

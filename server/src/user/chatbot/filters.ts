@@ -1,7 +1,7 @@
 import { plain } from "../../lib/text-normalizer.js";
 
 // Rang buoc doc chac chan tu cau hoi (khong cay, chay, loai tru hai san,
-// ngan sach, so nguoi) — dung cho ca loc mon lan cau tom tat trong cau tra loi du phong.
+// ngan sach, so nguoi) - dung cho ca loc mon lan cau tom tat trong cau tra loi du phong.
 export interface Filters {
   maxSpicyLevel: number | null;
   spicyRequired: boolean;
@@ -31,7 +31,7 @@ export const isFoodQuestion = (plainText: string): boolean =>
 /** So tien trong cau hoi: "100.000", "150k", "2 trieu", "50.000 dong". */
 const MONEY = /(\d+(?:\.\d{3})+)|(?:(\d+)\s*(k|nghìn|nghin|ngan|ngàn|triệu|trieu))|(?:(\d+)\s*(đồng|dong|đ))/gi;
 const PEOPLE = /(\d+)\s*(người|nguoi|people)/i;
-/** So dung mot minh ("2") — chi co nghia khi bot vua hoi "may nguoi?". */
+/** So dung mot minh ("2") - chi co nghia khi bot vua hoi "may nguoi?". */
 export const BARE_NUMBER = /^\s*(\d{1,2})\s*$/;
 
 /** So nguoi an nam trong cau hoi, hoac null neu khach khong noi. */
@@ -60,7 +60,7 @@ export const parseBudget = (question: string): number | null => {
   return best;
 };
 
-/** Doc cac rang buoc trong cau hoi; so khop bo dau de "khong cay" ≡ "khong cay". */
+/** Doc cac rang buoc trong cau hoi; so khop bo dau de "khong cay" == "khong cay". */
 export const readFilters = (question: string): Filters => {
   const p = plain(question);
   const noSpicy = p.includes("khong cay");
