@@ -63,6 +63,7 @@ export const verifyKey = async (): Promise<boolean> => {
   } catch (error) {
     if (error instanceof AiKeyRejectedException) {
       credentialsRejected = true;
+      keyAccepted = false;
       return false;
     }
     // Loi mang/quota: coi nhu dung duoc, chi thu lai sau mot luc.
@@ -103,6 +104,7 @@ export const generate = async (
   } catch (error) {
     if (isKeyRejected(error)) {
       credentialsRejected = true;
+      keyAccepted = false;
       throw new AiKeyRejectedException("Khóa API của dịch vụ AI bị từ chối", { cause: error });
     }
     throw new Error(`Không gọi được dịch vụ AI: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
