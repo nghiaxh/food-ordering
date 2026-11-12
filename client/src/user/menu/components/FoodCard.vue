@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { NTooltip, NIcon } from 'naive-ui'
 import { Add } from '@vicons/ionicons5'
@@ -19,6 +20,8 @@ const auth = useAuthStore()
 const cart = useCartStore()
 const route = useRoute()
 const router = useRouter()
+// Chan bam lap trong luc request them mon dang bay, tranh cong don hai lan.
+const adding = ref(false)
 const unit = () => props.food.discountedPrice ?? props.food.price
 
 // Ca the mo trang chi tiet; luu vi tri cuon cua bang mon de khoi phuc khi quay lai.
@@ -38,14 +41,19 @@ const onCardClick = (event: MouseEvent) => {
 }
 
 const handleAdd = async () => {
-  if (!props.food.available) return
+  if (!props.food.available || adding.value) return
   if (!auth.user) {
     message.info('Đăng nhập để thêm món vào giỏ')
     router.push({ path: '/login', state: { from: { pathname: route.path, search: route.fullPath.slice(route.path.length) } } })
     return
   }
-  const ok = await cart.add(props.food)
-  if (ok) message.success(`Đã thêm ${props.food.name} vào giỏ`)
+  adding.value = true
+  try {
+    const ok = await cart.add(props.food)
+    if (ok) message.success(`Đã thêm ${props.food.name} vào giỏ`)
+  } finally {
+    adding.value = false
+  }
 }
 </script>
 
@@ -76,7 +84,7 @@ const handleAdd = async () => {
           <button
             type="button"
             :aria-label="props.food.available ? `Thêm ${props.food.name} vào giỏ` : `${props.food.name} tạm hết`"
-            :disabled="!props.food.available"
+            :disabled="!props.food.available || adding"
             class="absolute right-2 top-2 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 leading-none text-white opacity-0 shadow-sm transition hover:bg-amber-800 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
             @click.stop="handleAdd"
           >

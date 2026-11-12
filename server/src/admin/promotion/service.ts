@@ -30,6 +30,7 @@ export const toPromotionJson = (p: {
   discountType: string;
   discountValue: unknown;
   maxDiscount: unknown;
+  minOrderTotal: unknown;
   scope: string;
   targetIds: number[];
   startsAt: Date;
@@ -49,6 +50,7 @@ export const toPromotionJson = (p: {
   discountType: p.discountType,
   discountValue: Number(p.discountValue),
   maxDiscount: p.maxDiscount == null ? null : Number(p.maxDiscount),
+  minOrderTotal: p.minOrderTotal == null ? null : Number(p.minOrderTotal),
   scope: p.scope,
   targetIds: [...p.targetIds],
   startsAt: p.startsAt.toISOString(),
@@ -74,6 +76,7 @@ export const createPromotion = async (req: {
   discountType: "PERCENT" | "FIXED";
   discountValue: number;
   maxDiscount?: number | null;
+  minOrderTotal?: number | null;
   scope: "GLOBAL" | "CATEGORY" | "FOOD";
   targetIds?: number[];
   startsAt: Date;
@@ -94,6 +97,7 @@ export const createPromotion = async (req: {
       discountType: req.discountType,
       discountValue: String(req.discountValue),
       maxDiscount: req.maxDiscount != null ? String(req.maxDiscount) : null,
+      minOrderTotal: req.minOrderTotal != null ? String(req.minOrderTotal) : null,
       scope: req.scope,
       targetIds: req.targetIds ?? [],
       startsAt: req.startsAt,
@@ -129,6 +133,7 @@ export const updatePromotion = async (
       discountType: req.discountType,
       discountValue: String(req.discountValue),
       maxDiscount: req.maxDiscount != null ? String(req.maxDiscount) : null,
+      minOrderTotal: req.minOrderTotal != null ? String(req.minOrderTotal) : null,
       scope: req.scope,
       targetIds: req.targetIds ?? [],
       startsAt: req.startsAt,

@@ -127,6 +127,12 @@ describe("matches / bestFor", () => {
     expect(tie?.name).toBe("cao điểm ưu tiên");
   });
 
+  it("bỏ qua khuyến mãi khi giá món thấp hơn minOrderTotal", () => {
+    const minimum = promo({ id: 50, scope: "GLOBAL", minOrderTotal: "100000", name: "Đơn từ 100k" });
+    expect(bestFor(95000, food(7, 2), rulesOf([minimum]))).toBeNull();
+    expect(bestFor(120000, food(7, 2), rulesOf([minimum]))?.id).toBe(50);
+  });
+
   it("KM randomCount chỉ áp cho món được băm trúng trong ngày", () => {
     const random = promo({ id: 99, scope: "GLOBAL", randomCount: 1 });
     const picks = computeRandomPicks([random], [7, 8, 9], NOW);

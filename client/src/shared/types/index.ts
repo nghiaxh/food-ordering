@@ -202,6 +202,7 @@ export interface Promotion {
   discountType: 'PERCENT' | 'FIXED'
   discountValue: number
   maxDiscount?: number | null
+  minOrderTotal?: number | null
   scope: 'GLOBAL' | 'CATEGORY' | 'FOOD'
   targetIds?: number[]
   startsAt: string

@@ -103,13 +103,14 @@ export const useCartStore = defineStore('cart', {
     async remove(foodId: number) {
       if (!loggedIn()) return
       // Request dang bay cua chinh mon nay khong duoc dung lai dong vua xoa.
-      beginRequest(foodId)
+      const token = beginRequest(foodId)
       const before = this.items
       this.items = before.filter((i) => i.food?.id !== foodId)
       try {
         await removeCartItem(foodId)
       } catch {
-        this.items = before
+        // Chi khoi phuc khi khong co request moi cua mon nay chen vao.
+        if (canApply(foodId, token)) this.items = before
         message.error('Không xóa được món khỏi giỏ. Vui lòng thử lại.')
       }
     },
@@ -117,12 +118,13 @@ export const useCartStore = defineStore('cart', {
     async clear() {
       if (!loggedIn()) return
       const before = this.items
-      cartGeneration += 1
+      // Token generation chan rollback khi da co lan clear/reset khac chen vao.
+      const token = { generation: ++cartGeneration }
       this.items = []
       try {
         await clearCart()
       } catch {
-        this.items = before
+        if (token.generation === cartGeneration) this.items = before
         message.error('Không xóa được giỏ hàng. Vui lòng thử lại.')
       }
     },
