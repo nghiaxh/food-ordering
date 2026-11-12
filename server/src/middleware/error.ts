@@ -42,7 +42,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     res.status(400).json({ message: "Tệp tải lên vượt quá dung lượng cho phép." });
     return;
   }
-  console.error("Lỗi không xử lý được:", err);
+  console.error("Loi khong xu ly duoc:", err);
   res.status(500).json({ message: "Đã có lỗi xảy ra, vui lòng thử lại sau." });
 }
 
