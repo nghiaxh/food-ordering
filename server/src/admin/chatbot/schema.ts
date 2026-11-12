@@ -10,5 +10,6 @@ export const documentRequestSchema = z.object({
 
 export const settingSaveSchema = z.object({
   settingKey: z.string().min(1),
-  settingValue: z.string().min(1),
+  // Gia tri rong duoc phep: xoa quy tac bo sung hoac de trong ten mo hinh.
+  settingValue: z.string(),
 });

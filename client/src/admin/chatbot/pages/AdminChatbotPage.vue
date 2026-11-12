@@ -44,11 +44,23 @@ import PageCard from '@/admin/components/PageCard.vue'
 import FormModal from '@/components/FormModal.vue'
 import { h } from 'vue'
 
-const MODEL_OPTIONS = [
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+const PROVIDER_OPTIONS = [
+  { value: 'gemini', label: 'Google Gemini' },
+  { value: 'openai', label: 'OpenAI' },
 ]
+// Danh sach mo hinh de xuat theo nha cung cap; admin van nhap duoc ten mo hinh khac.
+const MODEL_OPTIONS: Record<string, Array<{ value: string; label: string }>> = {
+  gemini: [
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  ],
+  openai: [
+    { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
+  ],
+}
 const CATEGORY_OPTIONS = [
   { value: 'HOURS', label: 'Giờ mở cửa' },
   { value: 'DELIVERY', label: 'Giao hàng' },
@@ -89,9 +101,27 @@ watch(data, (value) => {
   const settings = Object.fromEntries(value[1].map((s) => [s.settingKey, s.settingValue]))
   maxSuggestions.value = Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5))
   extraRules.value = settings.extra_rules ?? ''
-  provider.value = settings.provider === 'gemini' ? 'gemini' : 'gemini'
-  model.value = settings.model ?? 'gemini-2.0-flash'
+  // Doc provider/model tu cau hinh luu trong DB, khong hardcode de doi nha cung cap duoc.
+  provider.value = settings.provider?.trim() || 'gemini'
+  model.value = settings.model?.trim() || MODEL_OPTIONS[provider.value]?.[0]?.value || ''
 }, { immediate: true })
+
+const modelOptions = computed(() => {
+  const base = MODEL_OPTIONS[provider.value] ?? []
+  // Mo hinh dang luu khong nam trong danh sach goi y thi van cho chon duoc.
+  return model.value && !base.some((o) => o.value === model.value)
+    ? [...base, { value: model.value, label: model.value }]
+    : base
+})
+
+const onProviderChange = (value: string) => {
+  provider.value = value
+  // Mo hinh cua nha cung cap truoc co the khong con dung nen ve danh sach goi y.
+  const options = MODEL_OPTIONS[value] ?? []
+  if (!options.some((o) => o.value === model.value)) {
+    model.value = options[0]?.value ?? model.value
+  }
+}
 
 const history = computed(() => data.value?.[0] ?? [])
 const status = computed<ChatbotStatus | null>(() => (data.value?.[2] as ChatbotStatus | undefined) ?? null)
@@ -267,11 +297,11 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       <div class="grid gap-6 p-5 sm:grid-cols-2">
         <div>
           <label for="ai-provider" class="block text-sm font-medium text-stone-700">Nhà cung cấp AI</label>
-          <NSelect id="ai-provider" class="mt-2" :value="provider" :options="[{ label: 'Google Gemini', value: 'gemini' }]" @update:value="(v: string) => (provider = v)" />
+          <NSelect id="ai-provider" class="mt-2" :value="provider" :options="PROVIDER_OPTIONS" @update:value="onProviderChange" />
         </div>
         <div>
           <label for="ai-model" class="block text-sm font-medium text-stone-700">Tên mô hình</label>
-          <NSelect id="ai-model" class="mt-2" :value="model" :options="model && !MODEL_OPTIONS.some((o) => o.value === model) ? [...MODEL_OPTIONS, { value: model, label: model }] : MODEL_OPTIONS" @update:value="(v: string) => (model = v)" />
+          <NSelect id="ai-model" class="mt-2" :value="model" :options="modelOptions" @update:value="(v: string) => (model = v)" />
         </div>
         <div>
           <label for="max-suggestions" class="block text-sm font-medium text-stone-700">Số món gợi ý tối đa</label>

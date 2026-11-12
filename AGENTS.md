@@ -18,6 +18,9 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   JSON, timeout 15s). Hỗ trợ Gemini và OpenAI; nhà cung cấp + tên mô hình đọc từ bảng `ai_setting`
   do admin đặt trong trang Chatbot, fallback về `AI_PROVIDER` / `AI_MODEL`. Muốn thêm
   nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không gửi xuống client.
+  Trang Chatbot của admin đọc `provider`/`model` từ `ai_setting` (không hardcode `gemini`), danh sách
+  mô hình gợi ý theo từng nhà cung cấp và vẫn nhập được tên mô hình khác; `settingValue` cho phép
+  rỗng để xoá quy tắc bổ sung.
 - **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
   client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
   (Drizzle Studio). Service `database` không khai báo `profiles` nên Postgres luôn chạy theo mọi
@@ -108,18 +111,37 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   mãi, chỉ hiện lại `QuoteLine.lineDiscount` (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một
   khuyến mãi tự động tốt nhất. `composables/useCartQuote.ts` là nơi duy nhất gọi quote, dùng chung cho
   drawer giỏ và `/checkout`.
+- **Báo cáo quản trị theo ngày lịch Việt**: `from`/`to` của `/api/admin/reports/**` đọc bằng
+  `parseBusinessRange` (`server/src/lib/businessTime.ts`): chuỗi `"YYYY-MM-DD"` là ngày lịch VN
+  (đầu/cuối ngày theo giờ Việt), chuỗi ISO datetime giữ nguyên instant, ngày sai hoặc
+  `from > to` trả 400. Client `AdminReportsPage` gửi chuỗi `"YYYY-MM-DD"` theo ngày đã chọn (không
+  phải ISO UTC) và hiển thị ngày trong bảng bằng `dayLabel` để không lệch ngày theo múi giờ máy.
+  `topFoods` gom theo `foodId` nên hai món trùng tên vẫn là hai món khác nhau.
+- **Khuyến mãi admin**: phạm vi `CATEGORY`/`FOOD` **phải** có `targetIds` (danh sách rỗng thì KM không
+  khớp món nào, server trả 400 và client chặn trước khi gửi); `usageLimit` bằng `0` nghĩa là **không
+  giới hạn** (lưu `null`); `minOrderTotal` là hạn mức tổng đơn tối thiểu, engine `user/pricing` chỉ
+  áp KM khi tổng đơn đạt mức (`minOrderReached`) nên trên thực đơn (chưa có tổng đơn) các KM có hạn
+  mức không hiện giảm.
 - **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`order` module `canEditItems`);
   đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (kiểm trong `adminUpdateOrder`);
   các
   trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `adminOrderSchema.items`
   được phép null, còn `adminCreate` tự kiểm danh sách món không rỗng. Khách cũng chỉ hủy được đơn
   `PENDING` + chưa thanh toán; client ẩn nút bằng `canCancelOrder` trong `client/src/shared/utils/orders.ts`.
+- **Đơn admin tạo/sửa/xoá**: đơn tạo mới luôn bắt đầu `PENDING`, chỉ tạo được trạng thái đi tiếp được
+  từ `PENDING` (`PENDING`/`CONFIRMED`/`CANCELLED`, xem `isCreatableStatus`), `CONFIRMED` + `QR` phải đã
+  thu tiền. `adminUpdateOrder` áp `paid` **trước** khi đổi trạng thái để guard QR thấy trạng thái
+  thanh toán mới; `items: []` nghĩa là **không đổi món** (chỉ sửa thông tin giao hàng). Đổi món thì
+  `order_items` không lưu id khuyến mãi nên phải tính lại giá món cũ để trả lại `usedCount` của KM cũ
+  rồi mới `markUsed` KM mới (`syncPromotionUsage`). Xoá đơn xoá trong một transaction gồm thông báo,
+  giao dịch thanh toán, dòng món và đơn để không còn dữ liệu móc.
 
 - **Nhãn PREPARING là "Đang vận chuyển"**: mã trạng thái trong DB không đổi, chỉ đổi nhãn hiển thị
   (`ORDER_STATUS_LABEL`, `order` module, thông báo "đang được vận chuyển"); nút admin
   `CONFIRMED → PREPARING` là "Giao hàng", nút **Đặt lại** ở `/orders` chỉ hiện khi `COMPLETED`.
-- **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
-  trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết kiểm thử xem README và CI.
+- **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$` (cả đơn khách lẫn đơn admin tạo/sửa),
+  giỏ không nhận món ngừng phục vụ, trạng thái đơn đi đúng một chiều, không sửa/khoá/xoá tài khoản
+  quản trị. Chi tiết kiểm thử xem README và CI.
 - **Types client phải đồng bộ với DTO server** (thủ công). Sửa DTO nhớ cập nhật
   `client/src/shared/types/index.ts` và file `api.ts` của module tương ứng.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
@@ -239,6 +261,9 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   còn món. Trang mới có thanh cố định đáy
   thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh che. Hai drawer giỏ/thông báo
   dùng `activeDrawer` trong `uiStore` để không chồng mask.
+- **Store thông báo giữ danh sách khi tải lỗi**: `user/notification/store.ts` là nguồn chung cho
+  header (số chưa đọc) và drawer (danh sách). `load()` lỗi mạng phải **giữ nguyên** danh sách cũ,
+  không xoá sạch, để header không mất chấm chưa đọc và lần mở sau vẫn thử lại được.
 - `requireAuth`/`optionalAuth` bọc lỗi không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.

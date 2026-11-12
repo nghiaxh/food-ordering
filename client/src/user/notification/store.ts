@@ -26,8 +26,8 @@ export const useNotificationStore = defineStore('notifications', {
       try {
         this.items = await getNotifications()
       } catch {
-        // Loi mang khong duoc lam hong header; lan mo sau se thu lai.
-        this.items = []
+        // Loi mang khong duoc lam hong header va khong xoa sach danh sach da tai;
+        // giu nguyen list cu, lan mo sau se thu lai.
       } finally {
         this.loading = false
       }

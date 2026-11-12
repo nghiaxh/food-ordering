@@ -23,29 +23,42 @@ ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 const range = ref<[number, number] | null>(null)
 const applied = ref<[number, number] | null>(null)
 
-const iso = (v?: number): string | undefined => (v == null ? undefined : new Date(v).toISOString())
+// Date picker tra ve timestamp nua dem theo gio may chu, nen lay ngay lich theo man hinh
+// roi gui chuoi "YYYY-MM-DD" de server doc theo ngay lich Viet Nam.
+const pickedDay = (ts: number): string => {
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Ngay trong bao cao la ngay lich VN dang "YYYY-MM-DD"; hien thi truc tiep de khong lech ngay.
+const dayLabel = (day: string): string => {
+  const [y, m, d] = day.split('-')
+  return `${d}/${m}/${y}`
+}
+
+const dayParam = (v?: number): string | undefined => (v == null ? undefined : pickedDay(v))
 
 const { data: summary, refresh: refreshSummary } = useAsyncData(
-  () => adminGetReportSummary(iso(applied.value?.[0]), iso(applied.value?.[1])),
+  () => adminGetReportSummary(dayParam(applied.value?.[0]), dayParam(applied.value?.[1])),
   () => [applied.value?.[0], applied.value?.[1]],
 )
 const { data: revenue, refresh: refreshRevenue } = useAsyncData(
-  () => adminGetReportRevenue(iso(applied.value?.[0]), iso(applied.value?.[1])),
+  () => adminGetReportRevenue(dayParam(applied.value?.[0]), dayParam(applied.value?.[1])),
   () => [applied.value?.[0], applied.value?.[1]],
 )
 const { data: topFoods, refresh: refreshTop } = useAsyncData(
-  () => adminGetReportTopFoods(iso(applied.value?.[0]), iso(applied.value?.[1]), 10),
+  () => adminGetReportTopFoods(dayParam(applied.value?.[0]), dayParam(applied.value?.[1]), 10),
   () => [applied.value?.[0], applied.value?.[1]],
 )
 const refreshAll = () => { void refreshSummary(); void refreshRevenue(); void refreshTop() }
 
 const exportExcel = async () => {
   try {
-    const blob = await adminExportReport(iso(applied.value?.[0]), iso(applied.value?.[1]))
+    const blob = await adminExportReport(dayParam(applied.value?.[0]), dayParam(applied.value?.[1]))
     const url = URL.createObjectURL(blob as unknown as Blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `bao-cao-${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.download = `bao-cao-${pickedDay(Date.now())}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
   } catch {
@@ -62,7 +75,7 @@ const metrics = computed(() => [
 ])
 
 const revenueChartData = computed<ChartData<'bar'>>(() => ({
-  labels: (revenue.value ?? []).map((r) => new Date(r.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })),
+  labels: (revenue.value ?? []).map((r) => `${r.date.slice(8, 10)}/${r.date.slice(5, 7)}`),
   datasets: [
     {
       label: 'Doanh thu (đ)',
@@ -82,11 +95,11 @@ const revenueChartOptions = computed<ChartOptions<'bar'>>(() => ({
   },
 }))
 const tableColumns: DataTableColumns<{ date: string; revenue: number; orders: number }> = [
-  { title: 'Ngày', key: 'date', render: (row) => new Date(row.date).toLocaleDateString('vi-VN') },
+  { title: 'Ngày', key: 'date', render: (row) => dayLabel(row.date) },
   { title: 'Doanh thu', key: 'revenue', align: 'right', render: (row) => h('span', { class: 'font-medium tabular-nums text-amber-700' }, formatVND(row.revenue)) },
   { title: 'Số đơn', key: 'orders', align: 'right' },
 ]
-const topFoodsColumns: DataTableColumns<{ name: string; quantity: number; revenue: number }> = [
+const topFoodsColumns: DataTableColumns<{ foodId: number; name: string; quantity: number; revenue: number }> = [
   { title: 'Món', key: 'name' },
   { title: 'Đã bán', key: 'quantity', align: 'right', render: (row) => `${row.quantity} phần` },
   { title: 'Doanh thu', key: 'revenue', align: 'right', render: (row) => h('span', { class: 'tabular-nums' }, formatVND(row.revenue)) },
@@ -108,7 +121,7 @@ watch(applied, () => { refreshAll() })
       <NButton type="primary" size="small" @click="applied = range">Lọc dữ liệu</NButton>
       <NButton v-if="applied" size="small" @click="() => { range = null; applied = null }">Bỏ lọc</NButton>
       <span class="ml-auto text-xs text-stone-400">
-        {{ applied ? `${new Date(applied[0]).toLocaleDateString('vi-VN')} – ${new Date(applied[1]).toLocaleDateString('vi-VN')}` : '30 ngày gần nhất' }}
+        {{ applied ? `${dayLabel(pickedDay(applied[0]))} – ${dayLabel(pickedDay(applied[1]))}` : '30 ngày gần nhất' }}
       </span>
     </div>
 
@@ -134,7 +147,7 @@ watch(applied, () => { refreshAll() })
         <div class="border-b border-stone-100 px-5 py-3.5">
           <h3 class="font-semibold text-stone-800">Món bán chạy</h3>
         </div>
-        <NDataTable :columns="topFoodsColumns" :data="topFoods ?? []" :row-key="(row: { name: string }) => row.name" :pagination="false" size="small" />
+        <NDataTable :columns="topFoodsColumns" :data="topFoods ?? []" :row-key="(row: { foodId: number }) => row.foodId" :pagination="false" size="small" />
       </PageCard>
     </div>
 
