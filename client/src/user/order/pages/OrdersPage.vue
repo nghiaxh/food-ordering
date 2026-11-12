@@ -33,23 +33,44 @@ const paying = ref<Order | null>(null)
 const qrSeconds = ref(60)
 const qrDataUrl = ref('')
 let qrTimer: number | undefined
+// Moi lan mo modal QR tang so nay; ket qua await cua lan cu khong duoc dung timer cua lan moi.
+let qrToken = 0
+
+const startQrTimer = () => {
+  window.clearInterval(qrTimer)
+  qrTimer = window.setInterval(() => {
+    if (qrSeconds.value > 0) qrSeconds.value -= 1
+    if (qrSeconds.value === 0) window.clearInterval(qrTimer)
+  }, 1000)
+}
 
 watch(paying, async (order) => {
+  const token = ++qrToken
   window.clearInterval(qrTimer)
+  qrTimer = undefined
   qrSeconds.value = 60
-  if (order?.paymentMethod === 'QR') {
-    qrDataUrl.value = await QRCode.toDataURL(`FOOD-${order.id}-${order.total}`, {
-      errorCorrectionLevel: 'M',
-      width: 168,
-      margin: 1,
-    })
-    qrTimer = window.setInterval(() => {
-      if (qrSeconds.value > 0) qrSeconds.value -= 1
-      else window.clearInterval(qrTimer)
-    }, 1000)
-  }
+  qrDataUrl.value = ''
+  if (order?.paymentMethod !== 'QR') return
+  const url = await QRCode.toDataURL(`FOOD-${order.id}-${order.total}`, {
+    errorCorrectionLevel: 'M',
+    width: 168,
+    margin: 1,
+  })
+  // Modal da dong hoac doi don trong luc tao anh: bo anh, khong bat timer mo coi.
+  if (token !== qrToken || !paying.value) return
+  qrDataUrl.value = url
+  startQrTimer()
 })
-onBeforeUnmount(() => window.clearInterval(qrTimer))
+onBeforeUnmount(() => {
+  qrToken += 1
+  window.clearInterval(qrTimer)
+})
+
+/** Nut "Tao ma moi": dong ho cu da dung o 0 nen phai dung lai interval, chi reset so giay la khong du. */
+const restartQr = () => {
+  qrSeconds.value = 60
+  startQrTimer()
+}
 
 const qrExpired = computed(() => paying.value?.paymentMethod === 'QR' && qrSeconds.value === 0)
 const qrLabel = computed(() => `${Math.floor(qrSeconds.value / 60)}:${String(qrSeconds.value % 60).padStart(2, '0')}`)
@@ -91,11 +112,14 @@ const setFilter = (next: OrderStatus | 'ALL') => {
 const reorder = async (order: Order) => {
   if (reorderingId.value !== null) return
   reorderingId.value = order.id
-  const available = order.items.filter((i) => (i.food ? i.food.available : true))
-  const skipped = order.items.filter((i) => i.food && !i.food.available).map((i) => i.food!.name)
+  const available = order.items.flatMap((i) => (i.food?.available ? [{ food: i.food, quantity: i.quantity }] : []))
+  const skipped = order.items.filter((i) => !i.food?.available).map((i) => i.food?.name ?? 'Món đã xóa')
+  const failed: string[] = []
   try {
     for (const item of available) {
-      if (item.food) await cart.add(item.food, item.quantity)
+      // cart.add tra false khi server tu choi (mon vua ngung ban, mat mang): dem lai de
+      // khong bao "da them" sai so mon.
+      if (!(await cart.add(item.food, item.quantity))) failed.push(item.food.name)
     }
   } finally {
     reorderingId.value = null
@@ -104,11 +128,16 @@ const reorder = async (order: Order) => {
     message.warning('Các món trong đơn này đã ngừng phục vụ, không thể đặt lại')
     return
   }
-  message.success(
-    skipped.length > 0
-      ? `Đã thêm vào giỏ (bỏ qua món ngừng phục vụ: ${skipped.join(', ')})`
-      : 'Đã thêm toàn bộ món vào giỏ',
-  )
+  const added = available.length - failed.length
+  if (added === 0) {
+    message.error('Không thêm được món nào vào giỏ. Vui lòng thử lại.')
+    return
+  }
+  if (failed.length > 0 || skipped.length > 0) {
+    message.warning(`Đã thêm ${added}/${available.length} món vào giỏ. Bỏ qua: ${[...skipped, ...failed].join(', ')}`)
+  } else {
+    message.success('Đã thêm toàn bộ món vào giỏ')
+  }
   ui.openDrawer('cart')
 }
 
@@ -135,11 +164,13 @@ const confirmCancel = (order: Order) => {
 }
 
 const confirmPaid = async () => {
-  if (!paying.value || qrExpired.value) return
+  const order = paying.value
+  if (!order || qrExpired.value) return
   try {
-    await payOrder(paying.value.id)
+    await payOrder(order.id)
     message.success('Đã ghi nhận thanh toán')
-    paying.value = null
+    // Chi dong dung modal vua thanh toan; khach co the da mo don khac trong luc cho.
+    if (paying.value?.id === order.id) paying.value = null
     await refresh()
   } catch {
     message.error('Không ghi nhận được thanh toán')
@@ -278,7 +309,7 @@ const tabClass = (active: boolean) =>
               Mã QR đã hết hạn
             </div>
           </div>
-          <button v-if="qrExpired" type="button" class="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50" @click="qrSeconds = 60">
+          <button v-if="qrExpired" type="button" class="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50" @click="restartQr">
             Tạo mã mới
           </button>
           <p v-else class="text-xs text-stone-500" aria-live="polite">Mã QR hết hạn sau {{ qrLabel }}</p>
