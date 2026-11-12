@@ -196,7 +196,7 @@ async function main() {
         targetIds: [uong!.id], daysOfWeek: "SAT,SUN", startsAt: promoStart, endsAt: promoEnd, active: true,
       },
       {
-        name: "Món may mắn hôm nay", description: "Ba món ngẫu nhiên giảm 15% mỗi ngày",
+        name: "Món may mắn hôm nay", description: "Giảm 15% cho 3 món đặc biệt mỗi ngày",
         discountType: "PERCENT", discountValue: "15", scope: "FOOD",
         targetIds: [pho.id, traSua.id, comTam.id], startsAt: promoStart, endsAt: promoEnd, active: true,
       },
