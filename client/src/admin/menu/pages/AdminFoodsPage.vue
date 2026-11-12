@@ -80,7 +80,21 @@ const openCreate = () => {
 
 const openEdit = (f: Food) => {
   editing.value = f
-  Object.assign(form, { ...f, categoryId: f.category?.id ?? undefined, imageUrl: f.imageUrl ?? '' })
+  // Chi pick field form can: truyen ...f se keo theo id, category, discountLabel... vao payload
+  // gui API, nen luon co gia tri lai do server tu tim theo categoryId.
+  Object.assign(form, {
+    name: f.name,
+    categoryId: f.category?.id ?? undefined,
+    price: f.price,
+    servingSize: f.servingSize,
+    spicyLevel: f.spicyLevel,
+    description: f.description,
+    ingredients: f.ingredients,
+    dietaryTags: f.dietaryTags,
+    allergens: f.allergens,
+    imageUrl: f.imageUrl ?? '',
+    available: f.available,
+  })
   modal.value = true
 }
 
