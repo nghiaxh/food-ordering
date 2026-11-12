@@ -10,7 +10,7 @@ import { useUiStore } from '@/shared/stores/uiStore'
 
 /**
  * Layout phia khach: thanh dieu huong. Gio/thong bao drawers va chatbot duoc cac
- * branch sau mount vao day — chua co component nen chua mount.
+ * branch sau mount vao day - chua co component nen chua mount.
  */
 const route = useRoute()
 const router = useRouter()

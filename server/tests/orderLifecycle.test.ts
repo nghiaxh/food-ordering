@@ -6,7 +6,7 @@ import {
   parseStatus,
 } from "../src/user/order/transitions.js";
 
-// Vong doi don: PENDING → CONFIRMED → PREPARING → COMPLETED, CANCELLED tu moi trang thai chua chot.
+// Vong doi don: PENDING -> CONFIRMED -> PREPARING -> COMPLETED, CANCELLED tu moi trang thai chua chot.
 describe("isValidTransition", () => {
   it("đi đúng một chiều theo quy trình", () => {
     expect(isValidTransition("PENDING", "CONFIRMED")).toBe(true);

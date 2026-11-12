@@ -10,7 +10,7 @@ export const updateCartItemSchema = z.object({
 });
 
 /**
- * Quote tinh tren danh sach dong client dang hien thi, khong doc lai gio DB —
+ * Quote tinh tren danh sach dong client dang hien thi, khong doc lai gio DB -
  * nho vay so khach thay luon khop con so dung luc tao don.
  */
 export const quoteRequestSchema = z.object({

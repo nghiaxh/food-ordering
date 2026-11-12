@@ -31,21 +31,21 @@ interface NavItem {
 
 // Nhom theo viec quan lam hang ngay; thu tu co dinh theo quy trinh ban hang.
 const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
-  { title: 'B├ín h├áng', items: [
-    { label: 'Tß╗òng quan', to: '/admin/dashboard', icon: HomeOutline },
-    { label: '─É╞ín h├áng', to: '/admin/orders', icon: ReceiptOutline },
-    { label: 'Kh├ích h├áng', to: '/admin/customers', icon: PeopleOutline },
+  { title: 'Bán hàng', items: [
+    { label: 'Tổng quan', to: '/admin/dashboard', icon: HomeOutline },
+    { label: 'Đơn hàng', to: '/admin/orders', icon: ReceiptOutline },
+    { label: 'Khách hàng', to: '/admin/customers', icon: PeopleOutline },
   ] },
-  { title: 'Thß╗▒c ─æ╞ín', items: [
-    { label: 'M├│n ─ân', to: '/admin/foods', icon: PricetagOutline },
-    { label: 'Danh mß╗Ñc', to: '/admin/categories', icon: GridOutline },
+  { title: 'Thực đơn', items: [
+    { label: 'Món ăn', to: '/admin/foods', icon: PricetagOutline },
+    { label: 'Danh mục', to: '/admin/categories', icon: GridOutline },
   ] },
   { title: 'Marketing', items: [
-    { label: 'Khuyß║┐n m├úi', to: '/admin/promotions', icon: FlameOutline },
+    { label: 'Khuyến mãi', to: '/admin/promotions', icon: FlameOutline },
   ] },
-  { title: 'Hß╗ç thß╗æng', items: [
+  { title: 'Hệ thống', items: [
     { label: 'Chatbot', to: '/admin/chatbot', icon: ChatbubbleOutline },
-    { label: 'B├ío c├ío', to: '/admin/reports', icon: DocumentTextOutline },
+    { label: 'Báo cáo', to: '/admin/reports', icon: DocumentTextOutline },
   ] },
 ]
 
@@ -60,7 +60,7 @@ const drawerOpen = ref(false)
 const pendingCount = ref(0)
 const unread = computed(() => notifications.unread)
 
-// So don cho xac nhan tren muc "Don hang" ΓÇö nap lai moi lan vao khu quan tri.
+// So don cho xac nhan tren muc "Don hang". nap lai moi lan vao khu quan tri.
 const loadPending = async () => {
   try {
     const orders = await adminGetOrders()
@@ -83,8 +83,8 @@ const closeDrawer = () => { drawerOpen.value = false }
 const isActive = (item: NavItem) => route.path === item.to
 
 const menuOptions: DropdownOption[] = [
-  { key: 'account', label: 'T├ái khoß║ún', icon: () => h(NIcon, { size: 16 }, () => h(PersonOutline)) },
-  { key: 'logout', label: '─É─âng xuß║Ñt', icon: () => h(NIcon, { size: 16 }, () => h(LogOutOutline)) },
+  { key: 'account', label: 'Tài khoản', icon: () => h(NIcon, { size: 16 }, () => h(PersonOutline)) },
+  { key: 'logout', label: 'Đăng xuất', icon: () => h(NIcon, { size: 16 }, () => h(LogOutOutline)) },
 ]
 const onSelectMenu = (key: string) => {
   if (key === 'account') router.push('/profile')
@@ -99,17 +99,17 @@ const onSelectMenu = (key: string) => {
   <div class="flex min-h-dvh flex-col bg-stone-50">
     <header class="sticky top-0 z-50 border-b border-stone-200/70 bg-white">
       <div class="flex h-14 items-center gap-3 px-4 sm:px-6">
-        <NButton text aria-label="Mß╗ƒ menu quß║ún trß╗ï" class="lg:hidden" @click="drawerOpen = true">
+        <NButton text aria-label="Mở menu quản trị" class="lg:hidden" @click="drawerOpen = true">
           <template #icon><NIcon :size="22"><MenuOutline /></NIcon></template>
         </NButton>
         <div class="ml-auto flex items-center gap-1.5">
-          <button type="button" :aria-label="unread > 0 ? `Th├┤ng b├ío, ${unread} ch╞░a ─æß╗ìc` : 'Th├┤ng b├ío'" class="relative grid h-10 w-10 cursor-pointer place-items-center rounded-full text-stone-600 transition hover:bg-amber-50 hover:text-amber-800" @click="ui.openDrawer('notifications')">
+          <button type="button" :aria-label="unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'" class="relative grid h-10 w-10 cursor-pointer place-items-center rounded-full text-stone-600 transition hover:bg-amber-50 hover:text-amber-800" @click="ui.openDrawer('notifications')">
             <NBadge :value="unread" :show="unread > 0" dot color="#b45309">
               <NIcon :size="20"><NotificationsOutline /></NIcon>
             </NBadge>
           </button>
           <NDropdown trigger="click" placement="bottom-end" :options="menuOptions" @select="onSelectMenu">
-            <button type="button" aria-label="Menu t├ái khoß║ún" class="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition hover:bg-stone-50">
+            <button type="button" aria-label="Menu tài khoản" class="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition hover:bg-stone-50">
               <NAvatar :size="30" color="#b45309" class="text-sm font-semibold">
                 {{ user?.fullName?.charAt(0).toUpperCase() }}
               </NAvatar>
@@ -122,7 +122,7 @@ const onSelectMenu = (key: string) => {
     <div class="flex w-full flex-1 gap-6 px-4 py-6 sm:px-6">
       <aside class="hidden w-56 shrink-0 lg:block">
         <div class="sticky top-20 rounded-xl border border-stone-200/70 bg-white p-2.5">
-          <nav class="space-y-3" aria-label="─Éiß╗üu h╞░ß╗¢ng quß║ún trß╗ï">
+          <nav class="space-y-3" aria-label="Điều hướng quản trị">
             <div v-for="group in NAV_GROUPS" :key="group.title">
               <p class="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">{{ group.title }}</p>
               <RouterLink
@@ -148,7 +148,7 @@ const onSelectMenu = (key: string) => {
       <template #header>
         <span class="flex items-center gap-2"><BrandMark /></span>
       </template>
-      <nav class="space-y-3" aria-label="─Éiß╗üu h╞░ß╗¢ng quß║ún trß╗ï">
+      <nav class="space-y-3" aria-label="Điều hướng quản trị">
         <div v-for="group in NAV_GROUPS" :key="group.title">
           <p class="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">{{ group.title }}</p>
           <RouterLink

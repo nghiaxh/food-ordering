@@ -71,7 +71,7 @@ export async function adminUpdateStatus(id: number, status: string) {
   return toOrderJson(saved!);
 }
 
-// ----- Quan tri: tao, sua, xoa don thay khach (UC12) -----
+// Quan tri: tao, sua, xoa don thay khach (UC12)
 
 export async function adminCreateOrder(req: AdminOrderRequest) {
   if (!req.items || req.items.length === 0) {

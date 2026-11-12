@@ -152,7 +152,7 @@ describe("selectFoods (AI criteria)", () => {
   it("hỏi tiếp: restrictIds chỉ xét đúng các món vừa gợi ý", () => {
     const result = selectFoods(
       emptyCriteria({ maxSpicyLevel: 0 }),
-      [1, 3], // Pho bo va Bun bo Hue (cay) — chi Pho bo qua loc
+      [1, 3], // Pho bo va Bun bo Hue (cay). chi Pho bo qua loc
       menu,
       5,
     );
@@ -163,10 +163,10 @@ describe("selectFoods (AI criteria)", () => {
 
 describe("picked / portions", () => {
   it("số phần = ceil(people / khẩu phần), tổng tiền = giá × số phần", () => {
-    const p = picked(menu[0]!, 4); // Pho bo khau phan 1, 4 nguoi → 4 phan
+    const p = picked(menu[0]!, 4); // Pho bo khau phan 1, 4 nguoi -> 4 phan
     expect(p.portions).toBe(4);
     expect(p.totalPrice).toBe(65000 * 4);
-    const g = picked(menu[3]!, 4); // Goi cuon khau phan 2, 4 nguoi → 2 phan
+    const g = picked(menu[3]!, 4); // Goi cuon khau phan 2, 4 nguoi -> 2 phan
     expect(g.portions).toBe(2);
     expect(g.totalPrice).toBe(45000 * 2);
   });

@@ -43,12 +43,12 @@ export function transition(
 ) {
   if (!isValidTransition(order.status, next)) {
     throw badRequest(
-      `Kh├┤ng thß╗â chuyß╗ân ─æ╞ín tß╗½ "${ORDER_STATUS_LABEL[order.status]}" sang "${ORDER_STATUS_LABEL[next]}"`,
+      `Không thể chuyển đơn từ "${ORDER_STATUS_LABEL[order.status]}" sang "${ORDER_STATUS_LABEL[next]}"`,
     );
   }
   // QR thanh toan truoc nen phai da thu tien moi xac nhan duoc; COD thu khi giao nen duyet binh thuong.
   if (next === "CONFIRMED" && order.paymentMethod === "QR" && order.paymentStatus !== "PAID") {
-    throw badRequest("─É╞ín ch╞░a thanh to├ín n├¬n ch╞░a thß╗â x├íc nhß║¡n");
+    throw badRequest("Đơn chưa thanh toán nên chưa thể xác nhận");
   }
   order.status = next;
 }
@@ -56,12 +56,12 @@ export function transition(
 async function requireSellable(items: Array<{ foodId: number }>, client: DbClient) {
   for (const item of items) {
     const food = await client.query.foods.findFirst({ where: eq(foods.id, item.foodId) });
-    if (!food) throw badRequest("M├│n kh├┤ng tß╗ôn tß║íi");
-    if (!food.available) throw badRequest(`M├│n "${food.name}" ─æ├ú ngß╗½ng phß╗Ñc vß╗Ñ`);
+    if (!food) throw badRequest("Món không tồn tại");
+    if (!food.available) throw badRequest(`Món "${food.name}" đã ngừng phục vụ`);
   }
 }
 
-/** Chup lai don tu DB; gia va giam gia tung dong do user/pricing tinh ΓåÆ khop bao gia khach thay. */
+/** Chup lai don tu DB; gia va giam gia tung dong do user/pricing tinh -> khop bao gia khach thay. */
 export async function fillItems(
   client: DbClient,
   items: Array<{ foodId: number; quantity: number }>,
@@ -96,7 +96,7 @@ export const notify = async (
 
 export async function createOrder(email: string, req: CreateOrderRequest) {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (!user) throw badRequest("Phi├¬n ─æ─âng nhß║¡p kh├┤ng hß╗úp lß╗ç");
+  if (!user) throw badRequest("Phiên đăng nhập không hợp lệ");
 
   const createdOrder = await db.transaction(async (tx) => {
     const { items, priced } = await fillItems(tx, req.items);
@@ -113,7 +113,7 @@ export async function createOrder(email: string, req: CreateOrderRequest) {
         discountTotal: String(priced.discountTotal),
       })
       .returning();
-    if (!created) throw new Error("Kh├┤ng thß╗â tß║ío ─æ╞ín h├áng");
+    if (!created) throw new Error("Không thể tạo đơn hàng");
 
     if (items.length > 0) {
       await tx.insert(orderItems).values(
@@ -137,7 +137,7 @@ export async function createOrder(email: string, req: CreateOrderRequest) {
     await notify(
       tx,
       { id: created.id, userId: user.id },
-      `─É╞ín h├áng #${created.id} ─æ├ú ─æ╞░ß╗úc tß║ío. Ch├║ng t├┤i sß║╜ sß╗¢m x├íc nhß║¡n ─æ╞ín cß╗ºa bß║ín.`,
+      `Đơn hàng #${created.id} đã được tạo. Chúng tôi sẽ sớm xác nhận đơn của bạn.`,
     );
 
     return tx.query.orders.findFirst({
@@ -151,7 +151,7 @@ export async function createOrder(email: string, req: CreateOrderRequest) {
 
 export async function myOrders(email: string) {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (!user) throw unauthorized("Phi├¬n ─æ─âng nhß║¡p kh├┤ng hß╗úp lß╗ç");
+  if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
 
   const orderList = await db.query.orders.findMany({
     where: eq(orders.userId, user.id),
@@ -165,11 +165,11 @@ export async function myOrders(email: string) {
 export async function cancelOrder(email: string, id: number) {
   const order = await ownOrder(email, id);
   if (order.status !== "PENDING") {
-    throw badRequest("Chß╗ë ─æ╞ín ─æang chß╗¥ x├íc nhß║¡n mß╗¢i hß╗ºy ─æ╞░ß╗úc. Vui l├▓ng li├¬n hß╗ç hotline.");
+    throw badRequest("Chỉ đơn đang chờ xác nhận mới hủy được. Vui lòng liên hệ hotline.");
   }
   if (order.paymentStatus === "PAID") {
     throw badRequest(
-      "─É╞ín h├áng ─æ├ú thanh to├ín kh├┤ng thß╗â tß╗▒ hß╗ºy tr├¬n hß╗ç thß╗æng. Vui l├▓ng li├¬n hß╗ç hotline qu├ín ─æß╗â ─æ╞░ß╗úc hß╗ù trß╗ú ho├án tiß╗ün.",
+      "Đơn hàng đã thanh toán không thể tự hủy trên hệ thống. Vui lòng liên hệ hotline quán để được hỗ trợ hoàn tiền.",
     );
   }
   const saved = await db.transaction(async (tx) => {
@@ -178,7 +178,7 @@ export async function cancelOrder(email: string, id: number) {
       .set({ status: "CANCELLED" })
       .where(eq(orders.id, order.id));
 
-    await notify(tx, order, `─É╞ín h├áng #${id} ─æ├ú ─æ╞░ß╗úc hß╗ºy theo y├¬u cß║ºu cß╗ºa bß║ín.`);
+    await notify(tx, order, `Đơn hàng #${id} đã được hủy theo yêu cầu của bạn.`);
 
     return tx.query.orders.findFirst({
       where: eq(orders.id, order.id),
@@ -212,8 +212,8 @@ async function applyPaymentTx(
     tx,
     order,
     paid
-      ? `─É╞ín h├áng #${order.id} ─æ├ú ─æ╞░ß╗úc ghi nhß║¡n thanh to├ín.`
-      : `─É╞ín h├áng #${order.id} chuyß╗ân vß╗ü trß║íng th├íi ch╞░a thanh to├ín.`,
+      ? `Đơn hàng #${order.id} đã được ghi nhận thanh toán.`
+      : `Đơn hàng #${order.id} chuyển về trạng thái chưa thanh toán.`,
   );
 
   const updated = await tx.query.orders.findFirst({
@@ -245,12 +245,12 @@ export async function updatePayment(
 /** Chan viec khach doc hoac thao tac len don cua nguoi khac. */
 export async function ownOrder(email: string, id: number) {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (!user) throw unauthorized("Phi├¬n ─æ─âng nhß║¡p kh├┤ng hß╗úp lß╗ç");
+  if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
 
   const order = await db.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
-  if (!order) throw notFound("Kh├┤ng t├¼m thß║Ñy ─æ╞ín");
+  if (!order) throw notFound("Không tìm thấy đơn");
   if (order.userId !== user.id) {
-    throw forbidden("Bß║ín kh├┤ng c├│ quyß╗ün vß╗¢i ─æ╞ín h├áng n├áy");
+    throw forbidden("Bạn không có quyền với đơn hàng này");
   }
   return order;
 }

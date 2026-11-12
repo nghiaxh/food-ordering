@@ -11,9 +11,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-// ==========================================
-// ENUMS (Khop 100% voi Postgres Enum hien tai)
-// ==========================================
+// Enums khop voi Postgres enum hien tai.
 export const roleEnum = pgEnum("Role", ["CUSTOMER", "ADMIN"]);
 
 export const orderStatusEnum = pgEnum("OrderStatus", [
@@ -41,10 +39,7 @@ export const promotionScopeEnum = pgEnum("PromotionScope", [
   "FOOD",
 ]);
 
-// ==========================================
-// TABLES
-// ==========================================
-
+// Tables.
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),

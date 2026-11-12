@@ -19,7 +19,7 @@ export const toAddressJson = (a: UserAddress) => ({
 
 const currentUser = async (email: string) => {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (!user) throw unauthorized("Phi├¬n ─æ─âng nhß║¡p kh├┤ng hß╗úp lß╗ç");
+  if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
   return user;
 };
 
@@ -70,7 +70,7 @@ const owned = async (email: string, id: number) => {
   const address = await db.query.userAddresses.findFirst({ where: eq(userAddresses.id, id) });
   // Dia chi cua nguoi khac cung gia vo khong ton tai de khong lo ID dang co hieu luc.
   if (!address || address.userId !== user.id) {
-    throw notFound("─Éß╗ïa chß╗ë kh├┤ng tß╗ôn tß║íi");
+    throw notFound("Địa chỉ không tồn tại");
   }
   return address;
 };

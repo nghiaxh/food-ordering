@@ -74,7 +74,7 @@ describe("isValid", () => {
   it("khung giờ bình thường và khung giờ qua nửa đêm", () => {
     expect(isValid(promo({ startTime: "11:00", endTime: "13:00" }), NOW)).toBe(true);
     expect(isValid(promo({ startTime: "13:00", endTime: "14:00" }), NOW)).toBe(false);
-    // Qua nua dem: 22:00 → 02:00; 12h trua khong thuoc khung
+    // Qua nua dem: 22:00 -> 02:00; 12h trua khong thuoc khung
     expect(isValid(promo({ startTime: "22:00", endTime: "02:00" }), NOW)).toBe(false);
     const lateNight = new Date("2026-11-08T23:00:00+07:00");
     expect(isValid(promo({ startTime: "22:00", endTime: "02:00" }), lateNight)).toBe(true);

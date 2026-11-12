@@ -20,7 +20,7 @@ import { toUserJson } from "../../lib/serializers.js";
 import { env } from "../../config/env.js";
 
 
-// ----- Khuyen mai -----
+// Khuyen mai
 
 // Quan ly khuyen mai tu dong: pham vi, khung gio, ngay trong tuan, mon may man.
 export const toPromotionJson = (p: {
