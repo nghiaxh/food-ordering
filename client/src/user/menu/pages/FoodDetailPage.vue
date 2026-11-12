@@ -25,6 +25,7 @@ const router = useRouter()
 const from = computed(() => (history.state as { from?: string } | null)?.from)
 const foodId = computed(() => Number(route.params.id))
 const qty = ref(1)
+const adding = ref(false)
 const auth = useAuthStore()
 const cart = useCartStore()
 const ui = useUiStore()
@@ -55,16 +56,23 @@ const { run: removeReview } = useAsyncAction((id: number) => deleteReview(id))
 const goBack = () => router.push(from.value ?? '/')
 
 const addToCart = async () => {
-  if (!food.value?.available) return
+  const current = food.value
+  if (!current?.available || adding.value) return
   if (!auth.user) {
     message.info('Đăng nhập để thêm món vào giỏ')
     router.push({ path: '/login', state: { from: { pathname: route.path, search: route.fullPath.slice(route.path.length) } } })
     return
   }
-  const ok = await cart.add(food.value, qty.value)
-  if (ok) {
-    message.success(`Đã thêm ${qty.value} phần ${food.value.name} vào giỏ`)
-    ui.openDrawer('cart')
+  const quantity = qty.value
+  adding.value = true
+  try {
+    const ok = await cart.add(current, quantity)
+    if (ok) {
+      message.success(`Đã thêm ${quantity} phần ${current.name} vào giỏ`)
+      ui.openDrawer('cart')
+    }
+  } finally {
+    adding.value = false
   }
 }
 
@@ -192,8 +200,8 @@ watch(foodId, () => { qty.value = 1 })
           Món đang tạm hết. Bạn có thể chọn món khác trong thực đơn.
         </div>
         <div v-else class="mt-5 flex items-center gap-3">
-          <QuantityStepper v-model:value="qty" :label="`Số lượng ${food.name}`" />
-          <NButton type="primary" size="large" class="flex-1" @click="addToCart">Thêm vào giỏ</NButton>
+          <QuantityStepper v-model:value="qty" :disabled="adding" :label="`Số lượng ${food.name}`" />
+          <NButton type="primary" size="large" class="flex-1" :loading="adding" :disabled="adding" @click="addToCart">Thêm vào giỏ</NButton>
         </div>
 
         <div class="mt-8">

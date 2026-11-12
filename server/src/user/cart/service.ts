@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../lib/db.js";
 import { cartItems, foods, users } from "../../db/schema.js";
 import { badRequest, notFound, unauthorized } from "../../lib/errors.js";
@@ -52,6 +52,12 @@ export async function addToCart(email: string, foodId: number, quantity: number)
 
 export async function updateCartItem(email: string, foodId: number, quantity: number) {
   const user = await getUserOrThrow(email);
+  // Kiem tra mon truoc khi sua so luong: mon da ngung phuc vu khong duoc giu trong gio.
+  const food = await db.query.foods.findFirst({ where: eq(foods.id, foodId) });
+  if (!food) throw badRequest("Món không tồn tại");
+  if (!food.available) {
+    throw badRequest(`Món "${food.name}" hiện không phục vụ`);
+  }
   const item = await db.query.cartItems.findFirst({
     where: and(eq(cartItems.userId, user.id), eq(cartItems.foodId, foodId)),
   });
@@ -84,5 +90,17 @@ export async function clearCart(email: string) {
 }
 
 export async function quote(items: QuoteRequest["items"]) {
+  // Chan som o bien cart de khong bao gia mon da ngung phuc vu; priceOrder kiem tra lai lan nua.
+  const ids = [...new Set(items.map((i) => i.foodId))];
+  const rows = await db.query.foods.findMany({
+    where: inArray(foods.id, ids),
+    columns: { id: true, name: true, available: true },
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  for (const id of ids) {
+    const food = byId.get(id);
+    if (!food) throw badRequest("Món không tồn tại");
+    if (!food.available) throw badRequest(`Món "${food.name}" đã ngừng phục vụ`);
+  }
   return toQuote(await priceOrder(items));
 }

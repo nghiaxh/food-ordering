@@ -137,7 +137,7 @@ export const useChatConversation = () => {
     try {
       status.value = await getChatbotStatus()
     } catch {
-      status.value = null
+      status.value = { available: false, notice: null }
     }
   })
 
@@ -191,9 +191,8 @@ export const useChatConversation = () => {
     }
     input.value = ''
     const history = messages.value.filter((m) => m.sender === 'USER').map((m) => m.content).slice(-3)
-    const lastFoodIds = messages.value.length
-      ? ([...messages.value].reverse().find((m) => m.sender === 'BOT') as ChatMessage | undefined)?.foods?.map((f) => f.id) ?? []
-      : []
+    const lastBotWithFoods = [...messages.value].reverse().find((m) => m.sender === 'BOT' && Array.isArray(m.foods) && m.foods.length > 0)
+    const lastFoodIds = lastBotWithFoods?.foods?.map((f) => f.id) ?? []
     messages.value = [...messages.value, { sender: 'USER', content: text }]
     loading.value = true
     // Status text cho nguoi moi biet bot dang lam gi.
@@ -224,7 +223,7 @@ export const useChatConversation = () => {
         return
       }
       error.value = true
-      pushBotMessage('Mình chưa gửi được câu hỏi, bạn thử lại nhé!', [])
+      messages.value = [...messages.value, { sender: 'BOT', content: 'Mình chưa gửi được câu hỏi, bạn thử lại nhé!' }]
     } finally {
       // Panel dong giua chung cung phai mo lai o nhap; dung de loading ket vinh vien.
       loading.value = false

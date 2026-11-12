@@ -80,6 +80,7 @@ export const createPromotion = async (req: {
   discountType: "PERCENT" | "FIXED";
   discountValue: number;
   maxDiscount?: number | null;
+  minOrderTotal?: number | null;
   scope: "GLOBAL" | "CATEGORY" | "FOOD";
   targetIds?: number[];
   startsAt: Date;

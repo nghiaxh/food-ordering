@@ -104,6 +104,8 @@ export function bestFor(
   let bestAmount = 0;
   for (const p of rules.auto) {
     if (!matches(p, food)) continue;
+    // Don toi thieu tinh theo gia mot phan: mon re hon nguong thi khong duoc huong KM.
+    if (p.minOrderTotal != null && unitPrice < Number(p.minOrderTotal)) continue;
     if (p.randomCount > 0) {
       const picked = rules.randomPicks.get(p.id);
       if (!picked || !picked.has(food.id)) continue;
