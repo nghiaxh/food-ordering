@@ -17,7 +17,7 @@ const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng 
 const PROBE_USER = "ping";
 const PROBE_RETRY_MS = 5 * 60 * 1000;
 
-/** Khoa API bi nha cung cap tu choi (sai, het han, chua bat API) — khong phai loi tam thoi. */
+/** Khoa API bi nha cung cap tu choi (sai, het han, chua bat API) - khong phai loi tam thoi. */
 export class AiKeyRejectedException extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -35,7 +35,7 @@ export const isConfigured = (): boolean => {
   return !!apiKey && apiKey.trim().length > 0 && !credentialsRejected;
 };
 
-/** Reset bo nho cache — chi dung trong test hoac khi khoi dong lai tien trinh. */
+/** Reset bo nho cache - chi dung trong test hoac khi khoi dong lai tien trinh. */
 export const _resetKeyStateForTests = () => {
   credentialsRejected = false;
   keyAccepted = null;

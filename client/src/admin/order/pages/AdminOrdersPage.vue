@@ -108,7 +108,7 @@ const changePayment = async (id: number, paid: boolean) => {
   })
 }
 
-// ----- Form tao/sua don -----
+// Form tao/sua don
 const form = reactive({
   customerEmail: '',
   receiverName: '',

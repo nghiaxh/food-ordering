@@ -95,9 +95,7 @@ const extraRules = async (): Promise<string> => {
   return value ? `11. Quy tắc bổ sung của nhà hàng: ${value}` : "";
 };
 
-// ---------------------------------------------------------------------------
 // Intent + nhanh tra loi
-// ---------------------------------------------------------------------------
 
 const isOrderGuideQuestion = (p: string): boolean =>
   [
@@ -226,11 +224,9 @@ const requestHistory = (history: string[] | undefined | null): string[] => {
   return history.map((s) => s.trim()).filter(Boolean).slice(0, 3);
 };
 
-// ---------------------------------------------------------------------------
 // Goi AI + kiem tra + chon mon
-// ---------------------------------------------------------------------------
 
-/** Trich tieu chi bang AI; loi khoa → AiKeyRejectedException (chat() doi thanh 503); loi khac → null. */
+/** Trich tieu chi bang AI; loi khoa -> AiKeyRejectedException (chat() doi thanh 503); loi khac -> null. */
 const extractCriteria = async (message: string, history: string[], categoryNames: string): Promise<NormalizedCriteria | null> => {
   const previous = history.length ? history.join("\n") : "(không có)";
   const prompt = EXTRACT_PROMPT.replace("%s", previous).replace("%s", categoryNames);
@@ -250,7 +246,7 @@ const extractCriteria = async (message: string, history: string[], categoryNames
   }
 };
 
-/** Sinh cau tra loi tu danh sach mon da loc; loi khoa → AiKeyRejectedException; loi khac → null. */
+/** Sinh cau tra loi tu danh sach mon da loc; loi khoa -> AiKeyRejectedException; loi khac -> null. */
 const generateReply = async (
   question: string,
   criteria: NormalizedCriteria,
@@ -311,9 +307,7 @@ const requireConfigured = () => {
   }
 };
 
-// ---------------------------------------------------------------------------
 // Luong chinh
-// ---------------------------------------------------------------------------
 
 // Luong chatbot: hai luot goi AI, bon buoc xu ly chong AI bia mon/gia.
 // The mon tra ve client lay ID/gia tu DB; chi khach da dang nhap moi luu lich su.

@@ -7,7 +7,7 @@ import * as userService from "./service.js";
 
 const idParam = (raw: string | string[] | undefined): number => {
   const id = Number(raw);
-  if (!Number.isInteger(id)) throw badRequest("ID kh├┤ng hß╗úp lß╗ç");
+  if (!Number.isInteger(id)) throw badRequest("ID không hợp lệ");
   return id;
 };
 

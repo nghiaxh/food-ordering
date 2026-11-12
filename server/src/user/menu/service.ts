@@ -44,7 +44,7 @@ export async function getFood(id: number) {
     where: eq(foods.id, id),
     with: { category: true },
   });
-  if (!food) throw notFound("Kh├┤ng t├¼m thß║Ñy m├│n ─ân");
+  if (!food) throw notFound("Không tìm thấy món ăn");
   const [decorated] = await decorateFoods([food]);
   return toFoodJson(decorated!);
 }

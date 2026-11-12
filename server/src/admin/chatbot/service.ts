@@ -20,7 +20,7 @@ import { toUserJson } from "../../lib/serializers.js";
 import { env } from "../../config/env.js";
 
 
-// ----- Cau hinh AI / lich su hoi thoai -----
+// Cau hinh AI / lich su hoi thoai
 
 // Cau hinh AI, lich su hoi thoai va tai lieu chatbot danh cho quan tri.
 export const listAiSettings = async () => {

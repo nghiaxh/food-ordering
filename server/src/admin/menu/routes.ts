@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { badRequest } from "../../lib/errors.js";
 import { parseBody } from "../../lib/validate.js";
 import {
@@ -22,7 +22,7 @@ const idParam = (raw: string | string[] | undefined): number => {
 
 export const menuAdminRouter = Router();
 
-// ----- Mon an -----
+// Mon an
 menuAdminRouter.post("/foods", async (req, res) => {
   res.json(await createFood(parseBody(foodRequestSchema, req.body)));
 });
@@ -34,7 +34,7 @@ menuAdminRouter.delete("/foods/:id", async (req, res) => {
   res.json({});
 });
 
-// ----- Danh muc -----
+// Danh muc
 menuAdminRouter.post("/categories", async (req, res) => {
   res.json(await createCategory(parseBody(categoryRequestSchema, req.body)));
 });

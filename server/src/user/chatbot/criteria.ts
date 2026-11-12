@@ -47,7 +47,7 @@ export const isFollowUp = (message: string | null | undefined): boolean => {
   return FOLLOW_UP_PHRASES.some((phrase) => p.includes(phrase));
 };
 
-/** Tu khoa AI co the tra cho cau hoi tiep ("mon do"...) — khong phai chu de moi. */
+/** Tu khoa AI co the tra cho cau hoi tiep ("mon do"...) - khong phai chu de moi. */
 export const isReferenceKeyword = (keyword: string): boolean => {
   const p = plain(keyword).trim();
   if (!p) return true;

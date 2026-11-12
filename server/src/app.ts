@@ -43,7 +43,7 @@ app.use("/api/orders", paymentRouter);
   app.use("/api/admin", adminRouter);
 
   app.use("/api", (_req, res) => {
-    res.status(404).json({ message: "Kh├┤ng t├¼m thß║Ñy API ─æ╞░ß╗úc y├¬u cß║ºu." });
+    res.status(404).json({ message: "Không tìm thấy API được yêu cầu." });
   });
 
   app.use(errorHandler);
