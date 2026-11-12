@@ -2,7 +2,7 @@ import { and, asc, gte, lte } from "drizzle-orm";
 import writeExcelFile from "write-excel-file/node";
 import { orders } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
-import { businessTimeParts, BUSINESS_UTC_OFFSET } from "../../lib/businessTime.js";
+import { businessTimeParts, parseBusinessRange } from "../../lib/businessTime.js";
 
 // Bao cao doanh thu cho quan tri + xuat Excel bang write-excel-file.
 export interface ReportRange {
@@ -10,23 +10,9 @@ export interface ReportRange {
   to: Date;
 }
 
-/** from/to: uu tien ISO datetime, fallback cho "YYYY-MM-DD" (00:00 / 23:59:59). */
-export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange => {
-  const now = new Date();
-  const from = fromRaw ? parseDate(fromRaw) : new Date(now.getTime() - 30 * 24 * 3600 * 1000);
-  const to = toRaw ? parseDate(toRaw, true) : now;
-  return { from, to };
-};
-
-const parseDate = (raw: string, endOfDay = false): Date => {
-  const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) return parsed;
-  // Ngay tran "YYYY-MM-DD" hieu la nua dau/cuoi ngay theo gio VN. bao cao phuc vu khach Viet,
-  // khong theo TZ may chu (CI/docker chay UTC).
-  const d = new Date(endOfDay ? `${raw}T23:59:59.999${BUSINESS_UTC_OFFSET}` : `${raw}T00:00:00${BUSINESS_UTC_OFFSET}`);
-  if (Number.isNaN(d.getTime())) throw new Error("Khoảng ngày không hợp lệ");
-  return d;
-};
+/** from/to: ngay lich VN ("YYYY-MM-DD") hoac ISO datetime; mac dinh 30 ngay gan nhat. */
+export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange =>
+  parseBusinessRange(fromRaw, toRaw);
 
 const loadOrders = async ({ from, to }: ReportRange) => {
   const orderList = await db.query.orders.findMany({
@@ -77,21 +63,22 @@ export const revenueByDay = async (range: ReportRange) => {
 
 export const topFoods = async (range: ReportRange, limit: number) => {
   const orderList = await loadOrders(range);
-  const qty = new Map<string, number>();
-  const rev = new Map<string, number>();
+  // Gom theo id mon chu khong theo ten: hai mon trung ten van la hai mon khac nhau.
+  const stats = new Map<number, { name: string; quantity: number; revenue: number }>();
   for (const o of orderList) {
     if (o.status === "CANCELLED") continue;
     for (const item of o.items) {
       if (!item.food) continue;
-      const name = item.food.name;
-      qty.set(name, (qty.get(name) ?? 0) + item.quantity);
+      const entry = stats.get(item.food.id) ?? { name: item.food.name, quantity: 0, revenue: 0 };
+      entry.quantity += item.quantity;
       // Doanh thu sau giam gia cua ca dong.
       const net = Number(item.price) * item.quantity - Number(item.discountAmount ?? 0);
-      rev.set(name, (rev.get(name) ?? 0) + net);
+      entry.revenue += net;
+      stats.set(item.food.id, entry);
     }
   }
-  return [...qty.entries()]
-    .map(([name, quantity]) => ({ name, quantity, revenue: rev.get(name) ?? 0 }))
+  return [...stats.entries()]
+    .map(([foodId, v]) => ({ foodId, ...v }))
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, limit);
 };

@@ -1,5 +1,7 @@
 // Mui gio nghiep vu cua quan la gio Viet Nam; server (dev/docker/CI) chay UTC.
 // Code can "ngay/thu/gio" cua khach phai di qua helper nay, khong doc truc tiep Date.
+import { badRequest } from "./errors.js";
+
 export const BUSINESS_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
 /** Offset co dinh +07:00 - Viet Nam khong co DST nen khong can
@@ -42,4 +44,49 @@ export const businessTimeParts = (now: Date): BusinessTimeParts => {
     weekday, // en-US "Sun".."Sat" -> "SUN".."SAT"
     minutes: hour * 60 + minute,
   };
+};
+
+/** Ngay lich dang "YYYY-MM-DD" - nguoi dung nhap ngay theo lich Viet Nam. */
+const PLAIN_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+export interface BusinessRange {
+  from: Date;
+  to: Date;
+}
+
+/**
+ * Doc moc thoi gian tu chuoi: "YYYY-MM-DD" la ngay lich VN (dau hoac cuoi ngay theo gio Viet),
+ * chuoi ISO datetime giu nguyen instant. Chuoi sai tra loi 400 thay vi loi 500.
+ */
+export const parseBusinessDate = (raw: string, endOfDay = false): Date => {
+  const value = raw.trim();
+  if (PLAIN_DAY.test(value)) {
+    const day = new Date(
+      endOfDay
+        ? `${value}T23:59:59.999${BUSINESS_UTC_OFFSET}`
+        : `${value}T00:00:00${BUSINESS_UTC_OFFSET}`,
+    );
+    // Date tu cua V8 cuon ngay sai ("2026-02-31" ra "2026-03-03") nen doi chieu ngay lich.
+    if (Number.isNaN(day.getTime()) || businessTimeParts(day).dayKey !== value) {
+      throw badRequest("Khoảng ngày không hợp lệ");
+    }
+    return day;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) throw badRequest("Khoảng ngày không hợp lệ");
+  return parsed;
+};
+
+/**
+ * Khoang thoi gian cho bao cao: "YYYY-MM-DD" la ngay lich VN, mac dinh 30 ngay gan nhat.
+ * Ngay bat dau phai khong sau ngay ket thuc.
+ */
+export const parseBusinessRange = (fromRaw?: string, toRaw?: string): BusinessRange => {
+  const now = new Date();
+  const from = fromRaw ? parseBusinessDate(fromRaw) : new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+  const to = toRaw ? parseBusinessDate(toRaw, true) : now;
+  if (from.getTime() > to.getTime()) {
+    throw badRequest("Khoảng ngày không hợp lệ: ngày bắt đầu phải không sau ngày kết thúc");
+  }
+  return { from, to };
 };

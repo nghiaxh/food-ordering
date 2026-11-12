@@ -108,6 +108,12 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   mãi, chỉ hiện lại `QuoteLine.lineDiscount` (số tiền giảm của **cả dòng**). Mỗi dòng chỉ nhận một
   khuyến mãi tự động tốt nhất. `composables/useCartQuote.ts` là nơi duy nhất gọi quote, dùng chung cho
   drawer giỏ và `/checkout`.
+- **Báo cáo quản trị theo ngày lịch Việt**: `from`/`to` của `/api/admin/reports/**` đọc bằng
+  `parseBusinessRange` (`server/src/lib/businessTime.ts`): chuỗi `"YYYY-MM-DD"` là ngày lịch VN
+  (đầu/cuối ngày theo giờ Việt), chuỗi ISO datetime giữ nguyên instant, ngày sai hoặc
+  `from > to` trả 400. Client `AdminReportsPage` gửi chuỗi `"YYYY-MM-DD"` theo ngày đã chọn (không
+  phải ISO UTC) và hiển thị ngày trong bảng bằng `dayLabel` để không lệch ngày theo múi giờ máy.
+  `topFoods` gom theo `foodId` nên hai món trùng tên vẫn là hai món khác nhau.
 - **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`order` module `canEditItems`);
   đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (kiểm trong `adminUpdateOrder`);
   các
