@@ -3,7 +3,7 @@ import { z } from "zod";
 /** Hai phuong thuc thanh toan: COD (tien mat khi nhan) va QR (quet ma chuyen khoan). */
 export const PAYMENT_METHOD_PATTERN = /^(COD|QR)$/;
 
-const phoneSchema = z.string().regex(/^0\d{9}$/, "Số điện thoại phải gồm đúng 10 chữ số");
+export const phoneSchema = z.string().regex(/^0\d{9}$/, "Số điện thoại phải gồm đúng 10 chữ số");
 export const noteSchema = z.string().max(255, "Lưu ý không được vượt quá 255 ký tự").optional();
 
 export const orderItemRequestSchema = z.object({

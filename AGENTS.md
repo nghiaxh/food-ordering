@@ -114,6 +114,13 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   trạng thái còn lại chỉ sửa được người nhận/SĐT/địa chỉ/ghi chú/trạng thái. `adminOrderSchema.items`
   được phép null, còn `adminCreate` tự kiểm danh sách món không rỗng. Khách cũng chỉ hủy được đơn
   `PENDING` + chưa thanh toán; client ẩn nút bằng `canCancelOrder` trong `client/src/shared/utils/orders.ts`.
+- **Đơn admin tạo/sửa/xoá**: đơn tạo mới luôn bắt đầu `PENDING`, chỉ tạo được trạng thái đi tiếp được
+  từ `PENDING` (`PENDING`/`CONFIRMED`/`CANCELLED`, xem `isCreatableStatus`), `CONFIRMED` + `QR` phải đã
+  thu tiền. `adminUpdateOrder` áp `paid` **trước** khi đổi trạng thái để guard QR thấy trạng thái
+  thanh toán mới; `items: []` nghĩa là **không đổi món** (chỉ sửa thông tin giao hàng). Đổi món thì
+  `order_items` không lưu id khuyến mãi nên phải tính lại giá món cũ để trả lại `usedCount` của KM cũ
+  rồi mới `markUsed` KM mới (`syncPromotionUsage`). Xoá đơn xoá trong một transaction gồm thông báo,
+  giao dịch thanh toán, dòng món và đơn để không còn dữ liệu móc.
 
 - **Nhãn PREPARING là "Đang vận chuyển"**: mã trạng thái trong DB không đổi, chỉ đổi nhãn hiển thị
   (`ORDER_STATUS_LABEL`, `order` module, thông báo "đang được vận chuyển"); nút admin

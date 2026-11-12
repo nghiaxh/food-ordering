@@ -30,6 +30,15 @@ export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
   }
 }
 
+/**
+ * Trang thai duoc phep luc TAO don moi: don luon bat dau o PENDING nen chi tao duoc
+ * trang thai PENDING, CONFIRMED (duyet ngay) hoac CANCELLED; tao thang PREPARING/COMPLETED
+ * se bo qua cac buoc trong vong doi don.
+ */
+export function isCreatableStatus(status: OrderStatus): boolean {
+  return status === "PENDING" || isValidTransition("PENDING", status);
+}
+
 export const parseStatus = (status: string): OrderStatus => {
   if (["PENDING", "CONFIRMED", "PREPARING", "COMPLETED", "CANCELLED"].includes(status)) {
     return status as OrderStatus;

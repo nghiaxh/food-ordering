@@ -159,3 +159,13 @@ export async function markUsed(applied: Promotion[], tx: DbClient) {
       .where(eq(promotions.id, p.id));
   }
 }
+
+/** Giam luot dung khi don bi sua mon: KM cu khong con duoc ap nen so da dem phai duoc trai lai. */
+export async function unmarkUsed(applied: Promotion[], tx: DbClient) {
+  for (const p of applied) {
+    await tx
+      .update(promotions)
+      .set({ usedCount: sql`greatest(${promotions.usedCount} - 1, 0)` })
+      .where(eq(promotions.id, p.id));
+  }
+}
