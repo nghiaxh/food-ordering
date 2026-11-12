@@ -1,6 +1,6 @@
 import { and, asc, count, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../lib/db.js";
-import { categories, cartItems, foods, orderItems } from "../../db/schema.js";
+import { categories, cartItems, foods, orderItems, reviews } from "../../db/schema.js";
 import { badRequest, conflict, notFound } from "../../lib/errors.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { toCategoryJson, toFoodJson } from "../../lib/serializers.js";
@@ -165,6 +165,16 @@ export async function deleteFood(id: number) {
   });
   if (inCart) {
     throw conflict(`Món "${food.name}" đang nằm trong giỏ hàng của khách. Hãy chuyển sang trạng thái ngừng phục vụ.`);
+  }
+
+  // Khoa ngoai khong cascade den reviews: xoa mon co review se bi Postgres doi thanh loi 500,
+  // nen do truoc va bao 409 de admin biet phai xu ly danh gia.
+  const reviewRows = await db
+    .select({ value: count() })
+    .from(reviews)
+    .where(eq(reviews.foodId, id));
+  if ((reviewRows[0]?.value ?? 0) > 0) {
+    throw conflict(`Món "${food.name}" còn ${reviewRows[0]!.value} đánh giá, không thể xóa`);
   }
 
   await db.delete(foods).where(eq(foods.id, id));
