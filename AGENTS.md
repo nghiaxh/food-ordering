@@ -114,6 +114,11 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   `from > to` trả 400. Client `AdminReportsPage` gửi chuỗi `"YYYY-MM-DD"` theo ngày đã chọn (không
   phải ISO UTC) và hiển thị ngày trong bảng bằng `dayLabel` để không lệch ngày theo múi giờ máy.
   `topFoods` gom theo `foodId` nên hai món trùng tên vẫn là hai món khác nhau.
+- **Khuyến mãi admin**: phạm vi `CATEGORY`/`FOOD` **phải** có `targetIds` (danh sách rỗng thì KM không
+  khớp món nào, server trả 400 và client chặn trước khi gửi); `usageLimit` bằng `0` nghĩa là **không
+  giới hạn** (lưu `null`); `minOrderTotal` là hạn mức tổng đơn tối thiểu, engine `user/pricing` chỉ
+  áp KM khi tổng đơn đạt mức (`minOrderReached`) nên trên thực đơn (chưa có tổng đơn) các KM có hạn
+  mức không hiện giảm.
 - **Sửa đơn ở quản trị**: món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`order` module `canEditItems`);
   đơn `COMPLETED`/`CANCELLED` khoá hoàn toàn kể cả thông tin giao hàng (kiểm trong `adminUpdateOrder`);
   các

@@ -22,6 +22,10 @@ import { env } from "../../config/env.js";
 
 // Khuyen mai
 
+// 0 hoac rong = khong gioi han luot dung; DB luu null cho truong hop nay.
+const normalizeUsageLimit = (usageLimit?: number | null): number | null =>
+  usageLimit != null && usageLimit > 0 ? usageLimit : null;
+
 // Quan ly khuyen mai tu dong: pham vi, khung gio, ngay trong tuan, mon may man.
 export const toPromotionJson = (p: {
   id: number;
@@ -30,6 +34,7 @@ export const toPromotionJson = (p: {
   discountType: string;
   discountValue: unknown;
   maxDiscount: unknown;
+  minOrderTotal: unknown;
   scope: string;
   targetIds: number[];
   startsAt: Date;
@@ -49,6 +54,7 @@ export const toPromotionJson = (p: {
   discountType: p.discountType,
   discountValue: Number(p.discountValue),
   maxDiscount: p.maxDiscount == null ? null : Number(p.maxDiscount),
+  minOrderTotal: p.minOrderTotal == null ? null : Number(p.minOrderTotal),
   scope: p.scope,
   targetIds: [...p.targetIds],
   startsAt: p.startsAt.toISOString(),
@@ -84,6 +90,7 @@ export const createPromotion = async (req: {
   active: boolean;
   priority: number;
   usageLimit?: number | null;
+  minOrderTotal?: number | null;
   randomCount: number;
 }) => {
   const [created] = await db
@@ -94,6 +101,7 @@ export const createPromotion = async (req: {
       discountType: req.discountType,
       discountValue: String(req.discountValue),
       maxDiscount: req.maxDiscount != null ? String(req.maxDiscount) : null,
+      minOrderTotal: req.minOrderTotal != null ? String(req.minOrderTotal) : null,
       scope: req.scope,
       targetIds: req.targetIds ?? [],
       startsAt: req.startsAt,
@@ -103,7 +111,7 @@ export const createPromotion = async (req: {
       endTime: req.endTime ?? null,
       active: req.active,
       priority: req.priority,
-      usageLimit: req.usageLimit ?? null,
+      usageLimit: normalizeUsageLimit(req.usageLimit),
       randomCount: req.randomCount,
     })
     .returning();
@@ -129,6 +137,7 @@ export const updatePromotion = async (
       discountType: req.discountType,
       discountValue: String(req.discountValue),
       maxDiscount: req.maxDiscount != null ? String(req.maxDiscount) : null,
+      minOrderTotal: req.minOrderTotal != null ? String(req.minOrderTotal) : null,
       scope: req.scope,
       targetIds: req.targetIds ?? [],
       startsAt: req.startsAt,
@@ -138,7 +147,7 @@ export const updatePromotion = async (
       endTime: req.endTime ?? null,
       active: req.active,
       priority: req.priority,
-      usageLimit: req.usageLimit ?? null,
+      usageLimit: normalizeUsageLimit(req.usageLimit),
       randomCount: req.randomCount,
     })
     .where(eq(promotions.id, id))

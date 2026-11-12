@@ -6,6 +6,7 @@ import {
   discountAmount,
   isValid,
   matches,
+  minOrderReached,
   toQuoteLine,
   type DiscountRule,
 } from "../src/user/pricing/engine.js";
@@ -97,6 +98,19 @@ describe("discountAmount", () => {
   it("không bao giờ giảm quá giá món hoặc âm", () => {
     expect(discountAmount(5000, promo({ discountType: "FIXED", discountValue: "99999" }))).toBe(5000);
     expect(discountAmount(50000, promo({ discountType: "FIXED", discountValue: "-1" }))).toBe(0);
+  });
+});
+
+describe("minOrderReached", () => {
+  it("khuyến mãi không có hạn mức thì luôn áp dụng", () => {
+    expect(minOrderReached(promo({ minOrderTotal: null }), 0)).toBe(true);
+  });
+
+  it("khuyến mãi có hạn mức chỉ áp khi tổng đơn đạt mức", () => {
+    const limited = promo({ minOrderTotal: "100000" });
+    expect(minOrderReached(limited, 99999)).toBe(false);
+    expect(minOrderReached(limited, 100000)).toBe(true);
+    expect(minOrderReached(limited, 150000)).toBe(true);
   });
 });
 

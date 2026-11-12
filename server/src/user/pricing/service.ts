@@ -8,6 +8,7 @@ import {
   computeRandomPicks,
   discountAmount,
   isValid,
+  minOrderReached,
   toQuoteLine,
   type DiscountRule,
   type FoodLike,
@@ -42,8 +43,10 @@ export async function activePromotions(now: Date, client: DbClient = db): Promis
 }
 
 /** Dung rule set dung chung cho moi lan tinh trong mot request. */
-async function buildRules(now: Date, client: DbClient): Promise<DiscountRule> {
-  const auto = await activePromotions(now, client);
+async function buildRules(now: Date, client: DbClient, subtotal = 0): Promise<DiscountRule> {
+  // Khuyen mai co han muc toi thieu chi ap khi tong don dat han; subtotal = 0 (hien thi
+  // trong thuc don) thi loai het nhom khuyen mai do.
+  const auto = (await activePromotions(now, client)).filter((p) => minOrderReached(p, subtotal));
   const needsPicks = auto.some((p) => p.randomCount > 0);
   if (!needsPicks) {
     return { now, auto, randomPicks: new Map(), availableFoodIds: [] };
@@ -61,11 +64,10 @@ export async function priceOrder(
   client: DbClient = db,
   now: Date = new Date(),
 ): Promise<PricedCart> {
-  const rules = await buildRules(now, client);
-  const lines: PricedLine[] = [];
-  const applied = new Map<number, Promotion>();
+  // Vong 1 lay gia mon va tinh tong don; vong 2 moi chon khuyen mai theo tong don
+  // vi khuyen mai co han muc toi thieu chi ap khi tong don dat han.
+  const prepared: Array<{ input: PricingInputItem; food: PricedLine["food"]; unitPrice: number }> = [];
   let subtotal = 0;
-
   for (const input of items) {
     if (input.quantity <= 0) throw badRequest("Số lượng món phải lớn hơn 0");
     if (input.foodId == null) throw badRequest("Dòng hàng phải có món");
@@ -75,7 +77,15 @@ export async function priceOrder(
     });
     if (!food) throw badRequest("Món không tồn tại");
     const unitPrice = Number(food.price);
+    prepared.push({ input, food, unitPrice });
+    subtotal += unitPrice * input.quantity;
+  }
 
+  const rules = await buildRules(now, client, subtotal);
+  const lines: PricedLine[] = [];
+  const applied = new Map<number, Promotion>();
+
+  for (const { input, food, unitPrice } of prepared) {
     const auto = bestFor(unitPrice, food, rules);
     let lineDiscount = 0;
     let label: string | null = null;
@@ -92,7 +102,6 @@ export async function priceOrder(
       lineDiscount,
       discountLabel: label,
     });
-    subtotal += unitPrice * input.quantity;
   }
 
   const total = lines.reduce((sum, l) => sum + (l.unitPrice * l.quantity - l.lineDiscount), 0);
