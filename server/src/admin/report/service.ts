@@ -21,7 +21,7 @@ export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange => {
 const parseDate = (raw: string, endOfDay = false): Date => {
   const parsed = new Date(raw);
   if (!Number.isNaN(parsed.getTime())) return parsed;
-  // Ngay tran "YYYY-MM-DD" hieu la nua dau/cuoi ngay theo gio VN - bao cao phuc vu khach Viet,
+  // Ngay tran "YYYY-MM-DD" hieu la nua dau/cuoi ngay theo gio VN. bao cao phuc vu khach Viet,
   // khong theo TZ may chu (CI/docker chay UTC).
   const d = new Date(endOfDay ? `${raw}T23:59:59.999${BUSINESS_UTC_OFFSET}` : `${raw}T00:00:00${BUSINESS_UTC_OFFSET}`);
   if (Number.isNaN(d.getTime())) throw new Error("Khoảng ngày không hợp lệ");

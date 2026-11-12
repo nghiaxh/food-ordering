@@ -12,7 +12,7 @@ const uploadDir = () => env.UPLOAD_DIR;
 mkdirSync(uploadDir(), { recursive: true });
 
 // Nap tai lieu quan vao kho cua chatbot: luu file, tach text, chia doan, luu chunk.
-// Khong embedding - chunk duoc tim bang tsvector (migration init co cot search_vector GENERATED).
+// Khong embedding. chunk duoc tim bang tsvector (migration init co cot search_vector GENERATED).
 export interface KnowledgeDocJson {
   id: number;
   title: string | null;
@@ -200,7 +200,7 @@ export const deleteDocument = async (documentId: number) => {
     try {
       unlinkSync(storedFilePath(documentId, doc.fileName));
     } catch {
-      // File goc khong con thi bo qua - chunks va ban ghi da xoa la du.
+      // File goc khong con thi bo qua. chunks va ban ghi da xoa la du.
     }
   }
   await db.delete(chatbotKnowledge).where(eq(chatbotKnowledge.id, documentId));

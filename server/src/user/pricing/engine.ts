@@ -26,7 +26,7 @@ export type FoodLike = Pick<Food, "id" | "categoryId" | "price" | "name" | "avai
 export function isValid(p: Promotion, now: Date): boolean {
   if (!p.active) return false;
   if (now < p.startsAt || now > p.endsAt) return false;
-  // Ngay/thu/gio so theo gio Viet Nam - may chu thuong chay UTC.
+  // Ngay/thu/gio so theo gio Viet Nam. may chu thuong chay UTC.
   const { weekday, minutes } = businessTimeParts(now);
   if (p.daysOfWeek && p.daysOfWeek.trim()) {
     const ok = p.daysOfWeek.split(",").some((d) => d.trim().toUpperCase() === weekday);

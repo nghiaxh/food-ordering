@@ -39,7 +39,7 @@ export const businessTimeParts = (now: Date): BusinessTimeParts => {
   const minute = Number(parts.minute ?? "0");
   return {
     dayKey: `${year}-${month}-${day}`,
-    weekday, // en-US "Sun".."Sat"  "SUN".."SAT"
+    weekday, // en-US "Sun".."Sat" -> "SUN".."SAT"
     minutes: hour * 60 + minute,
   };
 };

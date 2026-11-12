@@ -152,7 +152,7 @@ describe("selectFoods (AI criteria)", () => {
   it("hỏi tiếp: restrictIds chỉ xét đúng các món vừa gợi ý", () => {
     const result = selectFoods(
       emptyCriteria({ maxSpicyLevel: 0 }),
-      [1, 3], // Pho bo va Bun bo Hue (cay) - chi Pho bo qua loc
+      [1, 3], // Pho bo va Bun bo Hue (cay). chi Pho bo qua loc
       menu,
       5,
     );
