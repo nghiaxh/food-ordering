@@ -17,6 +17,8 @@ import {
 import { db, pool } from "../lib/db.js";
 import { hashPassword } from "../lib/password.js";
 
+// Moc thoi gian de du lieu tao ra luon gan voi hien tai: don cu, gioi han khuyen mai
+// va thong bao co so ngay gan voi luc server chay.
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 3600 * 1000);
 const hoursAgo = (n: number) => new Date(Date.now() - n * 3600 * 1000);
 const minutesAgo = (n: number) => new Date(Date.now() - n * 60 * 1000);
@@ -24,9 +26,14 @@ const minutesAgo = (n: number) => new Date(Date.now() - n * 60 * 1000);
 type UserRef = { id: number; fullName: string | null; phone: string | null; address: string | null };
 type FoodRef = { id: number; price: string };
 
-// Seed du lieu demo bang Drizzle ORM. Chi chay khi bang users con trong
-// de tranh nhan doi du lieu; muon nap lai thi xoa volume db_data.
+// Seed du lieu demo bang Drizzle ORM.
+// Chi chay khi bang `users` con trong: co san du lieu thi bo qua de khong nhan doi
+// du lieu. Toan bo noi dung nam trong mot transaction nen seed fail giua chung
+// khong de lai du lieu do va giu nguyen DB cu.
+// Muon nap lai du lieu demo: xoa volume `db_data` roi khoi dong lai container.
 async function main() {
+  // Dem so tai khoan truoc khi seed. Bang `users` co it nhat 1 dong nghia la DB
+  // da duoc dung vao nen dung lai thay vi chen them du lieu mau trung.
   const [totalRes] = await db.select({ value: count() }).from(users);
   if ((totalRes?.value ?? 0) > 0) {
     console.log("Đã có dữ liệu, bỏ qua seed.");
@@ -35,6 +42,8 @@ async function main() {
 
   await db.transaction(async (tx) => {
     // Mat khau duoc bam truoc vi khong luu plain text, ke ca voi tai khoan demo.
+    // `hashPassword` la bcrypt nen 10 tai khoan duoc tao trong `Promise.all`
+    // de chay song song, tao tuan tu se keo dai thoi gian seed khong co ly do.
     const createUser = async (
       email: string,
       pass: string,
@@ -50,6 +59,7 @@ async function main() {
       return u!;
     };
 
+    // Tao 10 tai khoan trong `Promise.all` vi bcrypt chay cham.
     const [, , tuan, khang, thao, linh, son, trung, duc, tung] = await Promise.all([
       createUser("namnguyen@demo.com", "namnguyen", "Nguyễn Hoàng Nam", "0901000001", "Số 1 Hòa Bình, Ninh Kiều, Cần Thơ", "ADMIN"),
       createUser("huongtran@demo.com", "huongtran", "Trần Thu Hương", "0901000002", "Số 2 Trần Hưng Đạo, Cái Răng, Cần Thơ", "ADMIN"),
@@ -63,6 +73,8 @@ async function main() {
       createUser("tunghoang@demo.com", "tunghoang", "Hoàng Thanh Tùng", "0901000010", "67 Trần Hưng Đạo, Ninh Kiều, Cần Thơ", "CUSTOMER"),
     ]);
 
+    // 5 danh muc. `imageUrl` tro vao file local `client/public/images/categories/*.webp`
+    // nen anh phai ton tai o client, khong doi ten file khi doi du lieu seed.
     const [viet] = await tx.insert(categories).values({
       name: "Món Việt", slug: "mon-viet", imageUrl: "/images/categories/mon-viet.webp",
       description: "Cơm, phở, bún, mì và các món Việt truyền thống",
@@ -84,6 +96,10 @@ async function main() {
       description: "Món không dùng thịt, phục vụ người ăn chay",
     }).returning();
 
+    // `price` luu dang chuoi vi cot la numeric(12,2).
+    // `servingSize` la so phan, chatbot dung de tinh so phan can dat.
+    // `spicyLevel` 0-3; `dietaryTags`/`allergens` la chuoi tach dau phay ma chatbot
+    // loc tren, nen khong doi format.
     const createFood = async (
       name: string, cat: { id: number }, description: string, ingredients: string,
       price: number, servingSize: number, spicyLevel: number, dietaryTags: string,
@@ -96,6 +112,8 @@ async function main() {
       return f!;
     };
 
+    // 32 mon. Bon mon dat `available = false` de co trang thai ngung phuc vu:
+    // khong hien tren thuc don va chatbot khong nen goi nho.
     const pho = await createFood("Phở bò", viet!, "Phở bò truyền thống, nước dùng hầm xương 12 giờ",
       "bánh phở, thịt bò, hành, quế, hồi", 65000, 1, 0, "", "gluten", "pho-bo");
     const bunCha = await createFood("Bún chả Hà Nội", viet!, "Bún chả nướng than hoa ăn kèm nước mắm chua ngọt",
@@ -162,7 +180,10 @@ async function main() {
     const bunChaChay = await createFood("Bún chả chay", chay!, "Chả chay từ đậu hũ, nước chấm chua ngọt",
       "bún, đậu hũ, nấm mèo, nước mắm chay", 55000, 1, 0, "chay", "gluten,đậu nành", "bun-cha-chay");
 
-    // Khuyen mai
+    // 4 khuyen mai dang chay.
+    // `targetIds` bat buoc cho pham vi CATEGORY/FOOD: danh sach rong thi server tra 400.
+    // `minOrderTotal` chi ap khi tong don dat ha moc nen tren thuc don (chua co tong
+    // don) van chua thay giam. `daysOfWeek` va khung gio so theo gio Viet Nam.
     const promoStart = daysAgo(1);
     const promoEnd = new Date(Date.now() + 183 * 24 * 3600 * 1000);
 
@@ -191,8 +212,12 @@ async function main() {
       },
     ]);
 
-    // 15 don rai tren 8 khach
+    // 15 don cua 8 khach, trong do 5 don COMPLETED de bao cao co so lieu.
+    // Tong tien tinh lai tu gia trong DB khong nhap tay; `discountTotal` = 0 vi seed
+    // khong chay engine khuyen mai. Moi don kem mot dong `payment_transactions`
+    // de bao cao doanh thu co giao dich.
     type Line = { food: FoodRef; qty: number };
+    // Rut gon cho danh sach dong mon cua don.
     const L = (food: FoodRef, qty: number): Line => ({ food, qty });
     const createOrder = async (
       user: UserRef, status: "PENDING" | "CONFIRMED" | "PREPARING" | "COMPLETED" | "CANCELLED",
@@ -214,6 +239,7 @@ async function main() {
         })),
       );
 
+      // Don da thanh toan gan thoi diem thanh toan sau 5 phut.
       await tx.insert(paymentTransactions).values({
         orderId: order!.id, method: paymentMethod, amount: String(total),
         status: paymentStatus === "PAID" ? "PAID" : "PENDING",
@@ -240,7 +266,7 @@ async function main() {
     await createOrder(linh, "COMPLETED", "QR", "PAID", linh.address, null, daysAgo(9), [L(saladCaesar, 1), L(saladGa, 1), L(caPhe, 1)]);
     await createOrder(son, "PENDING", "QR", "UNPAID", son.address, null, minutesAgo(10), [L(burger, 1), L(nuocCam, 1)]);
 
-    // Danh gia
+    // 12 danh gia, moi mon co it nhat mot danh gia de the mon hien so sao.
     await tx.insert(reviews).values([
       { userId: tuan.id, foodId: pho.id, rating: 5, comment: "Nước dùng ngon, đậm đà." },
       { userId: tuan.id, foodId: bunCha.id, rating: 4, comment: "Nướng than rất thơm, chấm nước mắm vừa ăn." },
@@ -256,7 +282,7 @@ async function main() {
       { userId: linh.id, foodId: saladGa.id, rating: 5, comment: "Gà nướng mềm, rau tươi." },
     ]);
 
-    // Thong bao
+    // Thong bao gan voi don nen khi mo app header co cham chua doc ngay.
     await tx.insert(notifications).values([
       { userId: tuan.id, orderId: o1.id, content: "Đơn hàng của bạn đã được giao. Cảm ơn bạn đã ủng hộ!", read: true, createdAt: daysAgo(12) },
       { userId: tuan.id, orderId: o6.id, content: "Đơn hàng của bạn đang được vận chuyển.", read: false, createdAt: hoursAgo(3) },
@@ -265,7 +291,7 @@ async function main() {
       { userId: trung.id, orderId: o11.id, content: "Đơn hàng của bạn đã được xác nhận.", read: false, createdAt: hoursAgo(10) },
     ]);
 
-    // Gio hang
+    // Gio hang cua 2 khach de kiem tra tinh nang gio va bao gia.
     await tx.insert(cartItems).values([
       { userId: tuan.id, foodId: pho.id, quantity: 1 },
       { userId: tuan.id, foodId: traDao.id, quantity: 1 },
@@ -273,14 +299,16 @@ async function main() {
       { userId: linh.id, foodId: banhFlan.id, quantity: 1 },
     ]);
 
-    // Cau hinh AI
+    // 3 khoa doc o trang Chatbot cua admin. Admin doi duoc provider/model
+    // nen seed chi dat gia tri mac dinh.
     await tx.insert(aiSetting).values([
       { settingKey: "max_suggestions", settingValue: "5" },
       { settingKey: "provider", settingValue: "gemini" },
       { settingKey: "model", settingValue: "gemini-2.0-flash" },
     ]);
 
-    // Tai lieu quan
+    // 8 tai lieu nen chatbot tra loi duoc cau hoi ngoai le (gio mo cua, dia chi, phi ship).
+    // `keywords` la chuoi tach dau phay, dung de cham diem khi tsvector khong co hit.
     const docs = await tx.insert(chatbotKnowledge).values([
       { title: "Giờ mở cửa", category: "HOURS", keywords: "giờ mở cửa, mấy giờ đóng cửa, mở cửa, đóng cửa", content: "Quán mở cửa từ 07:00 đến 22:00 hằng ngày. Sau 21:30 món có thể hết dần, bạn cân nhắc đặt sớm hơn nhé!", enabled: true, status: "READY" },
       { title: "Địa chỉ quán", category: "SHOP", keywords: "địa chỉ, ở đâu, quán ở đâu", content: "Quán ở Cần Thơ (địa chỉ chi tiết xem ở chân trang). Bạn có thể đặt giao hàng tới địa chỉ của bạn.", enabled: true, status: "READY" },
@@ -292,7 +320,8 @@ async function main() {
       { title: "Giỏ hàng đăng nhập", category: "ORDER", keywords: "giỏ hàng, đăng nhập, tài khoản", content: "Giỏ hàng cần đăng nhập, khách vãng lai xem món được nhưng chưa thêm vào giỏ được.", enabled: true, status: "READY" },
     ]).returning();
 
-    // Chunk tai lieu cho tsvector RAG
+    // Moi tai lieu tao mot chunk (chunkIndex 0). Cot `search_vector` GENERATED
+    // va index GIN sinh tu noi dung chunk, xem migration `0000_hard_guardian.sql`.
     for (const d of docs) {
       if (d.content) {
         await tx.insert(chatbotKnowledgeChunk).values({
@@ -304,6 +333,7 @@ async function main() {
     }
   });
 
+  // Ket qua cho developer. `exitCode = 1` de Docker/CI biet seed that bai.
   console.log("Seed dữ liệu demo bằng Drizzle thành công.");
 }
 
