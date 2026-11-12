@@ -41,6 +41,9 @@ const IMAGE_MIME: Record<string, string> = {
   ".webp": "image/webp",
 };
 
+/** Danh sach MIME cho route fileFilter doc tu day de khong lech voi kiem chu ky magic byte. */
+export const ALLOWED_IMAGE_MIME = Object.values(IMAGE_MIME);
+
 // Tai anh mon an: kiem chu ky dau file (JPG/PNG/WEBP), luu vao UPLOAD_DIR.
 export const saveImage = async (buffer: Buffer, host: string, protocol: string) => {
   const ext = imageExtension(buffer.subarray(0, 12));
