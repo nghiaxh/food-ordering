@@ -48,6 +48,14 @@ export function isValid(p: Promotion, now: Date): boolean {
   return true;
 }
 
+/**
+ * Khuyen mai co han muc toi thieu chi ap khi tong don dat han.
+ * Tien lai: dong hang hay theo don nen phai tinh tong don truoc khi chon khuyen mai.
+ */
+export function minOrderReached(p: Pick<Promotion, "minOrderTotal">, subtotal: number): boolean {
+  return p.minOrderTotal == null || subtotal >= Number(p.minOrderTotal);
+}
+
 const toMinutes = (hhmm: string): number | null => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
   if (!m) return null;

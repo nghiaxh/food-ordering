@@ -36,10 +36,13 @@ const TYPES = [
   { value: 'FIXED', label: 'Số tiền cố định' },
 ]
 
-const discountLabel = (p: Promotion): string =>
-  p.discountType === 'PERCENT'
+const discountLabel = (p: Promotion): string => {
+  const base = p.discountType === 'PERCENT'
     ? `${p.discountValue}%${p.maxDiscount ? ` (tối đa ${formatVND(p.maxDiscount)})` : ''}`
     : formatVND(p.discountValue)
+  // Han muc toi thieu chi ap khi tong don dat muc.
+  return p.minOrderTotal ? `${base} · đơn từ ${formatVND(p.minOrderTotal)}` : base
+}
 
 const { data: promotions, loading, error, refresh } = useAsyncData(() => adminGetPromotions(), () => [])
 watchEffect(() => { if (error.value) message.error('Không tải được danh sách khuyến mãi') })
@@ -58,6 +61,7 @@ const form = reactive({
   discountType: 'PERCENT' as Promotion['discountType'],
   discountValue: 10,
   maxDiscount: null as number | null,
+  minOrderTotal: null as number | null,
   scope: 'GLOBAL' as Promotion['scope'],
   targetIds: [] as number[],
   range: null as [number, number] | null,
@@ -75,7 +79,7 @@ const targetOptions = computed(() => (form.scope === 'CATEGORY' ? categoryOption
 
 const openCreate = () => {
   editing.value = null
-  Object.assign(form, { name: '', description: '', discountType: 'PERCENT', discountValue: 10, maxDiscount: null, scope: 'GLOBAL', targetIds: [], range: null, daysOfWeek: '', active: true, priority: 0, usageLimit: null, randomCount: 0 })
+  Object.assign(form, { name: '', description: '', discountType: 'PERCENT', discountValue: 10, maxDiscount: null, minOrderTotal: null, scope: 'GLOBAL', targetIds: [], range: null, daysOfWeek: '', active: true, priority: 0, usageLimit: null, randomCount: 0 })
   modal.value = true
 }
 const openEdit = (p: Promotion) => {
@@ -86,6 +90,7 @@ const openEdit = (p: Promotion) => {
     discountType: p.discountType,
     discountValue: p.discountValue,
     maxDiscount: p.maxDiscount ?? null,
+    minOrderTotal: p.minOrderTotal ?? null,
     scope: p.scope,
     targetIds: p.targetIds ?? [],
     range: [new Date(p.startsAt).getTime(), new Date(p.endsAt).getTime()],
@@ -109,12 +114,18 @@ const submit = async () => {
     message.warning('Chọn thời gian bắt đầu và kết thúc')
     return
   }
+  // Pham vi CATEGORY/FOOD chi ap cho id da chon; danh sach rong thi khong khop mon nao.
+  if (form.scope !== 'GLOBAL' && form.targetIds.length === 0) {
+    message.warning(form.scope === 'CATEGORY' ? 'Chọn ít nhất một danh mục áp dụng' : 'Chọn ít nhất một món áp dụng')
+    return
+  }
   const data: Record<string, unknown> = {
     name: form.name.trim(),
     description: form.description.trim() || undefined,
     discountType: form.discountType,
     discountValue: form.discountValue,
     maxDiscount: form.maxDiscount ?? null,
+    minOrderTotal: form.minOrderTotal != null && form.minOrderTotal > 0 ? form.minOrderTotal : null,
     scope: form.scope,
     targetIds: form.targetIds ?? [],
     // zod coerce.date o server doc duoc ISO string ke ca co mui gio.
@@ -123,7 +134,8 @@ const submit = async () => {
     daysOfWeek: form.daysOfWeek.trim() || null,
     active: form.active,
     priority: form.priority,
-    usageLimit: form.usageLimit ?? null,
+    // 0 = khong gioi han luot dung.
+    usageLimit: form.usageLimit != null && form.usageLimit > 0 ? form.usageLimit : null,
     randomCount: form.randomCount ?? 0,
   }
   const res = await save({ id: editing.value?.id ?? null, data })
@@ -215,7 +227,7 @@ const columns: DataTableColumns<Promotion> = [
           >
             <NSelect v-model:value="form.targetIds" multiple clearable :placeholder="`Chọn ${form.scope === 'CATEGORY' ? 'danh mục' : 'món'}`" :options="targetOptions" size="medium" />
             <template #feedback>
-              <span class="text-xs text-stone-400">Chọn ít nhất một mục được giảm.</span>
+              <span class="text-xs text-stone-400">Bắt buộc chọn ít nhất một mục, khuyến mãi chỉ áp cho mục đã chọn.</span>
             </template>
           </NFormItem>
         </div>
@@ -235,7 +247,7 @@ const columns: DataTableColumns<Promotion> = [
             <NInputNumber v-model:value="form.priority" class="w-full" size="medium" />
           </NFormItem>
           <NFormItem label="Giới hạn lượt dùng" path="usageLimit">
-            <NInputNumber v-model:value="form.usageLimit" :min="0" class="w-full" placeholder="Không giới hạn" size="medium" />
+            <NInputNumber v-model:value="form.usageLimit" :min="0" class="w-full" placeholder="0 = không giới hạn" size="medium" />
           </NFormItem>
           <NFormItem label="Số món ngẫu nhiên mỗi ngày" path="randomCount">
             <NInputNumber v-model:value="form.randomCount" :min="0" class="w-full" size="medium" />
@@ -244,6 +256,13 @@ const columns: DataTableColumns<Promotion> = [
             </template>
           </NFormItem>
         </div>
+
+        <NFormItem label="Đơn tối thiểu để áp dụng" path="minOrderTotal">
+          <NInputNumber v-model:value="form.minOrderTotal" :min="0" class="w-full" placeholder="Bỏ trống nếu áp dụng cho mọi đơn" size="medium" />
+          <template #feedback>
+            <span class="text-xs text-stone-400">Chỉ giảm khi tổng đơn đạt mức này.</span>
+          </template>
+        </NFormItem>
 
         <NFormItem label="Đang chạy" path="active">
           <NSwitch v-model:value="form.active" />

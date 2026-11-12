@@ -6,13 +6,15 @@ import {
   orders,
   paymentTransactions,
   users,
+  type Promotion,
 } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { badRequest, forbidden, notFound, unauthorized } from "../../lib/errors.js";
 import { toOrderJson } from "../../lib/serializers.js";
-import { markUsed, priceOrder, type DbClient } from "../../user/pricing/service.js";
+import { markUsed, priceOrder, unmarkUsed, type DbClient } from "../../user/pricing/service.js";
 import {
   canEditItems,
+  isCreatableStatus,
   isValidTransition,
   ORDER_STATUS_LABEL,
   parseStatus,
@@ -82,14 +84,19 @@ export async function adminCreateOrder(req: AdminOrderRequest) {
 
   const order = await db.transaction(async (tx) => {
     const { items, priced } = await fillItems(tx, req.items!);
-    let status = "PENDING" as OrderStatus;
+    // Don moi luon bat dau o PENDING; admin chi duoc tao san trang thai di tiep duoc tu PENDING.
+    let status: OrderStatus = "PENDING";
     const paid = req.paid === true;
     if (req.status && req.status.trim()) {
-      status = parseStatus(req.status.trim());
+      const next = parseStatus(req.status.trim());
+      if (!isCreatableStatus(next)) {
+        throw badRequest(`Không thể tạo đơn ở trạng thái "${ORDER_STATUS_LABEL[next]}"`);
+      }
       // Tao thang sau buoc cho xac nhan voi QR thi phai da thu tien, nhu duong duyet don.
-      if (status !== "PENDING" && status !== "CANCELLED" && req.paymentMethod === "QR" && !paid) {
+      if (next === "CONFIRMED" && req.paymentMethod === "QR" && !paid) {
         throw badRequest("Đơn chưa thanh toán nên chưa thể xác nhận");
       }
+      status = next;
     }
     const [created] = await tx
       .insert(orders)
@@ -159,6 +166,7 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
       note: trimNote(req.note),
     };
 
+    // items rong hoac khong gui nghia la KHONG doi mon; chi danh sach co mon moi duoc thay the.
     if (req.items && req.items.length > 0) {
       if (!canEditItems(order)) {
         throw badRequest("Chỉ sửa được món khi đơn đang chờ xác nhận và chưa thanh toán");
@@ -184,13 +192,25 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
         })),
       );
 
-      await markUsed(priced.appliedPromotions, tx);
+      await syncPromotionUsage(tx, order, priced.appliedPromotions);
       await tx
         .update(paymentTransactions)
         .set({ amount: String(priced.total) })
         .where(eq(paymentTransactions.orderId, id));
     } else {
       await tx.update(orders).set(data).where(eq(orders.id, id));
+    }
+
+    // Cap nhat thanh toan truoc khi doi trang thai: don QR chi duoc xac nhan khi da thu tien,
+    // nen guard trong transition phai nhin thay trang thai thanh toan moi cua cung request.
+    if (req.paid != null) {
+      const current = await tx.query.orders.findFirst({
+        where: eq(orders.id, id),
+        with: { user: true },
+      });
+      if (current && req.paid !== (current.paymentStatus === "PAID")) {
+        await updatePayment(current, req.paid, tx);
+      }
     }
 
     if (req.status && req.status.trim()) {
@@ -226,27 +246,44 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
       }
     }
 
-    if (req.paid != null) {
-      const current = await tx.query.orders.findFirst({
-        where: eq(orders.id, id),
-        with: { user: true },
-      });
-      if (current && req.paid !== (current.paymentStatus === "PAID")) {
-        await updatePayment(current, req.paid, tx);
-      }
-    }
-
     return tx.query.orders.findFirst({ where: eq(orders.id, id), with: ORDER_WITH });
   });
 
   return toOrderJson(order2!);
 }
 
+/**
+ * Cap nhat so luot dung khuyen mai khi admin doi mon cua don.
+ * order_items khong luu id khuyen mai nen phai tinh lai gia mon cu (theo thoi diem tao don) de suy ra
+ * KM da ap, roi tru so da dem cu va ghi them so moi. KM xuat hien o ca hai danh sach se duoc tru
+ * roi cong lai nen tong so luot dung khong doi.
+ */
+async function syncPromotionUsage(
+  tx: DbClient,
+  order: { createdAt: Date; items: Array<{ foodId: number | null; quantity: number }> },
+  applied: Promotion[],
+) {
+  const oldItems = order.items
+    .filter((item): item is { foodId: number; quantity: number } => item.foodId != null)
+    .map((item) => ({ foodId: item.foodId, quantity: item.quantity }));
+  if (oldItems.length === 0) return;
+
+  const oldPriced = await priceOrder(oldItems, tx, order.createdAt);
+  await unmarkUsed(oldPriced.appliedPromotions, tx);
+  await markUsed(applied, tx);
+}
+
 export async function adminDeleteOrder(id: number) {
   const order = await db.query.orders.findFirst({ where: eq(orders.id, id) });
   if (!order) throw notFound("Không tìm thấy đơn");
-  await db.delete(paymentTransactions).where(eq(paymentTransactions.orderId, id));
-  await db.delete(orders).where(eq(orders.id, id));
+  // Xoa trong mot transaction de khong con du lieu moc: thong bao gan don khong co khoa
+  // trong DB nen phai xoa tay, dong thanh toan va dong mon xoa theo don.
+  await db.transaction(async (tx) => {
+    await tx.delete(notifications).where(eq(notifications.orderId, id));
+    await tx.delete(paymentTransactions).where(eq(paymentTransactions.orderId, id));
+    await tx.delete(orderItems).where(eq(orderItems.orderId, id));
+    await tx.delete(orders).where(eq(orders.id, id));
+  });
 }
 
 export async function adminListOrders() {

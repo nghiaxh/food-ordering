@@ -42,6 +42,8 @@ import FormModal from '@/components/FormModal.vue'
 import { message } from '@/shared/api/message'
 
 const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED', 'CANCELLED']
+// Trang thai duoc phep luc tao don moi: don bat dau o PENDING nen bo qua PREPARING/COMPLETED.
+const CREATABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'CANCELLED']
 const STATUS_HEX: Record<OrderStatus, string> = {
   PENDING: '#f59e0b',
   CONFIRMED: '#3b82f6',
@@ -129,7 +131,13 @@ const foodOptions = computed(() =>
     disabled: !f.available,
   })),
 )
-const statusOptions = ORDER_STATUSES.map((s) => ({ label: ORDER_STATUS_LABEL[s], value: s }))
+const statusOptions = computed(() =>
+  // Don moi luon bat dau o PENDING nen chi tao duoc trang thai di tiep duoc tu PENDING.
+  (editing.value ? ORDER_STATUSES : CREATABLE_STATUSES).map((s) => ({
+    label: ORDER_STATUS_LABEL[s],
+    value: s,
+  })),
+)
 
 const openCreate = () => {
   editing.value = null

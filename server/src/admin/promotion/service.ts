@@ -22,6 +22,10 @@ import { env } from "../../config/env.js";
 
 // Khuyen mai
 
+// 0 hoac rong = khong gioi han luot dung; DB luu null cho truong hop nay.
+const normalizeUsageLimit = (usageLimit?: number | null): number | null =>
+  usageLimit != null && usageLimit > 0 ? usageLimit : null;
+
 // Quan ly khuyen mai tu dong: pham vi, khung gio, ngay trong tuan, mon may man.
 export const toPromotionJson = (p: {
   id: number;
@@ -76,7 +80,6 @@ export const createPromotion = async (req: {
   discountType: "PERCENT" | "FIXED";
   discountValue: number;
   maxDiscount?: number | null;
-  minOrderTotal?: number | null;
   scope: "GLOBAL" | "CATEGORY" | "FOOD";
   targetIds?: number[];
   startsAt: Date;
@@ -87,6 +90,7 @@ export const createPromotion = async (req: {
   active: boolean;
   priority: number;
   usageLimit?: number | null;
+  minOrderTotal?: number | null;
   randomCount: number;
 }) => {
   const [created] = await db
@@ -107,7 +111,7 @@ export const createPromotion = async (req: {
       endTime: req.endTime ?? null,
       active: req.active,
       priority: req.priority,
-      usageLimit: req.usageLimit ?? null,
+      usageLimit: normalizeUsageLimit(req.usageLimit),
       randomCount: req.randomCount,
     })
     .returning();
@@ -143,7 +147,7 @@ export const updatePromotion = async (
       endTime: req.endTime ?? null,
       active: req.active,
       priority: req.priority,
-      usageLimit: req.usageLimit ?? null,
+      usageLimit: normalizeUsageLimit(req.usageLimit),
       randomCount: req.randomCount,
     })
     .where(eq(promotions.id, id))

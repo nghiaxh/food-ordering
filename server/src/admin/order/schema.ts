@@ -3,6 +3,7 @@ import {
   PAYMENT_METHOD_PATTERN,
   orderItemRequestSchema,
   noteSchema,
+  phoneSchema,
 } from "../../user/order/schema.js";
 
 export const adminOrderSchema = z.object({
@@ -10,7 +11,7 @@ export const adminOrderSchema = z.object({
   // items duoc phep null khi chi sua thong tin giao hang cua don da xac nhan.
   items: z.array(orderItemRequestSchema).optional(),
   receiverName: z.string().min(1, "Nhập tên người nhận"),
-  phone: z.string().min(1, "Nhập số điện thoại"),
+  phone: phoneSchema,
   address: z.string().min(1, "Nhập địa chỉ giao hàng"),
   paymentMethod: z.string().regex(PAYMENT_METHOD_PATTERN, "Phương thức thanh toán không hợp lệ"),
   note: noteSchema,
