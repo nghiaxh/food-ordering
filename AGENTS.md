@@ -261,6 +261,9 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   còn món. Trang mới có thanh cố định đáy
   thì phải cập nhật hook, nếu không nút mở chatbot sẽ bị thanh che. Hai drawer giỏ/thông báo
   dùng `activeDrawer` trong `uiStore` để không chồng mask.
+- **Store thông báo giữ danh sách khi tải lỗi**: `user/notification/store.ts` là nguồn chung cho
+  header (số chưa đọc) và drawer (danh sách). `load()` lỗi mạng phải **giữ nguyên** danh sách cũ,
+  không xoá sạch, để header không mất chấm chưa đọc và lần mở sau vẫn thử lại được.
 - `requireAuth`/`optionalAuth` bọc lỗi không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
