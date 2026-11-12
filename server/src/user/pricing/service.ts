@@ -74,6 +74,7 @@ export async function priceOrder(
       with: { category: true },
     });
     if (!food) throw badRequest("Món không tồn tại");
+    if (!food.available) throw badRequest(`Món "${food.name}" đã ngừng phục vụ`);
     const unitPrice = Number(food.price);
 
     const auto = bestFor(unitPrice, food, rules);

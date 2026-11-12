@@ -6,6 +6,7 @@ export const promotionRequestSchema = z.object({
   discountType: z.enum(["PERCENT", "FIXED"]),
   discountValue: z.number().positive("Giá trị giảm phải lớn hơn 0"),
   maxDiscount: z.number().positive().nullable().optional(),
+  minOrderTotal: z.number().positive().nullable().optional(),
   scope: z.enum(["GLOBAL", "CATEGORY", "FOOD"]),
   targetIds: z.array(z.number().int().positive()).optional(),
   startsAt: z.coerce.date(),
@@ -20,6 +21,10 @@ export const promotionRequestSchema = z.object({
 }).refine((v) => v.endsAt >= v.startsAt, {
   message: "Thời gian kết thúc phải sau thời gian bắt đầu",
   path: ["endsAt"],
+}).refine((v) => v.scope === "GLOBAL" || (v.targetIds?.length ?? 0) > 0, {
+  // Pham vi CATEGORY/FOOD khong co targetIds se khong khop mon nao.
+  message: "Chọn ít nhất một mục áp dụng cho phạm vi này",
+  path: ["targetIds"],
 });
 
 export const promotionSaveSchema = z.object({

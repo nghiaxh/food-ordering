@@ -207,10 +207,15 @@ const columns: DataTableColumns<Promotion> = [
           <NFormItem label="Phạm vi" path="scope" :rule="[{ required: true }]">
             <NSelect v-model:value="form.scope" :options="SCOPES" size="medium" />
           </NFormItem>
-          <NFormItem v-if="form.scope !== 'GLOBAL'" :label="form.scope === 'CATEGORY' ? 'Danh mục áp dụng' : 'Món áp dụng'" path="targetIds">
+          <NFormItem
+            v-if="form.scope !== 'GLOBAL'"
+            :label="form.scope === 'CATEGORY' ? 'Danh mục áp dụng' : 'Món áp dụng'"
+            path="targetIds"
+            :rule="{ type: 'array', required: true, message: 'Chọn ít nhất một mục áp dụng', trigger: ['blur', 'change'] }"
+          >
             <NSelect v-model:value="form.targetIds" multiple clearable :placeholder="`Chọn ${form.scope === 'CATEGORY' ? 'danh mục' : 'món'}`" :options="targetOptions" size="medium" />
             <template #feedback>
-              <span class="text-xs text-stone-400">Chọn các mục được giảm. Bỏ trống nếu áp dụng cho mọi mục cùng loại.</span>
+              <span class="text-xs text-stone-400">Chọn ít nhất một mục được giảm.</span>
             </template>
           </NFormItem>
         </div>
