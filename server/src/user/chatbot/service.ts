@@ -160,9 +160,11 @@ const resolveFollowUpAnswer = (sessionId: string, message: string): { message: s
 };
 
 /** Giai quyet dai tu tham chieu: ghep ten cac mon vua goi y vao de AI trich tieu chi chinh xac hon. */
-const enrichWithLastPicked = (message: string, lastFoodIds: number[] | undefined | null, menu: FoodWithCategory[]): string => {
-  if (!isFollowUp(message) || !lastFoodIds?.length) return message;
-  const names = menu.filter((f) => lastFoodIds.includes(f.id)).map((f) => f.name);
+export const enrichWithLastPicked = (message: string, lastFoodIds: number[] | undefined | null, menu: FoodWithCategory[]): string => {
+  const categoryNamesPlain = [...new Set(menu.map((f) => f.category?.name).filter((n): n is string => !!n))].map((n) => plain(n));
+  if (!(isFollowUp(message) || (lastFoodIds?.length ?? 0) > 0)) return message;
+  if (hasNewTopicByCode(message, categoryNamesPlain)) return message;
+  const names = menu.filter((f) => lastFoodIds?.includes(f.id)).map((f) => f.name);
   if (names.length === 0) return message;
   return `Dựa trên các món vừa gợi ý: ${names.join(", ")}. ${message}`;
 };
@@ -181,25 +183,27 @@ const followUpQuestion = (message: string, filters: Filters, menu: FoodWithCateg
 };
 
 /** ID cac mon duoc dung lam ngu canh cho luot nay, hoac null neu phai tim tren toan thuc don. */
-const contextIds = (
+export const contextIds = (
   message: string,
   lastFoodIds: number[] | undefined | null,
   criteria: NormalizedCriteria | null,
   categoryNamesPlain: string[],
+  enrichedNames: string[] = [],
 ): number[] | null => {
   if (!isFollowUp(message) || !lastFoodIds?.length) return null;
-  const newTopic = criteria ? hasNewTopic(criteria) : hasNewTopicByCode(message, categoryNamesPlain);
+  const newTopic = criteria ? hasNewTopic(criteria, enrichedNames) : hasNewTopicByCode(message, categoryNamesPlain);
   return newTopic ? null : lastFoodIds;
 };
 
-const hasNewTopic = (c: NormalizedCriteria): boolean => {
+export const hasNewTopic = (c: NormalizedCriteria, enrichedNames: string[] = []): boolean => {
   if (c.categories?.length) return true;
   if (c.dietaryTags?.length) return true;
   if (c.excludeAllergens?.length) return true;
-  return !!c.keywords?.some((k) => !isReferenceKeyword(k));
+  const enriched = new Set(enrichedNames.map((n) => plain(n)));
+  return !!c.keywords?.some((k) => !isReferenceKeyword(k) && !enriched.has(plain(k)));
 };
 
-const hasNewTopicByCode = (question: string, categoryNamesPlain: string[]): boolean => {
+export const hasNewTopicByCode = (question: string, categoryNamesPlain: string[]): boolean => {
   const filters = readFilters(question);
   if (filters.chay || filters.excludeSeafood) return true;
   const p = plain(question);
@@ -326,6 +330,10 @@ export const chat = async (
   const classifyMessage = resolved.message;
 
   const menu = await db.query.foods.findMany({ with: { category: true } });
+  const enrichedNames = (input.lastFoodIds ?? [])
+    .map((id) => menu.find((f) => f.id === id)?.name)
+    .filter((n): n is string => !!n)
+    .map((n) => plain(n));
   const workingMessage = enrichWithLastPicked(classifyMessage, input.lastFoodIds, menu);
 
   const p = plain(classifyMessage);
@@ -414,10 +422,14 @@ export const chat = async (
   let aiReply: string | null = null;
   try {
     criteria = await extractCriteria(workingMessage, history, categoryNamesText);
+    if (enrichedNames.length && criteria?.keywords) {
+      const filtered = criteria.keywords.filter((k) => !enrichedNames.includes(plain(k)));
+      criteria = { ...criteria, keywords: filtered.length ? filtered : null };
+    }
     if (resolved.continued && criteria) {
       criteria = withAnsweredConstraints(criteria, input.message);
     }
-    context = contextIds(classifyMessage, input.lastFoodIds, criteria, categoryNamesPlain);
+    context = contextIds(classifyMessage, input.lastFoodIds, criteria, categoryNamesPlain, enrichedNames);
     aiPicked = criteria == null ? [] : selectFoods(criteria, context, menu, maxSugg);
     aiReply = criteria == null ? null : await generateReply(input.message, criteria, aiPicked, history);
   } catch (error) {
@@ -437,7 +449,7 @@ export const chat = async (
     if (context !== null) {
       picked = selectContextByCode(context, filters, menu);
     } else {
-      picked = aiPicked.length > 0 ? aiPicked : selectFoodsByCode(workingMessage, filters, menu, maxSugg);
+      picked = aiPicked.length > 0 ? aiPicked : selectFoodsByCode(classifyMessage, filters, menu, maxSugg);
     }
     reply = fallbackReply(picked, filters);
   }
