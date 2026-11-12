@@ -63,6 +63,8 @@ export const adminUpdateUser = async (
 ) => {
   const user = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!user) throw notFound("Không tìm thấy tài khoản");
+  // Sua tai khoan quan tri de sua email/mat khau se lam mat quyen truy cap he thong nen bi chan.
+  if (user.role === "ADMIN") throw badRequest("Không thể thao tác trên tài khoản quản trị");
   if (user.email !== req.email) {
     const exists = await db.query.users.findFirst({
       where: eq(users.email, req.email),

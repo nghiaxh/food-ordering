@@ -118,8 +118,9 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
 - **Nhãn PREPARING là "Đang vận chuyển"**: mã trạng thái trong DB không đổi, chỉ đổi nhãn hiển thị
   (`ORDER_STATUS_LABEL`, `order` module, thông báo "đang được vận chuyển"); nút admin
   `CONFIRMED → PREPARING` là "Giao hàng", nút **Đặt lại** ở `/orders` chỉ hiện khi `COMPLETED`.
-- **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$`, giỏ không nhận món ngừng phục vụ,
-  trạng thái đơn đi đúng một chiều, không khoá/xoá tài khoản quản trị. Chi tiết kiểm thử xem README và CI.
+- **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$` (cả đơn khách lẫn đơn admin tạo/sửa),
+  giỏ không nhận món ngừng phục vụ, trạng thái đơn đi đúng một chiều, không sửa/khoá/xoá tài khoản
+  quản trị. Chi tiết kiểm thử xem README và CI.
 - **Types client phải đồng bộ với DTO server** (thủ công). Sửa DTO nhớ cập nhật
   `client/src/shared/types/index.ts` và file `api.ts` của module tương ứng.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
