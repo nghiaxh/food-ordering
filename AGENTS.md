@@ -18,6 +18,9 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   JSON, timeout 15s). Hỗ trợ Gemini và OpenAI; nhà cung cấp + tên mô hình đọc từ bảng `ai_setting`
   do admin đặt trong trang Chatbot, fallback về `AI_PROVIDER` / `AI_MODEL`. Muốn thêm
   nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không gửi xuống client.
+  Trang Chatbot của admin đọc `provider`/`model` từ `ai_setting` (không hardcode `gemini`), danh sách
+  mô hình gợi ý theo từng nhà cung cấp và vẫn nhập được tên mô hình khác; `settingValue` cho phép
+  rỗng để xoá quy tắc bổ sung.
 - **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
   client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
   (Drizzle Studio). Service `database` không khai báo `profiles` nên Postgres luôn chạy theo mọi
