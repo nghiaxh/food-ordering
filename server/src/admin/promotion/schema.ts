@@ -6,6 +6,7 @@ export const promotionRequestSchema = z.object({
   discountType: z.enum(["PERCENT", "FIXED"]),
   discountValue: z.number().positive("Giá trị giảm phải lớn hơn 0"),
   maxDiscount: z.number().positive().nullable().optional(),
+  minOrderTotal: z.number().positive().nullable().optional(),
   scope: z.enum(["GLOBAL", "CATEGORY", "FOOD"]),
   targetIds: z.array(z.number().int().positive()).optional(),
   startsAt: z.coerce.date(),
