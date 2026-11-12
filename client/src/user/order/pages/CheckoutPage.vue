@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   NButton,
@@ -48,18 +48,18 @@ const NOTE_CHIPS = NOTE_SUGGESTIONS
 
 const ordering = ref(false)
 const addresses = ref<SavedAddress[]>([])
-const addressesLoaded = ref(false)
 const selectedId = ref<number | null>(null)
 const addressModal = ref(false)
 const editingAddress = ref<SavedAddress | null>(null)
 const savingAddress = ref(false)
+let addressCtrl: AbortController | undefined
 
 const form = reactive({ receiverName: auth.user?.fullName ?? '', phone: '', address: '', note: '', paymentMethod: 'COD' })
 const addrForm = reactive({ label: '', receiverName: '', phone: '', address: '' })
 const formRef = ref<InstanceType<typeof NForm> | null>(null)
 const addrFormRef = ref<InstanceType<typeof NForm> | null>(null)
 
-const { quote, quoteLoading, quoteError, quoteStale } = useCartQuote(() => cart.items)
+const { quote, quoteLoading, quoteError, quoteStale, retry: retryQuote } = useCartQuote(() => cart.items)
 
 const { run: submitOrder, pending: submitting } = useAsyncAction(
   (payload: {
@@ -72,12 +72,26 @@ const { run: submitOrder, pending: submitting } = useAsyncAction(
   }) => createOrder(payload),
 )
 
+/** Tai lai danh sach dia chi; huy request cu de response muon khong thang lan tai sau. */
+const loadAddresses = async () => {
+  addressCtrl?.abort()
+  const ctrl = new AbortController()
+  addressCtrl = ctrl
+  try {
+    addresses.value = await getAddresses(ctrl.signal)
+  } catch (error) {
+    // Huy request do roi trang hoac tai lai khong phai loi. Loi mang thi giu danh sach dang
+    // co; chi bao khi chua co gi de dung nen form go tay la cach duy nhat.
+    if ((error as { code?: string })?.code === 'ERR_CANCELED') return
+    if (addresses.value.length === 0) message.error('Không tải được địa chỉ đã lưu')
+  }
+}
+
 onMounted(() => {
   if (!auth.user) return
-  getAddresses()
-    .then((list) => { addresses.value = list })
-    .catch(() => { addresses.value = [] })
+  void loadAddresses()
 })
+onBeforeUnmount(() => addressCtrl?.abort())
 
 const applyAddress = (address: SavedAddress) => {
   selectedId.value = address.id
@@ -86,17 +100,15 @@ const applyAddress = (address: SavedAddress) => {
   form.address = address.address
 }
 
-// Khi danh sach dia chi tra ve, chon dia chi mac dinh (hoac dau tien) cho form.
-watch(
-  addresses,
-  (list) => {
-    if (addressesLoaded.value) return
-    addressesLoaded.value = true
-    const def = list.find((a) => a.isDefault) ?? list[0]
-    if (def) applyAddress(def)
-  },
-  { once: true },
-)
+// Danh sach doi (nap xong, luu dia chi moi, server doi mac dinh): chon lai mac dinh khi
+// lua chon cu khong con trong danh sach. Dia chi con ton tai thi giu nguyen de khong
+// ghi de phan khach da sua tay cho rieng don nay.
+watch(addresses, (list) => {
+  if (list.some((a) => a.id === selectedId.value)) return
+  const def = list.find((a) => a.isDefault) ?? list[0]
+  if (def) applyAddress(def)
+  else selectedId.value = null
+})
 
 const openAddressModal = (address?: SavedAddress) => {
   editingAddress.value = address ?? null
@@ -139,6 +151,22 @@ const addNote = (text: string) => {
   form.note = current ? `${current}. ${text}` : text
 }
 
+/**
+ * Chuoi dinh danh gio: doi mon hoac doi so luong deu lam chuoi doi. Dung de biet bao gia
+ * con dung voi gio hien tai va gio co bi doi trong luc cho server tao don hay khong.
+ */
+const signatureOf = (rows: { foodId: number | null; quantity: number }[]) =>
+  rows
+    .filter((r) => r.foodId != null)
+    .map((r) => `${r.foodId}x${r.quantity}`)
+    .sort()
+    .join('|')
+
+const cartRows = () =>
+  cart.items.filter((i) => i.food).map((i) => ({ foodId: i.food!.id, quantity: i.quantity }))
+
+const quoteSignature = computed(() => (quote.value ? signatureOf(quote.value.lines) : ''))
+
 const checkout = async () => {
   if (!auth.user) {
     message.warning('Vui lòng đăng nhập để đặt món')
@@ -153,9 +181,17 @@ const checkout = async () => {
   }
   if (submitting.value || ordering.value) return
   if (!quote.value || quoteLoading.value || quoteError.value) return
+  const rows = cartRows()
+  const signature = signatureOf(rows)
+  // Bao gia phai dung voi gio dang hien thi; lech nghia la gia tren man hinh da cu.
+  if (signature !== quoteSignature.value) {
+    message.warning('Giỏ hàng vừa thay đổi, đang cập nhật lại giá. Vui lòng kiểm tra rồi đặt lại.')
+    retryQuote()
+    return
+  }
   ordering.value = true
   const res = await submitOrder({
-    items: cart.items.map((i) => ({ foodId: i.food!.id, quantity: i.quantity })),
+    items: rows,
     receiverName: form.receiverName,
     phone: form.phone,
     address: form.address,
@@ -164,8 +200,14 @@ const checkout = async () => {
   })
   ordering.value = false
   if (res.ok) {
-    await cart.clear()
-    message.success('Đặt món thành công')
+    // Gio doi trong luc cho server: don da tao theo ban chup truoc do, xoa gio se mat mon vua them.
+    if (signatureOf(cartRows()) === signature) {
+      await cart.clear()
+      message.success('Đặt món thành công')
+    } else {
+      message.warning('Đơn đã được tạo nhưng giỏ hàng vừa thay đổi. Vui lòng kiểm tra lại giỏ.')
+      await cart.load()
+    }
     router.push('/orders')
   } else {
     message.error(apiErrorMessage(res.error) ?? 'Đặt món thất bại')
