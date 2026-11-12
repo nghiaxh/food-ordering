@@ -46,9 +46,10 @@ export async function login(req: LoginRequest) {
   const user = await db.query.users.findFirst({
     where: eq(users.email, req.email),
   });
-  if (!user) throw unauthorized("Email không tồn tại");
+  if (!user) throw unauthorized("Email hoặc mật khẩu không đúng");
   if (!(await verifyPassword(req.password, user.password))) {
-    throw unauthorized("Mật khẩu không đúng");
+    // Thong bao chung cho ca hai truong hop de khong lo ton tai email.
+    throw unauthorized("Email hoặc mật khẩu không đúng");
   }
   if (!user.active) throw forbidden("Tài khoản đã bị khóa");
   return toAuthResponse(user);
@@ -63,17 +64,20 @@ export async function getMe(email: string) {
 }
 
 export async function updateMe(email: string, req: UpdateProfileRequest) {
+  // Chi set field duoc gui; phone/address omitted giu nguyen chu khong bi xoá thành null.
+  const patch: Partial<typeof users.$inferInsert> = {};
+  if (req.fullName !== undefined) patch.fullName = req.fullName;
+  if (req.phone !== undefined) patch.phone = req.phone;
+  if (req.address !== undefined) patch.address = req.address ?? null;
+
   const [user] = await db
     .update(users)
-    .set({
-      fullName: req.fullName,
-      phone: req.phone ?? null,
-      address: req.address ?? null,
-    })
+    .set(patch)
     .where(eq(users.email, email))
     .returning();
+  if (!user) throw unauthorized("Bạn cần đăng nhập");
 
-  return toUserJson(user!);
+  return toUserJson(user);
 }
 
 /** Doi mat khau phai xac minh mat khau cu truoc, neu khong ai co token cung doi duoc. */
