@@ -21,6 +21,10 @@ export const promotionRequestSchema = z.object({
 }).refine((v) => v.endsAt >= v.startsAt, {
   message: "Thời gian kết thúc phải sau thời gian bắt đầu",
   path: ["endsAt"],
+}).refine((v) => v.scope === "GLOBAL" || (v.targetIds?.length ?? 0) > 0, {
+  // Pham vi CATEGORY/FOOD khong co targetIds se khong khop mon nao.
+  message: "Chọn ít nhất một mục áp dụng cho phạm vi này",
+  path: ["targetIds"],
 });
 
 export const promotionSaveSchema = z.object({
