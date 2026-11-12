@@ -223,7 +223,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Dùng `//` cho quyết định cục bộ, Javadoc/JSDoc cho hợp đồng hoặc ranh giới quan trọng.
 - Quy ước này áp cho **mọi comment trong mã và file cấu hình** (`client/src`, `client/e2e`,
   `server/src`, `server/tests`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `*.css`).
-  Chuỗi hiển thị cho người dùng, prompt AI, dữ liệu seed và thông báo lỗi vẫn viết có dấu.
+  Chuỗi hiển thị cho người dùng, prompt AI và dữ liệu seed vẫn viết có dấu. Log ghi ra
+  terminal (server) dùng tiếng Việt không dấu.
 - Khi đổi endpoint, DTO, quy tắc domain hoặc luồng nghiệp vụ, cập nhật đồng bộ
   `AGENTS.md` và tài liệu liên quan. Khi đổi quy ước phân nhánh hoặc commit,
   cập nhật đồng bộ `AGENTS.md`.

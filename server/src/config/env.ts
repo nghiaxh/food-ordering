@@ -23,7 +23,7 @@ const schema = z.object({
   DB_PASSWORD: z.string().default("postgres"),
   DB_HOST: z.string().default("localhost"),
   DB_PORT: z.coerce.number().default(5432),
-  JWT_SECRET: z.string().min(32, "JWT_SECRET phải có ít nhất 32 ký tự"),
+  JWT_SECRET: z.string().min(32, "JWT_SECRET phai co it nhat 32 ky tu"),
   JWT_EXPIRATION_MS: z.coerce.number().default(86_400_000),
   AI_API_KEY: z.string().default(""),
   AI_PROVIDER: z.string().default("gemini"),
@@ -34,7 +34,7 @@ const schema = z.object({
 
 const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
-  console.error("Biến môi trường không hợp lệ:\n" + parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n"));
+  console.error("Bien moi truong khong hop le:\n" + parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n"));
   process.exit(1);
 }
 

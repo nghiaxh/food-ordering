@@ -36,7 +36,9 @@ async function main() {
   // da duoc dung vao nen dung lai thay vi chen them du lieu mau trung.
   const [totalRes] = await db.select({ value: count() }).from(users);
   if ((totalRes?.value ?? 0) > 0) {
-    console.log("Đã có dữ liệu, bỏ qua seed.");
+    console.log("Da co du lieu, bo qua seed.");
+    console.log(`  So tai khoan dang co: ${totalRes?.value ?? 0}`);
+    console.log("  Muon nap lai du lieu demo: xoa volume db_data roi khoi dong lai container.");
     return;
   }
 
@@ -334,12 +336,12 @@ async function main() {
   });
 
   // Ket qua cho developer. `exitCode = 1` de Docker/CI biet seed that bai.
-  console.log("Seed dữ liệu demo bằng Drizzle thành công.");
+  console.log("Seed du lieu demo bang Drizzle thanh cong.");
 }
 
 main()
   .catch((error) => {
-    console.error("Seed thất bại:", error);
+    console.error("Seed that bai:", error);
     process.exitCode = 1;
   })
   .finally(() => pool.end());
