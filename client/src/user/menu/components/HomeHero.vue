@@ -20,7 +20,7 @@ defineProps<{ onBrowse: () => void; onAsk: () => void }>()
       <h1 class="max-w-lg text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
         Hôm nay ăn gì?
       </h1>
-      <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <NButton type="primary" size="medium" strong @click="onBrowse">Xem thực đơn</NButton>
         <button
           type="button"

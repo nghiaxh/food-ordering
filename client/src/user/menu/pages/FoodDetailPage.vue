@@ -160,7 +160,7 @@ watch(foodId, () => { qty.value = 1 })
   <div v-else class="mx-auto max-w-6xl px-3 py-4 pb-10 sm:px-6">
     <button
       type="button"
-      class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-amber-50 hover:text-amber-800"
+      class="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50 hover:text-orange-800"
       @click="goBack"
     >
       <NIcon :size="14"><ArrowBackOutline /></NIcon>
@@ -170,7 +170,7 @@ watch(foodId, () => { qty.value = 1 })
     <div class="mt-3 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start lg:gap-8">
       <div class="relative overflow-hidden rounded-2xl bg-stone-100 lg:sticky lg:top-[calc(var(--header-h)+1rem)]">
         <img :src="food.imageUrl ?? ''" :alt="food.name" class="aspect-[16/10] w-full cursor-zoom-in object-cover" />
-        <span v-if="!!food.discountPercent && food.available" class="absolute left-3 top-3 rounded-full bg-amber-700 px-2.5 py-1 text-xs font-semibold text-white">
+        <span v-if="!!food.discountPercent && food.available" class="absolute left-3 top-3 rounded-md bg-orange-700 px-2 py-0.5 text-xs font-semibold text-white">
           -{{ food.discountPercent }}%
         </span>
       </div>
@@ -178,17 +178,17 @@ watch(foodId, () => { qty.value = 1 })
       <div>
         <h1 class="text-2xl font-bold leading-tight tracking-tight text-stone-900 sm:text-3xl">{{ food.name }}</h1>
 
-        <button v-if="stats.count > 0" type="button" class="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-sm text-stone-600 hover:text-amber-800" @click="scrollToReviews">
+        <button v-if="stats.count > 0" type="button" class="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-sm text-stone-600 hover:text-orange-800" @click="scrollToReviews">
           <RatingStars :value="Math.round(stats.avg ?? 0)" :size="14" />
           <span class="font-semibold tabular-nums text-stone-900">{{ stats.avg?.toFixed(1) }}</span>
           <span>· {{ stats.count }} đánh giá</span>
         </button>
 
-        <div class="mt-3 flex flex-wrap items-baseline gap-2">
-          <span class="text-[26px] font-bold leading-none tabular-nums text-amber-800">{{ formatVND(unit) }}</span>
+        <div class="mt-2 flex flex-wrap items-baseline gap-2">
+          <span class="text-2xl font-bold leading-none tabular-nums text-orange-800">{{ formatVND(unit) }}</span>
           <template v-if="saving > 0">
             <span class="text-sm tabular-nums text-stone-500 line-through">{{ formatVND(food.price) }}</span>
-            <span v-if="!!food.discountPercent" class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+            <span v-if="!!food.discountPercent" class="rounded-md bg-orange-50 px-1.5 py-0.5 text-xs font-semibold text-orange-800">
               -{{ food.discountPercent }}%
             </span>
           </template>
@@ -199,7 +199,7 @@ watch(foodId, () => { qty.value = 1 })
         <div v-if="unavailable" class="mt-5 rounded-xl bg-stone-100 px-4 py-3 text-sm font-medium text-stone-600">
           Món đang tạm hết. Bạn có thể chọn món khác trong thực đơn.
         </div>
-        <div v-else class="mt-5 flex items-center gap-3">
+        <div v-else class="mt-4 flex items-center gap-2.5">
           <QuantityStepper v-model:value="qty" :disabled="adding" :label="`Số lượng ${food.name}`" />
           <NButton type="primary" size="large" class="flex-1" :loading="adding" :disabled="adding" @click="addToCart">Thêm vào giỏ</NButton>
         </div>
