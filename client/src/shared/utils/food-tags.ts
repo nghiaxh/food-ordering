@@ -39,7 +39,7 @@ interface ChipSource {
 
 export function foodChips(food: ChipSource): FoodChip[] {
   const chips: FoodChip[] = []
-  if (food.category?.name) chips.push({ label: food.category.name, className: 'bg-amber-50 text-amber-700' })
+  if (food.category?.name) chips.push({ label: food.category.name, className: 'bg-orange-50 text-orange-700' })
 
   const spicyIndex = Math.min(Math.max(food.spicyLevel, 0), SPICY.length - 1)
   chips.push({ label: SPICY[spicyIndex], className: SPICY_CLASSES[spicyIndex] })

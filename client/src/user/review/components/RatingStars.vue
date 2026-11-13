@@ -26,7 +26,7 @@ const active = computed(() => (hovered.value > 0 ? hovered.value : Math.max(0, M
     :class="props.class"
   >
     <span v-for="star in [1, 2, 3, 4, 5]" :key="star" aria-hidden="true" class="leading-none">
-      <NIcon :size="props.size" :class="star <= active ? 'text-amber-500' : 'text-stone-300'">
+      <NIcon :size="props.size" :class="star <= active ? 'text-orange-500' : 'text-stone-300'">
         <Star v-if="star <= active" /><StarOutline v-else />
       </NIcon>
     </span>
@@ -45,7 +45,7 @@ const active = computed(() => (hovered.value > 0 ? hovered.value : Math.max(0, M
       @mouseleave="hovered = 0"
       @click="props.onChange?.(star)"
     >
-      <NIcon :size="props.size" :class="star <= active ? 'text-amber-500' : 'text-stone-300'">
+      <NIcon :size="props.size" :class="star <= active ? 'text-orange-500' : 'text-stone-300'">
         <Star v-if="star <= active" /><StarOutline v-else />
       </NIcon>
     </button>

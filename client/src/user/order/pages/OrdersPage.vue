@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NAlert, NButton, NEmpty, NIcon, NModal, NSkeleton, useDialog } from 'naive-ui'
+import { NAlert, NButton, NCard, NConfigProvider, NEmpty, NIcon, NModal, NSkeleton, NTag, useDialog } from 'naive-ui'
 import { CheckmarkCircle, TimeOutline, QrCodeOutline, ImageOutline } from '@vicons/ionicons5'
 import QRCode from 'qrcode'
 import { cancelOrder, getMyOrders } from '@/user/order/api'
@@ -13,10 +13,30 @@ import { canCancelOrder, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } f
 import { formatVND } from '@/shared/utils/format'
 import { message } from '@/shared/api/message'
 import OrderTimeline from '@/user/order/components/OrderTimeline.vue'
+import type { GlobalThemeOverrides } from 'naive-ui'
 import type { Order, OrderStatus } from '@/shared/types'
 
 const HOTLINE = '0292.888.9999'
 const STATUSES = Object.keys(ORDER_STATUS_LABEL) as OrderStatus[]
+
+/** Theme chung cua app la amber; trang don hang dung orange cua Tailwind trong pham vi nay. */
+const ordersTheme: GlobalThemeOverrides = {
+  common: {
+    primaryColor: '#ea580c',
+    primaryColorHover: '#c2410c',
+    primaryColorPressed: '#9a3412',
+    primaryColorSuppl: '#ea580c',
+  },
+}
+
+/** Mau NTag theo trang thai don; Naive lo phan to mau, khong viet hex tai cho. */
+const STATUS_TAG_TYPE: Record<OrderStatus, 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error'> = {
+  PENDING: 'warning',
+  CONFIRMED: 'info',
+  PREPARING: 'info',
+  COMPLETED: 'success',
+  CANCELLED: 'error',
+}
 
 const isOrderStatus = (value: unknown): value is OrderStatus =>
   typeof value === 'string' && (STATUSES as string[]).includes(value)
@@ -184,149 +204,162 @@ const counts = computed(() => {
   return acc
 })
 const tabClass = (active: boolean) =>
-  `inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
-    active ? 'bg-amber-700 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
+  `inline-flex min-h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md px-3 py-1 text-[13px] font-medium transition ${
+    active ? 'bg-orange-600 text-white' : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-orange-50 hover:text-orange-700'
   }`
 </script>
 
 <template>
-  <div class="mx-auto max-w-4xl px-3 py-6 sm:px-6 sm:py-8">
-    <div v-if="loading" class="py-10"><NSkeleton :repeat="6" height="64px" /></div>
+  <NConfigProvider :theme-overrides="ordersTheme">
+    <div class="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-6">
+      <div v-if="loading" class="py-8"><NSkeleton :repeat="5" height="56px" /></div>
 
-    <NAlert v-else-if="error" type="error" title="Không tải được đơn hàng" class="mt-5">
-      <p class="text-sm">Đã có lỗi khi kết nối máy chủ. Kiểm tra mạng rồi thử lại.</p>
-      <NButton class="mt-3" @click="refresh()">Thử lại</NButton>
-    </NAlert>
+      <NAlert v-else-if="error" type="error" title="Không tải được đơn hàng" class="mt-2">
+        <p class="text-sm">Đã có lỗi khi kết nối máy chủ. Kiểm tra mạng rồi thử lại.</p>
+        <NButton class="mt-3" @click="refresh()">Thử lại</NButton>
+      </NAlert>
 
-    <NEmpty v-else-if="orders?.length === 0" class="mt-16" description="Bạn chưa có đơn hàng nào">
-      <NButton type="primary" class="mt-4" @click="router.push('/')">Khám phá thực đơn ngay</NButton>
-    </NEmpty>
+      <NEmpty v-else-if="orders?.length === 0" class="mt-16" description="Bạn chưa có đơn hàng nào">
+        <NButton type="primary" class="mt-4" @click="router.push('/')">Khám phá thực đơn ngay</NButton>
+      </NEmpty>
 
-    <template v-else>
-      <div class="-mx-3 mt-5 flex gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Lọc theo trạng thái đơn">
-        <button type="button" role="tab" :aria-selected="filter === 'ALL'" :class="tabClass(filter === 'ALL')" @click="setFilter('ALL')">
-          Tất cả
-          <span class="text-xs tabular-nums opacity-75">{{ orders?.length ?? 0 }}</span>
-        </button>
-        <button
-          v-for="status in STATUSES"
-          :key="status"
-          type="button"
-          role="tab"
-          :aria-selected="filter === status"
-          :class="tabClass(filter === status)"
-          @click="setFilter(status)"
-        >
-          {{ ORDER_STATUS_LABEL[status] }}
-          <span class="text-xs tabular-nums opacity-75">{{ counts[status] }}</span>
-        </button>
-      </div>
-
-      <NEmpty v-if="visible.length === 0" class="mt-12" description="Không có đơn nào ở trạng thái này" />
-      <div v-else class="mt-4 space-y-4">
-        <article
-          v-for="o in visible"
-          :key="o.id"
-          :id="`order-${o.id}`"
-          class="scroll-mt-20 rounded-2xl bg-white p-4 ring-1 transition sm:p-5"
-          :class="o.id === highlightId ? 'ring-2 ring-amber-500' : 'ring-stone-200/70'"
-        >
-          <div class="flex flex-wrap items-start justify-between gap-2">
-            <div class="min-w-0">
-              <p class="font-semibold text-stone-900">Đơn #{{ orderCode(o.id) }}</p>
-              <p class="mt-0.5 text-xs text-stone-500">
-                {{ new Date(o.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) }}
-              </p>
-            </div>
-            <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="o.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'">
-              <NIcon :size="11"><CheckmarkCircle v-if="o.paymentStatus === 'PAID'" /><TimeOutline v-else /></NIcon>
-              {{ o.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán' }}
-            </span>
-          </div>
-
-          <OrderTimeline :status="o.status" />
-
-          <div class="mt-3 space-y-2">
-            <div v-for="it in o.items" :key="it.id" class="flex items-center gap-3">
-              <img v-if="it.food?.imageUrl" :src="it.food.imageUrl" alt="" class="h-12 w-12 shrink-0 rounded-lg object-cover" />
-              <span v-else class="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-300">
-                <NIcon :size="16"><ImageOutline /></NIcon>
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-stone-800">{{ it.food?.name ?? 'Món đã xóa' }}</p>
-                <p class="text-xs text-stone-500">{{ it.quantity }} × {{ formatVND(it.price) }}</p>
-              </div>
-              <span class="shrink-0 text-right text-sm tabular-nums">
-                <span v-if="(it.discountAmount ?? 0) > 0" class="mr-1.5 text-xs text-stone-400 line-through">{{ formatVND(it.price * it.quantity) }}</span>
-                <span :class="(it.discountAmount ?? 0) > 0 ? 'font-semibold text-emerald-700' : 'text-stone-800'">{{ formatVND(it.price * it.quantity - (it.discountAmount ?? 0)) }}</span>
-              </span>
-            </div>
-          </div>
-
-          <div v-if="(o.discountTotal ?? 0) > 0" class="mt-2 flex items-center justify-between text-sm text-emerald-700">
-            <span>Giảm giá</span>
-            <span class="tabular-nums">-{{ formatVND(o.discountTotal ?? 0) }}</span>
-          </div>
-
-          <p v-if="o.note" class="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
-            <span class="font-semibold">Lưu ý cho quán:</span> {{ o.note }}
-          </p>
-
-          <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-stone-200 pt-3 text-sm">
-            <span class="text-stone-500">{{ PAYMENT_METHOD_LABEL[o.paymentMethod] ?? o.paymentMethod }}</span>
-            <span class="text-base font-bold tabular-nums text-amber-800">{{ formatVND(o.total) }}</span>
-          </div>
-
-          <div class="mt-3 flex flex-wrap items-center gap-2">
-            <NButton v-if="o.status === 'COMPLETED'" :loading="reorderingId === o.id" @click="reorder(o)">Đặt lại</NButton>
-            <NButton v-if="o.status === 'PENDING' && o.paymentStatus !== 'PAID'" @click="paying = o">
-              <template #icon><NIcon :size="16"><QrCodeOutline /></NIcon></template>
-              Thanh toán
-            </NButton>
-            <NButton
-              v-if="canCancelOrder(o)"
-              type="error"
-              ghost
-              @click="confirmCancel(o)"
-            >
-              Hủy đơn
-            </NButton>
-            <span v-if="o.status === 'PENDING' && o.paymentStatus === 'PAID'" class="text-xs italic text-stone-500">
-              Đã thanh toán. Gọi {{ HOTLINE }} nếu cần hủy hoặc hoàn tiền.
-            </span>
-          </div>
-        </article>
-      </div>
-    </template>
-
-    <NModal :show="paying !== null" preset="card" :title="paying ? `Thanh toán đơn #${orderCode(paying.id)}` : ''" :style="{ maxWidth: '28rem' }" @update:show="(v: boolean) => !v && (paying = null)">
-      <div v-if="paying" class="flex flex-col items-center gap-3 py-2 text-center">
-        <div class="text-sm text-stone-500">Phương thức: {{ PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod }}</div>
-        <div v-if="paying.paymentMethod === 'QR'" class="flex flex-col items-center gap-1.5">
-          <div class="relative">
-            <img v-if="qrDataUrl" :src="qrDataUrl" alt="Mã QR thanh toán" width="168" height="168" />
-            <div v-if="qrExpired" class="absolute inset-0 grid place-items-center bg-white/80 text-sm font-semibold text-stone-700">
-              Mã QR đã hết hạn
-            </div>
-          </div>
-          <button v-if="qrExpired" type="button" class="cursor-pointer rounded-lg border-0 bg-transparent px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50" @click="restartQr">
-            Tạo mã mới
+      <template v-else>
+        <div class="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:-mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Lọc theo trạng thái đơn">
+          <button type="button" role="tab" :aria-selected="filter === 'ALL'" :class="tabClass(filter === 'ALL')" @click="setFilter('ALL')">
+            Tất cả
+            <span class="text-[11px] tabular-nums opacity-75">{{ orders?.length ?? 0 }}</span>
           </button>
-          <p v-else class="text-xs text-stone-500" aria-live="polite">Mã QR hết hạn sau {{ qrLabel }}</p>
+          <button
+            v-for="status in STATUSES"
+            :key="status"
+            type="button"
+            role="tab"
+            :aria-selected="filter === status"
+            :class="tabClass(filter === status)"
+            @click="setFilter(status)"
+          >
+            {{ ORDER_STATUS_LABEL[status] }}
+            <span class="text-[11px] tabular-nums opacity-75">{{ counts[status] }}</span>
+          </button>
         </div>
-        <div class="text-lg font-bold text-stone-900">{{ formatVND(paying.total) }}</div>
-        <NAlert type="warning" title="Thanh toán thử nghiệm" class="w-full text-left">
-          <p class="text-xs">
-            {{ paying.paymentMethod === 'QR' ? 'Mã QR chỉ để nhận dạng đơn, chưa chuyển tiền thật. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' : 'Bạn trả tiền mặt khi nhận món. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' }}
-          </p>
-        </NAlert>
-      </div>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <NButton @click="paying = null">Quay lại</NButton>
-          <NButton type="primary" size="large" :disabled="qrExpired" @click="confirmPaid">Xác nhận đã thanh toán</NButton>
+
+        <NEmpty v-if="visible.length === 0" class="mt-12" description="Không có đơn nào ở trạng thái này" />
+        <div v-else class="mt-3 space-y-3">
+          <NCard
+            v-for="o in visible"
+            :id="`order-${o.id}`"
+            :key="o.id"
+            size="small"
+            :bordered="false"
+            :content-style="{ padding: '12px' }"
+            class="scroll-mt-20 !rounded-xl ring-1 transition"
+            :class="o.id === highlightId ? '!ring-2 ring-orange-500' : 'ring-stone-200/70'"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-stone-900">Đơn #{{ orderCode(o.id) }}</p>
+                <p class="mt-0.5 text-[11px] text-stone-500">
+                  {{ new Date(o.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) }}
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-1">
+                <NTag :type="STATUS_TAG_TYPE[o.status]" size="small" :bordered="false" :round="false">
+                  {{ ORDER_STATUS_LABEL[o.status] }}
+                </NTag>
+                <NTag :type="o.paymentStatus === 'PAID' ? 'success' : 'warning'" size="small" :bordered="false" :round="false">
+                  <template #icon>
+                    <NIcon :size="11"><CheckmarkCircle v-if="o.paymentStatus === 'PAID'" /><TimeOutline v-else /></NIcon>
+                  </template>
+                  {{ o.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán' }}
+                </NTag>
+              </div>
+            </div>
+
+            <OrderTimeline :status="o.status" />
+
+            <div class="mt-2 divide-y divide-stone-100">
+              <div v-for="it in o.items" :key="it.id" class="flex items-center gap-2.5 py-1.5">
+                <img v-if="it.food?.imageUrl" :src="it.food.imageUrl" alt="" class="h-9 w-9 shrink-0 rounded-md object-cover" />
+                <span v-else class="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-stone-100 text-stone-300">
+                  <NIcon :size="14"><ImageOutline /></NIcon>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-[13px] font-medium text-stone-800">{{ it.food?.name ?? 'Món đã xóa' }}</p>
+                  <p class="text-[11px] text-stone-500">{{ it.quantity }} × {{ formatVND(it.price) }}</p>
+                </div>
+                <span class="shrink-0 text-right text-xs tabular-nums">
+                  <span v-if="(it.discountAmount ?? 0) > 0" class="mr-1.5 text-[11px] text-stone-400 line-through">{{ formatVND(it.price * it.quantity) }}</span>
+                  <span :class="(it.discountAmount ?? 0) > 0 ? 'font-semibold text-emerald-700' : 'text-stone-800'">{{ formatVND(it.price * it.quantity - (it.discountAmount ?? 0)) }}</span>
+                </span>
+              </div>
+            </div>
+
+            <div v-if="(o.discountTotal ?? 0) > 0" class="mt-1.5 flex items-center justify-between text-xs text-emerald-700">
+              <span>Giảm giá</span>
+              <span class="tabular-nums">-{{ formatVND(o.discountTotal ?? 0) }}</span>
+            </div>
+
+            <p v-if="o.note" class="mt-2 rounded-md bg-orange-50 px-2.5 py-1.5 text-xs leading-relaxed text-orange-900">
+              <span class="font-semibold">Lưu ý cho quán:</span> {{ o.note }}
+            </p>
+
+            <div class="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-stone-200 pt-2">
+              <span class="text-xs text-stone-500">{{ PAYMENT_METHOD_LABEL[o.paymentMethod] ?? o.paymentMethod }}</span>
+              <span class="text-sm font-bold tabular-nums text-orange-700">{{ formatVND(o.total) }}</span>
+            </div>
+
+            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+              <NButton v-if="o.status === 'COMPLETED'" size="small" :loading="reorderingId === o.id" @click="reorder(o)">Đặt lại</NButton>
+              <NButton v-if="o.status === 'PENDING' && o.paymentStatus !== 'PAID'" size="small" @click="paying = o">
+                <template #icon><NIcon :size="14"><QrCodeOutline /></NIcon></template>
+                Thanh toán
+              </NButton>
+              <NButton
+                v-if="canCancelOrder(o)"
+                size="small"
+                type="error"
+                ghost
+                @click="confirmCancel(o)"
+              >
+                Hủy đơn
+              </NButton>
+              <span v-if="o.status === 'PENDING' && o.paymentStatus === 'PAID'" class="text-[11px] italic text-stone-500">
+                Đã thanh toán. Gọi {{ HOTLINE }} nếu cần hủy hoặc hoàn tiền.
+              </span>
+            </div>
+          </NCard>
         </div>
       </template>
-    </NModal>
-  </div>
+
+      <NModal :show="paying !== null" preset="card" :title="paying ? `Thanh toán đơn #${orderCode(paying.id)}` : ''" :style="{ maxWidth: '26rem' }" @update:show="(v: boolean) => !v && (paying = null)">
+        <div v-if="paying" class="flex flex-col items-center gap-2.5 py-1 text-center">
+          <div class="text-xs text-stone-500">Phương thức: {{ PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod }}</div>
+          <div v-if="paying.paymentMethod === 'QR'" class="flex flex-col items-center gap-1.5">
+            <div class="relative rounded-md bg-white p-1.5 ring-1 ring-stone-200">
+              <img v-if="qrDataUrl" :src="qrDataUrl" alt="Mã QR thanh toán" width="168" height="168" />
+              <div v-if="qrExpired" class="absolute inset-0 grid place-items-center bg-white/80 text-xs font-semibold text-stone-700">
+                Mã QR đã hết hạn
+              </div>
+            </div>
+            <button v-if="qrExpired" type="button" class="cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 text-[11px] font-semibold text-orange-700 hover:bg-orange-50" @click="restartQr">
+              Tạo mã mới
+            </button>
+            <p v-else class="text-[11px] text-stone-500" aria-live="polite">Mã QR hết hạn sau {{ qrLabel }}</p>
+          </div>
+          <div class="text-base font-bold text-stone-900">{{ formatVND(paying.total) }}</div>
+          <NAlert type="warning" title="Thanh toán thử nghiệm" class="w-full text-left">
+            <p class="text-xs">
+              {{ paying.paymentMethod === 'QR' ? 'Mã QR chỉ để nhận dạng đơn, chưa chuyển tiền thật. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' : 'Bạn trả tiền mặt khi nhận món. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' }}
+            </p>
+          </NAlert>
+        </div>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <NButton size="small" @click="paying = null">Quay lại</NButton>
+            <NButton type="primary" size="medium" :disabled="qrExpired" @click="confirmPaid">Xác nhận đã thanh toán</NButton>
+          </div>
+        </template>
+      </NModal>
+    </div>
+  </NConfigProvider>
 </template>

@@ -59,7 +59,7 @@ const handleAdd = async () => {
 
 <template>
   <div
-    class="group flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:-translate-y-0.5 hover:shadow-lg"
+    class="group flex cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200/60 transition hover:-translate-y-0.5 hover:shadow-md"
     :class="props.class"
     @click="onCardClick"
   >
@@ -74,8 +74,8 @@ const handleAdd = async () => {
         />
       </RouterLink>
       <div class="pointer-events-none absolute left-2 top-2 flex flex-wrap gap-1">
-        <span v-if="!props.food.available" class="rounded-full bg-stone-900/80 px-2 py-0.5 text-[11px] font-semibold text-white">Hết món</span>
-        <span v-else-if="!!props.food.discountPercent" class="rounded-full bg-amber-700 px-2 py-0.5 text-[11px] font-semibold text-white">
+        <span v-if="!props.food.available" class="rounded-md bg-stone-900/80 px-1.5 py-0.5 text-[11px] font-semibold text-white">Hết món</span>
+        <span v-else-if="!!props.food.discountPercent" class="rounded-md bg-orange-700 px-1.5 py-0.5 text-[11px] font-semibold text-white">
           -{{ props.food.discountPercent }}%
         </span>
       </div>
@@ -85,7 +85,7 @@ const handleAdd = async () => {
             type="button"
             :aria-label="props.food.available ? `Thêm ${props.food.name} vào giỏ` : `${props.food.name} tạm hết`"
             :disabled="!props.food.available || adding"
-            class="absolute right-2 top-2 grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-amber-700 leading-none text-white opacity-0 shadow-sm transition hover:bg-amber-800 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
+            class="absolute right-2 top-2 grid h-8 w-8 cursor-pointer place-items-center rounded-md border-0 bg-orange-700 leading-none text-white opacity-0 shadow-sm transition hover:bg-orange-800 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
             @click.stop="handleAdd"
           >
             <NIcon :size="16"><Add /></NIcon>
@@ -97,7 +97,7 @@ const handleAdd = async () => {
 
     <div class="flex flex-1 flex-col p-2.5 sm:p-3">
       <RouterLink :to="`/foods/${props.food.id}`" :state="{ from: route.fullPath }" class="min-h-0" @click="saveScroll">
-        <h3 class="line-clamp-2 min-h-[2.5em] text-[13px] font-semibold leading-tight text-stone-900 group-hover:text-amber-800 sm:text-sm">
+        <h3 class="line-clamp-2 min-h-[2.5em] text-[13px] font-semibold leading-tight text-stone-900 group-hover:text-orange-800 sm:text-sm">
           {{ props.food.name }}
         </h3>
       </RouterLink>
@@ -106,7 +106,7 @@ const handleAdd = async () => {
         <span
           v-for="chip in foodChips(props.food).slice(0, MAX_CHIPS)"
           :key="chip.label"
-          class="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium"
+          class="whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-medium"
           :class="chip.className"
         >
           {{ chip.label }}
@@ -115,7 +115,7 @@ const handleAdd = async () => {
 
       <div class="mt-auto pt-2">
         <div class="flex flex-wrap items-baseline gap-1.5">
-          <span class="text-base font-bold tabular-nums text-amber-800 sm:text-lg">{{ formatVND(unit()) }}</span>
+          <span class="text-base font-bold tabular-nums text-orange-800 sm:text-lg">{{ formatVND(unit()) }}</span>
           <span v-if="unit() < props.food.price" class="text-xs tabular-nums text-stone-500 line-through">
             {{ formatVND(props.food.price) }}
           </span>

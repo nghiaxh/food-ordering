@@ -117,7 +117,7 @@ const menuOptions = computed<DropdownOption[]>(() => [
               notifications.unread > 0
                 ? h(
                     'span',
-                    { class: 'rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800' },
+                    { class: 'rounded-md bg-orange-100 px-1 py-0.5 text-[10px] font-semibold text-orange-800' },
                     String(notifications.unread),
                   )
                 : null,
@@ -137,7 +137,7 @@ const menuOptions = computed<DropdownOption[]>(() => [
 ])
 
 const iconButtonClass =
-  'relative grid h-10 w-10 cursor-pointer place-items-center rounded-full text-stone-600 transition hover:bg-amber-50 hover:text-amber-800 focus-visible:outline-2'
+  'relative grid h-10 w-10 cursor-pointer place-items-center rounded-full text-stone-600 transition hover:bg-orange-50 hover:text-orange-800 focus-visible:outline-2'
 </script>
 
 <template>
@@ -162,7 +162,7 @@ const iconButtonClass =
         <NTooltip v-if="user && isDesktop" placement="bottom">
           <template #trigger>
             <button type="button" :aria-label="notifications.unread > 0 ? `Thông báo, ${notifications.unread} chưa đọc` : 'Thông báo'" :class="iconButtonClass" @click="ui.openDrawer('notifications')">
-              <NBadge :value="notifications.unread" :show="notifications.unread > 0" dot color="#b45309">
+              <NBadge :value="notifications.unread" :show="notifications.unread > 0" dot color="#ea580c">
                 <NIcon :size="20"><NotificationsOutline /></NIcon>
               </NBadge>
             </button>
@@ -173,7 +173,7 @@ const iconButtonClass =
         <NTooltip placement="bottom">
           <template #trigger>
             <button type="button" aria-label="Giỏ hàng" :class="iconButtonClass" @click="openCart">
-              <NBadge :value="cart.count" :show="cart.count > 0" :max="99" color="#b45309">
+              <NBadge :value="cart.count" :show="cart.count > 0" :max="99" color="#ea580c">
                 <NIcon :size="20"><CartOutline /></NIcon>
               </NBadge>
             </button>
@@ -194,10 +194,10 @@ const iconButtonClass =
           <button
             type="button"
             :aria-label="notifications.unread > 0 ? `Menu tài khoản, ${notifications.unread} thông báo chưa đọc` : 'Menu tài khoản'"
-            class="relative flex cursor-pointer items-center gap-2 rounded-full p-0.5 transition hover:bg-amber-50"
+            class="relative flex cursor-pointer items-center gap-2 rounded-full p-0.5 transition hover:bg-orange-50"
           >
-            <NBadge :value="notifications.unread" :show="notifications.unread > 0" dot color="#b45309">
-              <NAvatar round :size="36" color="#b45309" class="text-base font-semibold">
+            <NBadge :value="notifications.unread" :show="notifications.unread > 0" dot color="#ea580c">
+              <NAvatar round :size="36" color="#ea580c" class="text-base font-semibold">
                 {{ user.fullName?.charAt(0).toUpperCase() }}
               </NAvatar>
             </NBadge>

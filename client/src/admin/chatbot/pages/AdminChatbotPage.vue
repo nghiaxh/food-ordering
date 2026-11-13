@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, h, reactive, ref, watch } from 'vue'
 import {
   NAlert,
   NButton,
+  NCard,
   NDataTable,
+  NEmpty,
+  NForm,
+  NFormItem,
+  NIcon,
   NInput,
   NInputNumber,
   NModal,
+  NPopover,
   NSelect,
   NSwitch,
-  NIcon,
+  NTag,
   NUpload,
-  NPopover,
   type DataTableColumns,
 } from 'naive-ui'
 import {
@@ -21,6 +26,7 @@ import {
   CreateOutline,
   RefreshOutline,
   TrashOutline,
+  AddOutline,
 } from '@vicons/ionicons5'
 import {
   adminGetChatHistory,
@@ -43,7 +49,6 @@ import { confirmRemove } from '@/admin/components/shared'
 import PageCard from '@/admin/components/PageCard.vue'
 import PageHeader from '@/admin/components/PageHeader.vue'
 import FormModal from '@/components/FormModal.vue'
-import { h } from 'vue'
 
 const PROVIDER_OPTIONS = [
   { value: 'gemini', label: 'Google Gemini' },
@@ -92,7 +97,7 @@ const docForm = reactive({ title: '', category: '', keywords: '', content: '', e
 const chunksDoc = ref<KnowledgeDoc | null>(null)
 const chunks = ref<KnowledgeChunkView[]>([])
 
-const { data, error, refresh } = useAsyncData(
+const { data, loading, error, refresh } = useAsyncData(
   () => Promise.all([adminGetChatHistory(), adminGetSettings(), getChatbotStatus(), adminGetDocuments()]),
   () => [],
 )
@@ -228,11 +233,6 @@ const viewChunks = async (d: KnowledgeDoc) => {
 }
 
 const docColumns: DataTableColumns<KnowledgeDoc> = [
-  { title: 'Tiêu đề', key: 'title' },
-  { title: 'Nhóm', key: 'category', width: 150, render: (row) => categoryLabel(row.category) },
-  { title: 'Số phần', key: 'chunkCount', width: 80, render: (row) => h('span', { class: 'tabular-nums' }, row.chunkCount ?? 0) },
-  { title: 'File', key: 'fileName', ellipsis: true, render: (row) => row.fileName ?? '—' },
-  { title: 'Trạng thái', key: 'status', width: 120, render: (row) => statusLabel(row.status, row.enabled) },
   {
     title: 'Thao tác', key: 'actions', width: 260,
     render: (row) => h('div', { class: 'flex flex-wrap items-center gap-x-3 gap-y-1 text-xs' }, [
@@ -255,19 +255,30 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       ]),
     ]))),
   },
-  { title: 'Phiên', key: 'id', width: 130, render: (row) => h('code', { class: 'rounded-md bg-stone-100 px-1.5 py-0.5 font-mono text-xs text-stone-500' }, row.id.slice(0, 8)) },
   {
-    title: 'Khách', key: 'user', width: 190,
+    title: 'Khách hàng',
+    key: 'user',
+    width: 200,
     render: (row) => {
       const lastUser = [...row.messages].reverse().find((m) => m.user)
       return lastUser?.user?.email
-        ? h('span', { class: 'block truncate text-stone-600' }, lastUser.user.email)
-        : h('span', { class: 'rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500' }, 'Ẩn danh')
+        ? h('span', { class: 'block truncate font-medium text-stone-700' }, lastUser.user.email)
+        : h(
+            NTag,
+            { round: false, size: 'small', bordered: false, class: 'bg-stone-100 text-stone-500' },
+            () => 'Ẩn danh',
+          )
     },
   },
-  { title: 'Tin nhắn', key: 'count', width: 90, render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, row.messages.length) },
   {
-    title: 'Tin cuối', key: 'last',
+    title: 'Số tin',
+    key: 'count',
+    width: 80,
+    render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, row.messages.length),
+  },
+  {
+    title: 'Tin nhắn cuối',
+    key: 'last',
     render: (row) => {
       const last = row.messages[row.messages.length - 1]!
       return h('span', { class: 'block max-w-md truncate text-stone-500' }, [
@@ -277,8 +288,15 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
     },
   },
   {
-    title: 'Hoạt động cuối', key: 'time', width: 170,
-    render: (row) => h('span', { class: 'tabular-nums text-stone-500' }, new Date(row.messages[row.messages.length - 1]!.createdAt).toLocaleString('vi-VN')),
+    title: 'Thời gian',
+    key: 'time',
+    width: 160,
+    render: (row) =>
+      h(
+        'span',
+        { class: 'tabular-nums text-xs text-stone-500' },
+        new Date(row.messages[row.messages.length - 1]!.createdAt).toLocaleString('vi-VN'),
+      ),
   },
 ]
 </script>
@@ -304,13 +322,79 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
           <label for="ai-model" class="block text-sm font-medium text-stone-700">Tên mô hình</label>
           <NSelect id="ai-model" class="mt-2" :value="model" :options="modelOptions" @update:value="(v: string) => (model = v)" />
         </div>
-        <div>
-          <label for="max-suggestions" class="block text-sm font-medium text-stone-700">Số món gợi ý tối đa</label>
-          <NInputNumber id="max-suggestions" class="mt-2 w-full" :min="1" :max="5" :value="maxSuggestions" @update:value="(v: number | null) => (maxSuggestions = v ?? 5)" />
+      </template>
+      <template #header-extra>
+        <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">
+          Lưu cài đặt
+        </NButton>
+      </template>
+
+      <NForm :show-feedback="false" class="space-y-4">
+        <div class="grid gap-4 sm:grid-cols-3">
+          <NFormItem label="Nhà cung cấp AI">
+            <NSelect
+              :value="provider"
+              :options="PROVIDER_OPTIONS"
+              size="small"
+              @update:value="onProviderChange"
+            />
+          </NFormItem>
+          <NFormItem label="Tên mô hình">
+            <NSelect
+              :value="model"
+              :options="modelOptions"
+              filterable
+              tag
+              size="small"
+              placeholder="Chọn hoặc nhập tên mô hình"
+              @update:value="(v: string) => (model = v)"
+            />
+          </NFormItem>
+          <NFormItem label="Số món gợi ý tối đa">
+            <NInputNumber
+              :value="maxSuggestions"
+              :min="1"
+              :max="5"
+              size="small"
+              class="w-full"
+              @update:value="(v: number | null) => (maxSuggestions = v ?? 5)"
+            />
+          </NFormItem>
         </div>
-        <div class="sm:col-span-2">
-          <label for="extra-rules" class="block text-sm font-medium text-stone-700">Quy tắc bổ sung</label>
-          <NInput id="extra-rules" class="mt-2" type="textarea" :autosize="{ minRows: 3 }" :value="extraRules" placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..." @update:value="(v: string) => (extraRules = v)" />
+
+        <NFormItem label="Quy tắc bổ sung (System Prompt)">
+          <div class="w-full space-y-1.5">
+            <NInput
+              :value="extraRules"
+              type="textarea"
+              :autosize="{ minRows: 2, maxRows: 6 }"
+              placeholder="Ví dụ: Ưu tiên gợi ý món bán chạy, nhắc nhở khách về thành phần dị ứng nếu được hỏi..."
+              size="small"
+              @update:value="(v: string) => (extraRules = v)"
+            />
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-400">
+              <span>Quy tắc được nối vào prompt hệ thống của AI. Để trống nếu muốn xoá bỏ quy tắc.</span>
+              <NButton v-if="extraRules.trim()" size="tiny" quaternary type="default" @click="extraRules = ''">
+                Xoá quy tắc
+              </NButton>
+            </div>
+          </div>
+        </NFormItem>
+      </NForm>
+
+      <template #footer>
+        <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span>Cấu hình hiện tại:</span>
+            <span class="font-medium text-stone-700">{{ provider === 'openai' ? 'OpenAI' : 'Google Gemini' }}</span>
+            <span>·</span>
+            <span class="font-mono text-stone-700">{{ model || 'Mặc định' }}</span>
+            <span>·</span>
+            <span>Tối đa {{ maxSuggestions }} món/lượt</span>
+          </div>
+          <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">
+            Lưu cài đặt
+          </NButton>
         </div>
       </div>
       <div class="flex justify-end border-t border-stone-100 px-4 py-3">
@@ -324,27 +408,30 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
           <h3 class="font-semibold text-stone-800">Tài liệu ({documents.length})</h3>
           <NPopover trigger="click" placement="bottom-start" class="max-w-xs">
             <template #trigger>
-              <button type="button" class="cursor-pointer border-0 bg-transparent p-1 text-stone-400 hover:text-stone-600" aria-label="Giải thích tài liệu">
-                <NIcon :size="16"><InformationCircleOutline /></NIcon>
-              </button>
+              <NButton text size="tiny" class="text-stone-400 hover:text-stone-600" aria-label="Giải thích tài liệu">
+                <template #icon><NIcon :size="16"><InformationCircleOutline /></NIcon></template>
+              </NButton>
             </template>
             <p class="max-w-xs text-xs leading-relaxed text-stone-700">
-              Tài liệu là thông tin quán (giờ mở cửa, giao hàng, thanh toán...). Hệ thống tự chia mỗi tài liệu thành các phần nội dung để chatbot tìm theo nghĩa. Bấm <b>Xem</b> để xem các phần đã chia, <b>Tạo lại</b> để chia lại khi bạn sửa nội dung. Chỉ tải lên file, không thêm thủ công.
+              Tài liệu là thông tin quán (giờ mở cửa, giao hàng, thanh toán...). Hệ thống tự chia mỗi tài liệu thành các phần nội dung để chatbot tìm theo nghĩa. Bấm <b>Xem</b> để xem các phần đã chia, <b>Tạo lại</b> để chia lại khi bạn sửa nội dung.
             </p>
           </NPopover>
         </div>
+      </template>
+      <template #header-extra>
         <div class="flex items-center gap-2">
-          <NButton size="small" @click="openCreateDoc">Thêm thủ công</NButton>
+          <NButton size="small" @click="openCreateDoc">
+            <template #icon><NIcon :size="14"><AddOutline /></NIcon></template>
+            Thêm thủ công
+          </NButton>
           <NUpload :show-file-list="false" accept=".pdf,.docx,.txt,.md" :custom-request="handleUpload">
-            <NButton size="small">
+            <NButton size="small" type="primary" secondary>
               <template #icon><NIcon :size="14"><CloudUploadOutline /></NIcon></template>
-              Tải lên file
+              Tải lên tệp
             </NButton>
           </NUpload>
         </div>
-      </div>
-      <NDataTable :columns="docColumns" :data="documents" :row-key="(row: KnowledgeDoc) => row.id" :pagination="false" size="small" />
-    </PageCard>
+      </template>
 
     <PageCard>
       <div class="border-b border-stone-100 px-4 py-3">
@@ -353,40 +440,66 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       <NDataTable :columns="historyColumns" :data="sessions" :row-key="(row: { id: string }) => row.id" :pagination="{ pageSize: 8 }" :scroll-x="720" size="small" />
     </PageCard>
 
+    <NCard
+      size="small"
+      :bordered="false"
+      class="rounded-2xl shadow-sm ring-1 ring-stone-200/70"
+      :segmented="{ content: true }"
+    >
+      <template #header>
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-stone-800">Lịch sử hội thoại</span>
+          <NTag :round="false" size="small" :bordered="false" class="bg-stone-100 font-medium text-stone-600">
+            {{ sessions.length }} phiên
+          </NTag>
+        </div>
+      </template>
+
+      <NEmpty v-if="sessions.length === 0" class="py-10" description="Chưa có phiên trò chuyện nào." />
+      <NDataTable
+        v-else
+        :columns="historyColumns"
+        :data="sessions"
+        :row-key="(row: { id: string }) => row.id"
+        :pagination="{ pageSize: 8 }"
+        :scroll-x="720"
+        size="small"
+      />
+    </NCard>
+
     <FormModal :title="editingDoc ? 'Sửa tài liệu' : 'Thêm tài liệu'" :show="docModal" :on-close="() => { docModal = false }" :on-submit="saveDoc">
-      <div class="space-y-4">
-        <div>
-          <label for="doc-title" class="block text-sm font-medium text-stone-700">Tiêu đề</label>
-          <NInput id="doc-title" class="mt-1" :value="docForm.title" placeholder="Ví dụ: Giờ mở cửa" @update:value="(v: string) => { docForm.title = v }" />
+      <NForm :show-feedback="false" class="space-y-3 pt-1">
+        <NFormItem label="Tiêu đề tài liệu">
+          <NInput :value="docForm.title" placeholder="Ví dụ: Giờ mở cửa" size="small" @update:value="(v: string) => { docForm.title = v }" />
+        </NFormItem>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <NFormItem label="Nhóm chủ đề">
+            <NSelect :value="docForm.category || undefined" :options="CATEGORY_OPTIONS" placeholder="Chọn nhóm" size="small" @update:value="(v: string) => { docForm.category = v }" />
+          </NFormItem>
+          <NFormItem label="Từ khóa (cách nhau dấu phẩy)">
+            <NInput :value="docForm.keywords" placeholder="giờ mở cửa, mấy giờ đóng cửa" size="small" @update:value="(v: string) => { docForm.keywords = v }" />
+          </NFormItem>
         </div>
-        <div>
-          <label for="doc-cat" class="block text-sm font-medium text-stone-700">Nhóm</label>
-          <NSelect id="doc-cat" class="mt-1" :value="docForm.category || undefined" :options="CATEGORY_OPTIONS" placeholder="Chọn nhóm" @update:value="(v: string) => { docForm.category = v }" />
-        </div>
-        <div>
-          <label for="doc-keys" class="block text-sm font-medium text-stone-700">Từ khóa (cách nhau dấu phẩy)</label>
-          <NInput id="doc-keys" class="mt-1" :value="docForm.keywords" placeholder="giờ mở cửa, mấy giờ đóng cửa" @update:value="(v: string) => { docForm.keywords = v }" />
-        </div>
-        <div>
-          <label for="doc-content" class="block text-sm font-medium text-stone-700">Nội dung</label>
-          <NInput id="doc-content" class="mt-1" type="textarea" :autosize="{ minRows: 4 }" :value="docForm.content" placeholder="Nội dung bot trả lời khi khách hỏi..." @update:value="(v: string) => { docForm.content = v }" />
-        </div>
-        <div>
-          <span class="block text-sm font-medium text-stone-700">Trạng thái</span>
-          <div class="mt-1 flex items-center gap-2">
-            <NSwitch :value="docForm.enabled" @update:value="(v: boolean) => { docForm.enabled = v }" />
-            <span class="text-sm text-stone-600">{{ docForm.enabled ? 'Cho phép chatbot tra cứu' : 'Chatbot sẽ bỏ qua' }}</span>
+        <NFormItem label="Nội dung">
+          <NInput :value="docForm.content" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" placeholder="Nội dung bot trả lời khi khách hỏi..." size="small" @update:value="(v: string) => { docForm.content = v }" />
+        </NFormItem>
+        <NFormItem label="Trạng thái">
+          <div class="flex items-center gap-2">
+            <NSwitch :value="docForm.enabled" size="small" @update:value="(v: boolean) => { docForm.enabled = v }" />
+            <span class="text-xs text-stone-600">{{ docForm.enabled ? 'Cho phép chatbot tra cứu' : 'Chatbot sẽ bỏ qua' }}</span>
           </div>
-        </div>
-      </div>
+        </NFormItem>
+      </NForm>
     </FormModal>
 
-    <NModal :show="chunksDoc !== null" preset="card" :title="chunksDoc ? `Nội dung đã chia của &quot;${chunksDoc.title}&quot;` : 'Nội dung đã chia'" :style="{ maxWidth: '36rem' }" @update:show="(v: boolean) => !v && (chunksDoc = null)">
-      <div class="max-h-[400px] space-y-2 overflow-auto">
+    <NModal :show="chunksDoc !== null" preset="card" :title="chunksDoc ? `Nội dung đã chia của &quot;${chunksDoc.title}&quot;` : 'Nội dung đã chia'" :style="{ maxWidth: '38rem' }" @update:show="(v: boolean) => !v && (chunksDoc = null)">
+      <div class="max-h-[420px] space-y-2.5 overflow-auto pr-1">
         <p v-if="chunks.length === 0" class="text-sm text-stone-500">Chưa có phần nội dung (có thể chưa tạo lại sau khi sửa).</p>
-        <div v-for="c in chunks" :key="c.id" class="rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
-          <p class="mb-1 text-xs font-semibold text-stone-500">Phần {{ c.chunkIndex + 1 }}</p>
-          <p class="whitespace-pre-wrap">{{ c.content }}</p>
+        <div v-for="c in chunks" :key="c.id" class="rounded-xl border border-stone-200/70 bg-stone-50/70 p-3 text-sm text-stone-700">
+          <div class="mb-1.5 flex items-center justify-between">
+            <NTag :round="false" size="small" :bordered="false" class="bg-stone-200/70 font-medium text-stone-600">Phần {{ c.chunkIndex + 1 }}</NTag>
+          </div>
+          <p class="whitespace-pre-wrap leading-relaxed">{{ c.content }}</p>
         </div>
       </div>
     </NModal>

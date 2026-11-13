@@ -18,7 +18,7 @@ const emit = defineEmits<{ seeAll: [] }>()
       </div>
       <button
         type="button"
-        class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-amber-800 hover:underline"
+        class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-orange-800 hover:underline"
         @click="emit('seeAll')"
       >
         Xem tất cả

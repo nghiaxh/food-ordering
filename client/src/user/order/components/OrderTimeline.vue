@@ -21,29 +21,29 @@ const isActive = (index: number) => index === current.value && !isCompleted.valu
 </script>
 
 <template>
-  <p v-if="props.status === 'CANCELLED'" class="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-    <NIcon :size="13"><CloseOutline /></NIcon>
+  <p v-if="props.status === 'CANCELLED'" class="mt-2 inline-flex items-center gap-1 rounded-md bg-rose-50 px-2 py-1 text-[11px] font-medium text-rose-700">
+    <NIcon :size="12"><CloseOutline /></NIcon>
     Đơn đã hủy
   </p>
 
-  <ol v-else class="relative mt-3 grid grid-cols-4 gap-1" aria-label="Tiến trình đơn hàng">
-    <span aria-hidden="true" class="absolute left-[12.5%] right-[12.5%] top-3 h-0.5 bg-stone-200" />
+  <ol v-else class="relative mt-2 grid grid-cols-4 gap-1" aria-label="Tiến trình đơn hàng">
+    <span aria-hidden="true" class="absolute left-[12.5%] right-[12.5%] top-2.5 h-0.5 bg-stone-200" />
     <span
       aria-hidden="true"
-      class="absolute left-[12.5%] top-3 h-0.5 bg-amber-600 transition-[width] duration-300"
+      class="absolute left-[12.5%] top-2.5 h-0.5 bg-orange-500 transition-[width] duration-300"
       :style="{ width: `${progress * 0.75}%` }"
     />
     <li v-for="(step, index) in ORDER_FLOW" :key="step" class="flex flex-col items-center gap-1 text-center">
       <span
-        class="relative z-10 grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold"
-        :class="isDone(index) ? 'bg-amber-700 text-white' : isActive(index) ? 'bg-white text-amber-800 ring-2 ring-amber-600' : 'bg-stone-100 text-stone-500'"
+        class="relative z-10 grid h-5 w-5 place-items-center rounded-full text-[9px] font-bold sm:text-[10px]"
+        :class="isDone(index) ? 'bg-orange-500 text-white' : isActive(index) ? 'bg-white text-orange-600 ring-2 ring-orange-500' : 'bg-stone-100 text-stone-400'"
       >
-        <NIcon v-if="isDone(index)" :size="12"><Checkmark /></NIcon>
+        <NIcon v-if="isDone(index)" :size="10"><Checkmark /></NIcon>
         <template v-else>{{ index + 1 }}</template>
       </span>
       <span
-        class="text-[10px] leading-tight sm:text-xs"
-        :class="isActive(index) ? 'font-semibold text-amber-800' : isDone(index) ? 'text-stone-700' : 'text-stone-500'"
+        class="text-[10px] leading-tight sm:text-[11px]"
+        :class="isActive(index) ? 'font-semibold text-orange-600' : isDone(index) ? 'text-stone-600' : 'text-stone-400'"
       >
         {{ ORDER_STATUS_LABEL[step] }}
       </span>

@@ -153,8 +153,8 @@ const deals = computed(() => (foods.value ?? []).filter((f) => (f.discountPercen
 const activePriceBand = computed(() => PRICE_BANDS.findIndex((b) => b.min === minPrice.value && b.max === maxPrice.value))
 
 const chipClass = (active: boolean) =>
-  `inline-flex min-h-10 cursor-pointer items-center whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium transition ${
-    active ? 'bg-amber-700 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
+  `inline-flex min-h-9 cursor-pointer items-center whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+    active ? 'bg-orange-700 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-orange-50'
   }`
 
 const goToPage = (next: number) => {
@@ -176,8 +176,8 @@ const pageItems = computed<Array<number | '…'>>(() => {
   return out
 })
 const pageButtonClass = (active: boolean) =>
-  `inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center rounded-full px-2 text-sm tabular-nums transition ${
-    active ? 'bg-amber-700 font-semibold text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'
+  `inline-flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-md px-2 text-sm tabular-nums transition ${
+    active ? 'bg-orange-700 font-semibold text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-orange-50'
   }`
 
 const sortOptions = SORTS.map((s) => ({ key: s.value, label: s.label }))
@@ -206,7 +206,7 @@ const askAi = () => ui.openChat()
             <span class="ml-2 text-sm font-normal text-stone-500">{{ filtered.length }} món</span>
           </h2>
           <div class="flex shrink-0 items-center gap-3">
-            <button v-if="filtersActive" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-amber-800 hover:underline" @click="clearFilters">
+            <button v-if="filtersActive" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold text-orange-800 hover:underline" @click="clearFilters">
               Xóa bộ lọc
             </button>
             <NDropdown trigger="click" placement="bottom-end" :options="sortOptions" @select="onSort">
@@ -274,7 +274,7 @@ const askAi = () => ui.openChat()
             </div>
             <div v-if="pageCount > 1" class="mt-5 flex flex-col items-center gap-2 pb-2">
               <nav class="flex flex-wrap items-center justify-center gap-1.5" aria-label="Phân trang thực đơn">
-                <button type="button" :disabled="currentPage === 1" class="inline-flex min-h-9 cursor-pointer items-center rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40" @click="goToPage(currentPage - 1)">
+                <button type="button" :disabled="currentPage === 1" class="inline-flex min-h-9 cursor-pointer items-center rounded-md bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40" @click="goToPage(currentPage - 1)">
                   Trước
                 </button>
                 <template v-for="(item, index) in pageItems" :key="index">
@@ -283,7 +283,7 @@ const askAi = () => ui.openChat()
                     {{ item }}
                   </button>
                 </template>
-                <button type="button" :disabled="currentPage === pageCount" class="inline-flex min-h-9 cursor-pointer items-center rounded-full bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40" @click="goToPage(currentPage + 1)">
+                <button type="button" :disabled="currentPage === pageCount" class="inline-flex min-h-9 cursor-pointer items-center rounded-md bg-white px-3 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40" @click="goToPage(currentPage + 1)">
                   Sau
                 </button>
               </nav>

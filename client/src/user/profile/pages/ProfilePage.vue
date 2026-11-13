@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { NButton, NForm, NFormItem, NInput, NSkeleton } from 'naive-ui'
+import { NAvatar, NButton, NForm, NFormItem, NInput, NSkeleton, NTag } from 'naive-ui'
 import { changePassword, getMe, updateMe } from '@/user/auth/api'
 import useAsyncData from '@/composables/useAsyncData'
 import { useAuthStore } from '@/user/auth/store'
@@ -104,14 +104,18 @@ const joinedLabel = computed(() =>
   <div v-else class="mx-auto max-w-5xl px-3 py-6 sm:px-6 sm:py-8">
     <div class="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
       <section class="rounded-2xl bg-white p-5 text-center ring-1 ring-stone-200/60">
-        <span class="mx-auto grid h-16 w-16 place-items-center rounded-full bg-amber-700 text-2xl font-bold text-white">
-          {{ initial }}
-        </span>
+        <div class="flex justify-center">
+          <NAvatar round :size="64" color="#ea580c" class="text-2xl font-bold">
+            {{ initial }}
+          </NAvatar>
+        </div>
         <p class="mt-3 text-base font-semibold text-stone-900">{{ user?.fullName }}</p>
         <p class="mt-0.5 break-all text-sm text-stone-500">{{ user?.email }}</p>
-        <span class="mt-2 inline-block rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
-          {{ user?.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng' }}
-        </span>
+        <div class="mt-2 flex justify-center">
+          <NTag type="primary" size="small" :bordered="false">
+            {{ user?.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng' }}
+          </NTag>
+        </div>
         <p v-if="joinedLabel" class="mt-2 text-xs text-stone-400">{{ joinedLabel }}</p>
       </section>
 
