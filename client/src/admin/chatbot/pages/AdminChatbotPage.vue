@@ -46,6 +46,7 @@ import type { ChatHistoryMessage, ChatbotStatus, KnowledgeChunkView, KnowledgeDo
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
 import { confirmRemove } from '@/admin/components/shared'
+import PageCard from '@/admin/components/PageCard.vue'
 import PageHeader from '@/admin/components/PageHeader.vue'
 import FormModal from '@/components/FormModal.vue'
 
@@ -233,108 +234,13 @@ const viewChunks = async (d: KnowledgeDoc) => {
 
 const docColumns: DataTableColumns<KnowledgeDoc> = [
   {
-    title: 'Tiêu đề',
-    key: 'title',
-    render: (row) => h('span', { class: 'font-medium text-stone-800' }, row.title),
-  },
-  {
-    title: 'Nhóm',
-    key: 'category',
-    width: 140,
-    render: (row) =>
-      h(
-        NTag,
-        { round: false, size: 'small', bordered: false, class: 'bg-stone-100 text-stone-600' },
-        () => categoryLabel(row.category),
-      ),
-  },
-  {
-    title: 'Số phần',
-    key: 'chunkCount',
-    width: 80,
-    render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, row.chunkCount ?? 0),
-  },
-  {
-    title: 'Tệp nguồn',
-    key: 'fileName',
-    ellipsis: true,
-    render: (row) =>
-      row.fileName
-        ? h('span', { class: 'font-mono text-xs text-stone-600' }, row.fileName)
-        : h('span', { class: 'text-stone-400' }, '—'),
-  },
-  {
-    title: 'Trạng thái',
-    key: 'status',
-    width: 120,
-    render: (row) => {
-      let type: 'default' | 'success' | 'warning' | 'error' = 'default'
-      if (row.status === 'PENDING') type = 'warning'
-      else if (row.status === 'FAILED') type = 'error'
-      else if (row.enabled) type = 'success'
-      return h(
-        NTag,
-        { round: false, size: 'small', type },
-        () => statusLabel(row.status, row.enabled),
-      )
-    },
-  },
-  {
-    title: 'Thao tác',
-    key: 'actions',
-    width: 250,
-    render: (row) =>
-      h('div', { class: 'flex items-center gap-1.5' }, [
-        h(
-          NButton,
-          {
-            size: 'tiny',
-            secondary: true,
-            onClick: () => openEditDoc(row),
-          },
-          {
-            icon: () => h(NIcon, { size: 12 }, () => h(CreateOutline)),
-            default: () => 'Sửa',
-          },
-        ),
-        h(
-          NButton,
-          {
-            size: 'tiny',
-            secondary: true,
-            onClick: () => viewChunks(row),
-          },
-          {
-            icon: () => h(NIcon, { size: 12 }, () => h(EyeOutline)),
-            default: () => 'Xem',
-          },
-        ),
-        h(
-          NButton,
-          {
-            size: 'tiny',
-            secondary: true,
-            onClick: () => reingest(row.id),
-          },
-          {
-            icon: () => h(NIcon, { size: 12 }, () => h(RefreshOutline)),
-            default: () => 'Tạo lại',
-          },
-        ),
-        h(
-          NButton,
-          {
-            size: 'tiny',
-            type: 'error',
-            ghost: true,
-            onClick: () => deleteDoc(row),
-          },
-          {
-            icon: () => h(NIcon, { size: 12 }, () => h(TrashOutline)),
-            default: () => 'Xóa',
-          },
-        ),
-      ]),
+    title: 'Thao tác', key: 'actions', width: 260,
+    render: (row) => h('div', { class: 'flex flex-wrap items-center gap-x-3 gap-y-1 text-xs' }, [
+      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1', onClick: () => openEditDoc(row) }, [h(NIcon, { size: 12 }, () => h(CreateOutline)), 'Sửa']),
+      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1', onClick: () => viewChunks(row) }, [h(NIcon, { size: 12 }, () => h(EyeOutline)), 'Xem']),
+      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1', onClick: () => reingest(row.id) }, [h(NIcon, { size: 12 }, () => h(RefreshOutline)), 'Tạo lại']),
+      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-red-600 hover:underline inline-flex items-center gap-1', onClick: () => deleteDoc(row) }, [h(NIcon, { size: 12 }, () => h(TrashOutline)), 'Xóa']),
+    ]),
   },
 ]
 
@@ -342,44 +248,12 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
   {
     type: 'expand',
     width: 48,
-    renderExpand: (row) =>
-      h(
-        'div',
-        { class: 'space-y-2 rounded-xl bg-stone-50/80 p-3' },
-        row.messages.map((m) =>
-          h('div', { class: `flex ${m.sender === 'BOT' ? 'justify-start' : 'justify-end'}` }, [
-            h('div', { class: 'max-w-[75%]' }, [
-              h(
-                'div',
-                {
-                  class: `rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                    m.sender === 'BOT'
-                      ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200'
-                      : 'rounded-br-sm bg-orange-600 text-white'
-                  }`,
-                },
-                m.content,
-              ),
-              h(
-                'p',
-                { class: `mt-1 text-[11px] text-stone-400 ${m.sender === 'BOT' ? '' : 'text-right'}` },
-                `${m.sender === 'BOT' ? 'Bot' : 'Khách'} · ${formatTime(m.createdAt)}`,
-              ),
-            ]),
-          ]),
-        ),
-      ),
-  },
-  {
-    title: 'Phiên',
-    key: 'id',
-    width: 110,
-    render: (row) =>
-      h(
-        NTag,
-        { round: false, size: 'small', bordered: false, class: 'bg-stone-100 font-mono text-xs text-stone-500' },
-        () => row.id.slice(0, 8),
-      ),
+    renderExpand: (row) => h('div', { class: 'rounded-lg bg-stone-50/80 p-2.5' }, row.messages.map((m) => h('div', { class: `flex ${m.sender === 'BOT' ? 'justify-start' : 'justify-end'}` }, [
+      h('div', { class: 'max-w-[75%]' }, [
+        h('div', { class: `rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${m.sender === 'BOT' ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200' : 'rounded-br-sm bg-orange-600 text-white'}` }, m.content),
+        h('p', { class: `mt-1 text-[11px] text-stone-400 ${m.sender === 'BOT' ? '' : 'text-right'}` }, `${m.sender === 'BOT' ? 'Bot' : 'User'} · ${formatTime(m.createdAt)}`),
+      ]),
+    ]))),
   },
   {
     title: 'Khách hàng',
@@ -407,12 +281,8 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
     key: 'last',
     render: (row) => {
       const last = row.messages[row.messages.length - 1]!
-      return h('span', { class: 'block max-w-md truncate text-xs text-stone-500' }, [
-        h(
-          'span',
-          { class: last.sender === 'BOT' ? 'font-medium text-orange-700' : 'text-stone-700' },
-          `${last.sender === 'BOT' ? 'Bot' : 'Khách'}: `,
-        ),
+      return h('span', { class: 'block max-w-md truncate text-stone-500' }, [
+        h('span', { class: last.sender === 'BOT' ? 'text-orange-700' : 'text-stone-600' }, `${last.sender === 'BOT' ? 'Bot' : 'User'} · `),
         last.content,
       ])
     },
@@ -433,17 +303,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
 
 <template>
   <div>
-    <PageHeader title="Cấu hình chatbot">
-      <template #extra>
-        <NTag :round="false" :bordered="false" :type="status?.available ? 'success' : 'warning'" size="small">
-          {{ status?.available ? 'AI sẵn sàng' : 'Chưa cấu hình AI' }}
-        </NTag>
-        <NButton size="small" :loading="loading" @click="refresh">
-          <template #icon><NIcon :size="14"><RefreshOutline /></NIcon></template>
-          Tải lại
-        </NButton>
-      </template>
-    </PageHeader>
+    <PageHeader title="Cấu hình chatbot" />
 
     <NAlert v-if="error" type="error" title="Không tải được dữ liệu chatbot" class="mb-4">
       <p class="text-sm">Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang.</p>
@@ -452,18 +312,15 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.
     </NAlert>
 
-    <NCard
-      size="small"
-      :bordered="false"
-      class="mb-5 rounded-2xl shadow-sm ring-1 ring-stone-200/70"
-      :segmented="{ content: true, footer: 'soft' }"
-    >
-      <template #header>
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-stone-800">Cài đặt mô hình & Quy tắc gợi ý</span>
-          <NTag :round="false" size="small" :bordered="false" class="bg-stone-100 font-medium text-stone-600">
-            {{ provider.toUpperCase() }}
-          </NTag>
+    <PageCard class="mb-4">
+      <div class="grid gap-4 p-4 sm:grid-cols-2">
+        <div>
+          <label for="ai-provider" class="block text-sm font-medium text-stone-700">Nhà cung cấp AI</label>
+          <NSelect id="ai-provider" class="mt-2" :value="provider" :options="PROVIDER_OPTIONS" @update:value="onProviderChange" />
+        </div>
+        <div>
+          <label for="ai-model" class="block text-sm font-medium text-stone-700">Tên mô hình</label>
+          <NSelect id="ai-model" class="mt-2" :value="model" :options="modelOptions" @update:value="(v: string) => (model = v)" />
         </div>
       </template>
       <template #header-extra>
@@ -539,21 +396,16 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
             Lưu cài đặt
           </NButton>
         </div>
-      </template>
-    </NCard>
+      </div>
+      <div class="flex justify-end border-t border-stone-100 px-4 py-3">
+        <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">Lưu cài đặt</NButton>
+      </div>
+    </PageCard>
 
-    <NCard
-      size="small"
-      :bordered="false"
-      class="mb-5 rounded-2xl shadow-sm ring-1 ring-stone-200/70"
-      :segmented="{ content: true }"
-    >
-      <template #header>
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-stone-800">Tài liệu cơ sở tri thức</span>
-          <NTag :round="false" size="small" :bordered="false" class="bg-stone-100 font-medium text-stone-600">
-            {{ documents.length }} tài liệu
-          </NTag>
+    <PageCard class="mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-4 py-3">
+        <div class="flex items-center gap-1">
+          <h3 class="font-semibold text-stone-800">Tài liệu ({documents.length})</h3>
           <NPopover trigger="click" placement="bottom-start" class="max-w-xs">
             <template #trigger>
               <NButton text size="tiny" class="text-stone-400 hover:text-stone-600" aria-label="Giải thích tài liệu">
@@ -581,16 +433,12 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
         </div>
       </template>
 
-      <NEmpty v-if="documents.length === 0" class="py-10" description="Chưa có tài liệu tri thức nào." />
-      <NDataTable
-        v-else
-        :columns="docColumns"
-        :data="documents"
-        :row-key="(row: KnowledgeDoc) => row.id"
-        :pagination="false"
-        size="small"
-      />
-    </NCard>
+    <PageCard>
+      <div class="border-b border-stone-100 px-4 py-3">
+        <h3 class="font-semibold text-stone-800">Lịch sử hội thoại ({sessions.length})</h3>
+      </div>
+      <NDataTable :columns="historyColumns" :data="sessions" :row-key="(row: { id: string }) => row.id" :pagination="{ pageSize: 8 }" :scroll-x="720" size="small" />
+    </PageCard>
 
     <NCard
       size="small"

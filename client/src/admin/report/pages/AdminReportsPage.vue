@@ -80,7 +80,7 @@ const revenueChartData = computed<ChartData<'bar'>>(() => ({
     {
       label: 'Doanh thu (đ)',
       data: (revenue.value ?? []).map((r) => r.revenue),
-      backgroundColor: '#b45309',
+      backgroundColor: '#c2410c',
       borderRadius: 4,
     },
   ],
@@ -96,7 +96,7 @@ const revenueChartOptions = computed<ChartOptions<'bar'>>(() => ({
 }))
 const tableColumns: DataTableColumns<{ date: string; revenue: number; orders: number }> = [
   { title: 'Ngày', key: 'date', render: (row) => dayLabel(row.date) },
-  { title: 'Doanh thu', key: 'revenue', align: 'right', render: (row) => h('span', { class: 'font-medium tabular-nums text-amber-700' }, formatVND(row.revenue)) },
+  { title: 'Doanh thu', key: 'revenue', align: 'right', render: (row) => h('span', { class: 'font-medium tabular-nums text-orange-700' }, formatVND(row.revenue)) },
   { title: 'Số đơn', key: 'orders', align: 'right' },
 ]
 const topFoodsColumns: DataTableColumns<{ foodId: number; name: string; quantity: number; revenue: number }> = [
@@ -110,13 +110,13 @@ watch(applied, () => { refreshAll() })
 <template>
   <div>
     <PageHeader title="Báo cáo"><template #extra>
-      <NButton @click="exportExcel">
+      <NButton size="small" @click="exportExcel">
         <template #icon><NIcon :size="16"><DownloadOutline /></NIcon></template>
         Xuất Excel
       </NButton>
     </template></PageHeader>
 
-    <div class="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-stone-200 bg-white p-3">
+    <div class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-white p-2.5">
       <NDatePicker v-model:value="range" type="daterange" clearable class="min-w-[280px]" size="medium" />
       <NButton type="primary" size="small" @click="applied = range">Lọc dữ liệu</NButton>
       <NButton v-if="applied" size="small" @click="() => { range = null; applied = null }">Bỏ lọc</NButton>
@@ -125,35 +125,35 @@ watch(applied, () => { refreshAll() })
       </span>
     </div>
 
-    <div class="grid grid-cols-2 divide-stone-200 rounded-xl border border-stone-200 bg-white sm:grid-cols-5 sm:divide-x">
-      <div v-for="m in metrics" :key="m.label" class="border-b border-stone-200 px-4 py-3.5 last:border-b-0 sm:border-b-0">
+    <div class="grid grid-cols-2 divide-stone-200 rounded-lg border border-stone-200 bg-white sm:grid-cols-5 sm:divide-x">
+      <div v-for="m in metrics" :key="m.label" class="border-b border-stone-200 px-4 py-3 last:border-b-0 sm:border-b-0">
         <div class="text-xs text-stone-500">{{ m.label }}</div>
         <div class="mt-1 truncate text-lg font-semibold tabular-nums text-stone-900">{{ m.value }}</div>
       </div>
     </div>
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+    <div class="mt-4 grid gap-4 lg:grid-cols-2">
       <PageCard>
-        <div class="border-b border-stone-100 px-5 py-3.5">
+        <div class="border-b border-stone-100 px-4 py-3">
           <h3 class="font-semibold text-stone-800">Doanh thu theo ngày</h3>
         </div>
-        <div v-if="(revenue?.length ?? 0) === 0" class="px-5 py-8 text-center text-sm text-stone-400">Chưa có đơn nào trong khoảng này.</div>
-        <div v-else class="h-64 px-5 py-4">
+        <div v-if="(revenue?.length ?? 0) === 0" class="px-4 py-7 text-center text-sm text-stone-400">Chưa có đơn nào trong khoảng này.</div>
+        <div v-else class="h-64 px-4 py-3">
           <Bar :data="revenueChartData" :options="revenueChartOptions" />
         </div>
       </PageCard>
 
       <PageCard>
-        <div class="border-b border-stone-100 px-5 py-3.5">
+        <div class="border-b border-stone-100 px-4 py-3">
           <h3 class="font-semibold text-stone-800">Món bán chạy</h3>
         </div>
         <NDataTable :columns="topFoodsColumns" :data="topFoods ?? []" :row-key="(row: { foodId: number }) => row.foodId" :pagination="false" size="small" />
       </PageCard>
     </div>
 
-    <div class="mt-6">
+    <div class="mt-4">
       <PageCard>
-        <div class="flex items-center justify-between border-b border-stone-100 px-5 py-3.5">
+        <div class="flex items-center justify-between border-b border-stone-100 px-4 py-3">
           <h3 class="font-semibold text-stone-800">Chi tiết doanh thu</h3>
           <NButton size="small" @click="refreshAll">Làm mới</NButton>
         </div>

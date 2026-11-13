@@ -155,7 +155,7 @@ const columns: DataTableColumns<Food> = [
   { title: 'Giá', key: 'price', width: 140, render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, formatVND(row.price)) },
   {
     title: 'Trạng thái', key: 'status', width: 120,
-    render: (row) => h(StatusDot, { color: row.available ? '#10b981' : '#ef4444', label: row.available ? 'Bán' : 'Ẩn' }),
+    render: (row) => h(StatusDot, { tone: row.available ? 'success' : 'danger', label: row.available ? 'Bán' : 'Ẩn' }),
   },
   {
     title: 'Thao tác', key: 'actions', width: 170,
@@ -174,10 +174,10 @@ const columns: DataTableColumns<Food> = [
 <template>
   <div>
     <PageHeader title="Món ăn"><template #extra>
-      <NButton type="primary" @click="openCreate">Thêm món</NButton>
+      <NButton type="primary" size="small" @click="openCreate">Thêm món</NButton>
     </template></PageHeader>
 
-    <div class="mb-5 flex flex-wrap items-center gap-3">
+    <div class="mb-4 flex flex-wrap items-center gap-3">
       <NInput v-model:value="search" placeholder="Tìm theo tên hoặc danh mục..." clearable class="w-full sm:w-72">
         <template #prefix><NIcon :size="16" class="text-stone-400"><SearchOutline /></NIcon></template>
       </NInput>
@@ -190,7 +190,7 @@ const columns: DataTableColumns<Food> = [
 
     <PageCard>
       <TableSkeleton v-if="loading && !data" />
-      <NEmpty v-else-if="rows.length === 0" class="py-16" description="Không có món ăn nào." />
+      <NEmpty v-else-if="rows.length === 0" class="py-10" description="Không có món ăn nào." />
       <NDataTable v-else :columns="columns" :data="rows" :row-key="(row: Food) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="800" size="small" />
     </PageCard>
 
@@ -235,7 +235,7 @@ const columns: DataTableColumns<Food> = [
           <NFormItem label="Ảnh món ăn" path="imageUrl" class="md:col-span-2">
             <ImageField v-model:value="form.imageUrl" />
           </NFormItem>
-          <NCheckbox v-model:checked="form.available" class="md:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2">
+          <NCheckbox v-model:checked="form.available" class="md:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2">
             <span class="font-semibold text-emerald-700">Đang bán</span>
             <span class="text-xs text-stone-500"> — tắt để ẩn món khỏi thực đơn</span>
           </NCheckbox>

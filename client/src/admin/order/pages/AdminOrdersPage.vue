@@ -5,6 +5,7 @@ import {
   NCheckbox,
   NDataTable,
   NDrawer,
+  NDrawerContent,
   NInput,
   NInputNumber,
   NSelect,
@@ -33,7 +34,7 @@ import type { Order, OrderStatus } from '@/shared/types'
 import { formatVND } from '@/shared/utils/format'
 import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, allowedNextStatuses, orderCode } from '@/shared/utils/orders'
 import { PHONE_PATTERN } from '@/shared/utils/validators'
-import { confirmRemove, runAndMessage } from '@/admin/components/shared'
+import { confirmRemove, runAndMessage, STATUS_TONE_CLASS, type StatusTone } from '@/admin/components/shared'
 import PageCard from '@/admin/components/PageCard.vue'
 import PageHeader from '@/admin/components/PageHeader.vue'
 import StatusDot from '@/admin/components/StatusDot.vue'
@@ -44,12 +45,12 @@ import { message } from '@/shared/api/message'
 const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED', 'CANCELLED']
 // Trang thai duoc phep luc tao don moi: don bat dau o PENDING nen bo qua PREPARING/COMPLETED.
 const CREATABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'CANCELLED']
-const STATUS_HEX: Record<OrderStatus, string> = {
-  PENDING: '#f59e0b',
-  CONFIRMED: '#3b82f6',
-  PREPARING: '#8b5cf6',
-  COMPLETED: '#10b981',
-  CANCELLED: '#ef4444',
+const STATUS_TONE: Record<OrderStatus, StatusTone> = {
+  PENDING: 'warning',
+  CONFIRMED: 'info',
+  PREPARING: 'progress',
+  COMPLETED: 'success',
+  CANCELLED: 'danger',
 }
 
 const { data: orders, loading, error, refresh } = useAsyncData(() => adminGetOrders(), () => [])
@@ -229,7 +230,7 @@ const columns: DataTableColumns<Order> = [
   { title: 'Tổng tiền', key: 'total', width: 140, render: (row) => h('b', { class: 'tabular-nums' }, formatVND(row.total)) },
   {
     title: 'Trạng thái', key: 'status', width: 180,
-    render: (row) => h(StatusDot, { color: STATUS_HEX[row.status], label: ORDER_STATUS_LABEL[row.status] ?? row.status }),
+    render: (row) => h(StatusDot, { tone: STATUS_TONE[row.status], label: ORDER_STATUS_LABEL[row.status] ?? row.status }),
   },
   {
     title: 'Thao tác nhanh', key: 'actions', width: 320,
@@ -270,7 +271,7 @@ const columns: DataTableColumns<Order> = [
 
 const STATUS_TABS = computed<Array<{ key: OrderStatus | 'ALL'; label: string; dot?: string }>>(() => [
   { key: 'ALL' as const, label: `Tất cả (${orders.value?.length ?? 0})` },
-  ...ORDER_STATUSES.map((s) => ({ key: s as OrderStatus | 'ALL', label: `${ORDER_STATUS_LABEL[s]}${counts.value.get(s) ? ` (${counts.value.get(s)})` : ''}`, dot: STATUS_HEX[s] })),
+  ...ORDER_STATUSES.map((s) => ({ key: s as OrderStatus | 'ALL', label: `${ORDER_STATUS_LABEL[s]}${counts.value.get(s) ? ` (${counts.value.get(s)})` : ''}`, dot: STATUS_TONE_CLASS[STATUS_TONE[s]] })),
 ])
 
 // Options cho NSelect doi trang thai trong drawer; tinh o script de template khong phai narrow trong callback.
@@ -293,103 +294,106 @@ const statusSelectOptions = computed(() => {  const d = detail.value
 <template>
   <div>
     <PageHeader title="Đơn hàng"><template #extra>
-      <NButton type="primary" @click="openCreate">Thêm đơn</NButton>
+      <NButton type="primary" size="small" @click="openCreate">Thêm đơn</NButton>
     </template></PageHeader>
 
-    <div class="mb-5 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Lọc theo trạng thái đơn">
+    <div class="mb-4 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Lọc theo trạng thái đơn">
       <button
         v-for="tab in STATUS_TABS"
         :key="tab.key"
         type="button"
         role="tab"
         :aria-selected="statusFilter === tab.key"
-        class="inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition"
-        :class="statusFilter === tab.key ? 'bg-amber-700 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-amber-50'"
+        class="inline-flex min-h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition"
+        :class="statusFilter === tab.key ? 'bg-orange-700 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-orange-50'"
         @click="statusFilter = tab.key"
       >
-        <span v-if="tab.dot" class="inline-block h-2 w-2 rounded-full" :style="{ backgroundColor: tab.dot }" />
+        <span v-if="tab.dot" class="inline-block h-2 w-2 rounded-full" :class="tab.dot" />
         {{ tab.label }}
       </button>
     </div>
 
     <PageCard>
       <TableSkeleton v-if="loading && !orders" />
-      <NEmpty v-else-if="rows.length === 0" class="py-16" description="Không có đơn hàng nào." />
+      <NEmpty v-else-if="rows.length === 0" class="py-10" description="Không có đơn hàng nào." />
       <NDataTable v-else :columns="columns" :data="rows" :row-key="(row: Order) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="1200" size="small" />
     </PageCard>
 
     <!-- Chi tiet don -->
+    <!-- NDrawer khong render slot header; phai bo NDrawerContent de co tieu de va nut dong. -->
     <NDrawer :show="detailId !== null" placement="right" :width="480" :auto-focus="false" @update:show="(v: boolean) => !v && (detailId = null)">
-      <template #header>
-        <span class="text-base font-semibold text-stone-900">{{ detail ? `Đơn #${orderCode(detail.id)}` : 'Chi tiết đơn' }}</span>
-      </template>
-      <div v-if="detail" class="space-y-6 p-1">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <StatusDot :color="STATUS_HEX[detail.status]" :label="ORDER_STATUS_LABEL[detail.status] ?? detail.status" />
-          <div class="flex items-center gap-2">
-            <NSelect
-              size="small"
-              :value="detail.status"
-              :loading="busyIds.has(detail.id)"
-              :disabled="busyIds.has(detail.id) || allowedNextStatuses(detail.status).length === 0"
-              style="width: 160px"
-              :options="statusSelectOptions"
-              @update:value="onDetailStatusChange"
-            />
-            <NButton size="small" :disabled="finalState(detail)" :title="finalState(detail) ? 'Đơn đã chốt nên không sửa được' : undefined" @click="openEdit(detail)">Sửa</NButton>
-          </div>
-        </div>
-
-        <div>
-          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Thông tin đơn</p>
-          <div class="space-y-1.5 rounded-xl bg-stone-50 p-3.5 text-sm text-stone-600">
-            <p>Đặt lúc: <b class="font-medium text-stone-800">{{ new Date(detail.createdAt).toLocaleString('vi-VN') }}</b></p>
-            <p>Thanh toán: <b class="font-medium text-stone-800">{{ PAYMENT_METHOD_LABEL[detail.paymentMethod] ?? detail.paymentMethod }}</b></p>
-            <div class="flex items-center justify-between gap-3 pt-2">
-              <span class="text-sm text-stone-600">Trạng thái: <b class="font-medium text-stone-800">{{ detail.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán' }}</b></span>
-              <NButton v-if="detail.paymentStatus === 'PAID'" size="small" :loading="busyIds.has(detail.id)" :disabled="busyIds.has(detail.id)" @click="changePayment(detail.id, false)">Hoàn tác</NButton>
-              <NButton v-else type="primary" size="small" :loading="busyIds.has(detail.id)" :disabled="busyIds.has(detail.id)" @click="changePayment(detail.id, true)">Đã thanh toán</NButton>
+      <NDrawerContent closable header-class="px-4 py-3" body-content-class="px-4 py-3">
+        <template #header>
+          <span class="text-base font-semibold text-stone-900">{{ detail ? `Đơn #${orderCode(detail.id)}` : 'Chi tiết đơn' }}</span>
+        </template>
+        <div v-if="detail" class="space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <StatusDot :tone="STATUS_TONE[detail.status]" :label="ORDER_STATUS_LABEL[detail.status] ?? detail.status" />
+            <div class="flex items-center gap-2">
+              <NSelect
+                size="small"
+                :value="detail.status"
+                :loading="busyIds.has(detail.id)"
+                :disabled="busyIds.has(detail.id) || allowedNextStatuses(detail.status).length === 0"
+                style="width: 160px"
+                :options="statusSelectOptions"
+                @update:value="onDetailStatusChange"
+              />
+              <NButton size="small" :disabled="finalState(detail)" :title="finalState(detail) ? 'Đơn đã chốt nên không sửa được' : undefined" @click="openEdit(detail)">Sửa</NButton>
             </div>
           </div>
-        </div>
 
-        <div>
-          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Người nhận</p>
-          <div class="space-y-1.5 rounded-xl bg-stone-50 p-3.5 text-sm text-stone-600">
-            <p><b class="font-medium text-stone-800">{{ detail.receiverName }}</b></p>
-            <p class="tabular-nums">{{ detail.phone }}</p>
-            <p>{{ detail.address }}</p>
-            <p v-if="detail.user?.email" class="text-stone-400">{{ detail.user.email }}</p>
-          </div>
-        </div>
-
-        <div v-if="detail.note">
-          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Lưu ý cho quán</p>
-          <p class="rounded-xl bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-900">{{ detail.note }}</p>
-        </div>
-
-        <div>
-          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Món đặt ({{ detail.items.length }})</p>
-          <div class="space-y-2.5">
-            <div v-for="item in detail.items" :key="item.id" class="flex items-center gap-3 rounded-xl border border-stone-100 p-2.5">
-              <img v-if="item.food?.imageUrl" :src="item.food.imageUrl" :alt="item.food?.name ?? ''" loading="lazy" class="h-12 w-12 rounded-lg object-cover" />
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-stone-800">{{ item.food?.name }}</p>
-                <p class="text-xs text-stone-400">
-                  {{ formatVND(item.price) }} × {{ item.quantity }}
-                  <span v-if="item.discountAmount" class="ml-1 text-emerald-600">· giảm {{ formatVND(item.discountAmount) }}</span>
-                </p>
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Thông tin đơn</p>
+            <div class="space-y-1.5 rounded-lg bg-stone-50 p-3 text-sm text-stone-600">
+              <p>Đặt lúc: <b class="font-medium text-stone-800">{{ new Date(detail.createdAt).toLocaleString('vi-VN') }}</b></p>
+              <p>Thanh toán: <b class="font-medium text-stone-800">{{ PAYMENT_METHOD_LABEL[detail.paymentMethod] ?? detail.paymentMethod }}</b></p>
+              <div class="flex items-center justify-between gap-3 pt-2">
+                <span class="text-sm text-stone-600">Trạng thái: <b class="font-medium text-stone-800">{{ detail.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán' }}</b></span>
+                <NButton v-if="detail.paymentStatus === 'PAID'" size="small" :loading="busyIds.has(detail.id)" :disabled="busyIds.has(detail.id)" @click="changePayment(detail.id, false)">Hoàn tác</NButton>
+                <NButton v-else type="primary" size="small" :loading="busyIds.has(detail.id)" :disabled="busyIds.has(detail.id)" @click="changePayment(detail.id, true)">Đã thanh toán</NButton>
               </div>
-              <b class="text-sm tabular-nums text-stone-800">{{ formatVND(item.price * item.quantity - (item.discountAmount ?? 0)) }}</b>
             </div>
           </div>
-        </div>
 
-        <div class="flex items-center justify-between border-t border-stone-100 pt-4">
-          <span class="text-sm text-stone-500">Tổng cộng</span>
-          <b class="text-lg tabular-nums text-stone-900">{{ formatVND(detail.total) }}</b>
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Người nhận</p>
+            <div class="space-y-1.5 rounded-lg bg-stone-50 p-3 text-sm text-stone-600">
+              <p><b class="font-medium text-stone-800">{{ detail.receiverName }}</b></p>
+              <p class="tabular-nums">{{ detail.phone }}</p>
+              <p>{{ detail.address }}</p>
+              <p v-if="detail.user?.email" class="text-stone-400">{{ detail.user.email }}</p>
+            </div>
+          </div>
+
+          <div v-if="detail.note">
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Lưu ý cho quán</p>
+            <p class="rounded-lg bg-orange-50 p-3 text-sm leading-relaxed text-orange-900">{{ detail.note }}</p>
+          </div>
+
+          <div>
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Món đặt ({{ detail.items.length }})</p>
+            <div class="space-y-2.5">
+              <div v-for="item in detail.items" :key="item.id" class="flex items-center gap-3 rounded-lg border border-stone-100 p-2">
+                <img v-if="item.food?.imageUrl" :src="item.food.imageUrl" :alt="item.food?.name ?? ''" loading="lazy" class="h-12 w-12 rounded-lg object-cover" />
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-stone-800">{{ item.food?.name }}</p>
+                  <p class="text-xs text-stone-400">
+                    {{ formatVND(item.price) }} × {{ item.quantity }}
+                    <span v-if="item.discountAmount" class="ml-1 text-emerald-600">· giảm {{ formatVND(item.discountAmount) }}</span>
+                  </p>
+                </div>
+                <b class="text-sm tabular-nums text-stone-800">{{ formatVND(item.price * item.quantity - (item.discountAmount ?? 0)) }}</b>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-stone-100 pt-4">
+            <span class="text-sm text-stone-500">Tổng cộng</span>
+            <b class="text-lg tabular-nums text-stone-900">{{ formatVND(detail.total) }}</b>
+          </div>
         </div>
-      </div>
+      </NDrawerContent>
     </NDrawer>
 
     <!-- Form tao/sua don -->
