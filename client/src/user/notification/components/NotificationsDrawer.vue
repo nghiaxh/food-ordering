@@ -36,7 +36,7 @@ const onItemClick = async (item: NotificationItem) => {
       <div class="flex items-center gap-2">
         <NIcon :size="18"><NotificationsOutline /></NIcon>
         <span class="text-base font-semibold text-stone-900">Thông báo</span>
-        <span v-if="unread > 0" class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+        <span v-if="unread > 0" class="rounded-md bg-orange-100 px-1.5 py-0.5 text-xs font-semibold text-orange-800">
           {{ unread }} mới
         </span>
       </div>
@@ -44,7 +44,7 @@ const onItemClick = async (item: NotificationItem) => {
 
     <template #header-extra>
       <div class="flex items-center gap-3">
-        <button v-if="unread > 0" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-medium text-amber-700 hover:underline" @click="notifications.markAllRead()">
+        <button v-if="unread > 0" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-medium text-orange-700 hover:underline" @click="notifications.markAllRead()">
           Đã đọc
         </button>
         <button v-if="notifications.items.some((n) => n.read)" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-medium text-stone-500 hover:text-rose-600 hover:underline" @click="notifications.clearRead()">
@@ -58,17 +58,17 @@ const onItemClick = async (item: NotificationItem) => {
         <NSkeleton :repeat="4" height="48px" />
       </div>
       <NEmpty v-else-if="notifications.items.length === 0" class="py-16" description="Chưa có thông báo nào" />
-      <div v-else class="space-y-1.5">
+      <div v-else class="space-y-1">
         <div
           v-for="n in notifications.items"
           :key="n.id"
           data-testid="notification-item"
           :data-read="n.read ? 'true' : 'false'"
-          class="group relative rounded-xl text-sm"
-          :class="n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-amber-50/80 font-medium text-stone-800'"
+          class="group relative rounded-lg text-sm"
+          :class="n.read ? 'text-stone-500 hover:bg-stone-50' : 'bg-orange-50/80 font-medium text-stone-800'"
         >
-          <button type="button" class="block w-full cursor-pointer rounded-xl px-3 py-2.5 pr-9 text-left" @click="onItemClick(n)">
-            <span class="mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle" :class="n.read ? 'bg-stone-200' : 'bg-amber-500'" />
+          <button type="button" class="block w-full cursor-pointer rounded-lg px-3 py-2 pr-9 text-left" @click="onItemClick(n)">
+            <span class="mr-2 inline-block h-1.5 w-1.5 rounded-full align-middle" :class="n.read ? 'bg-stone-200' : 'bg-orange-500'" />
             {{ n.content }}
             <span class="mt-1 block text-xs font-normal text-stone-500">{{ formatRelativeTime(n.createdAt) }}</span>
           </button>

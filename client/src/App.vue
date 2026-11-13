@@ -23,7 +23,7 @@ watch(
 </script>
 
 <template>
-  <NConfigProvider :locale="viVN" :date-locale="dateViVN" :theme-overrides="{ common: { primaryColor: '#b45309', primaryColorHover: '#92400e', primaryColorPressed: '#78350f' } }">
+  <NConfigProvider :locale="viVN" :date-locale="dateViVN" :theme-overrides="{ common: { primaryColor: '#ea580c', primaryColorHover: '#c2410c', primaryColorPressed: '#9a3412' } }">
     <NLoadingBarProvider>
       <NMessageProvider>
         <NDialogProvider>

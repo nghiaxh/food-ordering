@@ -55,14 +55,6 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
 
-::selection {
-  background-color: rgba(180, 83, 9, 0.2);
-}
-
-:focus-visible {
-  outline-color: #b45309;
-}
-
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(120, 113, 108, 0.35) transparent;
