@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../lib/db.js";
 import { foods, orderItems, orders, reviews, users, type Review } from "../../db/schema.js";
-import { forbidden, notFound } from "../../lib/errors.js";
+import { forbidden, badRequest, notFound } from "../../lib/errors.js";
 import type { createReviewSchema, updateReviewSchema } from "./schema.js";
 import type { z } from "zod";
 
@@ -28,6 +28,14 @@ const toReviewJson = (
 });
 
 export async function listByFood(foodId: number, currentUserId?: number) {
+  // Mon khong ton tai phai ve 404 chu khong phai danh sach rong: client can phan biet
+  // "chua co danh gia" va "mon da bi xoa/khong hop le".
+  const food = await db.query.foods.findFirst({
+    where: eq(foods.id, foodId),
+    columns: { id: true },
+  });
+  if (!food) throw notFound("Không tìm thấy món ăn");
+
   const list = await db.query.reviews.findMany({
     where: eq(reviews.foodId, foodId),
     with: { user: { columns: { fullName: true } } },
@@ -60,6 +68,17 @@ export async function create(userId: number, req: CreateReviewRequest) {
     columns: { id: true },
   });
   if (!food) throw notFound("Không tìm thấy món ăn");
+
+  // Bang reviews khong co unique index (userId, foodId), nen chan trung bang code:
+  // moi user mot danh gia cho moi mon, sua lai dung PUT /reviews/:id.
+  const [existing] = await db
+    .select({ id: reviews.id })
+    .from(reviews)
+    .where(and(eq(reviews.userId, userId), eq(reviews.foodId, req.foodId)))
+    .limit(1);
+  if (existing) {
+    throw badRequest("Bạn đã đánh giá món này rồi, hãy sửa đánh giá cũ của bạn");
+  }
 
   const [review] = await db
     .insert(reviews)
