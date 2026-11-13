@@ -10,7 +10,7 @@ export const register = (data: { email: string; password: string; fullName: stri
 export const getMe = (signal?: AbortSignal) => http.get<User>('/auth/me', { signal }).then((r) => r.data)
 
 export const updateMe = (data: { fullName: string; phone: string; address: string }) =>
-  http.put('/auth/me', data).then((r) => r.data)
+  http.put<User>('/auth/me', data).then((r) => r.data)
 
 export const changePassword = (data: { currentPassword: string; newPassword: string }) =>
   http.put('/auth/password', data)

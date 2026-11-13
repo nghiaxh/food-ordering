@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { NButton, NForm, NFormItem, NInput, NSkeleton } from 'naive-ui'
 import { changePassword, getMe, updateMe } from '@/user/auth/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -10,12 +10,13 @@ import FormModal from '@/components/FormModal.vue'
 import type { FormItemRule } from 'naive-ui'
 
 const auth = useAuthStore()
-const user = auth.user
+// Doc qua computed de the ho so cap nhat ngay khi auth store doi sau khi luu.
+const user = computed(() => auth.user)
 const saving = ref(false)
 const changing = ref(false)
 const passwordModal = ref(false)
 
-const form = reactive({ fullName: user?.fullName ?? '', phone: '', address: '' })
+const form = reactive({ fullName: user.value?.fullName ?? '', phone: '', address: '' })
 const passwordForm = reactive({ currentPassword: '', newPassword: '', confirm: '' })
 const formRef = ref<InstanceType<typeof NForm> | null>(null)
 const passwordFormRef = ref<InstanceType<typeof NForm> | null>(null)
@@ -56,7 +57,9 @@ const submit = async () => {
   }
   try {
     saving.value = true
-    await updateMe({ fullName: form.fullName, phone: form.phone, address: form.address })
+    const updated = await updateMe({ fullName: form.fullName, phone: form.phone, address: form.address })
+    // Dong bo ho ten sang header va the ho so; giu nguyen che do ghi nho dang co trong storage.
+    if (auth.user) auth.setUser({ ...auth.user, fullName: updated.fullName }, Boolean(localStorage.getItem('auth')))
     message.success('Cập nhật hồ sơ thành công!')
   } catch {
     message.error('Cập nhật thất bại. Vui lòng thử lại.')
@@ -87,10 +90,12 @@ const submitPassword = async () => {
   }
 }
 
-const initial = (user?.fullName ?? '?').charAt(0).toUpperCase()
-const joinedLabel = me.value?.createdAt
-  ? `Tham gia từ ${new Date(me.value.createdAt).toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })}`
-  : null
+const initial = computed(() => (user.value?.fullName ?? '?').charAt(0).toUpperCase())
+const joinedLabel = computed(() =>
+  me.value?.createdAt
+    ? `Tham gia từ ${new Date(me.value.createdAt).toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })}`
+    : null,
+)
 </script>
 
 <template>

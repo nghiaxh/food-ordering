@@ -85,7 +85,9 @@ export const updateAddress = async (email: string, id: number, req: AddressReque
       receiverName: req.receiverName.trim(),
       phone: req.phone,
       address: req.address.trim(),
-      ...(req.isDefault ? { isDefault: true } : {}),
+      // Gui ro rang true/false thi ap dung; bo truong nay thi giu nguyen. isDefault false
+      // cho phep go bo mac dinh cua dia chi dang sua thay vi keo dai vo nghia.
+      ...(req.isDefault === undefined ? {} : { isDefault: req.isDefault }),
     })
     .where(eq(userAddresses.id, address.id))
     .returning();

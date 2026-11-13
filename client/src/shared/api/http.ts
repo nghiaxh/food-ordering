@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '@/user/auth/store'
 
 // Moi request di qua lop HTTP nay de viec gan token va xu ly 401 nhat quan.
 // HTTP client: gan Bearer token tu localStorage/sessionStorage, xu ly 401 toan cuc.
@@ -26,10 +27,10 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (res) => res,
   (err) => {
-    // 401 nghia la phien khong con hop le; don token va dua nguoi dung ve dang nhap.
+    // 401 nghia la phien khong con hop le; don storage va Pinia store truoc khi dua
+    // nguoi dung ve dang nhap de route guard thay ngay trang thai moi, khong con user cu.
     if (err.response?.status === 401 && !location.pathname.startsWith('/login')) {
-      localStorage.removeItem('auth')
-      sessionStorage.removeItem('auth')
+      useAuthStore().logout()
       location.href = '/login'
     }
     return Promise.reject(err)
