@@ -88,7 +88,7 @@ test('Clicking a notification opens the matching order and marks it read', async
   await item.getByRole('button').first().click()
 
   await expect(page).toHaveURL(new RegExp(`/orders\\?orderId=${orderId}$`))
-  await expect(page.locator(`#order-${orderId}`)).toHaveClass(/ring-amber-500/)
+  await expect(page.locator(`#order-${orderId}`)).toHaveClass(/ring-orange-500/)
 
   await openNotifications(page)
   await expect(itemFor(page, orderId)).toHaveAttribute('data-read', 'true')

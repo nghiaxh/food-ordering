@@ -78,9 +78,9 @@ const onSubmit = async () => {
       </NButton>
     </NForm>
 
-    <p class="mt-4 text-center text-sm text-stone-500">
+    <p class="mt-3 text-center text-sm text-stone-500">
       Chưa có tài khoản?
-      <RouterLink to="/register" class="font-semibold text-amber-700 hover:underline">Đăng ký ngay</RouterLink>
+      <RouterLink to="/register" class="font-semibold text-orange-700 hover:underline">Đăng ký ngay</RouterLink>
     </p>
   </AuthShell>
 </template>
