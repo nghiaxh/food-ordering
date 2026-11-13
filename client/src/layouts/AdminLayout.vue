@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NBadge, NButton, NAvatar, NDrawer, NDropdown, NIcon, type DropdownOption } from 'naive-ui'
+import { NBadge, NButton, NAvatar, NConfigProvider, NDrawer, NDrawerContent, NDropdown, NIcon, type DropdownOption } from 'naive-ui'
 import {
   HomeOutline,
   ReceiptOutline,
@@ -22,6 +22,7 @@ import { adminGetOrders } from '@/admin/order/api'
 import { useAuthStore } from '@/user/auth/store'
 import { useNotificationStore } from '@/user/notification/store'
 import { useUiStore } from '@/shared/stores/uiStore'
+import { ADMIN_THEME_OVERRIDES } from '@/shared/theme'
 
 interface NavItem {
   label: string
@@ -96,77 +97,89 @@ const onSelectMenu = (key: string) => {
 </script>
 
 <template>
-  <div class="flex min-h-dvh flex-col bg-stone-50">
-    <header class="sticky top-0 z-50 border-b border-stone-200/70 bg-white">
-      <div class="flex h-14 items-center gap-3 px-4 sm:px-6">
-        <NButton text aria-label="Mở menu quản trị" class="lg:hidden" @click="drawerOpen = true">
-          <template #icon><NIcon :size="22"><MenuOutline /></NIcon></template>
-        </NButton>
-        <div class="ml-auto flex items-center gap-1.5">
-          <button type="button" :aria-label="unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'" class="relative grid h-10 w-10 cursor-pointer place-items-center rounded-full text-stone-600 transition hover:bg-amber-50 hover:text-amber-800" @click="ui.openDrawer('notifications')">
-            <NBadge :value="unread" :show="unread > 0" dot color="#b45309">
-              <NIcon :size="20"><NotificationsOutline /></NIcon>
-            </NBadge>
-          </button>
-          <NDropdown trigger="click" placement="bottom-end" :options="menuOptions" @select="onSelectMenu">
-            <button type="button" aria-label="Menu tài khoản" class="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition hover:bg-stone-50">
-              <NAvatar :size="30" color="#b45309" class="text-sm font-semibold">
-                {{ user?.fullName?.charAt(0).toUpperCase() }}
-              </NAvatar>
-            </button>
-          </NDropdown>
+  <!-- Khu quan tri dung mau orange rieng; trang khach giu nguyen mau goc cua app. -->
+  <NConfigProvider :theme-overrides="ADMIN_THEME_OVERRIDES">
+    <div class="flex min-h-dvh flex-col bg-stone-50">
+      <header class="sticky top-0 z-40 border-b border-stone-200 bg-white">
+        <div class="flex h-12 items-center gap-2 px-3 sm:px-4">
+          <NButton text class="lg:hidden" aria-label="Mở menu quản trị" @click="drawerOpen = true">
+            <template #icon><NIcon :size="20"><MenuOutline /></NIcon></template>
+          </NButton>
+          <BrandMark />
+          <div class="ml-auto flex items-center gap-1">
+            <NButton
+              quaternary
+              circle
+              size="small"
+              :aria-label="unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'"
+              @click="ui.openDrawer('notifications')"
+            >
+              <NBadge :value="unread" :show="unread > 0" dot color="#c2410c">
+                <NIcon :size="18"><NotificationsOutline /></NIcon>
+              </NBadge>
+            </NButton>
+            <NDropdown trigger="click" placement="bottom-end" :options="menuOptions" @select="onSelectMenu">
+              <NButton quaternary circle size="small" aria-label="Menu tài khoản">
+                <NAvatar round :size="26" color="#c2410c">
+                  <span class="text-xs font-semibold text-white">{{ user?.fullName?.charAt(0).toUpperCase() }}</span>
+                </NAvatar>
+              </NButton>
+            </NDropdown>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <div class="flex w-full flex-1 gap-6 px-4 py-6 sm:px-6">
-      <aside class="hidden w-56 shrink-0 lg:block">
-        <div class="sticky top-20 rounded-xl border border-stone-200/70 bg-white p-2.5">
-          <nav class="space-y-3" aria-label="Điều hướng quản trị">
+      <div class="flex w-full flex-1">
+        <aside class="hidden w-52 shrink-0 border-r border-stone-200 bg-white lg:block">
+          <nav class="sticky top-12 max-h-[calc(100dvh-3rem)] space-y-4 overflow-y-auto p-3" aria-label="Điều hướng quản trị">
             <div v-for="group in NAV_GROUPS" :key="group.title">
-              <p class="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">{{ group.title }}</p>
+              <p class="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-stone-400">{{ group.title }}</p>
               <RouterLink
                 v-for="item in group.items"
                 :key="item.to"
                 :to="item.to"
                 :aria-current="isActive(item) ? 'page' : undefined"
-                class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition"
-                :class="isActive(item) ? 'bg-amber-50 font-semibold text-amber-800' : 'font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900'"
+                class="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition"
+                :class="isActive(item) ? 'bg-orange-50 font-medium text-orange-700' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'"
               >
                 <NIcon :size="16"><component :is="item.icon" /></NIcon>
                 <span class="flex-1">{{ item.label }}</span>
-                <NBadge v-if="item.to === '/admin/orders' && pendingCount > 0" :value="pendingCount" :max="99" color="#b45309" />
+                <NBadge v-if="item.to === '/admin/orders' && pendingCount > 0" :value="pendingCount" :max="99" color="#c2410c" />
               </RouterLink>
             </div>
           </nav>
-        </div>
-      </aside>
-      <main class="min-w-0 flex-1"><RouterView /></main>
+        </aside>
+        <main class="min-w-0 flex-1 px-4 py-4 sm:px-6 sm:py-5"><RouterView /></main>
+      </div>
+
+      <!-- NDrawer khong render slot header/footer; phai bo NDrawerContent de co tieu de va nut dong. -->
+      <NDrawer :show="drawerOpen" placement="left" :width="260" :auto-focus="false" @update:show="(v: boolean) => !v && closeDrawer()">
+        <NDrawerContent closable header-class="px-3 py-2" body-content-class="p-0">
+          <template #header>
+            <span class="flex items-center gap-2" @click="closeDrawer"><BrandMark /></span>
+          </template>
+          <nav class="space-y-4 px-3 pb-3" aria-label="Điều hướng quản trị">
+            <div v-for="group in NAV_GROUPS" :key="group.title">
+              <p class="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-stone-400">{{ group.title }}</p>
+              <RouterLink
+                v-for="item in group.items"
+                :key="item.to"
+                :to="item.to"
+                :aria-current="isActive(item) ? 'page' : undefined"
+                class="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition"
+                :class="isActive(item) ? 'bg-orange-50 font-medium text-orange-700' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'"
+                @click="closeDrawer"
+              >
+                <NIcon :size="16"><component :is="item.icon" /></NIcon>
+                <span class="flex-1">{{ item.label }}</span>
+                <NBadge v-if="item.to === '/admin/orders' && pendingCount > 0" :value="pendingCount" :max="99" color="#c2410c" />
+              </RouterLink>
+            </div>
+          </nav>
+        </NDrawerContent>
+      </NDrawer>
+
+      <NotificationsDrawer />
     </div>
-
-    <NDrawer :show="drawerOpen" placement="left" :width="280" :auto-focus="false" @update:show="(v: boolean) => !v && closeDrawer()">
-      <template #header>
-        <span class="flex items-center gap-2"><BrandMark /></span>
-      </template>
-      <nav class="space-y-3" aria-label="Điều hướng quản trị">
-        <div v-for="group in NAV_GROUPS" :key="group.title">
-          <p class="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">{{ group.title }}</p>
-          <RouterLink
-            v-for="item in group.items"
-            :key="item.to"
-            :to="item.to"
-            class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition"
-            :class="isActive(item) ? 'bg-amber-50 font-semibold text-amber-800' : 'font-medium text-stone-600 hover:bg-stone-50 hover:text-stone-900'"
-            @click="closeDrawer"
-          >
-            <NIcon :size="16"><component :is="item.icon" /></NIcon>
-            <span class="flex-1">{{ item.label }}</span>
-            <NBadge v-if="item.to === '/admin/orders' && pendingCount > 0" :value="pendingCount" :max="99" color="#b45309" />
-          </RouterLink>
-        </div>
-      </nav>
-    </NDrawer>
-
-    <NotificationsDrawer />
-  </div>
+  </NConfigProvider>
 </template>

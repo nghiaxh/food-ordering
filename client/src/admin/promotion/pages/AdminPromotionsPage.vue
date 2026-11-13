@@ -185,12 +185,12 @@ const columns: DataTableColumns<Promotion> = [
 <template>
   <div>
     <PageHeader title="Khuyến mãi"><template #extra>
-      <NButton type="primary" @click="openCreate">Thêm khuyến mãi</NButton>
+      <NButton type="primary" size="small" @click="openCreate">Thêm khuyến mãi</NButton>
     </template></PageHeader>
 
     <PageCard>
       <TableSkeleton v-if="loading && !promotions" />
-      <NEmpty v-else-if="(promotions ?? []).length === 0" class="py-16" description="Chưa có khuyến mãi nào." />
+      <NEmpty v-else-if="(promotions ?? []).length === 0" class="py-10" description="Chưa có khuyến mãi nào." />
       <NDataTable v-else :columns="columns" :data="promotions ?? []" :row-key="(row: Promotion) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="900" size="small" />
     </PageCard>
 

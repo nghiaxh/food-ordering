@@ -266,6 +266,13 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   header (số chưa đọc) và drawer (danh sách). `load()` lỗi mạng phải **giữ nguyên** danh sách cũ,
   không xoá sạch, để header không mất chấm chưa đọc và lần mở sau vẫn thử lại được.
 - `requireAuth`/`optionalAuth` bọc lỗi không hợp lệ (coi như chưa đăng nhập) - đừng log token.
+- **`NDrawer` không render slot `#header`/`#header-extra`/`#footer`**: naive-ui chỉ hiện tiêu đề, nút
+  đóng và footer khi nội dung nằm trong `NDrawerContent`. Slot đặt thẳng trên `NDrawer` bị bỏ qua
+  âm thầm (tiêu đề drawer, nút "Đã đọc", nút "Đóng" biến mất khỏi DOM).
+- **Khu quản trị dùng palette orange riêng**: `client/src/shared/theme.ts` khai báo màu chủ đạo
+  theo bảng màu native của Tailwind (orange-700/800/900) và `AdminLayout` bọc `NConfigProvider`
+  riêng; trang khách giữ theme gốc khai trong `App.vue`. Vì vậy màu accent trong khu quản trị
+  dùng class `orange-*`, không dùng `amber-*` (màu của khu khách) và không tự đặt hex.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
 - **`AI_API_KEY` trong `.env` phải là khóa thật.** Để trống, sai hoặc hết hạn thì trợ lý bị khóa

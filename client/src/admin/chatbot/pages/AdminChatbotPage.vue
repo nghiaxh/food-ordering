@@ -41,6 +41,7 @@ import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
 import { confirmRemove } from '@/admin/components/shared'
 import PageCard from '@/admin/components/PageCard.vue'
+import PageHeader from '@/admin/components/PageHeader.vue'
 import FormModal from '@/components/FormModal.vue'
 import { h } from 'vue'
 
@@ -235,9 +236,9 @@ const docColumns: DataTableColumns<KnowledgeDoc> = [
   {
     title: 'Thao tác', key: 'actions', width: 260,
     render: (row) => h('div', { class: 'flex flex-wrap items-center gap-x-3 gap-y-1 text-xs' }, [
-      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-amber-700 hover:underline inline-flex items-center gap-1', onClick: () => openEditDoc(row) }, [h(NIcon, { size: 12 }, () => h(CreateOutline)), 'Sửa']),
-      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-amber-700 hover:underline inline-flex items-center gap-1', onClick: () => viewChunks(row) }, [h(NIcon, { size: 12 }, () => h(EyeOutline)), 'Xem']),
-      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-amber-700 hover:underline inline-flex items-center gap-1', onClick: () => reingest(row.id) }, [h(NIcon, { size: 12 }, () => h(RefreshOutline)), 'Tạo lại']),
+      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1', onClick: () => openEditDoc(row) }, [h(NIcon, { size: 12 }, () => h(CreateOutline)), 'Sửa']),
+      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1', onClick: () => viewChunks(row) }, [h(NIcon, { size: 12 }, () => h(EyeOutline)), 'Xem']),
+      h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1', onClick: () => reingest(row.id) }, [h(NIcon, { size: 12 }, () => h(RefreshOutline)), 'Tạo lại']),
       h('button', { class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-red-600 hover:underline inline-flex items-center gap-1', onClick: () => deleteDoc(row) }, [h(NIcon, { size: 12 }, () => h(TrashOutline)), 'Xóa']),
     ]),
   },
@@ -247,9 +248,9 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
   {
     type: 'expand',
     width: 48,
-    renderExpand: (row) => h('div', { class: 'rounded-xl bg-stone-50/80 p-3' }, row.messages.map((m) => h('div', { class: `flex ${m.sender === 'BOT' ? 'justify-start' : 'justify-end'}` }, [
+    renderExpand: (row) => h('div', { class: 'rounded-lg bg-stone-50/80 p-2.5' }, row.messages.map((m) => h('div', { class: `flex ${m.sender === 'BOT' ? 'justify-start' : 'justify-end'}` }, [
       h('div', { class: 'max-w-[75%]' }, [
-        h('div', { class: `rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${m.sender === 'BOT' ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200' : 'rounded-br-sm bg-amber-600 text-white'}` }, m.content),
+        h('div', { class: `rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${m.sender === 'BOT' ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200' : 'rounded-br-sm bg-orange-600 text-white'}` }, m.content),
         h('p', { class: `mt-1 text-[11px] text-stone-400 ${m.sender === 'BOT' ? '' : 'text-right'}` }, `${m.sender === 'BOT' ? 'Bot' : 'User'} · ${formatTime(m.createdAt)}`),
       ]),
     ]))),
@@ -270,7 +271,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
     render: (row) => {
       const last = row.messages[row.messages.length - 1]!
       return h('span', { class: 'block max-w-md truncate text-stone-500' }, [
-        h('span', { class: last.sender === 'BOT' ? 'text-amber-700' : 'text-stone-600' }, `${last.sender === 'BOT' ? 'Bot' : 'User'} · `),
+        h('span', { class: last.sender === 'BOT' ? 'text-orange-700' : 'text-stone-600' }, `${last.sender === 'BOT' ? 'Bot' : 'User'} · `),
         last.content,
       ])
     },
@@ -284,17 +285,17 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
 
 <template>
   <div>
-    <div class="mb-3"><h1 class="text-2xl font-bold tracking-tight text-stone-900">Cấu hình chatbot</h1></div>
+    <PageHeader title="Cấu hình chatbot" />
 
-    <NAlert v-if="error" type="error" title="Không tải được dữ liệu chatbot" class="mb-6">
+    <NAlert v-if="error" type="error" title="Không tải được dữ liệu chatbot" class="mb-4">
       <p class="text-sm">Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang.</p>
     </NAlert>
-    <NAlert v-if="status && !status.available" type="warning" title="Chưa cấu hình trợ lý AI" class="mb-6">
+    <NAlert v-if="status && !status.available" type="warning" title="Chưa cấu hình trợ lý AI" class="mb-4">
       Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.
     </NAlert>
 
-    <PageCard class="mb-6">
-      <div class="grid gap-6 p-5 sm:grid-cols-2">
+    <PageCard class="mb-4">
+      <div class="grid gap-4 p-4 sm:grid-cols-2">
         <div>
           <label for="ai-provider" class="block text-sm font-medium text-stone-700">Nhà cung cấp AI</label>
           <NSelect id="ai-provider" class="mt-2" :value="provider" :options="PROVIDER_OPTIONS" @update:value="onProviderChange" />
@@ -312,13 +313,13 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
           <NInput id="extra-rules" class="mt-2" type="textarea" :autosize="{ minRows: 3 }" :value="extraRules" placeholder="Ví dụ: Luôn cảnh báo khách về món có Tôm nếu họ dị ứng..." @update:value="(v: string) => (extraRules = v)" />
         </div>
       </div>
-      <div class="flex justify-end border-t border-stone-100 px-5 py-4">
-        <NButton type="primary" :loading="savingSettings" @click="onSaveSettings">Lưu cài đặt</NButton>
+      <div class="flex justify-end border-t border-stone-100 px-4 py-3">
+        <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">Lưu cài đặt</NButton>
       </div>
     </PageCard>
 
-    <PageCard class="mb-6">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-5 py-4">
+    <PageCard class="mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-4 py-3">
         <div class="flex items-center gap-1">
           <h3 class="font-semibold text-stone-800">Tài liệu ({documents.length})</h3>
           <NPopover trigger="click" placement="bottom-start" class="max-w-xs">
@@ -346,7 +347,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
     </PageCard>
 
     <PageCard>
-      <div class="border-b border-stone-100 px-5 py-4">
+      <div class="border-b border-stone-100 px-4 py-3">
         <h3 class="font-semibold text-stone-800">Lịch sử hội thoại ({sessions.length})</h3>
       </div>
       <NDataTable :columns="historyColumns" :data="sessions" :row-key="(row: { id: string }) => row.id" :pagination="{ pageSize: 8 }" :scroll-x="720" size="small" />

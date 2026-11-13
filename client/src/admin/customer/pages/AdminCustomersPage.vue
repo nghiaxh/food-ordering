@@ -7,7 +7,6 @@ import {
   NSelect,
   NForm,
   NFormItem,
-  NAvatar,
   NEmpty,
   NIcon,
   type DataTableColumns,
@@ -169,7 +168,7 @@ const columns: DataTableColumns<User> = [
   {
     title: 'Họ tên', key: 'fullName', fixed: 'left',
     render: (row) => h('div', { class: 'flex items-center gap-3' }, [
-      h(NAvatar, { round: true, size: 36, color: '#e7e5e4' }, { default: () => h('span', { class: 'text-sm font-semibold text-stone-500' }, initialOf(row)) }),
+      h('span', { class: 'grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100 text-sm font-semibold text-stone-600' }, initialOf(row)),
       h('span', { class: 'font-medium text-stone-700' }, row.fullName || '—'),
     ]),
   },
@@ -181,7 +180,7 @@ const columns: DataTableColumns<User> = [
   },
   {
     title: 'Trạng thái', key: 'active', width: 140,
-    render: (row) => h(StatusDot, row.active ? { color: '#10b981', label: 'Hoạt động' } : { color: '#a8a29e', label: 'Đã khóa', muted: true }),
+    render: (row) => h(StatusDot, row.active ? { tone: 'success', label: 'Hoạt động' } : { tone: 'neutral', label: 'Đã khóa', muted: true }),
   },
   {
     title: 'Thao tác', key: 'actions', width: 250,
@@ -218,10 +217,10 @@ const columns: DataTableColumns<User> = [
 <template>
   <div>
     <PageHeader title="Khách hàng"><template #extra>
-      <NButton type="primary" @click="openCreate">Thêm khách hàng</NButton>
+      <NButton type="primary" size="small" @click="openCreate">Thêm khách hàng</NButton>
     </template></PageHeader>
 
-    <div class="mb-5 flex flex-wrap items-center gap-3">
+    <div class="mb-4 flex flex-wrap items-center gap-3">
       <NInput v-model:value="search" placeholder="Tìm theo tên, email hoặc số điện thoại..." clearable class="w-full sm:w-80">
         <template #prefix><NIcon :size="16" class="text-stone-400"><SearchOutline /></NIcon></template>
       </NInput>
@@ -231,7 +230,7 @@ const columns: DataTableColumns<User> = [
 
     <PageCard>
       <TableSkeleton v-if="loading && !users" />
-      <NEmpty v-else-if="rows.length === 0" class="py-16" description="Không tìm thấy tài khoản." />
+      <NEmpty v-else-if="rows.length === 0" class="py-10" description="Không tìm thấy tài khoản." />
       <NDataTable v-else :columns="columns" :data="rows" :row-key="(row: User) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="900" size="small" />
     </PageCard>
 

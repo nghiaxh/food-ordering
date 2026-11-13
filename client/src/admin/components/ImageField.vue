@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { NButton, NInput, NIcon } from 'naive-ui'
+import { NButton, NImage, NInput, NIcon } from 'naive-ui'
 import { CloudUploadOutline } from '@vicons/ionicons5'
 import { adminUploadImage } from '@/admin/menu/api'
 import { apiErrorMessage } from '@/shared/utils/api-error'
@@ -43,7 +43,7 @@ const onFile = async (event: Event) => {
   <div>
     <div class="flex items-end gap-2">
       <div class="min-w-0 flex-1">
-        <label class="mb-1.5 block text-xs font-medium text-stone-400">{{ props.label }}</label>
+        <label class="mb-1 block text-xs font-medium text-stone-500">{{ props.label }}</label>
         <NInput :value="props.value ?? ''" clearable placeholder="https://..." size="medium" @update:value="(v: string) => emit('update:value', v)" />
       </div>
       <NButton :loading="uploading" @click="fileInput?.click()">
@@ -53,9 +53,17 @@ const onFile = async (event: Event) => {
       <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onFile" />
     </div>
     <div class="mt-2">
-      <img v-if="props.value" :src="props.value" alt="Xem trước ảnh" class="aspect-[4/3] w-full max-w-xs rounded-xl border border-stone-100 object-cover" />
-      <div v-else class="grid aspect-[4/3] w-full max-w-xs place-items-center rounded-xl border border-dashed border-stone-200 text-stone-300">
-        <span class="text-xs">Chưa có ảnh</span>
+      <NImage
+        v-if="props.value"
+        :src="props.value"
+        alt="Xem trước ảnh"
+        width="224"
+        height="168"
+        object-fit="cover"
+        class="rounded-lg border border-stone-200"
+      />
+      <div v-else class="grid h-42 w-56 place-items-center rounded-lg border border-dashed border-stone-200 text-xs text-stone-400">
+        Chưa có ảnh
       </div>
     </div>
   </div>

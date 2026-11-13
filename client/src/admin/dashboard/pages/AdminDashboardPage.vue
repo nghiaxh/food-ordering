@@ -10,6 +10,7 @@ import { orderCode } from '@/shared/utils/orders'
 import { formatVND, formatRelativeTime } from '@/shared/utils/format'
 import { message } from '@/shared/api/message'
 import PageCard from '@/admin/components/PageCard.vue'
+import PageHeader from '@/admin/components/PageHeader.vue'
 
 /**
  * Tong quan danh cho quan tri: chi so chinh, don dang cho va mon ban chay. Trang co y
@@ -49,34 +50,33 @@ const approve = async (order: Order) => {
 
 <template>
   <div>
-    <div class="mb-4 flex items-center justify-between gap-3">
-      <h2 class="text-2xl font-bold tracking-tight text-stone-900">Tổng quan</h2>
-      <NButton @click="router.push('/admin/reports')">Xem báo cáo</NButton>
-    </div>
+    <PageHeader title="Tổng quan"><template #extra>
+      <NButton size="small" @click="router.push('/admin/reports')">Xem báo cáo</NButton>
+    </template></PageHeader>
 
-    <div class="grid grid-cols-2 divide-stone-200 rounded-xl border border-stone-200 bg-white sm:grid-cols-4 sm:divide-x">
-      <div v-for="(m, i) in metrics" :key="m.label" class="px-5 py-4" :class="[i < 2 ? 'border-b border-stone-200 sm:border-b-0' : '', i % 2 === 1 ? 'border-l border-stone-200 sm:border-l-0' : '']">
+    <div class="grid grid-cols-2 divide-stone-200 rounded-lg border border-stone-200 bg-white sm:grid-cols-4 sm:divide-x">
+      <div v-for="(m, i) in metrics" :key="m.label" class="px-4 py-3" :class="[i < 2 ? 'border-b border-stone-200 sm:border-b-0' : '', i % 2 === 1 ? 'border-l border-stone-200 sm:border-l-0' : '']">
         <div class="text-xs text-stone-500">{{ m.label }}</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums text-stone-900">{{ m.value }}</div>
+        <div class="mt-1 text-xl font-semibold tabular-nums text-stone-900">{{ m.value }}</div>
       </div>
     </div>
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+    <div class="mt-4 grid gap-4 lg:grid-cols-2">
       <PageCard>
-        <div class="flex items-center justify-between border-b border-stone-100 px-5 py-3.5">
+        <div class="flex items-center justify-between border-b border-stone-100 px-4 py-3">
           <div>
             <h3 class="font-semibold text-stone-800">Đơn chờ xác nhận</h3>
             <p class="mt-0.5 text-xs text-stone-500">
               {{ pending.length === 0 ? 'Không còn đơn nào đang chờ.' : `${pending.length} đơn cần xử lý` }}
             </p>
           </div>
-          <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-amber-700 hover:underline" @click="router.push('/admin/orders')">
+          <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-orange-700 hover:underline" @click="router.push('/admin/orders')">
             Tất cả đơn
           </button>
         </div>
-        <p v-if="pending.length === 0" class="px-5 py-8 text-center text-sm text-stone-400">Hộp đơn đang trống.</p>
+        <p v-if="pending.length === 0" class="px-4 py-7 text-center text-sm text-stone-400">Hộp đơn đang trống.</p>
         <ul v-else class="divide-y divide-stone-100">
-          <li v-for="o in pending" :key="o.id" class="flex items-center gap-3 px-5 py-3">
+          <li v-for="o in pending" :key="o.id" class="flex items-center gap-3 px-4 py-2.5">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
                 <span class="font-medium text-stone-800">{{ orderCode(o.id) }}</span>
@@ -92,36 +92,36 @@ const approve = async (order: Order) => {
       </PageCard>
 
       <PageCard>
-        <div class="flex items-center justify-between border-b border-stone-100 px-5 py-3.5">
+        <div class="flex items-center justify-between border-b border-stone-100 px-4 py-3">
           <div>
             <h3 class="font-semibold text-stone-800">Món bán chạy</h3>
             <p class="mt-0.5 text-xs text-stone-500">Theo số phần đã bán trong 30 ngày.</p>
           </div>
-          <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-amber-700 hover:underline" @click="router.push('/admin/reports')">
+          <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-orange-700 hover:underline" @click="router.push('/admin/reports')">
             Chi tiết
           </button>
         </div>
-        <p v-if="!topFoods || topFoods.length === 0" class="px-5 py-8 text-center text-sm text-stone-400">Chưa có dữ liệu bán hàng.</p>
-        <ul v-else class="space-y-3 px-5 py-4">
+        <p v-if="!topFoods || topFoods.length === 0" class="px-4 py-7 text-center text-sm text-stone-400">Chưa có dữ liệu bán hàng.</p>
+        <ul v-else class="space-y-3 px-4 py-3">
           <li v-for="f in topFoods" :key="f.name">
             <div class="flex items-baseline justify-between gap-3 text-sm">
               <span class="min-w-0 truncate text-stone-700">{{ f.name }}</span>
               <span class="shrink-0 tabular-nums text-stone-500">{{ f.quantity }} phần</span>
             </div>
             <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100">
-              <div class="h-full rounded-full bg-amber-600" :style="{ width: `${Math.max(4, Math.round((f.quantity / maxTop) * 100))}%` }" />
+              <div class="h-full rounded-full bg-orange-600" :style="{ width: `${Math.max(4, Math.round((f.quantity / maxTop) * 100))}%` }" />
             </div>
           </li>
         </ul>
       </PageCard>
     </div>
 
-    <div class="mt-6 grid gap-3 sm:grid-cols-3">
+    <div class="mt-4 grid gap-3 sm:grid-cols-3">
       <RouterLink v-for="shortcut in [
         { to: '/admin/foods', label: 'Quản lý món ăn', hint: 'Giá, ảnh, trạng thái phục vụ' },
         { to: '/admin/promotions', label: 'Chương trình khuyến mãi', hint: 'Giảm giá tự động theo dòng món' },
         { to: '/admin/chatbot', label: 'Cấu hình chatbot', hint: 'Nhà cung cấp AI và mô hình' },
-      ]" :key="shortcut.to" :to="shortcut.to" class="rounded-xl border border-stone-200 bg-white px-4 py-3 transition hover:border-amber-400">
+      ]" :key="shortcut.to" :to="shortcut.to" class="rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 transition hover:border-orange-300">
         <div class="text-sm font-medium text-stone-800">{{ shortcut.label }}</div>
         <div class="mt-0.5 text-xs text-stone-500">{{ shortcut.hint }}</div>
       </RouterLink>
