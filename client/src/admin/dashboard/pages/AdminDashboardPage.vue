@@ -54,32 +54,30 @@ const approve = async (order: Order) => {
       <NButton size="small" @click="router.push('/admin/reports')">Xem báo cáo</NButton>
     </template></PageHeader>
 
-    <div class="grid grid-cols-2 divide-stone-200 rounded-lg border border-stone-200 bg-white sm:grid-cols-4 sm:divide-x">
-      <div v-for="(m, i) in metrics" :key="m.label" class="px-4 py-3" :class="[i < 2 ? 'border-b border-stone-200 sm:border-b-0' : '', i % 2 === 1 ? 'border-l border-stone-200 sm:border-l-0' : '']">
-        <div class="text-xs text-stone-500">{{ m.label }}</div>
-        <div class="mt-1 text-xl font-semibold tabular-nums text-stone-900">{{ m.value }}</div>
+    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div v-for="m in metrics" :key="m.label" class="rounded-md border border-stone-200 bg-white px-3 py-2.5">
+        <div class="text-[11px] uppercase tracking-wide text-stone-500">{{ m.label }}</div>
+        <div class="mt-0.5 text-lg font-semibold tabular-nums text-stone-900">{{ m.value }}</div>
       </div>
     </div>
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+    <div class="mt-3 grid gap-3 lg:grid-cols-2">
       <PageCard>
-        <div class="flex items-center justify-between border-b border-stone-100 px-4 py-3">
+        <div class="flex items-center justify-between border-b border-stone-100 px-3 py-2.5">
           <div>
-            <h3 class="font-semibold text-stone-800">Đơn chờ xác nhận</h3>
+            <h3 class="text-sm font-semibold text-stone-800">Đơn chờ xác nhận</h3>
             <p class="mt-0.5 text-xs text-stone-500">
               {{ pending.length === 0 ? 'Không còn đơn nào đang chờ.' : `${pending.length} đơn cần xử lý` }}
             </p>
           </div>
-          <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-orange-700 hover:underline" @click="router.push('/admin/orders')">
-            Tất cả đơn
-          </button>
+          <NButton text type="primary" size="small" @click="router.push('/admin/orders')">Tất cả đơn</NButton>
         </div>
-        <p v-if="pending.length === 0" class="px-4 py-7 text-center text-sm text-stone-400">Hộp đơn đang trống.</p>
+        <p v-if="pending.length === 0" class="px-3 py-6 text-center text-sm text-stone-400">Hộp đơn đang trống.</p>
         <ul v-else class="divide-y divide-stone-100">
-          <li v-for="o in pending" :key="o.id" class="flex items-center gap-3 px-4 py-2.5">
+          <li v-for="o in pending" :key="o.id" class="flex items-center gap-3 px-3 py-2">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <span class="font-medium text-stone-800">{{ orderCode(o.id) }}</span>
+                <span class="text-sm font-medium text-stone-800">{{ orderCode(o.id) }}</span>
                 <span class="text-xs text-stone-400">{{ formatRelativeTime(o.createdAt) }}</span>
               </div>
               <div class="mt-0.5 truncate text-xs text-stone-500">
@@ -92,23 +90,21 @@ const approve = async (order: Order) => {
       </PageCard>
 
       <PageCard>
-        <div class="flex items-center justify-between border-b border-stone-100 px-4 py-3">
+        <div class="flex items-center justify-between border-b border-stone-100 px-3 py-2.5">
           <div>
-            <h3 class="font-semibold text-stone-800">Món bán chạy</h3>
+            <h3 class="text-sm font-semibold text-stone-800">Món bán chạy</h3>
             <p class="mt-0.5 text-xs text-stone-500">Theo số phần đã bán trong 30 ngày.</p>
           </div>
-          <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-orange-700 hover:underline" @click="router.push('/admin/reports')">
-            Chi tiết
-          </button>
+          <NButton text type="primary" size="small" @click="router.push('/admin/reports')">Chi tiết</NButton>
         </div>
-        <p v-if="!topFoods || topFoods.length === 0" class="px-4 py-7 text-center text-sm text-stone-400">Chưa có dữ liệu bán hàng.</p>
-        <ul v-else class="space-y-3 px-4 py-3">
+        <p v-if="!topFoods || topFoods.length === 0" class="px-3 py-6 text-center text-sm text-stone-400">Chưa có dữ liệu bán hàng.</p>
+        <ul v-else class="space-y-2.5 px-3 py-2.5">
           <li v-for="f in topFoods" :key="f.name">
             <div class="flex items-baseline justify-between gap-3 text-sm">
               <span class="min-w-0 truncate text-stone-700">{{ f.name }}</span>
               <span class="shrink-0 tabular-nums text-stone-500">{{ f.quantity }} phần</span>
             </div>
-            <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100">
+            <div class="mt-1 h-1 overflow-hidden rounded-full bg-stone-100">
               <div class="h-full rounded-full bg-orange-600" :style="{ width: `${Math.max(4, Math.round((f.quantity / maxTop) * 100))}%` }" />
             </div>
           </li>
@@ -116,12 +112,12 @@ const approve = async (order: Order) => {
       </PageCard>
     </div>
 
-    <div class="mt-4 grid gap-3 sm:grid-cols-3">
+    <div class="mt-3 grid gap-2 sm:grid-cols-3">
       <RouterLink v-for="shortcut in [
         { to: '/admin/foods', label: 'Quản lý món ăn', hint: 'Giá, ảnh, trạng thái phục vụ' },
         { to: '/admin/promotions', label: 'Chương trình khuyến mãi', hint: 'Giảm giá tự động theo dòng món' },
         { to: '/admin/chatbot', label: 'Cấu hình chatbot', hint: 'Nhà cung cấp AI và mô hình' },
-      ]" :key="shortcut.to" :to="shortcut.to" class="rounded-lg border border-stone-200 bg-white px-3.5 py-2.5 transition hover:border-orange-300">
+      ]" :key="shortcut.to" :to="shortcut.to" class="rounded-md border border-stone-200 bg-white px-3 py-2 transition hover:border-orange-300">
         <div class="text-sm font-medium text-stone-800">{{ shortcut.label }}</div>
         <div class="mt-0.5 text-xs text-stone-500">{{ shortcut.hint }}</div>
       </RouterLink>

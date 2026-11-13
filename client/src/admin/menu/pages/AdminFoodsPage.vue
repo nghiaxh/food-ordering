@@ -11,9 +11,10 @@ import {
   NFormItem,
   NIcon,
   NEmpty,
+  NTag,
   type DataTableColumns,
 } from 'naive-ui'
-import { SearchOutline } from '@vicons/ionicons5'
+import { SearchOutline, TrashOutline } from '@vicons/ionicons5'
 import { adminDeleteFood, adminSaveFood } from '@/admin/menu/api'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -142,30 +143,32 @@ const STATUS_OPTIONS = [
 
 const columns: DataTableColumns<Food> = [
   {
-    title: 'Món', key: 'name', fixed: 'left', width: 260,
-    render: (row) => h('div', { class: 'flex items-center gap-3' }, [
-      h('img', { src: row.imageUrl ?? '', alt: row.name, loading: 'lazy', class: 'h-16 w-16 rounded-lg object-cover' }),
-      h('span', { class: 'font-medium text-stone-800' }, row.name),
+    title: 'Món', key: 'name', fixed: 'left', width: 240,
+    render: (row) => h('div', { class: 'flex items-center gap-2.5' }, [
+      h('img', { src: row.imageUrl ?? '', alt: row.name, loading: 'lazy', class: 'h-12 w-12 rounded-md object-cover' }),
+      h('span', { class: 'text-sm font-medium text-stone-800' }, row.name),
     ]),
   },
   {
     title: 'Danh mục', key: 'category', width: 140,
-    render: (row) => h('span', { class: 'rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500' }, row.category?.name ?? 'Không có'),
+    render: (row) => h(NTag, { size: 'small', round: false, bordered: false }, () => row.category?.name ?? 'Không có'),
   },
-  { title: 'Giá', key: 'price', width: 140, render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, formatVND(row.price)) },
+  { title: 'Giá', key: 'price', width: 130, render: (row) => h('span', { class: 'text-sm tabular-nums text-stone-600' }, formatVND(row.price)) },
   {
-    title: 'Trạng thái', key: 'status', width: 120,
+    title: 'Trạng thái', key: 'status', width: 110,
     render: (row) => h(StatusDot, { tone: row.available ? 'success' : 'danger', label: row.available ? 'Bán' : 'Ẩn' }),
   },
   {
-    title: 'Thao tác', key: 'actions', width: 170,
-    render: (row) => h('div', { class: 'flex items-center gap-2' }, [
+    title: 'Thao tác', key: 'actions', width: 130,
+    render: (row) => h('div', { class: 'flex items-center gap-1.5' }, [
       h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => 'Sửa'),
       h(NButton, {
         size: 'small', type: 'error', ghost: true,
         loading: busyIds.value.has(row.id),
+        'aria-label': 'Xóa món',
+        title: 'Xóa món',
         onClick: () => confirmRemove({ title: 'Xóa món này?', onOk: () => remove(row.id) }),
-      }, () => 'Xóa'),
+      }, () => h(NIcon, { size: 15 }, () => h(TrashOutline))),
     ]),
   },
 ]
@@ -177,13 +180,13 @@ const columns: DataTableColumns<Food> = [
       <NButton type="primary" size="small" @click="openCreate">Thêm món</NButton>
     </template></PageHeader>
 
-    <div class="mb-4 flex flex-wrap items-center gap-3">
-      <NInput v-model:value="search" placeholder="Tìm theo tên hoặc danh mục..." clearable class="w-full sm:w-72">
-        <template #prefix><NIcon :size="16" class="text-stone-400"><SearchOutline /></NIcon></template>
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <NInput v-model:value="search" placeholder="Tìm theo tên hoặc danh mục..." clearable size="small" class="w-full sm:w-64">
+        <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
       </NInput>
-      <NSelect v-model:value="catFilter" clearable placeholder="Tất cả danh mục" class="min-w-0 flex-1 sm:flex-none sm:w-52" :options="categoryOptions" />
-      <NSelect v-model:value="statusFilter" class="min-w-0 flex-1 sm:flex-none sm:w-44" :options="STATUS_OPTIONS" />
-      <span v-if="search.trim() || catFilter !== undefined || statusFilter !== 'all'" class="text-sm text-stone-400">
+      <NSelect v-model:value="catFilter" clearable placeholder="Tất cả danh mục" size="small" class="min-w-0 flex-1 sm:flex-none sm:w-48" :options="categoryOptions" />
+      <NSelect v-model:value="statusFilter" size="small" class="min-w-0 flex-1 sm:flex-none sm:w-40" :options="STATUS_OPTIONS" />
+      <span v-if="search.trim() || catFilter !== undefined || statusFilter !== 'all'" class="text-xs text-stone-400">
         Hiển thị {{ rows.length }} / {{ data?.length ?? 0 }} món
       </span>
     </div>
@@ -201,42 +204,42 @@ const columns: DataTableColumns<Food> = [
       :on-close="() => { modal = false }"
       :on-submit="submit"
     >
-      <NForm ref="formRef" :model="form" :show-require-mark="false" class="mt-4">
-        <div class="grid gap-x-4 md:grid-cols-2">
+      <NForm ref="formRef" :model="form" :show-require-mark="false" size="small" class="mt-3">
+        <div class="grid gap-x-3 md:grid-cols-2">
           <NFormItem label="Tên món" path="name" :rule="[{ required: true, message: 'Nhập tên', trigger: ['blur', 'input'] }]" class="md:col-span-2">
-            <NInput v-model:value="form.name" size="medium" />
+            <NInput v-model:value="form.name" />
           </NFormItem>
           <NFormItem label="Danh mục" path="categoryId" :rule="[{ required: true, message: 'Chọn danh mục', trigger: 'change' }]">
-            <NSelect v-model:value="form.categoryId" placeholder="Chọn danh mục" :options="categoryOptions" size="medium" />
+            <NSelect v-model:value="form.categoryId" placeholder="Chọn danh mục" :options="categoryOptions" />
           </NFormItem>
           <NFormItem label="Giá" path="price" :rule="[{ required: true, message: 'Nhập giá', trigger: ['blur', 'input'] }]">
-            <NInputNumber v-model:value="form.price" :min="0" :step="1000" class="w-full" size="medium">
+            <NInputNumber v-model:value="form.price" :min="0" :step="1000" class="w-full">
               <template #suffix>đ</template>
             </NInputNumber>
           </NFormItem>
           <NFormItem label="Khẩu phần (người)" path="servingSize">
-            <NInputNumber v-model:value="form.servingSize" :min="1" class="w-full" size="medium" />
+            <NInputNumber v-model:value="form.servingSize" :min="1" class="w-full" />
           </NFormItem>
           <NFormItem label="Độ cay" path="spicyLevel">
-            <NSelect v-model:value="form.spicyLevel" :options="SPICY_OPTIONS" size="medium" />
+            <NSelect v-model:value="form.spicyLevel" :options="SPICY_OPTIONS" />
           </NFormItem>
           <NFormItem label="Mô tả" path="description" class="md:col-span-2">
-            <NInput v-model:value="form.description" type="textarea" :autosize="{ minRows: 2 }" size="medium" />
+            <NInput v-model:value="form.description" type="textarea" :autosize="{ minRows: 2 }" />
           </NFormItem>
           <NFormItem label="Nguyên liệu" path="ingredients" class="md:col-span-2">
-            <NInput v-model:value="form.ingredients" type="textarea" :autosize="{ minRows: 2 }" placeholder="Thịt, rau, gia vị..." size="medium" />
+            <NInput v-model:value="form.ingredients" type="textarea" :autosize="{ minRows: 2 }" placeholder="Thịt, rau, gia vị..." />
           </NFormItem>
           <NFormItem label="Chế độ ăn" path="dietaryTags">
-            <NInput v-model:value="form.dietaryTags" placeholder="chay, ít dầu mỡ..." size="medium" />
+            <NInput v-model:value="form.dietaryTags" placeholder="chay, ít dầu mỡ..." />
           </NFormItem>
           <NFormItem label="Dị ứng" path="allergens">
-            <NInput v-model:value="form.allergens" placeholder="Gluten, Tôm..." size="medium" />
+            <NInput v-model:value="form.allergens" placeholder="Gluten, Tôm..." />
           </NFormItem>
           <NFormItem label="Ảnh món ăn" path="imageUrl" class="md:col-span-2">
             <ImageField v-model:value="form.imageUrl" />
           </NFormItem>
-          <NCheckbox v-model:checked="form.available" class="md:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2">
-            <span class="font-semibold text-emerald-700">Đang bán</span>
+          <NCheckbox v-model:checked="form.available" class="md:col-span-2 rounded-md border border-stone-200 px-2.5 py-1.5">
+            <span class="text-sm font-medium text-emerald-700">Đang bán</span>
             <span class="text-xs text-stone-500"> — tắt để ẩn món khỏi thực đơn</span>
           </NCheckbox>
         </div>

@@ -13,6 +13,7 @@ import {
   NFormItem,
   NIcon,
   NEmpty,
+  NTag,
   NTooltip,
   type DataTableColumns,
 } from 'naive-ui'
@@ -213,27 +214,27 @@ const counts = computed(() => {
 })
 
 const columns: DataTableColumns<Order> = [
-  { title: 'Mã đơn', key: 'id', width: 90, fixed: 'left', render: (row) => h('span', { class: 'tabular-nums' }, `#${orderCode(row.id)}`) },
+  { title: 'Mã đơn', key: 'id', width: 90, fixed: 'left', render: (row) => h('span', { class: 'text-sm tabular-nums' }, `#${orderCode(row.id)}`) },
   {
     title: 'Khách', key: 'receiver', width: 160, fixed: 'left',
     render: (row) => h('div', { class: 'flex flex-col text-stone-700' }, [
-      h('span', { class: 'block truncate font-medium', title: row.receiverName }, row.receiverName),
+      h('span', { class: 'block truncate text-sm font-medium', title: row.receiverName }, row.receiverName),
       h('span', { class: 'text-xs tabular-nums text-stone-400' }, row.phone),
     ]),
   },
-  { title: 'Địa chỉ', key: 'address', width: 200, render: (row) => h('span', { class: 'text-stone-500' }, row.address) },
+  { title: 'Địa chỉ', key: 'address', width: 190, render: (row) => h('span', { class: 'text-sm text-stone-500' }, row.address) },
   {
-    title: 'Món đặt', key: 'items', width: 110,
-    render: (row) => h('span', { class: 'whitespace-nowrap rounded-md bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500' },
+    title: 'Món đặt', key: 'items', width: 100,
+    render: (row) => h(NTag, { size: 'small', round: false, bordered: false }, () =>
       `${row.items.reduce((sum, i) => sum + i.quantity, 0)} món`),
   },
-  { title: 'Tổng tiền', key: 'total', width: 140, render: (row) => h('b', { class: 'tabular-nums' }, formatVND(row.total)) },
+  { title: 'Tổng tiền', key: 'total', width: 130, render: (row) => h('b', { class: 'text-sm tabular-nums' }, formatVND(row.total)) },
   {
-    title: 'Trạng thái', key: 'status', width: 180,
+    title: 'Trạng thái', key: 'status', width: 160,
     render: (row) => h(StatusDot, { tone: STATUS_TONE[row.status], label: ORDER_STATUS_LABEL[row.status] ?? row.status }),
   },
   {
-    title: 'Thao tác nhanh', key: 'actions', width: 320,
+    title: 'Thao tác nhanh', key: 'actions', width: 270,
     render: (row) => {
       const nexts = allowedNextStatuses(row.status)
       const primaryNext = nexts.find((s) => s !== 'CANCELLED')
@@ -262,6 +263,8 @@ const columns: DataTableColumns<Order> = [
         h(NButton, {
           size: 'small', type: 'error', ghost: true,
           loading: busyIds.value.has(row.id),
+          'aria-label': 'Xóa đơn',
+          title: 'Xóa đơn',
           onClick: () => confirmRemove({ title: 'Xóa đơn này?', onOk: () => remove(row.id) }),
         }, () => h(NIcon, { size: 15 }, () => h(TrashOutline))),
       ])
@@ -297,20 +300,22 @@ const statusSelectOptions = computed(() => {  const d = detail.value
       <NButton type="primary" size="small" @click="openCreate">Thêm đơn</NButton>
     </template></PageHeader>
 
-    <div class="mb-4 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Lọc theo trạng thái đơn">
-      <button
+    <div class="mb-3 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Lọc theo trạng thái đơn">
+      <NButton
         v-for="tab in STATUS_TABS"
         :key="tab.key"
-        type="button"
         role="tab"
         :aria-selected="statusFilter === tab.key"
-        class="inline-flex min-h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition"
-        :class="statusFilter === tab.key ? 'bg-orange-700 text-white' : 'bg-white text-stone-700 ring-1 ring-stone-200 hover:bg-orange-50'"
+        size="small"
+        :type="statusFilter === tab.key ? 'primary' : 'default'"
+        :quaternary="statusFilter !== tab.key"
         @click="statusFilter = tab.key"
       >
-        <span v-if="tab.dot" class="inline-block h-2 w-2 rounded-full" :class="tab.dot" />
+        <template v-if="tab.dot" #icon>
+          <span class="h-2 w-2 rounded-full" :class="tab.dot" />
+        </template>
         {{ tab.label }}
-      </button>
+      </NButton>
     </div>
 
     <PageCard>
@@ -344,11 +349,11 @@ const statusSelectOptions = computed(() => {  const d = detail.value
           </div>
 
           <div>
-            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Thông tin đơn</p>
-            <div class="space-y-1.5 rounded-lg bg-stone-50 p-3 text-sm text-stone-600">
+            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">Thông tin đơn</p>
+            <div class="space-y-1.5 rounded-md bg-stone-50 p-2.5 text-sm text-stone-600">
               <p>Đặt lúc: <b class="font-medium text-stone-800">{{ new Date(detail.createdAt).toLocaleString('vi-VN') }}</b></p>
               <p>Thanh toán: <b class="font-medium text-stone-800">{{ PAYMENT_METHOD_LABEL[detail.paymentMethod] ?? detail.paymentMethod }}</b></p>
-              <div class="flex items-center justify-between gap-3 pt-2">
+              <div class="flex items-center justify-between gap-3 pt-1.5">
                 <span class="text-sm text-stone-600">Trạng thái: <b class="font-medium text-stone-800">{{ detail.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán' }}</b></span>
                 <NButton v-if="detail.paymentStatus === 'PAID'" size="small" :loading="busyIds.has(detail.id)" :disabled="busyIds.has(detail.id)" @click="changePayment(detail.id, false)">Hoàn tác</NButton>
                 <NButton v-else type="primary" size="small" :loading="busyIds.has(detail.id)" :disabled="busyIds.has(detail.id)" @click="changePayment(detail.id, true)">Đã thanh toán</NButton>
@@ -357,8 +362,8 @@ const statusSelectOptions = computed(() => {  const d = detail.value
           </div>
 
           <div>
-            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Người nhận</p>
-            <div class="space-y-1.5 rounded-lg bg-stone-50 p-3 text-sm text-stone-600">
+            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">Người nhận</p>
+            <div class="space-y-1.5 rounded-md bg-stone-50 p-2.5 text-sm text-stone-600">
               <p><b class="font-medium text-stone-800">{{ detail.receiverName }}</b></p>
               <p class="tabular-nums">{{ detail.phone }}</p>
               <p>{{ detail.address }}</p>
@@ -367,15 +372,15 @@ const statusSelectOptions = computed(() => {  const d = detail.value
           </div>
 
           <div v-if="detail.note">
-            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Lưu ý cho quán</p>
-            <p class="rounded-lg bg-orange-50 p-3 text-sm leading-relaxed text-orange-900">{{ detail.note }}</p>
+            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">Lưu ý cho quán</p>
+            <p class="rounded-md bg-orange-50 p-2.5 text-sm leading-relaxed text-orange-900">{{ detail.note }}</p>
           </div>
 
           <div>
-            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Món đặt ({{ detail.items.length }})</p>
-            <div class="space-y-2.5">
-              <div v-for="item in detail.items" :key="item.id" class="flex items-center gap-3 rounded-lg border border-stone-100 p-2">
-                <img v-if="item.food?.imageUrl" :src="item.food.imageUrl" :alt="item.food?.name ?? ''" loading="lazy" class="h-12 w-12 rounded-lg object-cover" />
+            <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">Món đặt ({{ detail.items.length }})</p>
+            <div class="space-y-2">
+              <div v-for="item in detail.items" :key="item.id" class="flex items-center gap-2.5 rounded-md border border-stone-100 p-2">
+                <img v-if="item.food?.imageUrl" :src="item.food.imageUrl" :alt="item.food?.name ?? ''" loading="lazy" class="h-10 w-10 rounded-md object-cover" />
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-medium text-stone-800">{{ item.food?.name }}</p>
                   <p class="text-xs text-stone-400">
@@ -388,7 +393,7 @@ const statusSelectOptions = computed(() => {  const d = detail.value
             </div>
           </div>
 
-          <div class="flex items-center justify-between border-t border-stone-100 pt-4">
+          <div class="flex items-center justify-between border-t border-stone-100 pt-3">
             <span class="text-sm text-stone-500">Tổng cộng</span>
             <b class="text-lg tabular-nums text-stone-900">{{ formatVND(detail.total) }}</b>
           </div>
@@ -398,51 +403,51 @@ const statusSelectOptions = computed(() => {  const d = detail.value
 
     <!-- Form tao/sua don -->
     <FormModal :title="editing ? `Sửa đơn #${editing.id}` : 'Thêm đơn hàng'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
-      <NForm ref="formRef" :model="form" :show-require-mark="false" class="mt-4">
+      <NForm ref="formRef" :model="form" :show-require-mark="false" size="small" class="mt-3">
         <NFormItem label="Khách hàng" path="customerEmail" :rule="[{ required: true, message: 'Chọn khách hàng', trigger: 'change' }]">
-          <NSelect v-model:value="form.customerEmail" filterable placeholder="Chọn khách để gắn đơn" :options="userOptions" size="medium" />
+          <NSelect v-model:value="form.customerEmail" filterable placeholder="Chọn khách để gắn đơn" :options="userOptions" />
         </NFormItem>
 
         <div class="grid gap-x-3 sm:grid-cols-2">
           <NFormItem label="Người nhận" path="receiverName" :rule="[{ required: true, message: 'Nhập tên người nhận', trigger: ['blur', 'input'] }]">
-            <NInput v-model:value="form.receiverName" size="medium" />
+            <NInput v-model:value="form.receiverName" />
           </NFormItem>
           <NFormItem label="Số điện thoại" path="phone" :rule="[{ required: true, message: 'Nhập số điện thoại', trigger: ['blur', 'input'] }, { pattern: PHONE_PATTERN, message: 'Số điện thoại phải gồm đúng 10 chữ số', trigger: ['input'] }]">
-            <NInput v-model:value="form.phone" placeholder="0900000000" size="medium" />
+            <NInput v-model:value="form.phone" placeholder="0900000000" />
           </NFormItem>
         </div>
 
         <NFormItem label="Địa chỉ giao hàng" path="address" :rule="[{ required: true, message: 'Nhập địa chỉ', trigger: ['blur', 'input'] }]">
-          <NInput v-model:value="form.address" size="medium" />
+          <NInput v-model:value="form.address" />
         </NFormItem>
 
         <div class="grid gap-x-3 sm:grid-cols-3">
           <NFormItem label="Thanh toán" path="paymentMethod" :rule="[{ required: true }]">
-            <NSelect v-model:value="form.paymentMethod" :options="PAYMENT_METHODS" size="medium" />
+            <NSelect v-model:value="form.paymentMethod" :options="PAYMENT_METHODS" />
           </NFormItem>
           <NFormItem label="Trạng thái" path="status">
-            <NSelect v-model:value="form.status" :options="statusOptions" size="medium" />
+            <NSelect v-model:value="form.status" :options="statusOptions" />
           </NFormItem>
           <NFormItem label="Thanh toán" path="paid">
             <NCheckbox v-model:checked="form.paid">Đã thanh toán</NCheckbox>
           </NFormItem>
         </div>
 
-        <p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">Món đặt</p>
-        <p v-if="itemsLocked" class="mb-2 rounded-lg bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500">
+        <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-400">Món đặt</p>
+        <p v-if="itemsLocked" class="mb-2 rounded-md bg-stone-50 px-2.5 py-1.5 text-xs leading-relaxed text-stone-500">
           Đơn đã xác nhận hoặc đã thu tiền nên chỉ sửa được người nhận, số điện thoại, địa chỉ và ghi chú. Muốn đổi món, hãy hủy đơn và tạo đơn mới.
         </p>
         <div v-for="(item, index) in form.items" :key="index" class="mb-2 flex items-start gap-2">
-          <NSelect v-model:value="item.foodId" filterable placeholder="Chọn món" :options="foodOptions" :disabled="itemsLocked" size="medium" class="min-w-0 flex-1" />
-          <NInputNumber v-model:value="item.quantity" :min="1" :max="99" :disabled="itemsLocked" size="medium" style="width: 80px" />
-          <NButton type="error" ghost size="medium" :disabled="itemsLocked" :aria-label="'Bỏ món khỏi đơn'" @click="removeItem(index)">
-            <template #icon><NIcon :size="15"><TrashOutline /></NIcon></template>
+          <NSelect v-model:value="item.foodId" filterable placeholder="Chọn món" :options="foodOptions" :disabled="itemsLocked" class="min-w-0 flex-1" />
+          <NInputNumber v-model:value="item.quantity" :min="1" :max="99" :disabled="itemsLocked" style="width: 80px" />
+          <NButton size="small" type="error" ghost :disabled="itemsLocked" :aria-label="'Bỏ món khỏi đơn'" @click="removeItem(index)">
+            <template #icon><NIcon :size="14"><TrashOutline /></NIcon></template>
           </NButton>
         </div>
-        <NButton block dashed :disabled="itemsLocked" @click="addItem">Thêm món</NButton>
+        <NButton size="small" block dashed :disabled="itemsLocked" @click="addItem">Thêm món</NButton>
 
-        <NFormItem label="Lưu ý cho quán" path="note" class="mt-4" :show-feedback="false">
-          <NInput v-model:value="form.note" type="textarea" :autosize="{ minRows: 2 }" :maxlength="255" show-count size="medium" />
+        <NFormItem label="Lưu ý cho quán" path="note" class="mt-3" :show-feedback="false">
+          <NInput v-model:value="form.note" type="textarea" :autosize="{ minRows: 2 }" :maxlength="255" show-count />
         </NFormItem>
       </NForm>
     </FormModal>
