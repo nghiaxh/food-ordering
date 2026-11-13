@@ -11,8 +11,11 @@ import {
   NForm,
   NFormItem,
   NEmpty,
+  NIcon,
+  NTag,
   type DataTableColumns,
 } from 'naive-ui'
+import { TrashOutline } from '@vicons/ionicons5'
 import { adminDeletePromotion, adminGetPromotions, adminSavePromotion } from '@/admin/promotion/api'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -23,6 +26,7 @@ import { confirmRemove, runAndMessage } from '@/admin/components/shared'
 import PageCard from '@/admin/components/PageCard.vue'
 import PageHeader from '@/admin/components/PageHeader.vue'
 import TableSkeleton from '@/admin/components/TableSkeleton.vue'
+import StatusDot from '@/admin/components/StatusDot.vue'
 import FormModal from '@/components/FormModal.vue'
 import { message } from '@/shared/api/message'
 
@@ -160,23 +164,31 @@ const doRemove = async (p: Promotion) => {
 }
 
 const columns: DataTableColumns<Promotion> = [
-  { title: 'Tên', key: 'name' },
-  { title: 'Mức giảm', key: 'discount', render: (_row) => discountLabel(_row) },
-  { title: 'Phạm vi', key: 'scope', render: (row) => SCOPES.find((s) => s.value === row.scope)?.label ?? row.scope },
+  { title: 'Tên', key: 'name', width: 180, render: (row) => h('span', { class: 'text-sm font-medium text-stone-800' }, row.name) },
+  { title: 'Mức giảm', key: 'discount', width: 200, render: (_row) => h('span', { class: 'text-sm tabular-nums text-stone-700' }, discountLabel(_row)) },
   {
-    title: 'Hiệu lực', key: 'range',
-    render: (row) => h('span', { class: 'text-stone-500' },
+    title: 'Phạm vi', key: 'scope', width: 130,
+    render: (row) => h(NTag, { size: 'small', round: false, bordered: false }, () => SCOPES.find((s) => s.value === row.scope)?.label ?? row.scope),
+  },
+  {
+    title: 'Hiệu lực', key: 'range', width: 180,
+    render: (row) => h('span', { class: 'text-xs tabular-nums text-stone-500' },
       `${new Date(row.startsAt).toLocaleDateString('vi-VN')} – ${new Date(row.endsAt).toLocaleDateString('vi-VN')}`),
   },
-  { title: 'Trạng thái', key: 'active', render: (row) => h('span', { class: row.active ? 'font-medium text-emerald-700' : 'text-stone-400' }, row.active ? 'Đang chạy' : 'Tạm dừng') },
   {
-    title: 'Thao tác', key: 'actions', width: 150,
-    render: (row) => h('div', { class: 'flex gap-2' }, [
+    title: 'Trạng thái', key: 'active', width: 130,
+    render: (row) => h(StatusDot, row.active ? { tone: 'success', label: 'Đang chạy' } : { tone: 'neutral', label: 'Tạm dừng', muted: true }),
+  },
+  {
+    title: 'Thao tác', key: 'actions', width: 120,
+    render: (row) => h('div', { class: 'flex items-center gap-1.5' }, [
       h(NButton, { size: 'small', onClick: () => openEdit(row) }, () => 'Sửa'),
       h(NButton, {
         size: 'small', type: 'error', ghost: true,
+        'aria-label': 'Xóa khuyến mãi',
+        title: 'Xóa khuyến mãi',
         onClick: () => confirmRemove({ title: `Xóa khuyến mãi "${row.name}"?`, onOk: () => doRemove(row) }),
-      }, () => 'Xóa'),
+      }, () => h(NIcon, { size: 14 }, () => h(TrashOutline))),
     ]),
   },
 ]
@@ -190,34 +202,34 @@ const columns: DataTableColumns<Promotion> = [
 
     <PageCard>
       <TableSkeleton v-if="loading && !promotions" />
-      <NEmpty v-else-if="(promotions ?? []).length === 0" class="py-10" description="Chưa có khuyến mãi nào." />
+      <NEmpty v-else-if="(promotions ?? []).length === 0" class="py-8" description="Chưa có khuyến mãi nào." />
       <NDataTable v-else :columns="columns" :data="promotions ?? []" :row-key="(row: Promotion) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="900" size="small" />
     </PageCard>
 
     <FormModal :title="editing ? 'Sửa khuyến mãi' : 'Thêm khuyến mãi'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
-      <NForm ref="formRef" :model="form" :show-require-mark="false" class="mt-4">
+      <NForm ref="formRef" :model="form" :show-require-mark="false" size="small" class="mt-3">
         <NFormItem label="Tên chương trình" path="name" :rule="[{ required: true, message: 'Nhập tên chương trình', trigger: ['blur', 'input'] }]">
-          <NInput v-model:value="form.name" size="medium" />
+          <NInput v-model:value="form.name" />
         </NFormItem>
         <NFormItem label="Mô tả hiển thị cho khách" path="description">
-          <NInput v-model:value="form.description" type="textarea" :autosize="{ minRows: 2 }" :maxlength="500" show-count size="medium" />
+          <NInput v-model:value="form.description" type="textarea" :autosize="{ minRows: 2 }" :maxlength="500" show-count />
         </NFormItem>
 
         <div class="grid gap-x-3 sm:grid-cols-2">
           <NFormItem label="Kiểu giảm" path="discountType" :rule="[{ required: true }]">
-            <NSelect v-model:value="form.discountType" :options="TYPES" size="medium" />
+            <NSelect v-model:value="form.discountType" :options="TYPES" />
           </NFormItem>
           <NFormItem label="Giá trị" path="discountValue" :rule="[{ required: true, message: 'Nhập giá trị giảm', trigger: ['blur', 'input'] }]">
-            <NInputNumber v-model:value="form.discountValue" :min="0" class="w-full" size="medium" />
+            <NInputNumber v-model:value="form.discountValue" :min="0" class="w-full" />
           </NFormItem>
           <NFormItem label="Giảm tối đa (theo %)" path="maxDiscount">
-            <NInputNumber v-model:value="form.maxDiscount" :min="0" class="w-full" placeholder="Bỏ trống nếu không giới hạn" size="medium" />
+            <NInputNumber v-model:value="form.maxDiscount" :min="0" class="w-full" placeholder="Bỏ trống nếu không giới hạn" />
           </NFormItem>
         </div>
 
         <div class="grid gap-x-3 sm:grid-cols-2">
           <NFormItem label="Phạm vi" path="scope" :rule="[{ required: true }]">
-            <NSelect v-model:value="form.scope" :options="SCOPES" size="medium" />
+            <NSelect v-model:value="form.scope" :options="SCOPES" />
           </NFormItem>
           <NFormItem
             v-if="form.scope !== 'GLOBAL'"
@@ -225,7 +237,7 @@ const columns: DataTableColumns<Promotion> = [
             path="targetIds"
             :rule="{ type: 'array', required: true, message: 'Chọn ít nhất một mục áp dụng', trigger: ['blur', 'change'] }"
           >
-            <NSelect v-model:value="form.targetIds" multiple clearable :placeholder="`Chọn ${form.scope === 'CATEGORY' ? 'danh mục' : 'món'}`" :options="targetOptions" size="medium" />
+            <NSelect v-model:value="form.targetIds" multiple clearable :placeholder="`Chọn ${form.scope === 'CATEGORY' ? 'danh mục' : 'món'}`" :options="targetOptions" />
             <template #feedback>
               <span class="text-xs text-stone-400">Bắt buộc chọn ít nhất một mục, khuyến mãi chỉ áp cho mục đã chọn.</span>
             </template>
@@ -234,23 +246,23 @@ const columns: DataTableColumns<Promotion> = [
 
         <div class="grid gap-x-3 sm:grid-cols-2">
           <NFormItem label="Thời gian" path="range" :rule="[{ required: true, message: 'Chọn thời điểm', trigger: 'change' }]" class="sm:col-span-2">
-            <NDatePicker v-model:value="form.range" type="datetimerange" class="w-full" size="medium" />
+            <NDatePicker v-model:value="form.range" type="datetimerange" class="w-full" />
           </NFormItem>
         </div>
 
         <NFormItem label="Ngày trong tuần" path="daysOfWeek">
-          <NInput v-model:value="form.daysOfWeek" placeholder="SAT,SUN (bỏ trống = mọi ngày)" size="medium" />
+          <NInput v-model:value="form.daysOfWeek" placeholder="SAT,SUN (bỏ trống = mọi ngày)" />
         </NFormItem>
 
         <div class="grid gap-x-3 sm:grid-cols-3">
           <NFormItem label="Ưu tiên" path="priority">
-            <NInputNumber v-model:value="form.priority" class="w-full" size="medium" />
+            <NInputNumber v-model:value="form.priority" class="w-full" />
           </NFormItem>
           <NFormItem label="Giới hạn lượt dùng" path="usageLimit">
-            <NInputNumber v-model:value="form.usageLimit" :min="0" class="w-full" placeholder="0 = không giới hạn" size="medium" />
+            <NInputNumber v-model:value="form.usageLimit" :min="0" class="w-full" placeholder="0 = không giới hạn" />
           </NFormItem>
           <NFormItem label="Số món ngẫu nhiên mỗi ngày" path="randomCount">
-            <NInputNumber v-model:value="form.randomCount" :min="0" class="w-full" size="medium" />
+            <NInputNumber v-model:value="form.randomCount" :min="0" class="w-full" />
             <template #feedback>
               <span class="text-xs text-stone-400">0 = áp cho mọi món khớp phạm vi.</span>
             </template>
@@ -258,7 +270,7 @@ const columns: DataTableColumns<Promotion> = [
         </div>
 
         <NFormItem label="Đơn tối thiểu để áp dụng" path="minOrderTotal">
-          <NInputNumber v-model:value="form.minOrderTotal" :min="0" class="w-full" placeholder="Bỏ trống nếu áp dụng cho mọi đơn" size="medium" />
+          <NInputNumber v-model:value="form.minOrderTotal" :min="0" class="w-full" placeholder="Bỏ trống nếu áp dụng cho mọi đơn" />
           <template #feedback>
             <span class="text-xs text-stone-400">Chỉ giảm khi tổng đơn đạt mức này.</span>
           </template>

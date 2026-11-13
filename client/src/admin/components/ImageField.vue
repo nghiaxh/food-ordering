@@ -44,10 +44,10 @@ const onFile = async (event: Event) => {
     <div class="flex items-end gap-2">
       <div class="min-w-0 flex-1">
         <label class="mb-1 block text-xs font-medium text-stone-500">{{ props.label }}</label>
-        <NInput :value="props.value ?? ''" clearable placeholder="https://..." size="medium" @update:value="(v: string) => emit('update:value', v)" />
+        <NInput :value="props.value ?? ''" clearable placeholder="https://..." size="small" @update:value="(v: string) => emit('update:value', v)" />
       </div>
-      <NButton :loading="uploading" @click="fileInput?.click()">
-        <template #icon><NIcon :size="16"><CloudUploadOutline /></NIcon></template>
+      <NButton size="small" :loading="uploading" @click="fileInput?.click()">
+        <template #icon><NIcon :size="14"><CloudUploadOutline /></NIcon></template>
         Chọn ảnh
       </NButton>
       <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onFile" />
@@ -57,12 +57,12 @@ const onFile = async (event: Event) => {
         v-if="props.value"
         :src="props.value"
         alt="Xem trước ảnh"
-        width="224"
-        height="168"
+        width="160"
+        height="120"
         object-fit="cover"
-        class="rounded-lg border border-stone-200"
+        class="rounded-md border border-stone-200"
       />
-      <div v-else class="grid h-42 w-56 place-items-center rounded-lg border border-dashed border-stone-200 text-xs text-stone-400">
+      <div v-else class="grid h-30 w-40 place-items-center rounded-md border border-dashed border-stone-200 text-xs text-stone-400">
         Chưa có ảnh
       </div>
     </div>
