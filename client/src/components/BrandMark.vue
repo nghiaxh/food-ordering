@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { NIcon } from 'naive-ui'
+import { HomeOutline } from '@vicons/ionicons5'
 
 withDefaults(defineProps<{ class?: string }>(), { class: '' })
 </script>
@@ -12,8 +14,7 @@ withDefaults(defineProps<{ class?: string }>(), { class: '' })
     :class="$props.class"
   >
     <span class="grid h-9 w-9 place-items-center rounded-xl bg-stone-50 ring-1 ring-stone-100">
-      <span aria-hidden="true" class="text-xl leading-none">🍜</span>
+      <NIcon :size="20" aria-hidden="true"><HomeOutline /></NIcon>
     </span>
-    <span class="hidden text-[15px] font-bold tracking-tight text-stone-900 sm:inline">FoodOrdering</span>
   </RouterLink>
 </template>

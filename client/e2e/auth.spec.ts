@@ -13,6 +13,14 @@ test.describe('E2E - User authentication', () => {
     await expect(page.getByRole('button', { name: /Menu tài khoản/ })).toBeVisible()
   })
 
+  test('Header logo returns to the menu', async ({ page }) => {
+    // AuthShell khong hien logo nen lay trang chu lam diem xuat phat.
+    await page.goto('/')
+    // Logo chi con icon nha nhung giu nguyen aria-label va RouterLink "/".
+    await page.getByRole('link', { name: 'FoodOrdering, về trang chủ' }).click()
+    await expect(page).toHaveURL(/\/$/)
+  })
+
   test('Wrong password shows an error', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('tuanpham@demo.com')
