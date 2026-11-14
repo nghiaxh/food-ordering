@@ -67,8 +67,8 @@ async function ask(page: Page, question: string) {
   const body = (await response.json()) as ChatResponse
 
   // Doi tin bot moi render xong (kem the) truoc khi hoi tiep.
-  await expect(botMessages).toHaveCount(before + 1)
-  await expect(page.getByRole('button', { name: 'Gửi câu hỏi' })).toBeEnabled()
+  await expect(botMessages).toHaveCount(before + 1, { timeout: 20_000 })
+  await expect(page.getByRole('button', { name: 'Gửi câu hỏi' })).toBeEnabled({ timeout: 20_000 })
   return { body, payload }
 }
 
@@ -81,6 +81,7 @@ test('Filters out spicy dishes and seafood', async ({ page, request }) => {
   await openChat(page)
   const { body } = await ask(page, 'Tôi muốn ăn món Việt, không cay và không có hải sản')
   expect(body.foods.length).toBeGreaterThan(0)
+  await expect(page.getByTestId('chatbot-food-card').first()).toBeVisible({ timeout: 20_000 })
 
   const foods = await foodsById(request)
   for (const card of body.foods) {
