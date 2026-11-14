@@ -85,7 +85,7 @@ const handleAdd = async () => {
             type="button"
             :aria-label="props.food.available ? `Thêm ${props.food.name} vào giỏ` : `${props.food.name} tạm hết`"
             :disabled="!props.food.available || adding"
-            class="absolute right-2 top-2 grid h-8 w-8 cursor-pointer place-items-center rounded-md border-0 bg-orange-700 leading-none text-white opacity-0 shadow-sm transition hover:bg-orange-800 focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
+            class="pointer-events-none absolute right-2 top-2 grid h-8 w-8 cursor-pointer place-items-center rounded-md border-0 bg-orange-700 leading-none text-white opacity-0 shadow-sm transition hover:bg-orange-800 focus-visible:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
             @click.stop="handleAdd"
           >
             <NIcon :size="16"><Add /></NIcon>
