@@ -58,8 +58,14 @@ test.describe('E2E - Order and payment flow', () => {
     await expect(confirm).toBeEnabled()
     await confirm.click()
 
-    // 6. Dieu huong ve /orders va thay don moi
+    // 6. Ve /orders, don moi nhat phai cho xac nhan chu khong phai nhanh khac.
+    // Phai scope vao the don: chu "Cho xac nhan" con nam o tab loc va tung buoc timeline.
     await expect(page).toHaveURL(/\/orders$/)
-    await expect(page.getByText('Chờ xác nhận').first()).toBeVisible()
+    const newest = page.locator('[id^="order-"]').first()
+    await expect(newest).toBeVisible()
+    await expect(newest.getByText(FOOD_NAME).first()).toBeVisible()
+    await expect(newest.locator('.n-tag', { hasText: 'Chờ xác nhận' })).toBeVisible()
+    await expect(newest.locator('.n-tag', { hasText: 'Chưa thanh toán' })).toBeVisible()
+    await expect(newest.getByText('Tiền mặt khi nhận', { exact: true })).toBeVisible()
   })
 })
