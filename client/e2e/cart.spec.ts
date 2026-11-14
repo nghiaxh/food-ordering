@@ -51,10 +51,14 @@ test('Changing quantity in the cart refreshes the quote', async ({ page }) => {
   await openCart(page)
 
   await expect(page.getByTestId('cart-line')).toHaveCount(1)
+  await expect(page.getByTestId('cart-line-total')).toHaveText(UNIT_PRICE)
   await expect(page.getByTestId('cart-total')).toHaveText(UNIT_PRICE)
+  // Drawer chi con dong mon va phan tong tien; khoi goi y mon da bi bo.
+  await expect(page.getByText('Thêm cho bữa này')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Tăng số lượng' }).click()
   await expect(page.getByTestId('cart-total')).toHaveText('120.000đ')
+  await expect(page.getByTestId('cart-line-total')).toHaveText('120.000đ')
 
   await page.getByRole('button', { name: 'Giảm số lượng' }).click()
   await expect(page.getByTestId('cart-total')).toHaveText(UNIT_PRICE)
