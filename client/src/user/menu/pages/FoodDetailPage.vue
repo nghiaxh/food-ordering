@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NButton, NIcon } from 'naive-ui'
-import { AlertCircleOutline, ArrowBackOutline } from '@vicons/ionicons5'
+import { AlertCircleOutline } from '@vicons/ionicons5'
 import { getFood } from '@/user/menu/api'
 import { createReview, deleteReview, getReviews, updateReview } from '@/user/review/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -160,10 +160,9 @@ watch(foodId, () => { qty.value = 1 })
   <div v-else class="mx-auto max-w-6xl px-3 py-4 pb-10 sm:px-6">
     <button
       type="button"
-      class="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50 hover:text-orange-800"
+      class="inline-flex cursor-pointer items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50 hover:text-orange-800"
       @click="goBack"
     >
-      <NIcon :size="14"><ArrowBackOutline /></NIcon>
       Quay lại thực đơn
     </button>
 
