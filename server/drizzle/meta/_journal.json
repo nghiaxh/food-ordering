@@ -8,6 +8,13 @@
       "when": 1794361096501,
       "tag": "0000_hard_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794645554635,
+      "tag": "0001_tranquil_loners",
+      "breakpoints": true
     }
   ]
 }

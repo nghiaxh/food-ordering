@@ -7,6 +7,7 @@ import {
   timestamp,
   integer,
   numeric,
+  jsonb,
   pgEnum,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -197,12 +198,32 @@ export const promotions = pgTable("promotions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+/**
+ * Anh chup tin bot de mo lai lich su co the mon. Gia la gia luc tra loi; dat mon
+ * van lay gia hien tai tu DB qua cart/order.
+ */
+export interface ChatMessagePayload {
+  foods?: Array<{
+    id: number;
+    name: string;
+    price: string;
+    imageUrl: string | null;
+    categoryName: string | null;
+    portions: number;
+    totalPrice: string;
+  }>;
+  intent?: string;
+  citations?: Array<{ sourceName: string; snippet: string }> | null;
+  quickReplies?: string[];
+}
+
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   sessionId: varchar("session_id", { length: 100 }),
   sender: messageSenderEnum("sender").notNull(),
   content: varchar("content", { length: 4000 }).notNull(),
+  payload: jsonb("payload").$type<ChatMessagePayload | null>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
