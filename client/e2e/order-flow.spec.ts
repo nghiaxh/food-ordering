@@ -18,8 +18,10 @@ test.describe('E2E - Order and payment flow', () => {
 
   test('Add a dish to the cart and place a COD order', async ({ page }) => {
     // Nut them chi hien khi re chuot vao the, nen re the truoc roi moi bam nut.
-    await page.getByRole('link', { name: FOOD_NAME, exact: true }).hover()
-    const addButton = page.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
+    // Mon dang khuyen mai con nam o dai "Uu dai hom nay", nen scope vao luoi thuc don.
+    const menu = page.locator('#thuc-don')
+    await menu.getByRole('link', { name: FOOD_NAME, exact: true }).hover()
+    const addButton = menu.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
     await expect(addButton).toBeVisible()
     await expect(addButton).toHaveCSS('opacity', '1')
     await addButton.click()
@@ -50,7 +52,8 @@ test.describe('E2E - Order and payment flow', () => {
     const cod = form.getByRole('radio', { name: /Tiền mặt khi nhận/ })
     await expect(cod).toBeChecked()
     await expect(form.getByRole('radio', { name: /Chuyển khoản QR/ })).not.toBeChecked()
-    await cod.click()
+    // Naive-ui an input that, nen bam vao nhan de doi lua chon.
+    await form.locator('.n-radio').filter({ hasText: 'Tiền mặt khi nhận' }).click()
 
     // 5. Xac nhan dat mon (nut desktop; thanh day mobile dung nhan "Dat mon" va an o viewport lg)
     const confirm = page.getByRole('button', { name: 'Xác nhận đặt món' })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { NInput, NIcon, NPopconfirm, NTooltip } from 'naive-ui'
 import {
@@ -40,13 +40,33 @@ const {
 
 const historyOpen = ref(false)
 const listRef = ref<HTMLElement | null>(null)
+const scrollToBottom = () => {
+  void nextTick(() => listRef.value?.scrollTo({ top: listRef.value.scrollHeight }))
+}
 // Tu cuon xuong cuoi moi khi co tin moi, bot dang tra loi hoac draft doi.
 watch(
   [messages, loading, () => draft.value],
-  () => {
-    void nextTick(() => listRef.value?.scrollTo({ top: listRef.value.scrollHeight }))
-  },
+  scrollToBottom,
   { deep: true },
+)
+// Doi kich thuoc khung thi giu nguoi dung o tin moi nhat.
+watch(() => ui.chatExpanded, scrollToBottom)
+
+// Esc thu nho truoc, bam lan nua moi dong han; tranh dong mat hoi thoai dang doc.
+const onKeydown = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape' || !ui.chatOpen) return
+  if (ui.chatExpanded) ui.setChatExpanded(false)
+  else ui.closeChat()
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+
+// Panel nho giu kich thuoc widget; mo rong thi phu kin vung duoi header, noi dung
+// ben trong van gioi han max-w-3xl de dong chu khong keo het chieu ngang.
+const panelClass = computed(() =>
+  ui.chatExpanded
+    ? 'max-h-none w-full max-w-none rounded-none border-0 shadow-none'
+    : 'max-h-[600px] w-[420px] max-w-full rounded-2xl border border-orange-200/70 shadow-2xl shadow-orange-900/10 max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0',
 )
 
 const isAdmin = computed(() => route.path.startsWith('/admin') || auth.user?.role === 'ADMIN')
@@ -109,8 +129,8 @@ const handleAdd = async (f: FoodCard) => {
 <template>
   <div
     v-if="!isAdmin"
-    class="pointer-events-none fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 flex flex-col items-end justify-end gap-3 px-4 sm:px-5"
-    :class="bottomBar ? 'pb-[6.25rem] lg:pb-3' : 'pb-2 sm:pb-3'"
+    class="pointer-events-none fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 flex flex-col items-end justify-end gap-3"
+    :class="ui.chatExpanded ? 'p-0' : ['px-4 sm:px-5', bottomBar ? 'pb-[6.25rem] lg:pb-3' : 'pb-2 sm:pb-3']"
   >
     <div v-if="ui.chatOpen" data-testid="chatbot-panel" class="chat-open pointer-events-auto flex min-h-0 max-h-[600px] w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-orange-200/70 bg-white shadow-2xl shadow-orange-900/10 max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
       <div class="flex shrink-0 items-center gap-2 bg-orange-600 px-2.5 py-1.5">
@@ -197,100 +217,101 @@ const handleAdd = async (f: FoodCard) => {
       <div v-else ref="listRef" class="flex-1 space-y-3 overflow-y-auto bg-stone-50/70 p-3">
         <p v-if="statusText && loading" class="text-xs text-orange-800">{{ statusText }}</p>
 
-        <template v-if="showBody">
-          <div v-for="(m, index) in renderedMessages" :key="index" :class="m.sender === 'BOT' ? '' : 'flex justify-end'">
-            <div :class="m.sender === 'BOT' ? 'max-w-[92%]' : 'max-w-[85%]'">
-              <div v-if="m.sender === 'BOT'" data-testid="chatbot-bot-message" class="whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-200/70">
-                {{ m.content }}
-                <span v-if="isStreaming && index === renderedMessages.length - 1" class="ml-0.5 inline-block h-3.5 w-1 animate-pulse rounded-sm bg-stone-400 align-middle" />
-              </div>
-              <div v-else class="whitespace-pre-wrap rounded-2xl rounded-br-md bg-orange-600 px-3 py-2 text-sm text-white">
-                {{ m.content }}
-              </div>
+          <template v-if="showBody">
+            <div v-for="(m, index) in renderedMessages" :key="index" :class="m.sender === 'BOT' ? '' : 'flex justify-end'">
+              <div :class="m.sender === 'BOT' ? 'max-w-[92%]' : 'max-w-[85%]'">
+                <div v-if="m.sender === 'BOT'" data-testid="chatbot-bot-message" class="whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-200/70">
+                  {{ m.content }}
+                  <span v-if="isStreaming && index === renderedMessages.length - 1" class="ml-0.5 inline-block h-3.5 w-1 animate-pulse rounded-sm bg-stone-400 align-middle" />
+                </div>
+                <div v-else class="whitespace-pre-wrap rounded-2xl rounded-br-md bg-orange-600 px-3 py-2 text-sm text-white">
+                  {{ m.content }}
+                </div>
 
-              <p v-if="m.sender === 'BOT' && m.citations && m.citations.length > 0" class="mt-1 text-[11px] text-stone-500">
-                Nguồn: {{ m.citations.map((c) => c.sourceName).join(', ') }}
-              </p>
+                <p v-if="m.sender === 'BOT' && m.citations && m.citations.length > 0" class="mt-1 text-[11px] text-stone-500">
+                  Nguồn: {{ m.citations.map((c) => c.sourceName).join(', ') }}
+                </p>
 
-              <div v-if="index === renderedMessages.length - 1 && m.sender === 'BOT' && !isStreaming && !loading && m.quickReplies && m.quickReplies.length > 0" class="mt-2 flex flex-wrap gap-1.5">
-                <button
-                  v-for="s in m.quickReplies"
-                  :key="s"
-                  type="button"
-                  :disabled="loading || unavailable"
-                  class="cursor-pointer rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-800 ring-1 ring-orange-200/70 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  @click="handleSend(s)"
-                >
-                  {{ s }}
-                </button>
-              </div>
+                <div v-if="index === renderedMessages.length - 1 && m.sender === 'BOT' && !isStreaming && !loading && m.quickReplies && m.quickReplies.length > 0" class="mt-2 flex flex-wrap gap-1.5">
+                  <button
+                    v-for="s in m.quickReplies"
+                    :key="s"
+                    type="button"
+                    :disabled="loading || unavailable"
+                    class="cursor-pointer rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-800 ring-1 ring-orange-200/70 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    @click="handleSend(s)"
+                  >
+                    {{ s }}
+                  </button>
+                </div>
 
-              <div v-if="m.foods && m.foods.length > 0" class="mt-2 divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
-                <RouterLink v-for="f in m.foods" :key="f.id" :to="`/foods/${f.id}`" data-testid="chatbot-food-card" class="flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-orange-50">
-                  <img :src="f.imageUrl ?? ''" :alt="f.name" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg object-cover" />
-                  <span class="min-w-0 flex-1 truncate text-sm font-medium text-stone-800">
-                    {{ f.name }}
-                    <span v-if="f.portions && f.portions > 1" class="ml-1.5 text-xs font-normal text-stone-500">x{{ f.portions }} phần</span>
-                  </span>
-                  <span data-testid="chatbot-food-total" class="shrink-0 text-sm font-bold tabular-nums text-orange-700">
-                    {{ f.portions && f.portions > 1 && f.totalPrice ? formatVND(Number(f.totalPrice)) : formatVND(Number(f.price)) }}
-                  </span>
-                  <NTooltip :disabled="canAdd">
-                    <template #trigger>
-                      <span class="ml-1 inline-flex shrink-0" @click="!canAdd && $event.preventDefault()">
-                        <button
-                          type="button"
-                          :disabled="!canAdd"
-                          :aria-label="`Thêm ${f.name} vào giỏ`"
-                          class="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-orange-700 transition hover:bg-orange-600 hover:text-white disabled:pointer-events-none disabled:bg-stone-100 disabled:text-stone-400"
-                          @click.stop="handleAdd(f)"
-                        >
-                          <NIcon :size="14"><CartOutline /></NIcon>
-                        </button>
-                      </span>
-                    </template>
-                    {{ auth.user?.role === 'ADMIN' ? 'Tài khoản quản trị không đặt món' : 'Đăng nhập để thêm món vào giỏ' }}
-                  </NTooltip>
-                </RouterLink>
+                <div v-if="m.foods && m.foods.length > 0" class="mt-2 divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
+                  <RouterLink v-for="f in m.foods" :key="f.id" :to="`/foods/${f.id}`" data-testid="chatbot-food-card" class="flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-orange-50">
+                    <img :src="f.imageUrl ?? ''" :alt="f.name" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                    <span class="min-w-0 flex-1 truncate text-sm font-medium text-stone-800">
+                      {{ f.name }}
+                      <span v-if="f.portions && f.portions > 1" class="ml-1.5 text-xs font-normal text-stone-500">x{{ f.portions }} phần</span>
+                    </span>
+                    <span data-testid="chatbot-food-total" class="shrink-0 text-sm font-bold tabular-nums text-orange-700">
+                      {{ f.portions && f.portions > 1 && f.totalPrice ? formatVND(Number(f.totalPrice)) : formatVND(Number(f.price)) }}
+                    </span>
+                    <NTooltip :disabled="canAdd">
+                      <template #trigger>
+                        <span class="ml-1 inline-flex shrink-0" @click="!canAdd && $event.preventDefault()">
+                          <button
+                            type="button"
+                            :disabled="!canAdd"
+                            :aria-label="`Thêm ${f.name} vào giỏ`"
+                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-orange-700 transition hover:bg-orange-600 hover:text-white disabled:pointer-events-none disabled:bg-stone-100 disabled:text-stone-400"
+                            @click.stop="handleAdd(f)"
+                          >
+                            <NIcon :size="14"><CartOutline /></NIcon>
+                          </button>
+                        </span>
+                      </template>
+                      {{ auth.user?.role === 'ADMIN' ? 'Tài khoản quản trị không đặt món' : 'Đăng nhập để thêm món vào giỏ' }}
+                    </NTooltip>
+                  </RouterLink>
+                </div>
               </div>
             </div>
+
+            <div v-if="showStarters" class="flex flex-wrap gap-1.5 pl-0.5">
+              <button
+                v-for="s in GREETING_STARTERS"
+                :key="s"
+                type="button"
+                class="cursor-pointer rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-800 ring-1 ring-orange-200/70 transition hover:bg-orange-100"
+                @click="handleSend(s)"
+              >
+                {{ s }}
+              </button>
+            </div>
+          </template>
+
+          <div v-if="loading && !isStreaming" class="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
+            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 0ms" />
+            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 150ms" />
+            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 300ms" />
           </div>
 
-          <div v-if="showStarters" class="flex flex-wrap gap-1.5 pl-0.5">
-            <button
-              v-for="s in GREETING_STARTERS"
-              :key="s"
-              type="button"
-              class="cursor-pointer rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-800 ring-1 ring-orange-200/70 transition hover:bg-orange-100"
-              @click="handleSend(s)"
-            >
-              {{ s }}
-            </button>
-          </div>
-        </template>
-
-        <div v-if="loading && !isStreaming" class="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
-          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 0ms" />
-          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 150ms" />
-          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 300ms" />
+          <button
+            v-if="error && !loading"
+            type="button"
+            class="cursor-pointer rounded-md bg-white px-3 py-1.5 text-xs font-medium text-orange-700 ring-1 ring-stone-200 transition hover:bg-orange-50"
+            @click="handleRetry"
+          >
+            Thử lại
+          </button>
+          <button
+            v-if="isStreaming"
+            type="button"
+            class="cursor-pointer rounded-md bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-50"
+            @click="stopStreaming"
+          >
+            <NIcon :size="13" class="mr-1 align-middle"><StopCircleOutline /></NIcon>Dừng
+          </button>
         </div>
-
-        <button
-          v-if="error && !loading"
-          type="button"
-          class="cursor-pointer rounded-md bg-white px-3 py-1.5 text-xs font-medium text-orange-700 ring-1 ring-stone-200 transition hover:bg-orange-50"
-          @click="handleRetry"
-        >
-          Thử lại
-        </button>
-        <button
-          v-if="isStreaming"
-          type="button"
-          class="cursor-pointer rounded-md bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-50"
-          @click="stopStreaming"
-        >
-          <NIcon :size="13" class="mr-1 align-middle"><StopCircleOutline /></NIcon>Dừng
-        </button>
       </div>
 
       <div v-if="!historyOpen" class="shrink-0 border-t border-stone-100 bg-white p-2.5">
@@ -320,7 +341,9 @@ const handleAdd = async (f: FoodCard) => {
     </div>
 
     <button
+      v-if="!ui.chatExpanded"
       type="button"
+      data-testid="chatbot-launcher"
       :aria-label="ui.chatOpen ? 'Đóng trợ lý' : 'Mở trợ lý'"
       class="pointer-events-auto grid h-16 w-16 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-orange-600 text-white shadow-2xl shadow-orange-900/30 transition hover:bg-orange-500 max-sm:h-14 max-sm:w-14"
       :class="ui.chatOpen ? 'max-sm:invisible' : ''"

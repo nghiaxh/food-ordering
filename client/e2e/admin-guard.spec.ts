@@ -15,7 +15,7 @@ test.describe('E2E - Admin access guard', () => {
   test('Admin signs in and manages orders', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('namnguyen@demo.com')
-    await page.getByLabel('Mật khẩu').fill(demoPassword('namnguyen@demo.com'))
+    await page.getByLabel('Mật khẩu', { exact: true }).fill(demoPassword('namnguyen@demo.com'))
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
     await page.waitForURL((url) => url.pathname.startsWith('/admin'))
 
@@ -28,7 +28,7 @@ test.describe('E2E - Admin access guard', () => {
   test('Admin can open management pages', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('namnguyen@demo.com')
-    await page.getByLabel('Mật khẩu').fill(demoPassword('namnguyen@demo.com'))
+    await page.getByLabel('Mật khẩu', { exact: true }).fill(demoPassword('namnguyen@demo.com'))
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
     await page.waitForURL((url) => url.pathname.startsWith('/admin'))
 
