@@ -174,6 +174,11 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   state mở được; nút làm mới hội thoại xoá ngữ cảnh cũ và cấp `sessionId` mới. Bốn điểm vào
   (`GREETING_STARTERS`) chỉ hiện khi hội thoại còn mới; `quickReplies` do server quyết định
   nằm dưới tin bot mới nhất, tin cũ bị tước `quickReplies` giống `foods`.
+- **Mở rộng khung chat bằng `uiStore.chatExpanded`** (`toggleChatExpanded`): panel vẫn nằm trong
+  cụm `fixed` dưới header nhưng bỏ padding, bỏ bo góc/viền và ẩn nút launcher; nội dung bên
+  trong giới hạn `max-w-3xl` để dòng chữ không kéo hết chiều ngang. Nút mở rộng chỉ hiện từ
+  `sm` vì mobile vốn đã full màn hình. `Esc` thu nhỏ trước, `Esc` lần nữa mới đóng; `closeChat()`
+  reset `chatExpanded` để lần mở sau trở về kích thước nhỏ.
 - **Chatbot chỉ giữ thẻ của tin bot mới nhất** (tối đa 5); tin bot cũ vẫn còn chữ nhưng mất
   `foods`, nên khung chat không dồn thẻ. Không còn nút "Xem thực đơn" trong khung chat. Nút
   thêm món trong thẻ chatbot yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip
