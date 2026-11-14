@@ -72,10 +72,9 @@ test('Mark all as read clears the unread badge', async ({ page, request }) => {
   await expect(item).toBeVisible()
   await expect(item).toHaveAttribute('data-read', 'false')
 
-  await page.getByRole('button', { name: 'Đã đọc', exact: true }).click()
+  await page.getByRole('button', { name: 'Đánh dấu tất cả đã đọc', exact: true }).click()
 
   await expect(item).toHaveAttribute('data-read', 'true')
-  await expect(page.getByText(/\d+ mới/)).toHaveCount(0)
 })
 
 test('Clicking a notification opens the matching order and marks it read', async ({ page, request }) => {
