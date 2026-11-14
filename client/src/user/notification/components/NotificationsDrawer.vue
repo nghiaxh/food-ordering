@@ -17,7 +17,6 @@ const router = useRouter()
 const ui = useUiStore()
 const notifications = useNotificationStore()
 const show = computed(() => ui.activeDrawer === 'notifications')
-const unread = computed(() => notifications.unread)
 
 watch(show, (open) => {
   if (open) void notifications.load()
@@ -38,13 +37,7 @@ const onItemClick = async (item: NotificationItem) => {
         <div class="flex items-center gap-2 pr-8">
           <NIcon :size="18"><NotificationsOutline /></NIcon>
           <span class="text-base font-semibold text-stone-900">Thông báo</span>
-          <span v-if="unread > 0" class="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-            {{ unread }} mới
-          </span>
           <div class="ml-auto flex items-center gap-3">
-            <button v-if="unread > 0" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-medium text-amber-700 hover:underline" @click="notifications.markAllRead()">
-              Đã đọc
-            </button>
             <button v-if="notifications.items.some((n) => n.read)" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-medium text-stone-500 hover:text-rose-600 hover:underline" @click="notifications.clearRead()">
               Xóa đã đọc
             </button>
@@ -84,7 +77,8 @@ const onItemClick = async (item: NotificationItem) => {
       </template>
 
       <template #footer>
-        <NButton v-if="notifications.items.length > 0" block @click="ui.closeDrawer()">Đóng</NButton>
+        <!-- Dong o dau de sat bang X cua NDrawerContent va mask; footer danh rieng cho hanh dong chinh. -->
+        <NButton v-if="notifications.items.length > 0" block @click="notifications.markAllRead()">Đánh dấu tất cả đã đọc</NButton>
       </template>
     </NDrawerContent>
   </NDrawer>
