@@ -32,21 +32,38 @@ test.describe('E2E - Order and payment flow', () => {
     await expect(page).toHaveURL(/\/checkout$/)
     await expect(page.getByText(FOOD_NAME).first()).toBeVisible()
 
-    // 3. Dien thong tin giao hang
-    await page.getByLabel('Người nhận').fill('Nguyễn Văn Test')
-    await page.getByLabel('Số điện thoại').fill('0901234567')
-    await page.getByLabel('Địa chỉ nhận món').fill('123 Đường Test, Cần Thơ')
+    // 3. Dien thong tin giao hang. NFormItem cua naive-ui render <label> khong co `for`
+    // va NInput khong co id/aria-label, nen getByLabel khong tim thay input; dinh vi
+    // theo form va nhan cua tung o.
+    const form = page.locator('#checkout-form')
+    await expect(form.getByText('Người nhận', { exact: true })).toBeVisible()
+    await expect(form.getByText('Số điện thoại', { exact: true })).toBeVisible()
+    await expect(form.getByText('Địa chỉ nhận món', { exact: true })).toBeVisible()
+
+    await form.locator('.n-form-item').filter({ hasText: 'Người nhận' }).locator('input').fill('Nguyễn Văn Test')
+    await form.getByPlaceholder('0900000000').fill('0901234567')
+    await form.locator('.n-form-item').filter({ hasText: 'Địa chỉ nhận món' }).locator('textarea').fill('123 Đường Test, Cần Thơ')
 
     // 4. COD la mac dinh; chon lai de khoa hanh vi
-    await page.getByRole('radio', { name: /Tiền mặt khi nhận/ }).click()
+    const cod = form.getByRole('radio', { name: /Tiền mặt khi nhận/ })
+    await expect(cod).toBeChecked()
+    await expect(form.getByRole('radio', { name: /Chuyển khoản QR/ })).not.toBeChecked()
+    await cod.click()
 
-    // 5. Xac nhan dat mon (nut desktop; nut mobile an o viewport lg)
+    // 5. Xac nhan dat mon (nut desktop; thanh day mobile dung nhan "Dat mon" va an o viewport lg)
     const confirm = page.getByRole('button', { name: 'Xác nhận đặt món' })
+    await expect(confirm).toBeVisible()
     await expect(confirm).toBeEnabled()
     await confirm.click()
 
-    // 6. Dieu huong ve /orders va thay don moi
+    // 6. Ve /orders, don moi nhat phai cho xac nhan chu khong phai nhanh khac.
+    // Phai scope vao the don: chu "Cho xac nhan" con nam o tab loc va tung buoc timeline.
     await expect(page).toHaveURL(/\/orders$/)
-    await expect(page.getByText('Chờ xác nhận').first()).toBeVisible()
+    const newest = page.locator('[id^="order-"]').first()
+    await expect(newest).toBeVisible()
+    await expect(newest.getByText(FOOD_NAME).first()).toBeVisible()
+    await expect(newest.locator('.n-tag', { hasText: 'Chờ xác nhận' })).toBeVisible()
+    await expect(newest.locator('.n-tag', { hasText: 'Chưa thanh toán' })).toBeVisible()
+    await expect(newest.getByText('Tiền mặt khi nhận', { exact: true })).toBeVisible()
   })
 })
