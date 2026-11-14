@@ -94,3 +94,12 @@ test('Editing a review and clearing the comment stores a null comment', async ({
 
   await expectApiReview(request, { rating: 5, comment: null })
 })
+
+test('Food detail shows the heading and the review form entry points', async ({ page }) => {
+  await openFoodPage(page)
+
+  // Form danh gia luon hien voi khach da dang nhap: chon sao + gui.
+  await expect(page.getByRole('radio', { name: '5 trên 5 sao' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Gửi đánh giá' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Gửi đánh giá' })).toBeDisabled()
+})
