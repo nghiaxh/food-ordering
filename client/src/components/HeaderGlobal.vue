@@ -115,11 +115,7 @@ const menuOptions = computed<DropdownOption[]>(() => [
             h('span', { class: 'flex items-center gap-2' }, [
               'Thông báo',
               notifications.unread > 0
-                ? h(
-                    'span',
-                    { class: 'rounded-md bg-orange-100 px-1 py-0.5 text-[10px] font-semibold text-orange-800' },
-                    String(notifications.unread),
-                  )
+                ? h('span', { class: 'h-2 w-2 rounded-full bg-orange-600' })
                 : null,
             ]),
           icon: () => h(NIcon, { size: 16 }, () => h(NotificationsOutline)),

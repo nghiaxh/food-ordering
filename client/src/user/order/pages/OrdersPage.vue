@@ -5,7 +5,6 @@ import { NAlert, NButton, NCard, NConfigProvider, NEmpty, NIcon, NModal, NSkelet
 import { CheckmarkCircle, TimeOutline, QrCodeOutline, ImageOutline } from '@vicons/ionicons5'
 import QRCode from 'qrcode'
 import { cancelOrder, getMyOrders } from '@/user/order/api'
-import { payOrder } from '@/user/payment/api'
 import useAsyncData from '@/composables/useAsyncData'
 import { useCartStore } from '@/user/cart/store'
 import { useUiStore } from '@/shared/stores/uiStore'
@@ -52,6 +51,7 @@ const paying = ref<Order | null>(null)
 // Ma QR chi hien thi 1 phut roi het han o phia giao dien; giay con lai de khach doi chieu.
 const qrSeconds = ref(60)
 const qrDataUrl = ref('')
+const qrError = ref('')
 let qrTimer: number | undefined
 // Moi lan mo modal QR tang so nay; ket qua await cua lan cu khong duoc dung timer cua lan moi.
 let qrToken = 0
@@ -70,16 +70,22 @@ watch(paying, async (order) => {
   qrTimer = undefined
   qrSeconds.value = 60
   qrDataUrl.value = ''
+  qrError.value = ''
   if (order?.paymentMethod !== 'QR') return
-  const url = await QRCode.toDataURL(`FOOD-${order.id}-${order.total}`, {
-    errorCorrectionLevel: 'M',
-    width: 168,
-    margin: 1,
-  })
-  // Modal da dong hoac doi don trong luc tao anh: bo anh, khong bat timer mo coi.
-  if (token !== qrToken || !paying.value) return
-  qrDataUrl.value = url
-  startQrTimer()
+  try {
+    const url = await QRCode.toDataURL(`FOOD-${order.id}-${order.total}`, {
+      errorCorrectionLevel: 'M',
+      width: 168,
+      margin: 1,
+    })
+    // Modal da dong hoac doi don trong luc tao anh: bo anh, khong bat timer mo coi.
+    if (token !== qrToken || !paying.value) return
+    qrDataUrl.value = url
+    startQrTimer()
+  } catch {
+    if (token !== qrToken || !paying.value) return
+    qrError.value = 'Không tạo được mã QR. Vui lòng thử lại.'
+  }
 })
 onBeforeUnmount(() => {
   qrToken += 1
@@ -90,6 +96,13 @@ onBeforeUnmount(() => {
 const restartQr = () => {
   qrSeconds.value = 60
   startQrTimer()
+}
+
+/** Thu tao lai ma QR khi tao anh that bai. */
+const retryQr = () => {
+  if (!paying.value) return
+  qrError.value = ''
+  paying.value = { ...paying.value }
 }
 
 const qrExpired = computed(() => paying.value?.paymentMethod === 'QR' && qrSeconds.value === 0)
@@ -183,19 +196,7 @@ const confirmCancel = (order: Order) => {
   })
 }
 
-const confirmPaid = async () => {
-  const order = paying.value
-  if (!order || qrExpired.value) return
-  try {
-    await payOrder(order.id)
-    message.success('Đã ghi nhận thanh toán')
-    // Chi dong dung modal vua thanh toan; khach co the da mo don khac trong luc cho.
-    if (paying.value?.id === order.id) paying.value = null
-    await refresh()
-  } catch {
-    message.error('Không ghi nhận được thanh toán')
-  }
-}
+// Thanh toan QR/COD hien chi hien thi ma va huong dan; khong tu dong danh dau da thanh toan.
 
 const visible = computed(() => orders.value?.filter((o) => filter.value === 'ALL' || o.status === filter.value) ?? [])
 const counts = computed(() => {
@@ -310,7 +311,7 @@ const tabClass = (active: boolean) =>
 
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
               <NButton v-if="o.status === 'COMPLETED'" size="small" :loading="reorderingId === o.id" @click="reorder(o)">Đặt lại</NButton>
-              <NButton v-if="o.status === 'PENDING' && o.paymentStatus !== 'PAID'" size="small" @click="paying = o">
+              <NButton v-if="o.status === 'PENDING' && o.paymentStatus !== 'PAID' && o.paymentMethod === 'QR'" size="small" @click="paying = o">
                 <template #icon><NIcon :size="14"><QrCodeOutline /></NIcon></template>
                 Thanh toán
               </NButton>
@@ -333,32 +334,30 @@ const tabClass = (active: boolean) =>
 
       <NModal :show="paying !== null" preset="card" :title="paying ? `Thanh toán đơn #${orderCode(paying.id)}` : ''" :style="{ maxWidth: '26rem' }" @update:show="(v: boolean) => !v && (paying = null)">
         <div v-if="paying" class="flex flex-col items-center gap-2.5 py-1 text-center">
-          <div class="text-xs text-stone-500">Phương thức: {{ PAYMENT_METHOD_LABEL[paying.paymentMethod] ?? paying.paymentMethod }}</div>
           <div v-if="paying.paymentMethod === 'QR'" class="flex flex-col items-center gap-1.5">
             <div class="relative rounded-md bg-white p-1.5 ring-1 ring-stone-200">
               <img v-if="qrDataUrl" :src="qrDataUrl" alt="Mã QR thanh toán" width="168" height="168" />
-              <div v-if="qrExpired" class="absolute inset-0 grid place-items-center bg-white/80 text-xs font-semibold text-stone-700">
+              <div v-else-if="!qrError" class="grid h-[168px] w-[168px] place-items-center bg-stone-100 text-xs text-stone-500">
+                Đang tạo mã QR...
+              </div>
+              <div v-else class="grid h-[168px] w-[168px] place-items-center bg-stone-100 px-3 text-xs text-red-600">
+                {{ qrError }}
+              </div>
+              <div v-if="qrExpired && qrDataUrl" class="absolute inset-0 grid place-items-center bg-white/80 text-xs font-semibold text-stone-700">
                 Mã QR đã hết hạn
               </div>
             </div>
             <button v-if="qrExpired" type="button" class="cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 text-[11px] font-semibold text-orange-700 hover:bg-orange-50" @click="restartQr">
               Tạo mã mới
             </button>
+            <button v-else-if="qrError" type="button" class="cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 text-[11px] font-semibold text-orange-700 hover:bg-orange-50" @click="retryQr">
+              Thử lại
+            </button>
             <p v-else class="text-[11px] text-stone-500" aria-live="polite">Mã QR hết hạn sau {{ qrLabel }}</p>
           </div>
           <div class="text-base font-bold text-stone-900">{{ formatVND(paying.total) }}</div>
-          <NAlert type="warning" title="Thanh toán thử nghiệm" class="w-full text-left">
-            <p class="text-xs">
-              {{ paying.paymentMethod === 'QR' ? 'Mã QR chỉ để nhận dạng đơn, chưa chuyển tiền thật. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' : 'Bạn trả tiền mặt khi nhận món. Bấm "Xác nhận đã thanh toán" bên dưới để ghi nhận.' }}
-            </p>
-          </NAlert>
+          <p class="text-[11px] text-stone-500">Quét mã QR để thực hiện giao dịch.</p>
         </div>
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <NButton size="small" @click="paying = null">Quay lại</NButton>
-            <NButton type="primary" size="medium" :disabled="qrExpired" @click="confirmPaid">Xác nhận đã thanh toán</NButton>
-          </div>
-        </template>
       </NModal>
     </div>
   </NConfigProvider>
