@@ -163,6 +163,27 @@ export interface ChatHistoryMessage {
   createdAt: string
 }
 
+/** Mot phien trong danh sach lich su chatbot cua khach dang dang nhap. */
+export interface ChatSessionSummary {
+  sessionId: string
+  /** Cau hoi dau tien cua khach, da cat ngan. */
+  title: string
+  updatedAt: string
+  messageCount: number
+}
+
+/** Tin nhan tra ve khi mo lai mot phien; payload chi co o tin BOT. */
+export interface ChatHistoryEntry {
+  id: number
+  sender: 'USER' | 'BOT'
+  content: string
+  foods: FoodCard[] | null
+  intent: string | null
+  citations: ChatCitation[] | null
+  quickReplies: string[] | null
+  createdAt: string
+}
+
 export interface AiSetting {
   settingKey: string
   settingValue: string

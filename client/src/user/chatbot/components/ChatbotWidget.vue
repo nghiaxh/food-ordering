@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import { NInput, NIcon, NTooltip } from 'naive-ui'
+import { NInput, NIcon, NPopconfirm, NTooltip } from 'naive-ui'
 import {
   ChatbubbleOutline,
   CloseOutline,
@@ -9,9 +9,12 @@ import {
   CartOutline,
   RefreshOutline,
   StopCircleOutline,
+  TimeOutline,
+  ArrowBackOutline,
+  TrashOutline,
 } from '@vicons/ionicons5'
 import type { Food, FoodCard, ChatMessage } from '@/shared/types'
-import { formatVND } from '@/shared/utils/format'
+import { formatVND, formatRelativeTime } from '@/shared/utils/format'
 import { useHasBottomBar } from '@/composables/useHasBottomBar'
 import { useChatConversation, GREETING_STARTERS } from '@/user/chatbot/useChatConversation'
 import { useAuthStore } from '@/user/auth/store'
@@ -32,8 +35,10 @@ const {
   input, setInput, loading, statusText, error, messages, draft,
   unavailable, statusNotice, handleSend, handleRetry,
   resetChat, stopStreaming, isStreaming,
+  sessionId, sessions, sessionsLoading, loadSessions, openSession, removeSession,
 } = useChatConversation()
 
+const historyOpen = ref(false)
 const listRef = ref<HTMLElement | null>(null)
 // Tu cuon xuong cuoi moi khi co tin moi, bot dang tra loi hoac draft doi.
 watch(
@@ -46,6 +51,29 @@ watch(
 
 const isAdmin = computed(() => route.path.startsWith('/admin') || auth.user?.role === 'ADMIN')
 const canAdd = computed(() => auth.user !== null && auth.user.role !== 'ADMIN')
+const canUseHistory = computed(() => auth.user?.role === 'CUSTOMER')
+
+// Dong khung chat thi thoat man lich su, lan mo sau quay ve hoi thoai dang do.
+watch(() => ui.chatOpen, (open) => {
+  if (!open) historyOpen.value = false
+})
+
+const openHistory = () => {
+  if (loading.value) return
+  historyOpen.value = true
+  void loadSessions()
+}
+const pickSession = async (id: string) => {
+  if (!(await openSession(id))) {
+    message.error('Không mở được hội thoại, bạn thử lại nhé!')
+    return
+  }
+  historyOpen.value = false
+}
+const onDeleteSession = async (id: string) => {
+  if (await removeSession(id)) message.success('Đã xoá hội thoại')
+  else message.error('Không xoá được hội thoại')
+}
 
 const showBody = computed(() => !unavailable.value || messages.value.some((m) => m.sender === 'USER'))
 // Diem vao chi hien khi hoi thoai moi tinh (hai bubble loi chao); bien mat sau tin dau tien.
@@ -86,8 +114,33 @@ const handleAdd = async (f: FoodCard) => {
   >
     <div v-if="ui.chatOpen" data-testid="chatbot-panel" class="chat-open pointer-events-auto flex min-h-0 max-h-[600px] w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-orange-200/70 bg-white shadow-2xl shadow-orange-900/10 max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
       <div class="flex shrink-0 items-center gap-2 bg-orange-600 px-2.5 py-1.5">
-        <p class="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">Trợ lý gợi ý món ăn</p>
-        <NTooltip placement="bottom">
+        <NTooltip v-if="historyOpen" placement="bottom">
+          <template #trigger>
+            <button type="button" aria-label="Quay lại hội thoại" class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-orange-100 transition hover:bg-white/15 hover:text-white" @click="historyOpen = false">
+              <NIcon :size="18"><ArrowBackOutline /></NIcon>
+            </button>
+          </template>
+          Quay lại hội thoại
+        </NTooltip>
+        <p class="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">
+          {{ historyOpen ? 'Lịch sử trò chuyện' : 'Trợ lý gợi ý món ăn' }}
+        </p>
+        <NTooltip v-if="!historyOpen && canUseHistory" placement="bottom">
+          <template #trigger>
+            <button
+              type="button"
+              data-testid="chatbot-history-open"
+              aria-label="Lịch sử trò chuyện"
+              :disabled="loading"
+              class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-orange-100 transition hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              @click="openHistory"
+            >
+              <NIcon :size="18"><TimeOutline /></NIcon>
+            </button>
+          </template>
+          Lịch sử trò chuyện
+        </NTooltip>
+        <NTooltip v-if="!historyOpen" placement="bottom">
           <template #trigger>
             <button type="button" aria-label="Làm mới hội thoại" class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-orange-100 transition hover:bg-white/15 hover:text-white" @click="resetChat">
               <NIcon :size="18"><RefreshOutline /></NIcon>
@@ -109,7 +162,39 @@ const handleAdd = async (f: FoodCard) => {
         {{ statusNotice }}
       </div>
 
-      <div ref="listRef" class="flex-1 space-y-3 overflow-y-auto bg-stone-50/70 p-3">
+      <div v-if="historyOpen" data-testid="chatbot-history" class="flex-1 overflow-y-auto bg-stone-50/70 p-3">
+        <div class="space-y-1.5">
+          <p v-if="sessionsLoading && sessions.length === 0" class="py-8 text-center text-sm text-stone-500">Đang tải lịch sử...</p>
+          <div v-else-if="sessions.length === 0" class="py-8 text-center text-sm text-stone-500">
+            <p class="m-0">Chưa có hội thoại nào được lưu.</p>
+            <p class="m-0 mt-1 text-xs">Nhắn cho trợ lý để bắt đầu.</p>
+          </div>
+          <div v-else class="divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
+            <div
+              v-for="s in sessions"
+              :key="s.sessionId"
+              class="flex items-center gap-2 px-3 py-2.5"
+              :class="s.sessionId === sessionId ? 'bg-orange-50' : ''"
+            >
+              <button type="button" data-testid="chatbot-history-item" class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left" @click="pickSession(s.sessionId)">
+                <p class="m-0 truncate text-sm font-medium text-stone-800">{{ s.title }}</p>
+                <p class="m-0 mt-0.5 text-xs text-stone-500">{{ s.messageCount }} tin nhắn · {{ formatRelativeTime(s.updatedAt) }}</p>
+              </button>
+              <span v-if="s.sessionId === sessionId" class="shrink-0 text-[11px] font-semibold text-orange-700">Đang mở</span>
+              <NPopconfirm positive-text="Xoá" negative-text="Huỷ" @positive-click="onDeleteSession(s.sessionId)">
+                <template #trigger>
+                  <button type="button" data-testid="chatbot-history-delete" aria-label="Xoá hội thoại" class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-stone-400 transition hover:bg-stone-100 hover:text-red-500">
+                    <NIcon :size="16"><TrashOutline /></NIcon>
+                  </button>
+                </template>
+                Xoá hội thoại này? Không thể hoàn tác.
+              </NPopconfirm>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else ref="listRef" class="flex-1 space-y-3 overflow-y-auto bg-stone-50/70 p-3">
         <p v-if="statusText && loading" class="text-xs text-orange-800">{{ statusText }}</p>
 
         <template v-if="showBody">
@@ -208,7 +293,7 @@ const handleAdd = async (f: FoodCard) => {
         </button>
       </div>
 
-      <div class="shrink-0 border-t border-stone-100 bg-white p-2.5">
+      <div v-if="!historyOpen" class="shrink-0 border-t border-stone-100 bg-white p-2.5">
         <NInput
           :value="input"
           :disabled="loading || unavailable"
