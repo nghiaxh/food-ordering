@@ -12,6 +12,8 @@ import {
   TimeOutline,
   ArrowBackOutline,
   TrashOutline,
+  ExpandOutline,
+  ContractOutline,
 } from '@vicons/ionicons5'
 import type { Food, FoodCard, ChatMessage } from '@/shared/types'
 import { formatVND, formatRelativeTime } from '@/shared/utils/format'
@@ -132,7 +134,7 @@ const handleAdd = async (f: FoodCard) => {
     class="pointer-events-none fixed inset-x-0 bottom-0 top-[var(--header-h)] z-40 flex flex-col items-end justify-end gap-3"
     :class="ui.chatExpanded ? 'p-0' : ['px-4 sm:px-5', bottomBar ? 'pb-[6.25rem] lg:pb-3' : 'pb-2 sm:pb-3']"
   >
-    <div v-if="ui.chatOpen" data-testid="chatbot-panel" class="chat-open pointer-events-auto flex min-h-0 max-h-[600px] w-[420px] max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-orange-200/70 bg-white shadow-2xl shadow-orange-900/10 max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0">
+    <div v-if="ui.chatOpen" data-testid="chatbot-panel" class="chat-open pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden bg-white" :class="panelClass">
       <div class="flex shrink-0 items-center gap-2 bg-orange-600 px-2.5 py-1.5">
         <NTooltip v-if="historyOpen" placement="bottom">
           <template #trigger>
@@ -145,6 +147,20 @@ const handleAdd = async (f: FoodCard) => {
         <p class="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-white">
           {{ historyOpen ? 'Lịch sử trò chuyện' : 'Trợ lý gợi ý món ăn' }}
         </p>
+        <NTooltip v-if="!historyOpen" placement="bottom">
+          <template #trigger>
+            <button
+              type="button"
+              :aria-label="ui.chatExpanded ? 'Thu nhỏ khung chat' : 'Mở rộng khung chat'"
+              :aria-pressed="ui.chatExpanded"
+              class="hidden h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-orange-100 transition hover:bg-white/15 hover:text-white sm:grid"
+              @click="ui.toggleChatExpanded()"
+            >
+              <NIcon :size="18"><ContractOutline v-if="ui.chatExpanded" /><ExpandOutline v-else /></NIcon>
+            </button>
+          </template>
+          {{ ui.chatExpanded ? 'Thu nhỏ khung chat' : 'Mở rộng khung chat' }}
+        </NTooltip>
         <NTooltip v-if="!historyOpen && canUseHistory" placement="bottom">
           <template #trigger>
             <button
@@ -312,7 +328,6 @@ const handleAdd = async (f: FoodCard) => {
             <NIcon :size="13" class="mr-1 align-middle"><StopCircleOutline /></NIcon>Dừng
           </button>
         </div>
-      </div>
 
       <div v-if="!historyOpen" class="shrink-0 border-t border-stone-100 bg-white p-2.5">
         <NInput
