@@ -51,12 +51,13 @@ const onSubmit = async () => {
 <template>
   <AuthShell title="Đăng nhập">
     <NForm ref="formRef" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="onSubmit">
-      <NFormItem label="Email" path="email" :rule="emailRules">
-        <NInput v-model:value="form.email" placeholder="ban@example.com" autocomplete="username" size="medium" />
+      <NFormItem label="Email" path="email" :rule="emailRules" :label-props="{ for: 'login-email' }">
+        <NInput v-model:value="form.email" :input-props="{ id: 'login-email' }" placeholder="ban@example.com" autocomplete="username" size="medium" />
       </NFormItem>
-      <NFormItem label="Mật khẩu" path="password" :rule="passwordRules">
+      <NFormItem label="Mật khẩu" path="password" :rule="passwordRules" :label-props="{ for: 'login-password' }">
         <NInput
           v-model:value="form.password"
+          :input-props="{ id: 'login-password' }"
           :type="showPassword ? 'text' : 'password'"
           placeholder="••••••••"
           autocomplete="current-password"

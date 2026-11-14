@@ -67,23 +67,24 @@ const onSubmit = async () => {
 <template>
   <AuthShell title="Đăng ký" max-width="max-w-[440px]">
     <NForm ref="formRef" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="onSubmit">
-      <NFormItem label="Họ tên" path="fullName" :rule="fullNameRules">
-        <NInput v-model:value="form.fullName" placeholder="Nguyễn Văn A" autocomplete="name" size="medium" />
+      <NFormItem label="Họ tên" path="fullName" :rule="fullNameRules" :label-props="{ for: 'register-full-name' }">
+        <NInput v-model:value="form.fullName" :input-props="{ id: 'register-full-name' }" placeholder="Nguyễn Văn A" autocomplete="name" size="medium" />
       </NFormItem>
       <div class="grid gap-x-3 sm:grid-cols-2">
-        <NFormItem label="Email" path="email" :rule="emailRules">
-          <NInput v-model:value="form.email" placeholder="ban@example.com" autocomplete="email" size="medium" />
+        <NFormItem label="Email" path="email" :rule="emailRules" :label-props="{ for: 'register-email' }">
+          <NInput v-model:value="form.email" :input-props="{ id: 'register-email' }" placeholder="ban@example.com" autocomplete="email" size="medium" />
         </NFormItem>
-        <NFormItem label="Số điện thoại" path="phone" :rule="phoneRules">
-          <NInput v-model:value="form.phone" placeholder="0900000000" autocomplete="tel" size="medium" />
+        <NFormItem label="Số điện thoại" path="phone" :rule="phoneRules" :label-props="{ for: 'register-phone' }">
+          <NInput v-model:value="form.phone" :input-props="{ id: 'register-phone' }" placeholder="0900000000" autocomplete="tel" size="medium" />
         </NFormItem>
       </div>
-      <NFormItem label="Địa chỉ" path="address">
-        <NInput v-model:value="form.address" placeholder="Quận 1, TP. HCM" autocomplete="street-address" size="medium" />
+      <NFormItem label="Địa chỉ" path="address" :label-props="{ for: 'register-address' }">
+        <NInput v-model:value="form.address" :input-props="{ id: 'register-address' }" placeholder="Quận 1, TP. HCM" autocomplete="street-address" size="medium" />
       </NFormItem>
-      <NFormItem label="Mật khẩu" path="password" :rule="passwordRules">
+      <NFormItem label="Mật khẩu" path="password" :rule="passwordRules" :label-props="{ for: 'register-password' }">
         <NInput
           v-model:value="form.password"
+          :input-props="{ id: 'register-password' }"
           :type="showPassword ? 'text' : 'password'"
           placeholder="••••••••"
           autocomplete="new-password"
@@ -96,9 +97,10 @@ const onSubmit = async () => {
           </template>
         </NInput>
       </NFormItem>
-      <NFormItem label="Nhập lại mật khẩu" path="confirm" :rule="confirmRules">
+      <NFormItem label="Nhập lại mật khẩu" path="confirm" :rule="confirmRules" :label-props="{ for: 'register-confirm' }">
         <NInput
           v-model:value="form.confirm"
+          :input-props="{ id: 'register-confirm' }"
           :type="showPassword ? 'text' : 'password'"
           placeholder="••••••••"
           autocomplete="new-password"
