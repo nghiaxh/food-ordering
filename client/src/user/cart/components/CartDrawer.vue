@@ -2,10 +2,8 @@
 import { computed, h } from 'vue'
 import { NCard, NConfigProvider, NDrawer, NButton, NIcon, NSkeleton, NTag } from 'naive-ui'
 import type { GlobalThemeOverrides } from 'naive-ui'
-import { CartOutline, Add } from '@vicons/ionicons5'
+import { CartOutline } from '@vicons/ionicons5'
 import { RouterLink, useRouter } from 'vue-router'
-import { getFoods } from '@/user/menu/api'
-import useAsyncData from '@/composables/useAsyncData'
 import useCartQuote from '@/composables/useCartQuote'
 import { useCartStore } from '@/user/cart/store'
 import { useUiStore } from '@/shared/stores/uiStore'
@@ -14,9 +12,6 @@ import type { CartItem, Food } from '@/shared/types'
 import { discountText } from '@/shared/utils/food-tags'
 import { message } from '@/shared/api/message'
 import QuantityStepper from '@/components/QuantityStepper.vue'
-
-/** Chi goi y nhom de ghep them vao bua, khong day mon chinh trung voi gio. */
-const RELATED_CATEGORIES = ['Đồ uống', 'Tráng miệng']
 
 /**
  * Naive lay mau tu theme chung dang amber. Gio hang chuyen sang orange cua Tailwind
@@ -60,22 +55,6 @@ const lineTotalOf = (item: CartItem) => {
   const line = item.food ? lineOf(item.food.id) : null
   return line?.lineTotal ?? (item.food?.discountedPrice ?? item.food?.price ?? 0) * item.quantity
 }
-
-// Mon goi y lay mot lan khi mo drawer; loc lai theo gio hien tai de vua them xong la bien mat.
-const { data: relatedItems } = useAsyncData((signal) => getFoods(undefined, signal), () => [])
-const suggestions = computed(() => {
-  const inCart = new Set(cart.items.map((i) => i.food?.id))
-  return (relatedItems.value ?? [])
-    .filter(
-      (f) =>
-        f.available &&
-        !inCart.has(f.id) &&
-        f.category !== null &&
-        RELATED_CATEGORIES.includes(f.category.name),
-    )
-    .sort((a, b) => (a.discountedPrice ?? a.price) - (b.discountedPrice ?? b.price))
-    .slice(0, 3)
-})
 
 /**
  * Xoa thang khong hoi lai, nhung de duong lui trong 5 giay: khach bam nham van lay lai
@@ -206,35 +185,6 @@ const discountTotal = computed(() => quote.value?.discountTotal ?? 0)
                   <span data-testid="cart-line-total" class="shrink-0 text-[13px] font-semibold tabular-nums text-stone-900">
                     {{ formatVND(lineTotalOf(item)) }}
                   </span>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="suggestions.length > 0" class="mt-1 border-t border-stone-100 pt-2.5">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Thêm cho bữa này</p>
-              <div class="mt-2 grid grid-cols-3 gap-2">
-                <div v-for="food in suggestions" :key="food.id" class="min-w-0">
-                  <div class="relative">
-                    <RouterLink :to="`/foods/${food.id}`" class="block" @click="onClose">
-                      <img :src="food.imageUrl ?? ''" :alt="food.name" loading="lazy" class="aspect-square w-full rounded-md object-cover" />
-                    </RouterLink>
-                    <NButton
-                      circle
-                      size="small"
-                      type="primary"
-                      :aria-label="`Thêm ${food.name} vào giỏ`"
-                      class="absolute -bottom-1 -right-1 shadow-sm ring-2 ring-white"
-                      @click="cart.add(food, 1)"
-                    >
-                      <template #icon>
-                        <NIcon :size="12"><Add /></NIcon>
-                      </template>
-                    </NButton>
-                  </div>
-                  <RouterLink :to="`/foods/${food.id}`" :title="food.name" class="mt-1 line-clamp-1 block text-[11px] leading-snug text-stone-700 hover:text-orange-700" @click="onClose">
-                    {{ food.name }}
-                  </RouterLink>
-                  <p class="text-[11px] font-semibold tabular-nums text-stone-900">{{ formatVND(food.discountedPrice ?? food.price) }}</p>
                 </div>
               </div>
             </div>
