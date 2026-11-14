@@ -5,6 +5,7 @@ import { NAlert, NButton, NCard, NConfigProvider, NEmpty, NIcon, NModal, NSkelet
 import { CheckmarkCircle, TimeOutline, QrCodeOutline, ImageOutline } from '@vicons/ionicons5'
 import QRCode from 'qrcode'
 import { cancelOrder, getMyOrders } from '@/user/order/api'
+import { payOrder } from '@/user/payment/api'
 import useAsyncData from '@/composables/useAsyncData'
 import { useCartStore } from '@/user/cart/store'
 import { useUiStore } from '@/shared/stores/uiStore'
@@ -103,6 +104,31 @@ const retryQr = () => {
   if (!paying.value) return
   qrError.value = ''
   paying.value = { ...paying.value }
+}
+
+const confirmingPayment = ref(false)
+
+/** Khach hang xac nhan da chuyen khoan xong de he thong cap nhat trang thai don. */
+const handleConfirmPaid = async () => {
+  if (!paying.value || confirmingPayment.value) return
+  const orderId = paying.value.id
+  confirmingPayment.value = true
+  try {
+    const updated = await payOrder(orderId)
+    // Cap nhat truc tiep vao danh sach orders de UI dong bo ngay lap tuc
+    if (orders.value) {
+      const idx = orders.value.findIndex((o) => o.id === orderId)
+      if (idx !== -1) {
+        orders.value[idx] = updated
+      }
+    }
+    paying.value = null
+    message.success('Đã ghi nhận thanh toán')
+  } catch (err: any) {
+    message.error(err?.response?.data?.message ?? 'Xác nhận thanh toán thất bại')
+  } finally {
+    confirmingPayment.value = false
+  }
 }
 
 const qrExpired = computed(() => paying.value?.paymentMethod === 'QR' && qrSeconds.value === 0)
@@ -357,6 +383,13 @@ const tabClass = (active: boolean) =>
           </div>
           <div class="text-base font-bold text-stone-900">{{ formatVND(paying.total) }}</div>
           <p class="text-[11px] text-stone-500">Quét mã QR để thực hiện giao dịch.</p>
+
+          <div class="mt-2 flex w-full items-center justify-end gap-2 border-t border-stone-100 pt-2.5">
+            <NButton size="small" :disabled="confirmingPayment" @click="paying = null">Hủy</NButton>
+            <NButton size="small" type="primary" :loading="confirmingPayment" @click="handleConfirmPaid">
+              Xác nhận đã thanh toán
+            </NButton>
+          </div>
         </div>
       </NModal>
     </div>
