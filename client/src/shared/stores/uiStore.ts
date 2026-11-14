@@ -7,6 +7,8 @@ export const useUiStore = defineStore('ui', {
   state: () => ({
     activeDrawer: null as DrawerKind,
     chatOpen: false,
+    // Mo rong khung chat thanh toan vung duoi header; dong chat thi tra ve kich thuoc nho.
+    chatExpanded: false,
   }),
   actions: {
     openDrawer(drawer: Exclude<DrawerKind, null>) {
@@ -20,6 +22,13 @@ export const useUiStore = defineStore('ui', {
     },
     closeChat() {
       this.chatOpen = false
+      this.chatExpanded = false
+    },
+    setChatExpanded(value: boolean) {
+      this.chatExpanded = value
+    },
+    toggleChatExpanded() {
+      this.chatExpanded = !this.chatExpanded
     },
   },
 })
