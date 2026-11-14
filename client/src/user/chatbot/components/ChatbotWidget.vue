@@ -213,7 +213,7 @@ const handleAdd = async (f: FoodCard) => {
           :value="input"
           :disabled="loading || unavailable"
           :placeholder="unavailable ? 'Trợ lý đang tạm tắt' : 'Nhập yêu cầu món ăn...'"
-          aria-label="Nhập câu hỏi cho chatbot"
+          :input-props="{ 'aria-label': 'Nhập câu hỏi cho chatbot' }"
           class="!pr-1.5"
           size="large"
           @update:value="setInput"

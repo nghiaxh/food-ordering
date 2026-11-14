@@ -25,8 +25,10 @@ test.beforeEach(async ({ request, page }) => {
  * nen phai re vao the truoc roi moi bam; do la dieu kien de test that su kiem tra phan hien nut.
  */
 async function addFromCard(page: import('@playwright/test').Page) {
-  await page.getByRole('link', { name: FOOD_NAME, exact: true }).hover()
-  const addButton = page.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
+  // Mon khuyen mai hien ca o dai "Uu dai hom nay" lan luoi, nen bam trong luoi thuc don.
+  const menu = page.locator('#thuc-don')
+  await menu.getByRole('link', { name: FOOD_NAME, exact: true }).hover()
+  const addButton = menu.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
   await expect(addButton).toBeVisible()
   await expect(addButton).toHaveCSS('opacity', '1')
   await addButton.click()
@@ -81,8 +83,10 @@ test('Checkout button in the cart opens the checkout page', async ({ page }) => 
 test('Empty cart offers a way back to the menu', async ({ page }) => {
   await openCart(page)
 
-  await expect(page.getByText('Giỏ hàng đang trống')).toBeVisible()
-  await page.getByRole('button', { name: 'Xem thực đơn' }).click()
+  // Hero trang chu cung co nut "Xem thuc don", nen bam nut trong drawer.
+  const drawer = page.getByRole('dialog')
+  await expect(drawer.getByText('Giỏ hàng đang trống')).toBeVisible()
+  await drawer.getByRole('button', { name: 'Xem thực đơn' }).click()
 
   await expect(page.getByText('Giỏ hàng đang trống')).toHaveCount(0)
   await expect(page).toHaveURL(/\/$/)
