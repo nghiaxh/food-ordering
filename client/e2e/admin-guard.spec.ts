@@ -24,4 +24,23 @@ test.describe('E2E - Admin access guard', () => {
     // PageHeader render h2; menu ben trai dung link nen khong trung role heading.
     await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
   })
+
+  test('Admin can open management pages', async ({ page }) => {
+    await page.goto('/login')
+    await page.getByLabel('Email').fill('namnguyen@demo.com')
+    await page.getByLabel('Mật khẩu').fill(demoPassword('namnguyen@demo.com'))
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
+    await page.waitForURL((url) => url.pathname.startsWith('/admin'))
+
+    const pages = [
+      { path: '/admin/orders', heading: 'Đơn hàng' },
+      { path: '/admin/foods', heading: 'Món ăn' },
+      { path: '/admin/reports', heading: 'Báo cáo' },
+    ]
+    for (const p of pages) {
+      await page.goto(p.path)
+      await expect(page).toHaveURL(p.path, { timeout: 10_000 })
+      await expect(page.getByRole('heading', { name: p.heading })).toBeVisible({ timeout: 10_000 })
+    }
+  })
 })
