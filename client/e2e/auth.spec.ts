@@ -5,7 +5,7 @@ test.describe('E2E - User authentication', () => {
   test('Demo account can sign in', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('tuanpham@demo.com')
-    await page.getByLabel('Mật khẩu').fill(demoPassword('tuanpham@demo.com'))
+    await page.getByLabel('Mật khẩu', { exact: true }).fill(demoPassword('tuanpham@demo.com'))
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
 
     await page.waitForURL((url) => url.pathname === '/')
@@ -24,7 +24,7 @@ test.describe('E2E - User authentication', () => {
   test('Wrong password shows an error', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('tuanpham@demo.com')
-    await page.getByLabel('Mật khẩu').fill('sai_mat_khau')
+    await page.getByLabel('Mật khẩu', { exact: true }).fill('sai_mat_khau')
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
 
     await expect(page.getByText('Mật khẩu không đúng')).toBeVisible()
@@ -34,7 +34,7 @@ test.describe('E2E - User authentication', () => {
   test('Admin account is redirected to the admin area', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Email').fill('namnguyen@demo.com')
-    await page.getByLabel('Mật khẩu').fill(demoPassword('namnguyen@demo.com'))
+    await page.getByLabel('Mật khẩu', { exact: true }).fill(demoPassword('namnguyen@demo.com'))
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
 
     await page.waitForURL((url) => url.pathname.startsWith('/admin'))

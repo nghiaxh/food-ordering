@@ -67,7 +67,7 @@ export async function apiLogin(request: APIRequestContext, email: string): Promi
 export async function loginInBrowser(page: Page, email: string): Promise<void> {
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Mật khẩu').fill(demoPassword(email))
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(demoPassword(email))
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
   // Absolute pathname check vi `waitForURL('/')` so khop ca URL goc co origin.
   await page.waitForURL((url) => url.pathname === '/')
