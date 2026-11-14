@@ -20,11 +20,15 @@ test.beforeEach(async ({ request, page }) => {
   await page.goto('/')
 })
 
-/** Them mon qua nut dau cong tren the; nut chi hien ro khi re chuot vao the. */
+/**
+ * Them mon qua nut dau cong tren the. Nut bi an va khong nhan chuot khi the chua duoc re,
+ * nen phai re vao the truoc roi moi bam; do la dieu kien de test that su kiem tra phan hien nut.
+ */
 async function addFromCard(page: import('@playwright/test').Page) {
+  await page.getByRole('link', { name: FOOD_NAME, exact: true }).hover()
   const addButton = page.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
   await expect(addButton).toBeVisible()
-  await addButton.hover()
+  await expect(addButton).toHaveCSS('opacity', '1')
   await addButton.click()
 }
 

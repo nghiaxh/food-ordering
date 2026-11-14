@@ -17,9 +17,11 @@ test.describe('E2E - Order and payment flow', () => {
   })
 
   test('Add a dish to the cart and place a COD order', async ({ page }) => {
+    // Nut them chi hien khi re chuot vao the, nen re the truoc roi moi bam nut.
+    await page.getByRole('link', { name: FOOD_NAME, exact: true }).hover()
     const addButton = page.getByRole('button', { name: `Thêm ${FOOD_NAME} vào giỏ` })
     await expect(addButton).toBeVisible()
-    await addButton.hover()
+    await expect(addButton).toHaveCSS('opacity', '1')
     await addButton.click()
     await expect(page.getByText(`Đã thêm ${FOOD_NAME} vào giỏ`)).toBeVisible()
 
