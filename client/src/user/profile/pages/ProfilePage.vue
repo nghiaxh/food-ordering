@@ -157,7 +157,6 @@ const joinedLabel = computed(() =>
       :on-close="() => { passwordModal = false }"
       :on-submit="submitPassword"
     >
-      <p class="mb-4 text-sm text-stone-500">Mật khẩu gồm 8 ký tự trở lên. Email không thay đổi được, liên hệ quản trị viên nếu cần.</p>
       <NForm ref="passwordFormRef" :model="passwordForm" layout="vertical" :show-require-mark="false">
         <NFormItem label="Mật khẩu hiện tại" path="currentPassword" :rule="[{ required: true, message: 'Nhập mật khẩu hiện tại' }]">
           <NInput v-model:value="passwordForm.currentPassword" type="password" autocomplete="current-password" show-password-on="click" size="medium" />
