@@ -36,8 +36,10 @@ test('Ask for non-spicy vegetarian dishes', async ({ page, request }) => {
   await openChat(page)
 
   if (!available) {
-    await expect(page.getByText('Trợ lý AI chưa được cấu hình')).toBeVisible()
+    await expect(page.getByTestId('chatbot-panel')).toBeVisible()
+    await expect(page.getByText('Trợ lý AI chưa được cấu hình')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByLabel('Nhập câu hỏi cho chatbot')).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Gửi câu hỏi' })).toBeDisabled()
     test.info().annotations.push({ type: 'note', description: SKIP_REASON })
     return
   }
@@ -48,6 +50,7 @@ test('Ask for non-spicy vegetarian dishes', async ({ page, request }) => {
   const responsePromise = page.waitForResponse(
     (res) => res.url().includes('/api/chatbot/chat') && res.request().method() === 'POST',
   )
+  await expect(page.getByLabel('Nhập câu hỏi cho chatbot')).toBeEnabled()
   await page.getByLabel('Nhập câu hỏi cho chatbot').fill('Tư vấn món chay không cay')
   await page.getByRole('button', { name: 'Gửi câu hỏi' }).click()
 
