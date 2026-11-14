@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
-import { HttpError } from "../../lib/errors.js";
-import { aiSetting, chatMessages, foods, users } from "../../db/schema.js";
+import { and, asc, count, desc, eq, inArray, isNotNull, max } from "drizzle-orm";
+import { HttpError, notFound, unauthorized } from "../../lib/errors.js";
+import { aiSetting, chatMessages, foods, users, type ChatMessagePayload } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import * as gemini from "../../lib/gemini.js";
 import { plain } from "../../lib/text-normalizer.js";
+import { sessionTitle, type ChatHistoryEntry, type ChatSessionSummary } from "./sessions.js";
 import {
   BARE_NUMBER,
   isFoodQuestion,
@@ -296,8 +297,16 @@ const saveMessage = async (
   sessionId: string,
   sender: "USER" | "BOT",
   content: string,
+  payload?: ChatMessagePayload,
 ) => {
-  await db.insert(chatMessages).values({ userId, sessionId, sender, content });
+  // Cot content la varchar(4000); cat de cau tra loi dai cua AI khong lam hong request.
+  await db.insert(chatMessages).values({
+    userId,
+    sessionId,
+    sender,
+    content: content.slice(0, 4000),
+    payload: payload ?? null,
+  });
 };
 
 export const chatbotStatus = async () => {
@@ -359,14 +368,25 @@ export const chat = async (
         citations = docs.map((d) => ({ sourceName: d.title ?? "Tài liệu quán", snippet: truncate(d.content ?? "", 120) }));
       }
     }
-    if (user) await saveMessage(user.id, sessionId, "BOT", reply);
+    if (user) {
+      await saveMessage(user.id, sessionId, "BOT", reply, {
+        intent: "RESTAURANT_INFO",
+        citations,
+        quickReplies: QR_INFO,
+      });
+    }
     return { reply, foods: [], intent: "RESTAURANT_INFO", citations, quickReplies: QR_INFO };
   }
 
   // Huong dan dat hang: quy trinh co dinh bang code, khong goi AI.
   if (isOrderGuideQuestion(p)) {
     const reply = guideReply();
-    if (user) await saveMessage(user.id, sessionId, "BOT", reply);
+    if (user) {
+      await saveMessage(user.id, sessionId, "BOT", reply, {
+        intent: "ORDER_GUIDE",
+        quickReplies: QR_GUIDE,
+      });
+    }
     return { reply, foods: [], intent: "ORDER_GUIDE", citations: null, quickReplies: QR_GUIDE };
   }
 
@@ -378,13 +398,24 @@ export const chat = async (
       sourceName: c.document?.title ?? "Tài liệu quán",
       snippet: truncate(c.chunk.content, 120),
     }));
-    if (user) await saveMessage(user.id, sessionId, "BOT", reply);
+    if (user) {
+      await saveMessage(user.id, sessionId, "BOT", reply, {
+        intent: "RESTAURANT_INFO",
+        citations,
+        quickReplies: QR_INFO,
+      });
+    }
     return { reply, foods: [], intent: "RESTAURANT_INFO", citations, quickReplies: QR_INFO };
   }
 
   if (genericInfoMatch && docChunks.length === 0) {
     const reply = declineReply();
-    if (user) await saveMessage(user.id, sessionId, "BOT", reply);
+    if (user) {
+      await saveMessage(user.id, sessionId, "BOT", reply, {
+        intent: "OUT_OF_SCOPE",
+        quickReplies: QR_DECLINE,
+      });
+    }
     return { reply, foods: [], intent: "OUT_OF_SCOPE", citations: null, quickReplies: QR_DECLINE };
   }
 
@@ -399,15 +430,21 @@ export const chat = async (
     const reply = fresh.length === 0
       ? "Mình chưa còn món nào khác phù hợp; bạn thử nói rõ hơn khẩu vị hoặc ngân sách nhé!"
       : "Mình gợi ý một vài món khác, bấm vào thẻ để xem chi tiết nhé!";
-    if (user) await saveMessage(user.id, sessionId, "BOT", reply);
-    return { reply, foods: fresh.map(toCard), intent: "FOOD", citations: null, quickReplies: fresh.length ? QR_FOOD : QR_FOOD_EMPTY };
+    const cards = fresh.map(toCard);
+    const quickReplies = cards.length ? QR_FOOD : QR_FOOD_EMPTY;
+    if (user) {
+      await saveMessage(user.id, sessionId, "BOT", reply, { foods: cards, intent: "FOOD", quickReplies });
+    }
+    return { reply, foods: cards, intent: "FOOD", citations: null, quickReplies };
   }
 
   // FOOD: hoi follow-up tung buoc cho cau hoi qua chung cua nguoi moi.
   const earlyFilters = readFilters(classifyMessage);
   const followUp = followUpQuestion(classifyMessage, earlyFilters, menu);
   if (followUp !== null) {
-    if (user) await saveMessage(user.id, sessionId, "BOT", followUp);
+    if (user) {
+      await saveMessage(user.id, sessionId, "BOT", followUp, { intent: "FOOD", quickReplies: QR_FOLLOWUP });
+    }
     pendingFollowUp.set(sessionId, { originalMessage: input.message, expiresAtMs: Date.now() + FOLLOW_UP_TTL_MS });
     return { reply: followUp, foods: [], intent: "FOOD", citations: null, quickReplies: QR_FOLLOWUP };
   }
@@ -454,13 +491,108 @@ export const chat = async (
     reply = fallbackReply(picked, filters);
   }
 
-  if (user) await saveMessage(user.id, sessionId, "BOT", reply);
   const cards = picked.slice(0, maxSugg).map(toCard);
+  const quickReplies = cards.length > 0 ? QR_FOOD : QR_FOOD_EMPTY;
+  if (user) {
+    await saveMessage(user.id, sessionId, "BOT", reply, { foods: cards, intent: "FOOD", quickReplies });
+  }
   return {
     reply,
     foods: cards,
     intent: "FOOD",
     citations: null,
-    quickReplies: cards.length > 0 ? QR_FOOD : QR_FOOD_EMPTY,
+    quickReplies,
   };
+};
+
+// Lich su hoi thoai cua khach da dang nhap
+
+const getUserOrThrow = async (email: string) => {
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  if (!user) throw unauthorized("Phiên đăng nhập không hợp lệ");
+  return user;
+};
+
+/** Danh sach phien cua chinh nguoi goi, moi nhat truoc; tieu de lay tu cau hoi dau tien. */
+export const listSessions = async (email: string): Promise<ChatSessionSummary[]> => {
+  const user = await getUserOrThrow(email);
+  const rows = await db
+    .select({
+      sessionId: chatMessages.sessionId,
+      updatedAt: max(chatMessages.createdAt),
+      messageCount: count(),
+    })
+    .from(chatMessages)
+    .where(and(eq(chatMessages.userId, user.id), isNotNull(chatMessages.sessionId)))
+    .groupBy(chatMessages.sessionId)
+    .orderBy(desc(max(chatMessages.createdAt)))
+    .limit(20);
+
+  const sessionIds = rows.map((row) => row.sessionId).filter((id): id is string => !!id);
+  if (sessionIds.length === 0) return [];
+
+  // Mot truy van lay tin USER dau tien cua moi phien, khong N+1 theo tung phien.
+  const firsts = await db
+    .select({ sessionId: chatMessages.sessionId, content: chatMessages.content })
+    .from(chatMessages)
+    .where(
+      and(
+        eq(chatMessages.userId, user.id),
+        inArray(chatMessages.sessionId, sessionIds),
+        eq(chatMessages.sender, "USER"),
+      ),
+    )
+    .orderBy(asc(chatMessages.id));
+  const titles = new Map<string, string>();
+  for (const row of firsts) {
+    if (row.sessionId && !titles.has(row.sessionId)) titles.set(row.sessionId, row.content);
+  }
+
+  return rows.flatMap((row) => {
+    if (!row.sessionId) return [];
+    return [{
+      sessionId: row.sessionId,
+      title: sessionTitle(titles.get(row.sessionId)),
+      updatedAt: (row.updatedAt ?? new Date()).toISOString(),
+      messageCount: Number(row.messageCount),
+    }];
+  });
+};
+
+/** Tin nhan cua mot phien thuoc ve nguoi goi; phien khong ton tai tra 404, khong lo du lieu nguoi khac. */
+export const getSession = async (
+  email: string,
+  sessionId: string,
+): Promise<{ sessionId: string; messages: ChatHistoryEntry[] }> => {
+  const user = await getUserOrThrow(email);
+  const rows = await db.query.chatMessages.findMany({
+    where: and(eq(chatMessages.userId, user.id), eq(chatMessages.sessionId, sessionId)),
+    orderBy: [asc(chatMessages.id)],
+  });
+  if (rows.length === 0) throw notFound("Không tìm thấy hội thoại");
+
+  return {
+    sessionId,
+    messages: rows.map((row) => ({
+      id: row.id,
+      sender: row.sender,
+      content: row.content,
+      foods: row.payload?.foods ?? null,
+      intent: row.payload?.intent ?? null,
+      citations: row.payload?.citations ?? null,
+      quickReplies: row.payload?.quickReplies ?? null,
+      createdAt: row.createdAt.toISOString(),
+    })),
+  };
+};
+
+export const deleteSession = async (email: string, sessionId: string) => {
+  const user = await getUserOrThrow(email);
+  const deleted = await db
+    .delete(chatMessages)
+    .where(and(eq(chatMessages.userId, user.id), eq(chatMessages.sessionId, sessionId)))
+    .returning({ id: chatMessages.id });
+  if (deleted.length === 0) throw notFound("Không tìm thấy hội thoại");
+  pendingFollowUp.delete(sessionId);
+  return {};
 };

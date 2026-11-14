@@ -71,6 +71,16 @@ gần nhất). Server chỉ dùng `lastFoodIds` khi câu có cụm tham chiếu 
 và áp ràng buộc mới. Không dùng độ dài câu để đoán hỏi tiếp. Nhánh dự phòng khi AI lỗi cũng
 bám context này.
 
+**Lịch sử hội thoại**: chỉ khách đã đăng nhập mới có lịch sử (`GET`/`DELETE /api/chatbot/sessions/**`,
+`requireAuth`; `listSessions`/`getSession`/`deleteSession` trong `user/chatbot/service.ts`). Tin BOT
+lưu kèm `chat_messages.payload` (jsonb) gồm `foods`/`intent`/`citations`/`quickReplies`, nên mở lại
+phiên vẫn còn thẻ món; giá trong thẻ là giá lúc trả lời, còn thêm vào giỏ/đặt đơn vẫn lấy giá hiện
+tại từ DB. Danh sách trả tối đa 20 phiên mới nhất, tiêu đề lấy từ câu hỏi USER đầu tiên
+(`sessions.ts` `sessionTitle`, cắt 60 ký tự). Phiên của người khác trả 404 như phiên không tồn tại.
+Client (`useChatConversation.ts`) chỉ nạp phiên mới nhất khi máy chưa có cache, giữ hội thoại đang
+dở nếu đã có, và xoá `chatbot.*` khi đăng xuất/đổi tài khoản để không lộ hội thoại người trước.
+Tin khách gửi trước khi đăng nhập không được tải lên server.
+
 **Thiếu hoặc hỏng khóa AI**: `lib/gemini.ts` isConfigured() false khi `AI_API_KEY` rỗng **hoặc** nhà
 cung cấp đã từ chối khóa (401/403, hay 400 kèm `API_KEY_INVALID` của Gemini); cờ "bị từ chối"
 giữ tới khi khởi động lại server. `GET /api/chatbot/status` gọi `verifyKey()`: lần đầu thử một
@@ -88,7 +98,8 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
 - **Security**: middleware stateless `requireAuth`/`optionalAuth`/`requireRole` ở
   `src/middleware/auth.ts`, không session. Public: `/api/auth/register`,
   `/api/auth/login`, GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
-  `/api/uploads/**` và toàn bộ `/api/chatbot/**` (khách vãng lai vẫn chat được);
+  `/api/uploads/**`, `/api/chatbot/status` và `/api/chatbot/chat` (khách vãng lai vẫn chat được);
+  `/api/chatbot/sessions/**` yêu cầu đăng nhập;
   `/api/admin/**` yêu cầu role `ADMIN`; `/api/cart/**`, `/api/orders`, `/api/orders/**` yêu cầu
   role `CUSTOMER`; phần còn lại cần đăng nhập. Mọi lỗi đi qua `middleware/error.ts` và trả
   `{ message }` tiếng Việt với đúng mã 4xx/5xx, không lộ chi tiết nội bộ.

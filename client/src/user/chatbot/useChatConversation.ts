@@ -1,8 +1,9 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
-import { chat, getChatbotStatus } from '@/user/chatbot/api'
-import type { ChatCitation, ChatMessage, ChatbotStatus } from '@/shared/types'
+import { chat, deleteChatSession, getChatbotStatus, getChatSession, listChatSessions } from '@/user/chatbot/api'
+import type { ChatCitation, ChatHistoryEntry, ChatMessage, ChatSessionSummary, ChatbotStatus } from '@/shared/types'
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { useUiStore } from '@/shared/stores/uiStore'
+import { useAuthStore } from '@/user/auth/store'
 
 export const GREETING_INTRO = 'Chào bạn! Mình là trợ lý đặt món của quán.'
 export const GREETING_TASKS =
@@ -50,6 +51,36 @@ const KNOWN_GREETING_BUBBLES = new Set([
 ])
 
 const freshGreeting = () => ({ messages: greetingMessages(), sessionId: crypto.randomUUID() })
+
+const CHAT_CACHE_KEYS = ['chatbot.messages', 'chatbot.sessionId', 'chatbot.sessions', 'chatbot.activeSessionId']
+
+// Xoa cache khi dang xuat de nguoi dang nhap sau khong thay hoi thoai cua nguoi truoc.
+const clearChatCache = () => {
+  for (const key of CHAT_CACHE_KEYS) localStorage.removeItem(key)
+}
+
+const isGreetingOnly = (messages: ChatMessage[]): boolean =>
+  messages.length === 0 || messages.every((m) => m.sender === 'BOT' && KNOWN_GREETING_BUBBLES.has(m.content))
+
+// Lich su chi giu the/nut cua tin bot cuoi, giong luc chat truc tiep.
+const keepLastBotActions = (messages: ChatMessage[]): ChatMessage[] => {
+  let lastBot = -1
+  messages.forEach((m, index) => {
+    if (m.sender === 'BOT') lastBot = index
+  })
+  return messages.map((m, index) =>
+    m.sender === 'BOT' && index !== lastBot ? { sender: 'BOT', content: m.content } : m,
+  )
+}
+
+const fromHistoryEntry = (entry: ChatHistoryEntry): ChatMessage => ({
+  sender: entry.sender,
+  content: entry.content,
+  foods: entry.foods ?? undefined,
+  intent: entry.intent ?? undefined,
+  citations: entry.citations ?? undefined,
+  quickReplies: entry.quickReplies ?? undefined,
+})
 
 const withoutStaleGreeting = (messages: ChatMessage[]): ChatMessage[] => {
   const kept = messages.filter((m) => !(m.sender === 'BOT' && OLD_GREETING_BUBBLES.has(m.content)))
@@ -118,6 +149,9 @@ export const useChatConversation = () => {
   const sessionId = ref<string>(initial.sessionId)
   const draft = ref<Draft | null>(null)
   const status = ref<ChatbotStatus | null>(null)
+  const auth = useAuthStore()
+  const sessions = ref<ChatSessionSummary[]>([])
+  const sessionsLoading = ref(false)
   const unavailable = computed(() => status.value?.available === false)
   const statusNotice = computed(() => status.value?.notice ?? CHATBOT_OFF_NOTICE)
 
@@ -139,7 +173,41 @@ export const useChatConversation = () => {
     } catch {
       status.value = { available: false, notice: null }
     }
+    // Khach da dang nhap co cache thi giu hoi thoai cu; may moi thi lay phien moi nhat tu server.
+    if (auth.user?.role === 'CUSTOMER' && isGreetingOnly(messages.value)) {
+      try {
+        await restoreLatest()
+      } catch {
+        // Loi mang: giu loi chao va de nguoi dung mo lai lich su sau.
+      }
+    }
   })
+
+  // Dang xuat phai xoa hoi thoai khoi trinh duyet; doi tai khoan thi nap lich su cua nguoi moi.
+  watch(
+    () => auth.user?.id ?? null,
+    async (id, previous) => {
+      if (id === previous) return
+      if (id == null) {
+        clearChatCache()
+        sessions.value = []
+        resetChat()
+        return
+      }
+      if (previous != null) {
+        clearChatCache()
+        sessions.value = []
+        resetChat()
+      }
+      if (auth.user?.role === 'CUSTOMER' && isGreetingOnly(messages.value)) {
+        try {
+          await restoreLatest()
+        } catch {
+          // Loi mang: giu hoi thoai hien tai.
+        }
+      }
+    },
+  )
 
   const pushBotMessage = (content: string, foods: ChatMessage['foods'] = [], citations?: ChatCitation[], intent?: string, quickReplies?: string[]) => {
     // Chi tin bot moi nhat con the va nut hanh dong; tin cu giu noi dung chu.
@@ -264,6 +332,64 @@ export const useChatConversation = () => {
     statusText.value = null
   }
 
+  const stopDraft = () => {
+    if (streamTimer) {
+      window.clearInterval(streamTimer)
+      streamTimer = undefined
+    }
+    draft.value = null
+  }
+
+  // Nap mot phien tu server: huy hieu ung dang chay de khong tron hai hoi thoai.
+  const applyHistory = (detail: { sessionId: string; messages: ChatHistoryEntry[] }) => {
+    stopDraft()
+    messages.value = keepLastBotActions(detail.messages.map(fromHistoryEntry))
+    sessionId.value = detail.sessionId
+    error.value = false
+    loading.value = false
+    statusText.value = null
+  }
+
+  const restoreLatest = async () => {
+    const list = await listChatSessions()
+    sessions.value = list
+    if (list.length === 0) return
+    applyHistory(await getChatSession(list[0]!.sessionId))
+  }
+
+  const loadSessions = async () => {
+    if (auth.user?.role !== 'CUSTOMER') return
+    sessionsLoading.value = true
+    try {
+      sessions.value = await listChatSessions()
+    } catch {
+      // Giu danh sach cu de lan mo sau van thay lich su da tai.
+    } finally {
+      sessionsLoading.value = false
+    }
+  }
+
+  const openSession = async (id: string) => {
+    if (loading.value) return false
+    try {
+      applyHistory(await getChatSession(id))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const removeSession = async (id: string) => {
+    try {
+      await deleteChatSession(id)
+    } catch {
+      return false
+    }
+    sessions.value = sessions.value.filter((s) => s.sessionId !== id)
+    if (sessionId.value === id) resetChat()
+    return true
+  }
+
   return {
     input,
     setInput: (v: string) => { input.value = v },
@@ -276,6 +402,11 @@ export const useChatConversation = () => {
     unavailable,
     statusNotice,
     sessionId,
+    sessions,
+    sessionsLoading,
+    loadSessions,
+    openSession,
+    removeSession,
     handleSend,
     handleRetry,
     resetChat,
