@@ -23,6 +23,8 @@ const emailRules: FormItemRule[] = [{ required: true, message: 'Vui lòng nhập
 const passwordRules: FormItemRule[] = [{ required: true, message: 'Vui lòng nhập mật khẩu', trigger: ['blur', 'input'] }]
 
 const onSubmit = async () => {
+  // Chan gui lap lai khi nhan Enter hoac click lien tiep trong luc dang xu ly.
+  if (loading.value) return
   try {
     await formRef.value?.validate()
   } catch {
@@ -62,7 +64,6 @@ const onSubmit = async () => {
           placeholder="••••••••"
           autocomplete="current-password"
           size="medium"
-          @keyup.enter="onSubmit"
         >
           <template #suffix>
             <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-stone-400 hover:text-stone-600" :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showPassword = !showPassword">
