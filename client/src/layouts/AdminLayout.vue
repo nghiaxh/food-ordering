@@ -133,7 +133,6 @@ const onSelectMenu = (key: string) => {
         <aside class="hidden w-52 shrink-0 border-r border-stone-200 bg-white lg:block">
           <nav class="sticky top-12 max-h-[calc(100dvh-3rem)] space-y-4 overflow-y-auto p-3" aria-label="Điều hướng quản trị">
             <div v-for="group in NAV_GROUPS" :key="group.title">
-              <p class="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-stone-400">{{ group.title }}</p>
               <RouterLink
                 v-for="item in group.items"
                 :key="item.to"
@@ -156,11 +155,10 @@ const onSelectMenu = (key: string) => {
       <NDrawer :show="drawerOpen" placement="left" :width="260" :auto-focus="false" @update:show="(v: boolean) => !v && closeDrawer()">
         <NDrawerContent closable header-class="px-3 py-2" body-content-class="p-0">
           <template #header>
-            <span class="flex items-center gap-2" @click="closeDrawer"><BrandMark /></span>
+            <span class="flex items-center gap-2" @click="closeDrawer"></span>
           </template>
           <nav class="space-y-4 px-3 pb-3" aria-label="Điều hướng quản trị">
             <div v-for="group in NAV_GROUPS" :key="group.title">
-              <p class="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-stone-400">{{ group.title }}</p>
               <RouterLink
                 v-for="item in group.items"
                 :key="item.to"

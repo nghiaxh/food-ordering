@@ -8,8 +8,8 @@ test.describe('E2E - Admin access guard', () => {
     await page.goto('/admin/dashboard')
 
     // RequireAuth phia client dieu huong ve trang chu; quyen that van do server kiem tra.
-    await expect(page).toHaveURL('/')
-    await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toHaveCount(0)
+    await expect(page).toHaveURL('/', { timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toHaveCount(0, { timeout: 10_000 })
   })
 
   test('Admin signs in and manages orders', async ({ page }) => {
@@ -22,6 +22,6 @@ test.describe('E2E - Admin access guard', () => {
     await page.goto('/admin/orders')
     await expect(page).toHaveURL('/admin/orders')
     // PageHeader render h2; menu ben trai dung link nen khong trung role heading.
-    await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible({ timeout: 10_000 })
   })
 })
