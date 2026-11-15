@@ -78,8 +78,12 @@ phiên vẫn còn thẻ món; giá trong thẻ là giá lúc trả lời, còn t
 tại từ DB. Danh sách trả tối đa 20 phiên mới nhất, tiêu đề lấy từ câu hỏi USER đầu tiên
 (`sessions.ts` `sessionTitle`, cắt 60 ký tự). Phiên của người khác trả 404 như phiên không tồn tại.
 Client (`useChatConversation.ts`) chỉ nạp phiên mới nhất khi máy chưa có cache, giữ hội thoại đang
-dở nếu đã có, và xoá `chatbot.*` khi đăng xuất/đổi tài khoản để không lộ hội thoại người trước.
-Tin khách gửi trước khi đăng nhập không được tải lên server.
+dở nếu đã có. Cache nằm ở `localStorage['chatbot.state']` dạng `{ ownerId, sessionId, messages }`;
+`ownerId` là id tài khoản, `null` là khách vãng lai. Khi nạp, cache khác chủ bị bỏ chứ không hiển thị,
+nên mở lại máy, hết phiên hay đổi tài khoản đều không lộ hội thoại người trước. `syncChatOwner`
+gọi từ `App.vue` (widget chỉ mount ở layout khách, trang đăng nhập/đăng ký thì không) để dọn cache
+khi đổi tài khoản; mỗi lần đổi chủ hoặc làm mới hội thoại tăng `requestEpoch` để phản hồi đang bay
+của chủ cũ bị bỏ, không rơi vào hội thoại mới. Tin khách gửi trước khi đăng nhập không được tải lên server.
 
 **Thiếu hoặc hỏng khóa AI**: `lib/gemini.ts` isConfigured() false khi `AI_API_KEY` rỗng **hoặc** nhà
 cung cấp đã từ chối khóa (401/403, hay 400 kèm `API_KEY_INVALID` của Gemini); cờ "bị từ chối"

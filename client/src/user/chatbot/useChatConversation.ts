@@ -52,11 +52,74 @@ const KNOWN_GREETING_BUBBLES = new Set([
 
 const freshGreeting = () => ({ messages: greetingMessages(), sessionId: crypto.randomUUID() })
 
-const CHAT_CACHE_KEYS = ['chatbot.messages', 'chatbot.sessionId', 'chatbot.sessions', 'chatbot.activeSessionId']
+const CHAT_CACHE_KEY = 'chatbot.state'
+// Key cua ban cu: khong ghi chu so huu nen chi doc duoc khi dang la khach vang lai.
+const LEGACY_CACHE_KEYS = ['chatbot.messages', 'chatbot.sessionId', 'chatbot.sessions', 'chatbot.activeSessionId']
 
-// Xoa cache khi dang xuat de nguoi dang nhap sau khong thay hoi thoai cua nguoi truoc.
+interface ChatCache {
+  ownerId: number | null
+  sessionId: string
+  messages: ChatMessage[]
+}
+
+const isChatCache = (value: unknown): value is ChatCache => {
+  if (typeof value !== 'object' || value === null) return false
+  const cache = value as Record<string, unknown>
+  return (
+    (cache.ownerId === null || typeof cache.ownerId === 'number') &&
+    typeof cache.sessionId === 'string' &&
+    cache.sessionId.length > 0 &&
+    Array.isArray(cache.messages)
+  )
+}
+
+const readChatCache = (): ChatCache | null => {
+  const raw = localStorage.getItem(CHAT_CACHE_KEY)
+  if (!raw) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return isChatCache(parsed) ? parsed : null
+  } catch {
+    // JSON hong: coi nhu khong co cache.
+    return null
+  }
+}
+
+const clearLegacyCache = () => {
+  for (const key of LEGACY_CACHE_KEYS) localStorage.removeItem(key)
+}
+
 const clearChatCache = () => {
-  for (const key of CHAT_CACHE_KEYS) localStorage.removeItem(key)
+  localStorage.removeItem(CHAT_CACHE_KEY)
+  clearLegacyCache()
+}
+
+// Cache ghi kem chu so huu: nguoi dang nhap sau khong doc duoc hoi thoai cua nguoi truoc.
+const saveChatCache = (cache: ChatCache) => {
+  try {
+    localStorage.setItem(CHAT_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // quota day hoac storage bi chan: bo qua, hoi thoai van chay trong phien.
+  }
+}
+
+// Tang khi doi tai khoan hoac lam moi hoi thoai; phan hoi dang bay cua chu cu bi bo.
+let requestEpoch = 0
+
+/**
+ * Dong bo cache chatbot theo tai khoan. Goi tu App.vue vi widget chi mount o layout khach,
+ * nen trang dang nhap/dang ky khong tu don duoc cache.
+ */
+export const syncChatOwner = (ownerId: number | null) => {
+  requestEpoch += 1
+  const cached = readChatCache()
+  if (cached && cached.ownerId === ownerId) return
+  // Khach vang lai: chi bo cache co chu, de ban cu khong so huu con duoc migrate mot lan.
+  if (ownerId === null) {
+    localStorage.removeItem(CHAT_CACHE_KEY)
+    return
+  }
+  clearChatCache()
 }
 
 const isGreetingOnly = (messages: ChatMessage[]): boolean =>
@@ -99,18 +162,13 @@ const withoutStaleGreeting = (messages: ChatMessage[]): ChatMessage[] => {
   return kept
 }
 
-const loadSingleSession = () => {
+const loadLegacySession = () => {
   // Khach cu con hoi thoai multi-session: lay doan dang mo, thieu thi lay doan dau tien.
-  const clearLegacy = () => {
-    localStorage.removeItem('chatbot.sessions')
-    localStorage.removeItem('chatbot.activeSessionId')
-  }
   try {
     const raw = localStorage.getItem('chatbot.messages')
     const legacyId = localStorage.getItem('chatbot.sessionId')
     const parsed = raw ? (JSON.parse(raw) as ChatMessage[]) : null
     if (parsed && parsed.length > 0) {
-      clearLegacy()
       return { messages: withoutStaleGreeting(parsed), sessionId: legacyId || crypto.randomUUID() }
     }
   } catch {
@@ -123,15 +181,30 @@ const loadSingleSession = () => {
     if (parsed && parsed.length > 0) {
       const picked = parsed.find((s) => s.id === activeId) ?? parsed[0]
       if (picked && picked.messages?.length > 0) {
-        clearLegacy()
         return { messages: withoutStaleGreeting(picked.messages), sessionId: picked.id || crypto.randomUUID() }
       }
     }
   } catch {
     // storage hong thi bo; dung loi chao moi.
   }
-  clearLegacy()
-  return freshGreeting()
+  return null
+}
+
+// Hoi thoai chi duoc dung lai khi cache thuoc dung nguoi dang dung may.
+const loadChatCache = (ownerId: number | null) => {
+  const cached = readChatCache()
+  if (cached) {
+    clearLegacyCache()
+    if (cached.ownerId === ownerId) {
+      return { messages: withoutStaleGreeting(cached.messages), sessionId: cached.sessionId }
+    }
+    // Cache cua tai khoan khac: bo han thay vi hien cho nguoi dang dung may.
+    clearChatCache()
+    return freshGreeting()
+  }
+  const legacy = ownerId === null ? loadLegacySession() : null
+  clearLegacyCache()
+  return legacy ?? freshGreeting()
 }
 
 /**
@@ -140,16 +213,16 @@ const loadSingleSession = () => {
  */
 // Trang thai hoi thoai chatbot: streaming chu, lastFoodIds, xoa foods cua tin bot cu.
 export const useChatConversation = () => {
+  const auth = useAuthStore()
   const input = ref('')
   const loading = ref(false)
   const statusText = ref<string | null>(null)
   const error = ref(false)
-  const initial = loadSingleSession()
+  const initial = loadChatCache(auth.user?.id ?? null)
   const messages = ref<ChatMessage[]>(initial.messages)
   const sessionId = ref<string>(initial.sessionId)
   const draft = ref<Draft | null>(null)
   const status = ref<ChatbotStatus | null>(null)
-  const auth = useAuthStore()
   const sessions = ref<ChatSessionSummary[]>([])
   const sessionsLoading = ref(false)
   const unavailable = computed(() => status.value?.available === false)
@@ -157,14 +230,9 @@ export const useChatConversation = () => {
 
   let streamTimer: number | undefined
 
-  // Luu ngu canh vao localStorage moi khi hoi thoai hoac session doi.
+  // Luu ngu canh vao localStorage moi khi hoi thoai hoac session doi, kem chu so huu hien tai.
   watch([messages, sessionId], () => {
-    try {
-      localStorage.setItem('chatbot.messages', JSON.stringify(messages.value))
-      localStorage.setItem('chatbot.sessionId', sessionId.value)
-    } catch {
-      // quota day hoac storage bi chan: bo qua, hoi thoai van chay trong phien.
-    }
+    saveChatCache({ ownerId: auth.user?.id ?? null, sessionId: sessionId.value, messages: messages.value })
   }, { deep: true })
 
   onMounted(async () => {
@@ -183,27 +251,19 @@ export const useChatConversation = () => {
     }
   })
 
-  // Dang xuat phai xoa hoi thoai khoi trinh duyet; doi tai khoan thi nap lich su cua nguoi moi.
+  // Doi tai khoan: bo cache va hoi thoai dang hien, roi nap lich su cua nguoi moi.
   watch(
     () => auth.user?.id ?? null,
     async (id, previous) => {
       if (id === previous) return
-      if (id == null) {
-        clearChatCache()
-        sessions.value = []
-        resetChat()
-        return
-      }
-      if (previous != null) {
-        clearChatCache()
-        sessions.value = []
-        resetChat()
-      }
+      syncChatOwner(id)
+      sessions.value = []
+      resetChat()
       if (auth.user?.role === 'CUSTOMER' && isGreetingOnly(messages.value)) {
         try {
           await restoreLatest()
         } catch {
-          // Loi mang: giu hoi thoai hien tai.
+          // Loi mang: giu loi chao va de nguoi dung mo lai lich su sau.
         }
       }
     },
@@ -268,8 +328,11 @@ export const useChatConversation = () => {
     const isInfo = ['giờ', 'địa chỉ', 'giao hàng', 'ship', 'thanh toán', 'mở cửa', 'đóng cửa'].some((k) => p.includes(k))
     statusText.value = isInfo ? 'Đang tra tài liệu quán...' : 'Đang tìm món...'
 
+    // Doi tai khoan hoac lam moi hoi thoai trong luc cho: bo phan hoi cua chu cu.
+    const epoch = requestEpoch
     try {
       const res = await chat(text, sessionId.value, history, lastFoodIds)
+      if (epoch !== requestEpoch) return
       error.value = false
       const foods = (res.foods || []).slice(0, 5)
       const citations = res.citations || undefined
@@ -284,6 +347,7 @@ export const useChatConversation = () => {
         pushBotMessage(res.reply, foods, citations, intent, quickReplies)
       }
     } catch (e) {
+      if (epoch !== requestEpoch) return
       const httpStatus = (e as { response?: { status?: number } }).response?.status
       if (httpStatus === 503) {
         status.value = { available: false, notice: apiErrorMessage(e) ?? CHATBOT_OFF_NOTICE }
@@ -294,8 +358,11 @@ export const useChatConversation = () => {
       messages.value = [...messages.value, { sender: 'BOT', content: 'Mình chưa gửi được câu hỏi, bạn thử lại nhé!' }]
     } finally {
       // Panel dong giua chung cung phai mo lai o nhap; dung de loading ket vinh vien.
-      loading.value = false
-      statusText.value = null
+      // Chi ha loading cho chinh luot nay, tranh tat loading cua luot moi hon.
+      if (epoch === requestEpoch) {
+        loading.value = false
+        statusText.value = null
+      }
     }
   }
 
@@ -319,6 +386,7 @@ export const useChatConversation = () => {
   }
 
   const resetChat = () => {
+    requestEpoch += 1
     messages.value = greetingMessages()
     sessionId.value = crypto.randomUUID()
     if (streamTimer) {
@@ -342,6 +410,7 @@ export const useChatConversation = () => {
 
   // Nap mot phien tu server: huy hieu ung dang chay de khong tron hai hoi thoai.
   const applyHistory = (detail: { sessionId: string; messages: ChatHistoryEntry[] }) => {
+    requestEpoch += 1
     stopDraft()
     messages.value = keepLastBotActions(detail.messages.map(fromHistoryEntry))
     sessionId.value = detail.sessionId
