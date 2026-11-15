@@ -96,7 +96,7 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại (`docker compos
 | Client | Vue 3, TypeScript 5.9, Vite 8, Naive UI, Tailwind CSS 4, Pinia, Axios, Vue Router |
 | Server | Express 5, TypeScript 7, Drizzle ORM 0.45, JWT (jsonwebtoken), bcrypt, zod |
 | Database | PostgreSQL 18 (full-text search bằng `tsvector` cho RAG) |
-| AI | Gemini qua @google/genai SDK, lớp AI (`server/src/lib/gemini.ts`) |
+| AI | Gemini qua REST, lớp AI (`server/src/lib/gemini.ts`) |
 | Hạ tầng | Docker Compose, 1 file 3 profile dev, prod và tools |
 
 ## Kiểm tra nhanh

@@ -14,8 +14,8 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   JWT bằng `jsonwebtoken` (HS256) + `bcrypt`; validate đầu vào bằng `zod`. Cấu trúc `src/user/` và `src/admin/`
   theo module chức năng giống client, lớp chính `src/server.ts`; middleware tập trung ở
   `src/middleware/` (auth, error), tiện ích ở `src/lib/`.
-- **AI** - `server/src/lib/gemini.ts` là lớp DUY NHẤT gọi API AI (@google/genai SDK, `jsonMode` ép
-  JSON, timeout 15s). Chỉ hỗ trợ Gemini qua @google/genai SDK; tên mô hình đọc từ bảng `ai_setting`
+- **AI** - `server/src/lib/gemini.ts` là lớp DUY NHẤT gọi API AI (REST bằng `fetch`, `jsonMode` ép
+  JSON, timeout 15s). Chỉ hỗ trợ Gemini; tên mô hình đọc từ bảng `ai_setting`
   do admin đặt trong trang Chatbot, fallback về `AI_PROVIDER` / `AI_MODEL`. Muốn thêm
   nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không gửi xuống client.
   Trang Chatbot của admin đọc `provider`/`model` từ `ai_setting` (không hardcode `gemini`), danh sách
