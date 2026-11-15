@@ -43,20 +43,27 @@ export const useCartStore = defineStore('cart', {
   state: () => ({
     items: [] as CartItem[],
     loaded: !loggedIn(),
+    // Danh sach mon duoc chon de dat; mac dinh chon tat ca khi tai gio.
+    selectedIds: [] as number[],
   }),
   getters: {
     count: (state) => state.items.reduce((n, i) => n + i.quantity, 0),
     total: (state) => state.items.reduce((sum, i) => sum + (i.food?.price ?? 0) * i.quantity, 0),
+    selectedItems: (state) => state.items.filter((i) => i.food != null && state.selectedIds.includes(i.food.id)),
+    hasSelection: (state) => state.items.some((i) => i.food != null && state.selectedIds.includes(i.food.id)),
   },
   actions: {
     async load() {
       if (!loggedIn()) {
         this.items = []
+        this.selectedIds = []
         this.loaded = true
         return
       }
       try {
         this.items = await getCart()
+        // Mac dinh chon tat ca mon trong gio moi tai.
+        this.selectedIds = this.items.map((i) => i.food?.id).filter((id): id is number => id != null)
         this.loaded = true
       } catch {
         // Khong can bao loi; gio se thu lai o lan tai sau.
@@ -73,6 +80,8 @@ export const useCartStore = defineStore('cart', {
       this.items = existing
         ? before.map((i) => (i.food?.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
         : [...before, { food, quantity }]
+      // Mon moi them mac dinh duoc chon de dat.
+      if (!this.selectedIds.includes(food.id)) this.selectedIds.push(food.id)
       try {
         const saved = await addCartItem(food.id, quantity)
         if (canApply(food.id, token)) this.items = withServerItem(this.items, saved)
@@ -106,6 +115,7 @@ export const useCartStore = defineStore('cart', {
       const token = beginRequest(foodId)
       const before = this.items
       this.items = before.filter((i) => i.food?.id !== foodId)
+      this.selectedIds = this.selectedIds.filter((id) => id !== foodId)
       try {
         await removeCartItem(foodId)
       } catch {
@@ -121,6 +131,7 @@ export const useCartStore = defineStore('cart', {
       // Token generation chan rollback khi da co lan clear/reset khac chen vao.
       const token = { generation: ++cartGeneration }
       this.items = []
+      this.selectedIds = []
       try {
         await clearCart()
       } catch {
@@ -129,9 +140,31 @@ export const useCartStore = defineStore('cart', {
       }
     },
 
+    toggleSelect(foodId: number) {
+      const idx = this.selectedIds.indexOf(foodId)
+      if (idx === -1) this.selectedIds.push(foodId)
+      else this.selectedIds.splice(idx, 1)
+    },
+    selectAll() {
+      this.selectedIds = this.items.map((i) => i.food?.id).filter((id): id is number => id != null)
+    },
+    clearSelection() {
+      this.selectedIds = []
+    },
+    isSelected(foodId: number) {
+      return this.selectedIds.includes(foodId)
+    },
+    async removeSelected() {
+      const ids = [...this.selectedIds]
+      for (const id of ids) {
+        await this.remove(id)
+      }
+      this.selectedIds = []
+    },
     resetLocal() {
       cartGeneration += 1
       this.items = []
+      this.selectedIds = []
       this.loaded = true
     },
   },

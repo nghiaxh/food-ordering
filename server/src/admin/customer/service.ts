@@ -24,7 +24,7 @@ import { env } from "../../config/env.js";
 
 // Quan ly tai khoan khach hang: tao, sua, khoa, xoa khi chua co don hang.
 export const listUsers = async () => {
-  const userList = await db.query.users.findMany({ orderBy: [asc(users.id)] });
+  const userList = await db.query.users.findMany({ orderBy: [desc(users.id)] });
   return userList.map(toUserJson);
 };
 

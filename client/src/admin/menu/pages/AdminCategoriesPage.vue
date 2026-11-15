@@ -44,8 +44,10 @@ const counts = computed(() => {
 })
 const rows = computed(() => {
   const kw = search.value.trim().toLowerCase()
-  if (!kw) return data.value ?? []
-  return (data.value ?? []).filter((c) => c.name.toLowerCase().includes(kw) || (c.slug ?? '').toLowerCase().includes(kw))
+  const list = !kw
+    ? (data.value ?? [])
+    : (data.value ?? []).filter((c) => c.name.toLowerCase().includes(kw) || (c.slug ?? '').toLowerCase().includes(kw))
+  return [...list].sort((a, b) => b.id - a.id)
 })
 const slugPreview = computed(() => editing.value?.slug ?? slugify(form.name.trim()))
 

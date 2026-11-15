@@ -62,7 +62,7 @@ const { run: deleteFood } = useAsyncAction((id: number) => adminDeleteFood(id))
 
 const rows = computed(() => {
   const kw = search.value.trim().toLowerCase()
-  return (data.value ?? []).filter((f) => {
+  const list = (data.value ?? []).filter((f) => {
     if (kw && !f.name.toLowerCase().includes(kw) && !(f.category?.name ?? '').toLowerCase().includes(kw)) {
       return false
     }
@@ -71,6 +71,7 @@ const rows = computed(() => {
     if (statusFilter.value === 'hidden' && f.available) return false
     return true
   })
+  return [...list].sort((a, b) => b.id - a.id)
 })
 
 const openCreate = () => {

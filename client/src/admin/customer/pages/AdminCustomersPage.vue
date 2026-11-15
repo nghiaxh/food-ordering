@@ -59,20 +59,22 @@ const formRef = ref<InstanceType<typeof NForm> | null>(null)
 
 const rows = computed(() => {
   const kw = search.value.trim().toLowerCase()
-  return (users.value ?? []).filter((u) => {
-    if (u.role !== roleFilter.value) return false
-    if (
-      kw &&
-      !u.fullName?.toLowerCase().includes(kw) &&
-      !u.email?.toLowerCase().includes(kw) &&
-      !(u.phone ?? '').includes(kw)
-    ) {
-      return false
-    }
-    if (statusFilter.value === 'active' && !u.active) return false
-    if (statusFilter.value === 'locked' && u.active) return false
-    return true
-  })
+  return [...(users.value ?? [])]
+    .filter((u) => {
+      if (u.role !== roleFilter.value) return false
+      if (
+        kw &&
+        !u.fullName?.toLowerCase().includes(kw) &&
+        !u.email?.toLowerCase().includes(kw) &&
+        !(u.phone ?? '').includes(kw)
+      ) {
+        return false
+      }
+      if (statusFilter.value === 'active' && !u.active) return false
+      if (statusFilter.value === 'locked' && u.active) return false
+      return true
+    })
+    .sort((a, b) => b.id - a.id)
 })
 
 const toggle = async (u: User) => {

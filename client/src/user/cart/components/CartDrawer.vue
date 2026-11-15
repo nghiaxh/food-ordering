@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
-import { NCard, NConfigProvider, NDrawer, NButton, NIcon, NSkeleton, NTag } from 'naive-ui'
+import { NCard, NConfigProvider, NDrawer, NButton, NIcon, NSkeleton, NTag, NCheckbox } from 'naive-ui'
 import type { GlobalThemeOverrides } from 'naive-ui'
 import { CartOutline } from '@vicons/ionicons5'
 import { RouterLink, useRouter } from 'vue-router'
@@ -39,7 +39,7 @@ const cart = useCartStore()
 const show = computed(() => ui.activeDrawer === 'cart')
 const onClose = () => ui.closeDrawer()
 
-const { quote, quoteLoading, quoteError, quoteStale, retry } = useCartQuote(() => cart.items)
+const { quote, quoteLoading, quoteError, quoteStale, retry } = useCartQuote(() => cart.selectedItems)
 
 // Tra cuu dong bao gia mot lan thay vi find lap lai trong template.
 const quoteLines = computed(
@@ -135,6 +135,13 @@ const discountTotal = computed(() => quote.value?.discountTotal ?? 0)
               data-testid="cart-line"
               class="flex gap-3 border-b border-stone-100 py-2.5 last:border-0"
             >
+              <NCheckbox
+                v-if="item.food"
+                :checked="cart.isSelected(item.food.id)"
+                class="mt-1 shrink-0 self-start"
+                :aria-label="`Chọn ${item.food.name} để đặt`"
+                @update:checked="cart.toggleSelect(item.food!.id)"
+              />
               <RouterLink v-if="item.food" :to="`/foods/${item.food.id}`" class="shrink-0 self-start" @click="onClose">
                 <img :src="item.food.imageUrl ?? ''" :alt="item.food.name" loading="lazy" class="h-14 w-14 rounded-lg object-cover" />
               </RouterLink>
@@ -224,7 +231,7 @@ const discountTotal = computed(() => quote.value?.discountTotal ?? 0)
                 size="large"
                 strong
                 block
-                :disabled="!quote || quoteLoading || quoteError"
+                :disabled="!quote || quoteLoading || quoteError || !cart.hasSelection"
                 @click="() => { onClose(); router.push('/checkout') }"
               >
                 Đặt món
