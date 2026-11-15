@@ -7,11 +7,9 @@ import { env } from "../config/env.js";
 // Provider/model doc tu bang cau hinh `ai_setting`, chi fallback ve bien moi truong khi chua dat.
 // Khong log khoa va khong tra khoa ve client.
 export const PROVIDER_GEMINI = "gemini";
-export const PROVIDER_OPENAI = "openai";
-export const SUPPORTED_PROVIDERS = [PROVIDER_GEMINI, PROVIDER_OPENAI] as const;
+export const SUPPORTED_PROVIDERS = [PROVIDER_GEMINI] as const;
 
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const TIMEOUT_MS = 15_000;
 const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
 const PROBE_USER = "ping";
@@ -76,9 +74,7 @@ const isKeyRejectionBody = (status: number, body: string): boolean => {
   if (status === 401 || status === 403) return true;
   return (
     body.includes("API_KEY_INVALID") ||
-    body.includes("API key not valid") ||
-    body.includes("invalid_api_key") ||
-    body.includes("Incorrect API key")
+    body.includes("API key not valid")
   );
 };
 
@@ -89,6 +85,9 @@ export const generate = async (
   jsonMode: boolean,
 ): Promise<string> => {
   const provider = (await setting("provider", env.AI_PROVIDER)).toLowerCase();
+  if (provider !== PROVIDER_GEMINI) {
+    throw new Error("Nhà cung cấp AI không được hỗ trợ");
+  }
   const model = await setting("model", env.AI_MODEL);
   const apiKey = env.AI_API_KEY;
   if (!apiKey || !apiKey.trim()) {
@@ -96,11 +95,8 @@ export const generate = async (
   }
 
   try {
-    const raw =
-      provider === PROVIDER_OPENAI
-        ? await callOpenAI(apiKey, model, systemPrompt, userPrompt, jsonMode)
-        : await callGemini(apiKey, model, systemPrompt, userPrompt, jsonMode);
-    return text(provider, raw);
+    const raw = await callGemini(apiKey, model, systemPrompt, userPrompt, jsonMode);
+    return text(raw);
   } catch (error) {
     if (isKeyRejected(error)) {
       credentialsRejected = true;
@@ -161,39 +157,10 @@ const callGemini = async (
   return response.text();
 };
 
-const callOpenAI = async (
-  apiKey: string,
-  model: string,
-  systemPrompt: string,
-  userPrompt: string,
-  jsonMode: boolean,
-): Promise<string> => {
-  const body: Record<string, unknown> = {
-    model,
-    temperature: jsonMode ? 0.2 : 0.4,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-  };
-  if (jsonMode) body.response_format = { type: "json_object" };
-  const response = await fetchWithTimeout(OPENAI_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw httpError(response.status, await response.text());
-  return response.text();
-};
-
-/** Doc text tu cau truc phan hoi; moi nha cung cap mot vi tri khac nhau. */
-const text = (provider: string, raw: string): string => {
+/** Doc text tu cau truc phan hoi Gemini. */
+const text = (raw: string): string => {
   try {
     const root = JSON.parse(raw) as Record<string, unknown>;
-    if (provider === PROVIDER_OPENAI) {
-      const choices = root.choices as Array<{ message?: { content?: string } }> | undefined;
-      return choices?.[0]?.message?.content ?? "";
-    }
     const candidates = root.candidates as
       | Array<{ content?: { parts?: Array<{ text?: string }> } }>
       | undefined;

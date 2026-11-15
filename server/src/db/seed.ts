@@ -306,7 +306,7 @@ async function main() {
     await tx.insert(aiSetting).values([
       { settingKey: "max_suggestions", settingValue: "5" },
       { settingKey: "provider", settingValue: "gemini" },
-      { settingKey: "model", settingValue: "gemini-2.0-flash" },
+      { settingKey: "model", settingValue: "gemini-3.8-flash" },
     ]);
 
     // 8 tai lieu nen chatbot tra loi duoc cau hoi ngoai le (gio mo cua, dia chi, phi ship).

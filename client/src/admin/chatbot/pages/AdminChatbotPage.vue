@@ -51,19 +51,14 @@ import FormModal from '@/components/FormModal.vue'
 
 const PROVIDER_OPTIONS = [
   { value: 'gemini', label: 'Google Gemini' },
-  { value: 'openai', label: 'OpenAI' },
 ]
 // Danh sach mo hinh de xuat theo nha cung cap; admin van nhap duoc ten mo hinh khac.
 const MODEL_OPTIONS: Record<string, Array<{ value: string; label: string }>> = {
   gemini: [
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-  ],
-  openai: [
-    { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
+    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+    { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash' },
+    { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
+    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite' },
   ],
 }
 const CATEGORY_OPTIONS = [
@@ -106,8 +101,10 @@ watch(data, (value) => {
   const settings = Object.fromEntries(value[1].map((s) => [s.settingKey, s.settingValue]))
   maxSuggestions.value = Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5))
   extraRules.value = settings.extra_rules ?? ''
-  // Doc provider/model tu cau hinh luu trong DB, khong hardcode de doi nha cung cap duoc.
-  provider.value = settings.provider?.trim() || 'gemini'
+  // Chi con Gemini: provider cu (neu co) duoc chuan hoa ve gemini.
+  const rawProvider = settings.provider?.trim().toLowerCase() || 'gemini'
+  provider.value = rawProvider === 'openai' ? 'gemini' : rawProvider
+  if (provider.value !== 'gemini') provider.value = 'gemini'
   model.value = settings.model?.trim() || MODEL_OPTIONS[provider.value]?.[0]?.value || ''
 }, { immediate: true })
 
@@ -495,7 +492,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       <div class="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 bg-stone-50/50 px-4 py-2.5 text-xs text-stone-500">
         <div class="flex flex-wrap items-center gap-1.5">
           <span>Cấu hình hiện tại:</span>
-          <span class="font-medium text-stone-700">{{ provider === 'openai' ? 'OpenAI' : 'Google Gemini' }}</span>
+          <span class="font-medium text-stone-700">Google Gemini</span>
           <span>·</span>
           <span class="font-mono text-stone-700">{{ model || 'Mặc định' }}</span>
           <span>·</span>

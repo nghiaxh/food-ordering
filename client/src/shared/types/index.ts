@@ -140,7 +140,7 @@ export interface ChatMessage {
   sender: 'USER' | 'BOT'
   content: string
   foods?: FoodCard[]
-  /** Nhom cau hoi: FOOD | RESTAURANT_INFO | ORDER_GUIDE | OUT_OF_SCOPE */
+  /** Nhom cau hoi: FOOD | RESTAURANT_INFO | ORDER_GUIDE | GREETING | OUT_OF_SCOPE */
   intent?: string
   citations?: ChatCitation[]
   /** Cac nut hanh dong tiep theo do server quyet dinh; chi tin bot moi nhat con quickReplies. */

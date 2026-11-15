@@ -41,6 +41,7 @@ const QR_INFO = ["Gợi ý món cho 2 người", "Cách đặt món thế nào?"
 const QR_GUIDE = ["Gợi ý món cho 2 người"];
 const QR_DECLINE = ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?"];
 const QR_FOLLOWUP = ["1 người", "2 người", "4 người"];
+const QR_GREETING = ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?", "Cách đặt món thế nào?"];
 
 /** Cau hoi goc bi hoan khi bot hoi "may nguoi?" de ghep voi cau tra loi ngan cua khach. */
 const pendingFollowUp = new Map<string, { originalMessage: string; expiresAtMs: number }>();
@@ -53,7 +54,7 @@ const prunePendingFollowUp = () => {
   }
 };
 
-export type ChatIntent = "FOOD" | "RESTAURANT_INFO" | "ORDER_GUIDE" | "OUT_OF_SCOPE";
+export type ChatIntent = "FOOD" | "RESTAURANT_INFO" | "ORDER_GUIDE" | "GREETING" | "OUT_OF_SCOPE";
 
 export interface FoodCard {
   id: number;
@@ -110,6 +111,21 @@ const isRestaurantInfoQuestion = (p: string): boolean =>
     "phi ship", "thoi gian giao", "giao hang o dau", "quan o dau", "sdt", "so dien thoai",
   ].some((k) => p.includes(k));
 
+const GREETING_PHRASES = [
+  "xin chao", "chao", "chao ban", "chao cac ban", "chao quy khach",
+  "hello", "hi", "hey", "alo", "good morning", "good afternoon", "good evening",
+  "buoi sang", "buoi chieu", "buoi toi",
+];
+
+const isGreetingQuestion = (p: string): boolean => {
+  const hasTopicKeyword = [
+    "mon", "thuc don", "menu", "goi y", "quan", "dat", "food", "dishes",
+    "mo cua", "dia chi", "phi ship", "thanh toan", "huy don", "don hang",
+  ].some((k) => p.includes(k));
+  if (hasTopicKeyword) return false;
+  return GREETING_PHRASES.some((g) => p === g || p.startsWith(`${g} `));
+};
+
 export const guideReply =
   () =>
     "Để đặt món, bạn thêm món vào giỏ rồi vào trang thanh toán. Khách vãng lai cần đăng nhập mới thêm được vào giỏ.\n\n"
@@ -121,6 +137,11 @@ export const declineReply =
   () =>
     "Mình chỉ tư vấn được về món ăn của quán (gợi ý món, thông tin quán, hướng dẫn đặt hàng). "
     + "Bạn muốn mình gợi ý món cho mấy người, hoặc hỏi giờ mở cửa/shipping thì cứ nhắn nhé!";
+
+export const greetingReply =
+  () =>
+    "Chào bạn! Mình là trợ lý của quán. Mình có thể gợi ý món theo ngân sách/số người, "
+    + "thông tin quán (giờ mở cửa, địa chỉ, phí ship) và hướng dẫn đặt món. Bạn muốn mình giúp gì nhé?";
 
 const truncate = (s: string, max: number): string => {
   const t = s.replaceAll(/\s+/g, " ").trim();
@@ -388,6 +409,18 @@ export const chat = async (
       });
     }
     return { reply, foods: [], intent: "ORDER_GUIDE", citations: null, quickReplies: QR_GUIDE };
+  }
+
+  // Chao hoi: tra loi co dinh bang code, khong goi AI.
+  if (isGreetingQuestion(p)) {
+    const reply = greetingReply();
+    if (user) {
+      await saveMessage(user.id, sessionId, "BOT", reply, {
+        intent: "GREETING",
+        quickReplies: QR_GREETING,
+      });
+    }
+    return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: QR_GREETING };
   }
 
   const genericInfoMatch = !isFoodQuestion(p) && !isFollowUp(classifyMessage) && !p.includes("goi y") && !p.includes("mon");
