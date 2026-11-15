@@ -33,7 +33,7 @@ import useAsyncAction from '@/composables/useAsyncAction'
 import useBusySet from '@/composables/useBusySet'
 import type { Order, OrderStatus } from '@/shared/types'
 import { formatVND } from '@/shared/utils/format'
-import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, allowedNextStatuses, orderCode } from '@/shared/utils/orders'
+import { ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, PAYMENT_METHODS, allowedNextStatuses, canConfirmOrder, orderCode } from '@/shared/utils/orders'
 import { PHONE_PATTERN } from '@/shared/utils/validators'
 import { confirmRemove, runAndMessage, STATUS_TONE_CLASS, type StatusTone } from '@/admin/components/shared'
 import PageCard from '@/admin/components/PageCard.vue'
@@ -81,8 +81,8 @@ const editing = ref<Order | null>(null)
 const detail = computed(() => orders.value?.find((o) => o.id === detailId.value) ?? null)
 const rows = computed(() => {
   const list = orders.value ?? []
-  if (statusFilter.value === 'ALL') return list
-  return list.filter((o) => o.status === statusFilter.value)
+  const filtered = statusFilter.value === 'ALL' ? list : list.filter((o) => o.status === statusFilter.value)
+  return [...filtered].sort((a, b) => b.id - a.id)
 })
 const finalState = (o: Order) => o.status === 'COMPLETED' || o.status === 'CANCELLED'
 // Don da giao hoac da huy thi khoa hoan toan; don da thu tien hoac da xac nhan chi sua
@@ -138,6 +138,10 @@ const statusOptions = computed(() =>
   (editing.value ? ORDER_STATUSES : CREATABLE_STATUSES).map((s) => ({
     label: ORDER_STATUS_LABEL[s],
     value: s,
+    disabled:
+      s === 'CONFIRMED' &&
+      !!editing.value &&
+      !canConfirmOrder(editing.value),
   })),
 )
 
@@ -238,7 +242,7 @@ const columns: DataTableColumns<Order> = [
     render: (row) => {
       const nexts = allowedNextStatuses(row.status)
       const primaryNext = nexts.find((s) => s !== 'CANCELLED')
-      const blockedByQr = primaryNext === 'CONFIRMED' && row.paymentMethod === 'QR' && row.paymentStatus === 'UNPAID'
+      const blockedByQr = primaryNext === 'CONFIRMED' && !canConfirmOrder(row)
       return h('div', { class: 'flex items-center gap-1.5' }, [
         primaryNext
           ? h(NTooltip, { ...(blockedByQr ? { title: 'Khách chưa thanh toán' } : {}) }, {
@@ -288,7 +292,7 @@ const statusSelectOptions = computed(() => {  const d = detail.value
     ...allowedNextStatuses(d.status).map((s) => ({
       label: ORDER_STATUS_LABEL[s],
       value: s as string,
-      disabled: s === 'CONFIRMED' && d.paymentMethod === 'QR' && d.paymentStatus === 'UNPAID',
+      disabled: s === 'CONFIRMED' && !canConfirmOrder(d),
     })),
   ]
 })
@@ -433,6 +437,9 @@ const statusSelectOptions = computed(() => {  const d = detail.value
           </NFormItem>
         </div>
 
+        <p v-if="editing && !canConfirmOrder(editing)" class="mb-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-xs leading-relaxed text-amber-900">
+          Đơn QR chưa thanh toán nên chưa thể xác nhận. Hãy đánh dấu đã thanh toán trước.
+        </p>
         <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-400">Món đặt</p>
         <p v-if="itemsLocked" class="mb-2 rounded-md bg-stone-50 px-2.5 py-1.5 text-xs leading-relaxed text-stone-500">
           Đơn đã xác nhận hoặc đã thu tiền nên chỉ sửa được người nhận, số điện thoại, địa chỉ và ghi chú. Muốn đổi món, hãy hủy đơn và tạo đơn mới.

@@ -55,3 +55,8 @@ export function allowedNextStatuses(status: OrderStatus): OrderStatus[] {
 export function canCancelOrder(order: Pick<Order, 'status' | 'paymentStatus'>): boolean {
   return order.status === 'PENDING' && order.paymentStatus !== 'PAID'
 }
+
+/** Admin chi xac nhan don QR khi khach da thanh toan; COD van xac nhan duoc truoc. */
+export function canConfirmOrder(order: Pick<Order, 'paymentMethod' | 'paymentStatus'>): boolean {
+  return !(order.paymentMethod === 'QR' && order.paymentStatus === 'UNPAID')
+}

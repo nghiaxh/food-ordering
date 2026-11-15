@@ -70,7 +70,7 @@ export const toPromotionJson = (p: {
 });
 
 export const listPromotions = async () => {
-  const rows = await db.query.promotions.findMany({ orderBy: [asc(promotions.id)] });
+  const rows = await db.query.promotions.findMany({ orderBy: [desc(promotions.id)] });
   return rows.map(toPromotionJson);
 };
 

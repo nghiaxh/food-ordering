@@ -75,7 +75,7 @@ const addrForm = reactive({ label: '', receiverName: '', phone: '', address: '' 
 const formRef = ref<InstanceType<typeof NForm> | null>(null)
 const addrFormRef = ref<InstanceType<typeof NForm> | null>(null)
 
-const { quote, quoteLoading, quoteError, quoteStale, retry: retryQuote } = useCartQuote(() => cart.items)
+const { quote, quoteLoading, quoteError, quoteStale, retry: retryQuote } = useCartQuote(() => cart.selectedItems)
 
 const { run: submitOrder, pending: submitting } = useAsyncAction(
   (payload: {
@@ -179,7 +179,7 @@ const signatureOf = (rows: { foodId: number | null; quantity: number }[]) =>
     .join('|')
 
 const cartRows = () =>
-  cart.items.filter((i) => i.food).map((i) => ({ foodId: i.food!.id, quantity: i.quantity }))
+  cart.selectedItems.filter((i) => i.food).map((i) => ({ foodId: i.food!.id, quantity: i.quantity }))
 
 const quoteSignature = computed(() => (quote.value ? signatureOf(quote.value.lines) : ''))
 
@@ -218,7 +218,7 @@ const checkout = async () => {
   if (res.ok) {
     // Gio doi trong luc cho server: don da tao theo ban chup truoc do, xoa gio se mat mon vua them.
     if (signatureOf(cartRows()) === signature) {
-      await cart.clear()
+      await cart.removeSelected()
       message.success('Đặt món thành công')
     } else {
       message.warning('Đơn đã được tạo nhưng giỏ hàng vừa thay đổi. Vui lòng kiểm tra lại giỏ.')
@@ -231,7 +231,7 @@ const checkout = async () => {
 }
 
 const canSubmit = computed(() => Boolean(quote.value) && !quoteLoading.value && !quoteError.value && !submitting.value && !ordering.value)
-const totalQuantity = computed(() => cart.items.reduce((n, i) => n + i.quantity, 0))
+const totalQuantity = computed(() => cart.selectedItems.reduce((n, i) => n + i.quantity, 0))
 
 const nameRules: FormItemRule[] = [{ required: true, message: 'Nhập tên người nhận', trigger: ['blur', 'input'] }]
 const phoneRules: FormItemRule[] = [
@@ -262,6 +262,14 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
         <div class="mt-4 flex flex-wrap justify-center gap-2">
           <NButton @click="ui.openDrawer('cart')">Xem giỏ hàng</NButton>
           <NButton type="primary" @click="router.push('/')">Khám phá thực đơn</NButton>
+        </div>
+      </NEmpty>
+    </div>
+
+    <div v-else-if="cart.selectedItems.length === 0" class="mx-auto max-w-3xl px-4 py-20 text-center">
+      <NEmpty description="Chưa chọn món nào để đặt">
+        <div class="mt-4 flex flex-wrap justify-center gap-2">
+          <NButton type="primary" @click="ui.openDrawer('cart')">Chọn món trong giỏ</NButton>
         </div>
       </NEmpty>
     </div>
@@ -359,13 +367,13 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
                 <h2 class="text-sm font-semibold text-stone-900">Đơn hàng của bạn</h2>
-                <p class="mt-0.5 text-[11px] text-stone-500">{{ cart.items.length }} món · {{ totalQuantity }} phần</p>
+                <p class="mt-0.5 text-[11px] text-stone-500">{{ cart.selectedItems.length }} món · {{ totalQuantity }} phần</p>
               </div>
               <NButton size="tiny" text type="primary" class="shrink-0" @click="ui.openDrawer('cart')">Sửa giỏ</NButton>
             </div>
 
             <div class="mt-2.5 space-y-2">
-              <div v-for="item in cart.items.slice(0, 3)" :key="item.food?.id ?? item.quantity" class="flex items-center gap-2">
+              <div v-for="item in cart.selectedItems.slice(0, 3)" :key="item.food?.id ?? item.quantity" class="flex items-center gap-2">
                 <img :src="item.food?.imageUrl ?? ''" alt="" class="h-9 w-9 shrink-0 rounded-md object-cover" />
                 <span class="min-w-0 flex-1 truncate text-xs text-stone-700">
                   <span class="font-semibold tabular-nums">{{ item.quantity }}x</span>
@@ -375,7 +383,7 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
                   {{ formatVND(quote.lines.find(l => l.foodId === item.food?.id)?.lineTotal ?? 0) }}
                 </span>
               </div>
-              <p v-if="cart.items.length > 3" class="text-[11px] text-stone-400">+{{ cart.items.length - 3 }} món nữa</p>
+              <p v-if="cart.selectedItems.length > 3" class="text-[11px] text-stone-400">+{{ cart.selectedItems.length - 3 }} món nữa</p>
             </div>
 
             <div class="mt-2.5 space-y-1 text-xs">

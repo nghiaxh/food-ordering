@@ -15,7 +15,7 @@ import {
   NTag,
   type DataTableColumns,
 } from 'naive-ui'
-import { TrashOutline } from '@vicons/ionicons5'
+import { SearchOutline, TrashOutline } from '@vicons/ionicons5'
 import { adminDeletePromotion, adminGetPromotions, adminSavePromotion } from '@/admin/promotion/api'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -50,6 +50,19 @@ const discountLabel = (p: Promotion): string => {
 
 const { data: promotions, loading, error, refresh } = useAsyncData(() => adminGetPromotions(), () => [])
 watchEffect(() => { if (error.value) message.error('Không tải được danh sách khuyến mãi') })
+const search = ref('')
+const statusFilter = ref<'all' | 'active' | 'inactive'>('all')
+const rows = computed(() =>
+  [...(promotions.value ?? [])]
+    .filter((p) => {
+      const kw = search.value.trim().toLowerCase()
+      if (kw && !p.name.toLowerCase().includes(kw) && !(p.description ?? '').toLowerCase().includes(kw)) return false
+      if (statusFilter.value === 'active' && !p.active) return false
+      if (statusFilter.value === 'inactive' && p.active) return false
+      return true
+    })
+    .sort((a, b) => b.id - a.id),
+)
 const { data: categories } = useAsyncData((signal) => getCategories(signal), () => [])
 const { data: foods } = useAsyncData((signal) => getFoods(undefined, signal), () => [])
 const { run: save, pending: saving } = useAsyncAction(
@@ -200,10 +213,22 @@ const columns: DataTableColumns<Promotion> = [
       <NButton type="primary" size="small" @click="openCreate">Thêm khuyến mãi</NButton>
     </template></PageHeader>
 
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <NInput v-model:value="search" clearable size="small" placeholder="Tìm tên hoặc mô tả..." class="w-full sm:w-64">
+        <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
+      </NInput>
+      <NSelect v-model:value="statusFilter" size="small" class="w-full sm:w-40" :options="[
+        { label: 'Tất cả trạng thái', value: 'all' },
+        { label: 'Đang bật', value: 'active' },
+        { label: 'Đang tắt', value: 'inactive' },
+      ]" />
+      <span v-if="search.trim() || statusFilter !== 'all'" class="text-xs text-stone-400">Hiển thị {{ rows.length }} / {{ promotions?.length ?? 0 }} khuyến mãi</span>
+    </div>
+
     <PageCard>
       <TableSkeleton v-if="loading && !promotions" />
-      <NEmpty v-else-if="(promotions ?? []).length === 0" class="py-8" description="Chưa có khuyến mãi nào." />
-      <NDataTable v-else :columns="columns" :data="promotions ?? []" :row-key="(row: Promotion) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="900" size="small" />
+      <NEmpty v-else-if="rows.length === 0" class="py-8" description="Không có khuyến mãi nào." />
+      <NDataTable v-else :columns="columns" :data="rows" :row-key="(row: Promotion) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="900" size="small" />
     </PageCard>
 
     <FormModal :title="editing ? 'Sửa khuyến mãi' : 'Thêm khuyến mãi'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
