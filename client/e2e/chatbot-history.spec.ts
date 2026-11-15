@@ -140,3 +140,31 @@ test('History list reopens an older session and deletes sessions', async ({ page
   await expect(page.getByTestId('chatbot-history-item')).toHaveCount(0)
   await expect(page.getByText('Chưa có hội thoại nào được lưu.')).toBeVisible()
 })
+
+test('Chat cache owned by another account is dropped on sign-in', async ({ page, request }) => {
+  const session = await apiLogin(request, demoEmail)
+  // Khong co phien tren server: neu cache bi dung lai thi loi chao bien mat, test bat duoc.
+  await page.route('**/api/chatbot/sessions**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+  )
+  const foreignCache = {
+    ownerId: session.id + 1,
+    sessionId: 'session-foreign',
+    messages: [
+      { sender: 'USER', content: 'Câu hỏi của tài khoản trước' },
+      { sender: 'BOT', content: 'Món riêng của tài khoản trước' },
+    ],
+  }
+  await page.addInitScript(
+    ([user, cache]: [typeof session, typeof foreignCache]) => {
+      localStorage.setItem('auth', JSON.stringify(user))
+      localStorage.setItem('chatbot.state', JSON.stringify(cache))
+    },
+    [session, foreignCache],
+  )
+  await page.goto('/')
+  await openChat(page)
+
+  await expect(page.getByText('Món riêng của tài khoản trước')).toHaveCount(0)
+  await expect(page.getByText('Chào bạn! Mình là trợ lý đặt món của quán.')).toBeVisible()
+})
