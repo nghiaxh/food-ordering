@@ -18,12 +18,16 @@ export const GREETING_STARTERS = [
 ]
 
 const CHATBOT_OFF_NOTICE = 'Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.'
-const STREAM_TICK_MS = 16
-const STREAM_WORDS = 90
+const STREAM_TICK_MS = 32
+const STREAM_FRAMES = 24
+const STREAM_MAX_CHUNK = 6
 
 interface Draft {
+  /** Chuoi goc AI tra ve, giu nguyen xuong dong; chi cat theo chi so. */
   content: string
-  shownWords: number
+  /** Vi tri ket thuc tung tu trong `content`, de cat chuoi goc ma khong mat dinh dang. */
+  cutPoints: number[]
+  shown: number
   foods: ChatMessage['foods']
   citations?: ChatCitation[]
   intent?: string
@@ -32,6 +36,13 @@ interface Draft {
 interface LegacySession {
   id: string
   messages: ChatMessage[]
+}
+
+// Vi tri ket thuc tung tu trong cau tra loi: cat chuoi goc den day thi giu duoc xuong dong.
+const cutPointsOf = (content: string): number[] => {
+  const points: number[] = []
+  for (const match of content.matchAll(/\S+/g)) points.push((match.index ?? 0) + match[0].length)
+  return points
 }
 
 const greetingMessages = (): ChatMessage[] => [
@@ -277,16 +288,23 @@ export const useChatConversation = () => {
     ]
   }
 
+  // Cat tren chuoi goc theo chi so tu, giu nguyen xuong dong cua cau tra loi.
+  const visibleText = (d: Draft): string =>
+    d.shown > 0 ? d.content.slice(0, d.cutPoints[d.shown - 1] ?? d.content.length) : ''
+
   const flushDraft = (d: Draft) => {
-    const partial = d.shownWords > 0 ? d.content.split(/\s+/).slice(0, d.shownWords).join(' ') : ''
+    const partial = visibleText(d)
     const content = partial.trim() ? partial : d.content
     pushBotMessage(content, d.foods || [], d.citations, d.intent, d.quickReplies)
   }
 
-  // "Dang go" tung tu: moi tick tang so tu da hien; panel dong thi hien thang, khong chay hieu ung.
+  // "Dang go" tung tu: moi tick hien them mot nhom tu; panel dong thi hien thang, khong chay hieu ung.
   watch(draft, (d) => {
     if (streamTimer) window.clearInterval(streamTimer)
     if (!d) return
+    const total = d.cutPoints.length
+    // Chia so tu cho so khung co dinh de cau ngan va cau dai co cung nhip go.
+    const step = Math.min(STREAM_MAX_CHUNK, Math.max(1, Math.ceil(total / STREAM_FRAMES)))
     streamTimer = window.setInterval(() => {
       const current = draft.value
       if (!current) {
@@ -294,19 +312,22 @@ export const useChatConversation = () => {
         streamTimer = undefined
         return
       }
-      const words = current.content.split(/\s+/)
-      if (current.shownWords >= words.length) {
+      current.shown = Math.min(current.cutPoints.length, current.shown + step)
+      if (current.shown >= current.cutPoints.length) {
         window.clearInterval(streamTimer)
         streamTimer = undefined
         flushDraft(current)
         draft.value = null
-        return
       }
-      const step = Math.max(1, Math.ceil(words.length / STREAM_WORDS))
-      current.shownWords = Math.min(words.length, current.shownWords + step)
     }, STREAM_TICK_MS)
   })
+  // Tab bi an thi trinh duyet ha nhip interval; hien luon ca cau de quay lai khong thay chu nhay cuc.
+  const onVisibilityChange = () => {
+    if (document.hidden) stopStreaming()
+  }
+  onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange))
   onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', onVisibilityChange)
     if (streamTimer) window.clearInterval(streamTimer)
   })
 
@@ -342,7 +363,15 @@ export const useChatConversation = () => {
       const ui = useUiStore()
       const canStream = ui.chatOpen && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (canStream) {
-        draft.value = { content: res.reply, shownWords: 0, foods, citations, intent, quickReplies }
+        draft.value = {
+          content: res.reply,
+          cutPoints: cutPointsOf(res.reply),
+          shown: 0,
+          foods,
+          citations,
+          intent,
+          quickReplies,
+        }
       } else {
         pushBotMessage(res.reply, foods, citations, intent, quickReplies)
       }

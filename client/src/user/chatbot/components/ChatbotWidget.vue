@@ -42,17 +42,35 @@ const {
 
 const historyOpen = ref(false)
 const listRef = ref<HTMLElement | null>(null)
-const scrollToBottom = () => {
-  void nextTick(() => listRef.value?.scrollTo({ top: listRef.value.scrollHeight }))
+const atBottom = ref(true)
+const NEAR_BOTTOM_PX = 64
+
+// Chi tu cuon khi nguoi doc dang o day; cuon len doc tin cu thi khong bi keo xuong.
+const stickToBottom = () => {
+  void nextTick(() => {
+    const el = listRef.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
+const onListScroll = () => {
+  const el = listRef.value
+  if (!el) return
+  atBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX
+}
+const jumpToLatest = () => {
+  atBottom.value = true
+  stickToBottom()
 }
 // Tu cuon xuong cuoi moi khi co tin moi, bot dang tra loi hoac draft doi.
 watch(
   [messages, loading, () => draft.value],
-  scrollToBottom,
+  () => {
+    if (atBottom.value) stickToBottom()
+  },
   { deep: true },
 )
 // Doi kich thuoc khung thi giu nguoi dung o tin moi nhat.
-watch(() => ui.chatExpanded, scrollToBottom)
+watch(() => ui.chatExpanded, jumpToLatest)
 
 // Esc thu nho truoc, bam lan nua moi dong han; tranh dong mat hoi thoai dang doc.
 const onKeydown = (event: KeyboardEvent) => {
@@ -75,9 +93,14 @@ const isAdmin = computed(() => route.path.startsWith('/admin') || auth.user?.rol
 const canAdd = computed(() => auth.user !== null && auth.user.role !== 'ADMIN')
 const canUseHistory = computed(() => auth.user?.role === 'CUSTOMER')
 
-// Dong khung chat thi thoat man lich su, lan mo sau quay ve hoi thoai dang do.
+// Dong khung chat thi thoat man lich su va hien luon cau dang go; mo lai thi bam day tin moi nhat.
 watch(() => ui.chatOpen, (open) => {
-  if (!open) historyOpen.value = false
+  if (!open) {
+    historyOpen.value = false
+    stopStreaming()
+    return
+  }
+  jumpToLatest()
 })
 
 const openHistory = () => {
@@ -105,13 +128,13 @@ const showStarters = computed(
 const streamingMessage = computed<ChatMessage | null>(() => {
   const d = draft.value
   if (!d) return null
-  const totalWords = d.content.split(/\s+/).length
-  const complete = totalWords <= d.shownWords
+  const complete = d.shown >= d.cutPoints.length
   return {
     sender: 'BOT',
-    content: d.content.split(/\s+/).slice(0, d.shownWords).join(' '),
-    foods: complete ? d.foods : [],
-    citations: complete ? d.citations : undefined,
+    content: d.shown > 0 ? d.content.slice(0, d.cutPoints[d.shown - 1] ?? d.content.length) : '',
+    // The mon hien ngay tu dau de khung chat khong cao them dot ngot khi go xong.
+    foods: d.foods,
+    citations: d.citations,
     intent: d.intent,
     quickReplies: complete ? d.quickReplies : undefined,
   }
@@ -230,15 +253,23 @@ const handleAdd = async (f: FoodCard) => {
         </div>
       </div>
 
-      <div v-else ref="listRef" class="flex-1 space-y-3 overflow-y-auto bg-stone-50/70 p-3">
-        <p v-if="statusText && loading" class="text-xs text-orange-800">{{ statusText }}</p>
-
+      <div v-else class="relative flex min-h-0 flex-1 flex-col">
+        <div
+          ref="listRef"
+          role="log"
+          aria-label="Hội thoại với trợ lý"
+          :aria-live="isStreaming ? 'off' : 'polite'"
+          :aria-busy="isStreaming"
+          tabindex="0"
+          class="flex-1 space-y-3 overflow-y-auto bg-stone-50/70 p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400/60"
+          @scroll.passive="onListScroll"
+        >
           <template v-if="showBody">
             <div v-for="(m, index) in renderedMessages" :key="index" :class="m.sender === 'BOT' ? '' : 'flex justify-end'">
               <div :class="m.sender === 'BOT' ? 'max-w-[92%]' : 'max-w-[85%]'">
                 <div v-if="m.sender === 'BOT'" data-testid="chatbot-bot-message" class="whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-200/70">
                   {{ m.content }}
-                  <span v-if="isStreaming && index === renderedMessages.length - 1" class="ml-0.5 inline-block h-3.5 w-1 animate-pulse rounded-sm bg-stone-400 align-middle" />
+                  <span v-if="isStreaming && index === renderedMessages.length - 1" aria-hidden="true" class="ml-0.5 inline-block h-3.5 w-1 animate-pulse rounded-sm bg-stone-400 align-middle motion-reduce:animate-none" />
                 </div>
                 <div v-else class="whitespace-pre-wrap rounded-2xl rounded-br-md bg-orange-600 px-3 py-2 text-sm text-white">
                   {{ m.content }}
@@ -261,7 +292,7 @@ const handleAdd = async (f: FoodCard) => {
                   </button>
                 </div>
 
-                <div v-if="m.foods && m.foods.length > 0" class="mt-2 divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
+                <div v-if="m.foods && m.foods.length > 0" class="chat-rise mt-2 divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
                   <RouterLink v-for="f in m.foods" :key="f.id" :to="`/foods/${f.id}`" data-testid="chatbot-food-card" class="flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-orange-50">
                     <img :src="f.imageUrl ?? ''" :alt="f.name" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg object-cover" />
                     <span class="min-w-0 flex-1 truncate text-sm font-medium text-stone-800">
@@ -305,10 +336,13 @@ const handleAdd = async (f: FoodCard) => {
             </div>
           </template>
 
-          <div v-if="loading && !isStreaming" class="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
-            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 0ms" />
-            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 150ms" />
-            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400" style="animation-delay: 300ms" />
+          <div v-if="loading && !isStreaming" role="status" class="inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
+            <span class="text-xs text-stone-500">{{ statusText ?? 'Đang trả lời...' }}</span>
+            <span class="flex items-center gap-1" aria-hidden="true">
+              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400 motion-reduce:animate-none" style="animation-delay: 0ms" />
+              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400 motion-reduce:animate-none" style="animation-delay: 150ms" />
+              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400 motion-reduce:animate-none" style="animation-delay: 300ms" />
+            </span>
           </div>
 
           <button
@@ -329,12 +363,22 @@ const handleAdd = async (f: FoodCard) => {
           </button>
         </div>
 
+        <button
+          v-if="!atBottom"
+          type="button"
+          class="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 cursor-pointer rounded-full bg-stone-800/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg transition hover:bg-stone-900"
+          @click="jumpToLatest"
+        >
+          Tin mới nhất
+        </button>
+      </div>
+
       <div v-if="!historyOpen" class="shrink-0 border-t border-stone-100 bg-white p-2.5">
         <NInput
           :value="input"
-          :disabled="loading || unavailable"
+          :disabled="unavailable"
           :placeholder="unavailable ? 'Trợ lý đang tạm tắt' : 'Nhập yêu cầu món ăn...'"
-          aria-label="Nhập câu hỏi cho chatbot"
+          :input-props="{ 'aria-label': 'Nhập câu hỏi cho chatbot' }"
           class="!pr-1.5"
           size="large"
           @update:value="setInput"
