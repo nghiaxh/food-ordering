@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import { GoogleGenAI } from "@google/genai";
 import { aiSetting } from "../db/schema.js";
 import { db } from "./db.js";
 import { env } from "../config/env.js";
@@ -10,6 +9,7 @@ import { env } from "../config/env.js";
 export const PROVIDER_GEMINI = "gemini";
 export const SUPPORTED_PROVIDERS = [PROVIDER_GEMINI] as const;
 
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 const TIMEOUT_MS = 15_000;
 const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
 const PROBE_USER = "ping";
@@ -45,6 +45,9 @@ const setting = async (key: string, fallback: string): Promise<string> => {
   const value = row?.settingValue?.trim();
   return value ? value : fallback;
 };
+
+const fetchWithTimeout = (url: string, init: RequestInit): Promise<Response> =>
+  fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 
 /** Khoa co duoc nha cung cap chap nhan khong. Lan dau goi thu mot cau toi gian roi giu ket qua. */
 export const verifyKey = async (): Promise<boolean> => {
@@ -92,7 +95,8 @@ export const generate = async (
   }
 
   try {
-    return await callGemini(apiKey, model, systemPrompt, userPrompt, jsonMode);
+    const raw = await callGemini(apiKey, model, systemPrompt, userPrompt, jsonMode);
+    return text(raw);
   } catch (error) {
     if (isKeyRejected(error)) {
       credentialsRejected = true;
@@ -105,11 +109,25 @@ export const generate = async (
 
 const isKeyRejected = (error: unknown): boolean => {
   if (error instanceof AiKeyRejectedException) return true;
-  const body = error instanceof Error ? error.message : String(error);
-  const status = typeof error === "object" && error !== null
-    ? Number((error as { status?: unknown; code?: unknown }).status ?? (error as { status?: unknown; code?: unknown }).code)
+  const body = typeof error === "object" && error !== null && "body" in error
+    ? String((error as { body?: unknown }).body ?? "")
+    : "";
+  const status = typeof error === "object" && error !== null && "status" in error
+    ? Number((error as { status?: unknown }).status)
     : NaN;
   return Number.isFinite(status) && isKeyRejectionBody(status, body);
+};
+
+interface HttpError extends Error {
+  status?: number;
+  body?: string;
+}
+
+const httpError = (status: number, body: string): HttpError => {
+  const error = new Error(`HTTP ${status}`) as HttpError;
+  error.status = status;
+  error.body = body;
+  return error;
 };
 
 const callGemini = async (
@@ -119,18 +137,35 @@ const callGemini = async (
   userPrompt: string,
   jsonMode: boolean,
 ): Promise<string> => {
-  const ai = new GoogleGenAI({
-    apiKey,
-    httpOptions: { timeout: TIMEOUT_MS },
-  });
-  const response = await ai.models.generateContent({
-    model,
-    contents: userPrompt,
-    config: {
-      systemInstruction: systemPrompt,
-      temperature: jsonMode ? 0.2 : 0.4,
-      responseMimeType: jsonMode ? "application/json" : undefined,
+  const generationConfig = jsonMode
+    ? { temperature: 0.2, responseMimeType: "application/json" }
+    : { temperature: 0.4 };
+  const body = {
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    generationConfig,
+  };
+  const response = await fetchWithTimeout(
+    `${GEMINI_URL}${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     },
-  });
-  return response.text ?? "";
+  );
+  if (!response.ok) throw httpError(response.status, await response.text());
+  return response.text();
+};
+
+/** Doc text tu cau truc phan hoi Gemini. */
+const text = (raw: string): string => {
+  try {
+    const root = JSON.parse(raw) as Record<string, unknown>;
+    const candidates = root.candidates as
+      | Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      | undefined;
+    return candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  } catch {
+    return "";
+  }
 };
