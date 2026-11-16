@@ -11,9 +11,20 @@ export const SUPPORTED_PROVIDERS = [PROVIDER_GEMINI] as const;
 
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 const TIMEOUT_MS = 15_000;
+const EXTRACT_TIMEOUT_MS = 10_000;
+const REPLY_TIMEOUT_MS = 12_000;
+const MAX_OUTPUT_TOKENS = 500;
 const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
 const PROBE_USER = "ping";
 const PROBE_RETRY_MS = 5 * 60 * 1000;
+
+// Provider rat hanh ban: 429 la loi tam thoi, thu lai sau it giay se duoc.
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRIES = 2;
+const RETRY_DELAYS_MS = [600, 1800];
+const RETRY_AFTER_CAP_MS = 5_000;
+// Sau 429 dung goi AI trong mot luc de khong doi gap hanh che.
+const RATE_LIMIT_COOLDOWN_MS = 25_000;
 
 /** Khoa API bi nha cung cap tu choi (sai, het han, chua bat API) - khong phai loi tam thoi. */
 export class AiKeyRejectedException extends Error {
@@ -23,9 +34,21 @@ export class AiKeyRejectedException extends Error {
   }
 }
 
+/** Provider da chon ban (429): dung goi AI mot luc roi thu lai. */
+export class AiRateLimitedException extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "AiRateLimitedException";
+  }
+}
+
 let credentialsRejected = false;
 let keyAccepted: boolean | null = null;
 let probeFailedAt = 0;
+let rateLimitedUntil = 0;
+
+/** Provider dang gioi han: client can bao ngay thay vi cho lau. */
+export const isRateLimited = (): boolean => Date.now() < rateLimitedUntil;
 
 /** Tro ly co dung duoc khong: khoa da cau hinh va chua bi nha cung cap tu choi. */
 export const isConfigured = (): boolean => {
@@ -38,6 +61,7 @@ export const _resetKeyStateForTests = () => {
   credentialsRejected = false;
   keyAccepted = null;
   probeFailedAt = 0;
+  rateLimitedUntil = 0;
 };
 
 const setting = async (key: string, fallback: string): Promise<string> => {
@@ -46,8 +70,8 @@ const setting = async (key: string, fallback: string): Promise<string> => {
   return value ? value : fallback;
 };
 
-const fetchWithTimeout = (url: string, init: RequestInit): Promise<Response> =>
-  fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+const fetchWithTimeout = (url: string, init: RequestInit, timeoutMs: number): Promise<Response> =>
+  fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
 
 /** Khoa co duoc nha cung cap chap nhan khong. Lan dau goi thu mot cau toi gian roi giu ket qua. */
 export const verifyKey = async (): Promise<boolean> => {
@@ -55,7 +79,7 @@ export const verifyKey = async (): Promise<boolean> => {
   if (keyAccepted !== null) return keyAccepted;
   if (Date.now() - probeFailedAt < PROBE_RETRY_MS) return true;
   try {
-    await generate(PROBE_SYSTEM, PROBE_USER, false);
+    await generate(PROBE_SYSTEM, PROBE_USER, false, { timeoutMs: 8_000, maxOutputTokens: 16 });
     keyAccepted = true;
     return true;
   } catch (error) {
@@ -78,11 +102,19 @@ const isKeyRejectionBody = (status: number, body: string): boolean => {
   );
 };
 
+export interface GenerateOptions {
+  /** Timeout cho mot lan goi; mac dinh dung TIMEOUT_MS. */
+  timeoutMs?: number;
+  /** Gioi han so token sinh ra, giup model nem xong nhanh hon. */
+  maxOutputTokens?: number;
+}
+
 /** Goi dich vu AI; loi tam thoi thi nem RuntimeException de chatbot tu roi sang nhanh du phong. */
 export const generate = async (
   systemPrompt: string,
   userPrompt: string,
   jsonMode: boolean,
+  options: GenerateOptions = {},
 ): Promise<string> => {
   const provider = (await setting("provider", env.AI_PROVIDER)).toLowerCase();
   if (provider !== PROVIDER_GEMINI) {
@@ -93,11 +125,16 @@ export const generate = async (
   if (!apiKey || !apiKey.trim()) {
     throw new Error("Chưa cấu hình khóa API của dịch vụ AI");
   }
+  // Trong luc cho doi hanh che, khong goi provider: tra loi nhanh cho client.
+  if (Date.now() < rateLimitedUntil) {
+    throw new AiRateLimitedException("Dịch vụ AI đang giới hạn số yêu cầu, vui lòng thử lại sau");
+  }
 
   try {
-    const raw = await callGemini(apiKey, model, systemPrompt, userPrompt, jsonMode);
+    const raw = await callGemini(apiKey, model, systemPrompt, userPrompt, jsonMode, options);
     return text(raw);
   } catch (error) {
+    if (error instanceof AiRateLimitedException) throw error;
     if (isKeyRejected(error)) {
       credentialsRejected = true;
       keyAccepted = false;
@@ -121,25 +158,101 @@ const isKeyRejected = (error: unknown): boolean => {
 interface HttpError extends Error {
   status?: number;
   body?: string;
+  retryAfterMs?: number;
 }
 
-const httpError = (status: number, body: string): HttpError => {
+const httpError = (status: number, body: string, retryAfterMs?: number): HttpError => {
   const error = new Error(`HTTP ${status}`) as HttpError;
   error.status = status;
   error.body = body;
+  error.retryAfterMs = retryAfterMs;
   return error;
 };
 
+const statusOf = (error: unknown): number => {
+  const status = typeof error === "object" && error !== null && "status" in error
+    ? Number((error as { status?: unknown }).status)
+    : NaN;
+  return Number.isFinite(status) ? status : 0;
+};
+
+/** Doc `Retry-After` (giay hoac ngay HTTP) va doi thanh mili giay, gioi han toi da cap. */
+const retryAfterMs = (header: string | null): number | undefined => {
+  if (!header) return undefined;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.min(Math.max(seconds, 0) * 1000, RETRY_AFTER_CAP_MS);
+  const date = Date.parse(header);
+  if (Number.isFinite(date)) return Math.min(Math.max(date - Date.now(), 0), RETRY_AFTER_CAP_MS);
+  return undefined;
+};
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Goi provider co retry lai loi tam thoi. 429/5xx thi thu them (toi da 2 lan) theo
+ * backoff ngan va ton trong `Retry-After`; het luot thi nem loi de chatbot roi sang
+ * nhanh du phong. Loi khoa khong retry.
+ */
 const callGemini = async (
   apiKey: string,
   model: string,
   systemPrompt: string,
   userPrompt: string,
   jsonMode: boolean,
+  options: GenerateOptions,
 ): Promise<string> => {
-  const generationConfig = jsonMode
+  const timeoutMs = options.timeoutMs ?? TIMEOUT_MS;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const raw = await callOnce(
+        apiKey,
+        model,
+        systemPrompt,
+        userPrompt,
+        jsonMode,
+        timeoutMs,
+        options.maxOutputTokens,
+      );
+      // Lan thu lai thanh cong thi provider da cho qua: bo hanh cho doi.
+      rateLimitedUntil = 0;
+      return raw;
+    } catch (error) {
+      lastError = error;
+      const status = statusOf(error);
+      if (status === 429) {
+        // Chan goi moi trong chot, khong phai chi loi cua lan nay.
+        rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+        console.warn("[ai] provider tra 429, tam dung goi AI 25s");
+      }
+      if (!RETRYABLE_STATUS.has(status) || attempt === MAX_RETRIES) break;
+      const hinted = (error as HttpError | undefined)?.retryAfterMs;
+      const wait = hinted ?? RETRY_DELAYS_MS[attempt] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1]!;
+      console.warn(`[ai] provider loi ${status}, thu lai sau ${wait}ms`);
+      await sleep(wait);
+    }
+  }
+  if (statusOf(lastError) === 429) {
+    throw new AiRateLimitedException("Dịch vụ AI đang giới hạn số yêu cầu, vui lòng thử lại sau", {
+      cause: lastError,
+    });
+  }
+  throw lastError;
+};
+
+const callOnce = async (
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  jsonMode: boolean,
+  timeoutMs: number,
+  maxOutputTokens?: number,
+): Promise<string> => {
+  const generationConfig: { temperature: number; responseMimeType?: string; maxOutputTokens?: number } = jsonMode
     ? { temperature: 0.2, responseMimeType: "application/json" }
     : { temperature: 0.4 };
+  if (maxOutputTokens) generationConfig.maxOutputTokens = maxOutputTokens;
   const body = {
     systemInstruction: { parts: [{ text: systemPrompt }] },
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
@@ -152,8 +265,11 @@ const callGemini = async (
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     },
+    timeoutMs,
   );
-  if (!response.ok) throw httpError(response.status, await response.text());
+  if (!response.ok) {
+    throw httpError(response.status, await response.text(), retryAfterMs(response.headers.get("retry-after")));
+  }
   return response.text();
 };
 
@@ -169,3 +285,7 @@ const text = (raw: string): string => {
     return "";
   }
 };
+
+/** Timeout rieng cho tung buoc: trich xuat phai nhanh, sinh cau tra loi dai hon mot chut. */
+export const AI_TIMEOUTS = { extract: EXTRACT_TIMEOUT_MS, reply: REPLY_TIMEOUT_MS } as const;
+export const AI_MAX_OUTPUT_TOKENS = MAX_OUTPUT_TOKENS;
