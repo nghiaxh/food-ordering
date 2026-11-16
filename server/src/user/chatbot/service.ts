@@ -34,6 +34,7 @@ import { keywordSearchKnowledge, searchChunks, type ScoredChunk } from "./retrie
 import { ANSWER_PROMPT, EXTRACT_PROMPT } from "./prompts.js";
 
 const MISSING_KEY_NOTICE = "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.";
+const RATE_LIMIT_NOTE = "Trợ lý AI đang bận nên mình tư vấn nhanh theo thực đơn.";
 
 const QR_FOOD = ["Món khác", "Món chay không cay", "Cách đặt món thế nào?"];
 const QR_FOOD_EMPTY = ["Món khác", "Món chay không cay"];
@@ -258,9 +259,15 @@ const extractCriteria = async (message: string, history: string[], categoryNames
   const prompt = EXTRACT_PROMPT.replace("%s", previous).replace("%s", categoryNames);
   let raw: string;
   try {
-    raw = await gemini.generate(prompt, message, true);
+    raw = await gemini.generate(prompt, message, true, {
+      timeoutMs: gemini.AI_TIMEOUTS.extract,
+      maxOutputTokens: 400,
+    });
   } catch (error) {
     if (error instanceof gemini.AiKeyRejectedException) throw error;
+    if (error instanceof gemini.AiRateLimitedException) {
+      console.warn("[chatbot] AI bi gioi han, chuyen sang tra loi theo thuc don");
+    }
     return null;
   }
   const cleaned = raw.replaceAll("```json", "").replaceAll("```", "").trim();
@@ -289,10 +296,11 @@ const generateReply = async (
   data.push("");
   data.push("DANH SÁCH MÓN PHÙ HỢP (dữ liệu thật từ thực đơn):");
   if (foods.length === 0) data.push("(rỗng)");
-  for (const p of foods.slice(0, 15)) {
+  // Chi lay mot phan mon va rut gon mo ta: prompt ngan giup model nem xong nhanh hon.
+  for (const p of foods.slice(0, 10)) {
     const f = p.food;
     data.push(
-      `- ${f.name} | loại: ${f.category?.name ?? ""} | giá: ${Number(f.price)} VND/phần | khẩu phần: ${f.servingSize} người | cần: ${p.portions} phần | tổng: ${p.totalPrice} VND | cay: ${f.spicyLevel}/3 | nguyên liệu: ${f.ingredients ?? "không có"} | dị ứng: ${f.allergens ?? "không có"} | nhãn: ${f.dietaryTags ?? "không có"} | mô tả: ${f.description ?? "không có"}`,
+      `- ${f.name} | loại: ${f.category?.name ?? ""} | giá: ${Number(f.price)} VND/phần | khẩu phần: ${f.servingSize} người | cần: ${p.portions} phần | tổng: ${p.totalPrice} VND | cay: ${f.spicyLevel}/3 | nguyên liệu: ${truncate(f.ingredients ?? "không có", 120)} | dị ứng: ${truncate(f.allergens ?? "không có", 120)} | nhãn: ${f.dietaryTags ?? "không có"} | mô tả: ${truncate(f.description ?? "không có", 120)}`,
     );
   }
   const total = foods.reduce((sum, p) => sum + p.totalPrice, 0);
@@ -306,9 +314,13 @@ const generateReply = async (
       ANSWER_PROMPT.replace("%s", await extraRules()),
       data.join("\n"),
       false,
+      { timeoutMs: gemini.AI_TIMEOUTS.reply, maxOutputTokens: gemini.AI_MAX_OUTPUT_TOKENS },
     );
   } catch (error) {
     if (error instanceof gemini.AiKeyRejectedException) throw error;
+    if (error instanceof gemini.AiRateLimitedException) {
+      console.warn("[chatbot] AI bi gioi han, chuyen sang tra loi theo thuc don");
+    }
     return null;
   }
 };
@@ -522,6 +534,8 @@ export const chat = async (
       picked = aiPicked.length > 0 ? aiPicked : selectFoodsByCode(classifyMessage, filters, menu, maxSugg);
     }
     reply = fallbackReply(picked, filters);
+    // Provider dang chan: bao ro cho khach biet cau tra loi do tu thuc don, khong phai AI.
+    if (gemini.isRateLimited()) reply = `${RATE_LIMIT_NOTE}\n\n${reply}`;
   }
 
   const cards = picked.slice(0, maxSugg).map(toCard);

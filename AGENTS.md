@@ -15,12 +15,18 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   theo module chức năng giống client, lớp chính `src/server.ts`; middleware tập trung ở
   `src/middleware/` (auth, error), tiện ích ở `src/lib/`.
 - **AI** - `server/src/lib/gemini.ts` là lớp DUY NHẤT gọi API AI (REST bằng `fetch`, `jsonMode` ép
-  JSON, timeout 15s). Chỉ hỗ trợ Gemini; tên mô hình đọc từ bảng `ai_setting`
+  JSON, timeout 15s mặc định). Chỉ hỗ trợ Gemini; tên mô hình đọc từ bảng `ai_setting`
   do admin đặt trong trang Chatbot, fallback về `AI_PROVIDER` / `AI_MODEL`. Muốn thêm
   nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không gửi xuống client.
   Trang Chatbot của admin đọc `provider`/`model` từ `ai_setting` (không hardcode `gemini`), danh sách
   mô hình gợi ý theo từng nhà cung cấp và vẫn nhập được tên mô hình khác; `settingValue` cho phép
   rỗng để xoá quy tắc bổ sung.
+- **Chịu tải provider**: `gemini.ts` retry tối đa 2 lần cho 429/5xx (delay 600ms rồi 1800ms, tôn
+  trọng `Retry-After` cap 5s) và **khoá gọi AI 25s** sau một 429 (`AiRateLimitedException`, đọc bằng
+  `isRateLimited()`); trong lúc khoá, `generate()` không gọi provider mà ném lỗi luôn. Timeout riêng
+  theo bước (`AI_TIMEOUTS.extract` 10s, `AI_TIMEOUTS.reply` 12s) và `maxOutputTokens` để model nhanh
+  hơn. Lỗi 429/timeout khi trích xuất tiêu chí → `service.ts` rơi nhánh dự phòng theo code và thêm
+  ghi chú `RATE_LIMIT_NOTE`; prompt trả lời chỉ gửi 10 món, mô tả cắt còn 120 ký tự.
 - **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
   client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
   (Drizzle Studio). Service `database` không khai báo `profiles` nên Postgres luôn chạy theo mọi
