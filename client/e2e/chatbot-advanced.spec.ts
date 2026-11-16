@@ -68,8 +68,8 @@ async function ask(page: Page, question: string) {
 
   // Doi tin bot moi render xong (kem the) truoc khi hoi tiep.
   await expect(botMessages).toHaveCount(before + 1, { timeout: 20_000 })
-  // Hieu ung go chu xong thi nut "Dung" bien mat; khong dua vao nut gui vi o nhap da bi xoa.
-  await expect(page.getByRole('button', { name: 'Dừng' })).toHaveCount(0, { timeout: 20_000 })
+  // Phan hoi ve xong thi nut "Huy" bien mat; khong dua vao nut gui vi o nhap da bi xoa.
+  await expect(page.getByRole('button', { name: 'Huỷ' })).toHaveCount(0, { timeout: 20_000 })
   return { body, payload }
 }
 

@@ -2,7 +2,6 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, type Ref } from 'vue'
 import { chat, deleteChatSession, getChatbotStatus, getChatSession, listChatSessions } from '@/user/chatbot/api'
 import type { ChatCitation, ChatHistoryEntry, ChatMessage, ChatSessionSummary, ChatbotStatus } from '@/shared/types'
 import { apiErrorMessage } from '@/shared/utils/api-error'
-import { useUiStore } from '@/shared/stores/uiStore'
 import { useAuthStore } from '@/user/auth/store'
 
 export const GREETING_INTRO = 'Chào bạn! Mình là trợ lý đặt món của quán.'
@@ -18,31 +17,10 @@ export const GREETING_STARTERS = [
 ]
 
 const CHATBOT_OFF_NOTICE = 'Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.'
-const STREAM_TICK_MS = 32
-const STREAM_FRAMES = 24
-const STREAM_MAX_CHUNK = 6
 
-interface Draft {
-  /** Chuoi goc AI tra ve, giu nguyen xuong dong; chi cat theo chi so. */
-  content: string
-  /** Vi tri ket thuc tung tu trong `content`, de cat chuoi goc ma khong mat dinh dang. */
-  cutPoints: number[]
-  shown: number
-  foods: ChatMessage['foods']
-  citations?: ChatCitation[]
-  intent?: string
-  quickReplies?: string[]
-}
 interface LegacySession {
   id: string
   messages: ChatMessage[]
-}
-
-// Vi tri ket thuc tung tu trong cau tra loi: cat chuoi goc den day thi giu duoc xuong dong.
-const cutPointsOf = (content: string): number[] => {
-  const points: number[] = []
-  for (const match of content.matchAll(/\S+/g)) points.push((match.index ?? 0) + match[0].length)
-  return points
 }
 
 const greetingMessages = (): ChatMessage[] => [
@@ -232,14 +210,14 @@ export const useChatConversation = () => {
   const initial = loadChatCache(auth.user?.id ?? null)
   const messages = ref<ChatMessage[]>(initial.messages)
   const sessionId = ref<string>(initial.sessionId)
-  const draft = ref<Draft | null>(null)
   const status = ref<ChatbotStatus | null>(null)
   const sessions = ref<ChatSessionSummary[]>([])
   const sessionsLoading = ref(false)
   const unavailable = computed(() => status.value?.available === false)
   const statusNotice = computed(() => status.value?.notice ?? CHATBOT_OFF_NOTICE)
 
-  let streamTimer: number | undefined
+  let progressTimer: number | undefined
+  let abortController: AbortController | null = null
 
   // Luu ngu canh vao localStorage moi khi hoi thoai hoac session doi, kem chu so huu hien tai.
   watch([messages, sessionId], () => {
@@ -288,56 +266,36 @@ export const useChatConversation = () => {
     ]
   }
 
-  // Cat tren chuoi goc theo chi so tu, giu nguyen xuong dong cua cau tra loi.
-  const visibleText = (d: Draft): string =>
-    d.shown > 0 ? d.content.slice(0, d.cutPoints[d.shown - 1] ?? d.content.length) : ''
-
-  const flushDraft = (d: Draft) => {
-    const partial = visibleText(d)
-    const content = partial.trim() ? partial : d.content
-    pushBotMessage(content, d.foods || [], d.citations, d.intent, d.quickReplies)
+  const clearProgress = () => {
+    if (progressTimer) {
+      window.clearTimeout(progressTimer)
+      progressTimer = undefined
+    }
   }
 
-  // "Dang go" tung tu: moi tick hien them mot nhom tu; panel dong thi hien thang, khong chay hieu ung.
-  watch(draft, (d) => {
-    if (streamTimer) window.clearInterval(streamTimer)
-    if (!d) return
-    const total = d.cutPoints.length
-    // Chia so tu cho so khung co dinh de cau ngan va cau dai co cung nhip go.
-    const step = Math.min(STREAM_MAX_CHUNK, Math.max(1, Math.ceil(total / STREAM_FRAMES)))
-    streamTimer = window.setInterval(() => {
-      const current = draft.value
-      if (!current) {
-        if (streamTimer) window.clearInterval(streamTimer)
-        streamTimer = undefined
-        return
-      }
-      current.shown = Math.min(current.cutPoints.length, current.shown + step)
-      if (current.shown >= current.cutPoints.length) {
-        window.clearInterval(streamTimer)
-        streamTimer = undefined
-        flushDraft(current)
-        draft.value = null
-      }
-    }, STREAM_TICK_MS)
-  })
-  // Tab bi an thi trinh duyet ha nhip interval; hien luon ca cau de quay lai khong thay chu nhay cuc.
-  const onVisibilityChange = () => {
-    if (document.hidden) stopStreaming()
+  // Trang thai tien trinh trong luc cho phan hoi; cap nhat statusText theo tung moc.
+  const startProgress = (isInfo: boolean) => {
+    clearProgress()
+    statusText.value = 'Đang hiểu yêu cầu...'
+    progressTimer = window.setTimeout(() => {
+      statusText.value = isInfo ? 'Đang tra tài liệu quán...' : 'Đang trích xuất tiêu chí món ăn...'
+    }, 900)
+    window.setTimeout(() => {
+      statusText.value = isInfo ? 'Đang soạn câu trả lời...' : 'Đang truy vấn thực đơn...'
+    }, 1800)
+    window.setTimeout(() => {
+      statusText.value = 'Đang soạn câu trả lời...'
+    }, 2700)
   }
-  onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange))
+
   onBeforeUnmount(() => {
-    document.removeEventListener('visibilitychange', onVisibilityChange)
-    if (streamTimer) window.clearInterval(streamTimer)
+    clearProgress()
+    abortController?.abort()
   })
 
   const handleSend = async (raw?: string) => {
     const text = (raw ?? input.value).trim()
     if (!text || loading.value || unavailable.value) return
-    if (draft.value) {
-      flushDraft(draft.value)
-      draft.value = null
-    }
     input.value = ''
     const history = messages.value.filter((m) => m.sender === 'USER').map((m) => m.content).slice(-3)
     const lastBotWithFoods = [...messages.value].reverse().find((m) => m.sender === 'BOT' && Array.isArray(m.foods) && m.foods.length > 0)
@@ -347,37 +305,32 @@ export const useChatConversation = () => {
     // Status text cho nguoi moi biet bot dang lam gi.
     const p = text.toLowerCase()
     const isInfo = ['giờ', 'địa chỉ', 'giao hàng', 'ship', 'thanh toán', 'mở cửa', 'đóng cửa'].some((k) => p.includes(k))
-    statusText.value = isInfo ? 'Đang tra tài liệu quán...' : 'Đang tìm món...'
+    startProgress(isInfo)
 
     // Doi tai khoan hoac lam moi hoi thoai trong luc cho: bo phan hoi cua chu cu.
     const epoch = requestEpoch
+    abortController = new AbortController()
+    const signal = abortController.signal
     try {
-      const res = await chat(text, sessionId.value, history, lastFoodIds)
+      const res = await chat(text, sessionId.value, history, lastFoodIds, signal)
       if (epoch !== requestEpoch) return
+      clearProgress()
       error.value = false
       const foods = (res.foods || []).slice(0, 5)
       const citations = res.citations || undefined
       const intent = res.intent || undefined
       const quickReplies = res.quickReplies || undefined
-      // Panel dong giua chung thi ghi thang tin nhan, khong chay animated reveal vo hinh.
-      const ui = useUiStore()
-      const canStream = ui.chatOpen && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      if (canStream) {
-        draft.value = {
-          content: res.reply,
-          cutPoints: cutPointsOf(res.reply),
-          shown: 0,
-          foods,
-          citations,
-          intent,
-          quickReplies,
-        }
-      } else {
-        pushBotMessage(res.reply, foods, citations, intent, quickReplies)
-      }
+      pushBotMessage(res.reply, foods, citations, intent, quickReplies)
     } catch (e) {
       if (epoch !== requestEpoch) return
+      clearProgress()
+      if ((e as { name?: string }).name === 'CanceledError' || (e as { code?: string }).code === 'ERR_CANCELED') return
       const httpStatus = (e as { response?: { status?: number } }).response?.status
+      if (httpStatus === 429) {
+        error.value = true
+        messages.value = [...messages.value, { sender: 'BOT', content: 'Quá nhiều yêu cầu, bạn thử lại sau ít phút nhé!' }]
+        return
+      }
       if (httpStatus === 503) {
         status.value = { available: false, notice: apiErrorMessage(e) ?? CHATBOT_OFF_NOTICE }
         error.value = false
@@ -386,24 +339,20 @@ export const useChatConversation = () => {
       error.value = true
       messages.value = [...messages.value, { sender: 'BOT', content: 'Mình chưa gửi được câu hỏi, bạn thử lại nhé!' }]
     } finally {
-      // Panel dong giua chung cung phai mo lai o nhap; dung de loading ket vinh vien.
       // Chi ha loading cho chinh luot nay, tranh tat loading cua luot moi hon.
       if (epoch === requestEpoch) {
         loading.value = false
         statusText.value = null
+        abortController = null
       }
     }
   }
 
-  const stopStreaming = () => {
-    if (!draft.value) return
-    const d = draft.value
-    if (streamTimer) {
-      window.clearInterval(streamTimer)
-      streamTimer = undefined
-    }
-    flushDraft(d)
-    draft.value = null
+  const cancelRequest = () => {
+    abortController?.abort()
+    clearProgress()
+    loading.value = false
+    statusText.value = null
   }
 
   const handleRetry = () => {
@@ -416,31 +365,23 @@ export const useChatConversation = () => {
 
   const resetChat = () => {
     requestEpoch += 1
+    abortController?.abort()
+    abortController = null
+    clearProgress()
     messages.value = greetingMessages()
     sessionId.value = crypto.randomUUID()
-    if (streamTimer) {
-      window.clearInterval(streamTimer)
-      streamTimer = undefined
-    }
-    draft.value = null
     input.value = ''
     error.value = false
     loading.value = false
     statusText.value = null
   }
 
-  const stopDraft = () => {
-    if (streamTimer) {
-      window.clearInterval(streamTimer)
-      streamTimer = undefined
-    }
-    draft.value = null
-  }
-
-  // Nap mot phien tu server: huy hieu ung dang chay de khong tron hai hoi thoai.
+  // Nap mot phien tu server: huy request dang chay de khong tron hai hoi thoai.
   const applyHistory = (detail: { sessionId: string; messages: ChatHistoryEntry[] }) => {
     requestEpoch += 1
-    stopDraft()
+    abortController?.abort()
+    abortController = null
+    clearProgress()
     messages.value = keepLastBotActions(detail.messages.map(fromHistoryEntry))
     sessionId.value = detail.sessionId
     error.value = false
@@ -495,7 +436,6 @@ export const useChatConversation = () => {
     statusText: statusText as Readonly<Ref<string | null>>,
     error: error as Readonly<Ref<boolean>>,
     messages,
-    draft,
     status,
     unavailable,
     statusNotice,
@@ -508,7 +448,7 @@ export const useChatConversation = () => {
     handleSend,
     handleRetry,
     resetChat,
-    stopStreaming,
-    isStreaming: computed(() => draft.value !== null),
+    stopStreaming: cancelRequest,
+    cancelRequest,
   }
 }

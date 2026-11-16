@@ -15,7 +15,7 @@ import {
   ExpandOutline,
   ContractOutline,
 } from '@vicons/ionicons5'
-import type { Food, FoodCard, ChatMessage } from '@/shared/types'
+import type { Food, FoodCard } from '@/shared/types'
 import { formatVND, formatRelativeTime } from '@/shared/utils/format'
 import { useHasBottomBar } from '@/composables/useHasBottomBar'
 import { useChatConversation, GREETING_STARTERS } from '@/user/chatbot/useChatConversation'
@@ -34,14 +34,19 @@ const auth = useAuthStore()
 const cart = useCartStore()
 
 const {
-  input, setInput, loading, statusText, error, messages, draft,
+  input, setInput, loading, statusText, error, messages,
   unavailable, statusNotice, handleSend, handleRetry,
-  resetChat, stopStreaming, isStreaming,
+  resetChat, stopStreaming,
   sessionId, sessions, sessionsLoading, loadSessions, openSession, removeSession,
 } = useChatConversation()
 
 const historyOpen = ref(false)
 const listRef = ref<HTMLElement | null>(null)
+const onEnterKey = (event: KeyboardEvent) => {
+  if (event.shiftKey) return
+  event.preventDefault()
+  void handleSend()
+}
 const atBottom = ref(true)
 const NEAR_BOTTOM_PX = 64
 
@@ -61,9 +66,9 @@ const jumpToLatest = () => {
   atBottom.value = true
   stickToBottom()
 }
-// Tu cuon xuong cuoi moi khi co tin moi, bot dang tra loi hoac draft doi.
+// Tu cuon xuong cuoi moi khi co tin moi hoac dang cho phan hoi.
 watch(
-  [messages, loading, () => draft.value],
+  [messages, loading],
   () => {
     if (atBottom.value) stickToBottom()
   },
@@ -103,6 +108,15 @@ watch(() => ui.chatOpen, (open) => {
   jumpToLatest()
 })
 
+const resetAndScroll = () => {
+  atBottom.value = true
+  resetChat()
+  void nextTick(() => {
+    const el = listRef.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
+
 const openHistory = () => {
   if (loading.value) return
   historyOpen.value = true
@@ -125,23 +139,7 @@ const showBody = computed(() => !unavailable.value || messages.value.some((m) =>
 const showStarters = computed(
   () => !unavailable.value && !loading.value && messages.value.length === 2 && messages.value.every((m) => m.sender === 'BOT'),
 )
-const streamingMessage = computed<ChatMessage | null>(() => {
-  const d = draft.value
-  if (!d) return null
-  const complete = d.shown >= d.cutPoints.length
-  return {
-    sender: 'BOT',
-    content: d.shown > 0 ? d.content.slice(0, d.cutPoints[d.shown - 1] ?? d.content.length) : '',
-    // The mon hien ngay tu dau de khung chat khong cao them dot ngot khi go xong.
-    foods: d.foods,
-    citations: d.citations,
-    intent: d.intent,
-    quickReplies: complete ? d.quickReplies : undefined,
-  }
-})
-const renderedMessages = computed(() =>
-  streamingMessage.value ? [...messages.value, streamingMessage.value] : messages.value,
-)
+const renderedMessages = computed(() => messages.value)
 
 const handleAdd = async (f: FoodCard) => {
   if (!canAdd.value) return
@@ -201,7 +199,7 @@ const handleAdd = async (f: FoodCard) => {
         </NTooltip>
         <NTooltip v-if="!historyOpen" placement="bottom">
           <template #trigger>
-            <button type="button" aria-label="Làm mới hội thoại" class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-orange-100 transition hover:bg-white/15 hover:text-white" @click="resetChat">
+            <button type="button" aria-label="Làm mới hội thoại" class="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-orange-100 transition hover:bg-white/15 hover:text-white" @click="resetAndScroll">
               <NIcon :size="18"><RefreshOutline /></NIcon>
             </button>
           </template>
@@ -258,8 +256,8 @@ const handleAdd = async (f: FoodCard) => {
           ref="listRef"
           role="log"
           aria-label="Hội thoại với trợ lý"
-          :aria-live="isStreaming ? 'off' : 'polite'"
-          :aria-busy="isStreaming"
+          :aria-live="loading ? 'off' : 'polite'"
+          :aria-busy="loading"
           tabindex="0"
           class="flex-1 space-y-3 overflow-y-auto bg-stone-50/70 p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400/60"
           @scroll.passive="onListScroll"
@@ -267,9 +265,8 @@ const handleAdd = async (f: FoodCard) => {
           <template v-if="showBody">
             <div v-for="(m, index) in renderedMessages" :key="index" :class="m.sender === 'BOT' ? '' : 'flex justify-end'">
               <div :class="m.sender === 'BOT' ? 'max-w-[92%]' : 'max-w-[85%]'">
-                <div v-if="m.sender === 'BOT'" data-testid="chatbot-bot-message" class="whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-200/70">
+                <div v-if="m.sender === 'BOT'" data-testid="chatbot-bot-message" class="chat-rise whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-200/70">
                   {{ m.content }}
-                  <span v-if="isStreaming && index === renderedMessages.length - 1" aria-hidden="true" class="ml-0.5 inline-block h-3.5 w-1 animate-pulse rounded-sm bg-stone-400 align-middle motion-reduce:animate-none" />
                 </div>
                 <div v-else class="whitespace-pre-wrap rounded-2xl rounded-br-md bg-orange-600 px-3 py-2 text-sm text-white">
                   {{ m.content }}
@@ -278,19 +275,6 @@ const handleAdd = async (f: FoodCard) => {
                 <p v-if="m.sender === 'BOT' && m.citations && m.citations.length > 0" class="mt-1 text-[11px] text-stone-500">
                   Nguồn: {{ m.citations.map((c) => c.sourceName).join(', ') }}
                 </p>
-
-                <div v-if="index === renderedMessages.length - 1 && m.sender === 'BOT' && !isStreaming && !loading && m.quickReplies && m.quickReplies.length > 0" class="mt-2 flex flex-wrap gap-1.5">
-                  <button
-                    v-for="s in m.quickReplies"
-                    :key="s"
-                    type="button"
-                    :disabled="loading || unavailable"
-                    class="cursor-pointer rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-800 ring-1 ring-orange-200/70 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    @click="handleSend(s)"
-                  >
-                    {{ s }}
-                  </button>
-                </div>
 
                 <div v-if="m.foods && m.foods.length > 0" class="chat-rise mt-2 divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
                   <RouterLink v-for="f in m.foods" :key="f.id" :to="`/foods/${f.id}`" data-testid="chatbot-food-card" class="flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-orange-50">
@@ -320,6 +304,19 @@ const handleAdd = async (f: FoodCard) => {
                     </NTooltip>
                   </RouterLink>
                 </div>
+
+                <div v-if="index === renderedMessages.length - 1 && m.sender === 'BOT' && !loading && m.quickReplies && m.quickReplies.length > 0" class="mt-2 flex flex-wrap gap-1.5">
+                  <button
+                    v-for="s in m.quickReplies"
+                    :key="s"
+                    type="button"
+                    :disabled="loading || unavailable"
+                    class="cursor-pointer rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-800 ring-1 ring-orange-200/70 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    @click="handleSend(s)"
+                  >
+                    {{ s }}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -336,7 +333,7 @@ const handleAdd = async (f: FoodCard) => {
             </div>
           </template>
 
-          <div v-if="loading && !isStreaming" role="status" class="inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
+          <div v-if="loading" role="status" class="inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
             <span class="text-xs text-stone-500">{{ statusText ?? 'Đang trả lời...' }}</span>
             <span class="flex items-center gap-1" aria-hidden="true">
               <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400 motion-reduce:animate-none" style="animation-delay: 0ms" />
@@ -353,20 +350,13 @@ const handleAdd = async (f: FoodCard) => {
           >
             Thử lại
           </button>
-          <button
-            v-if="isStreaming"
-            type="button"
-            class="cursor-pointer rounded-md bg-white px-3 py-1.5 text-xs font-medium text-stone-600 ring-1 ring-stone-200 transition hover:bg-stone-50"
-            @click="stopStreaming"
-          >
-            <NIcon :size="13" class="mr-1 align-middle"><StopCircleOutline /></NIcon>Dừng
-          </button>
+          <!-- nut huy da chuyen vao nut gui -->
         </div>
 
         <button
           v-if="!atBottom"
           type="button"
-          class="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 cursor-pointer rounded-full bg-stone-800/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg transition hover:bg-stone-900"
+          class="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 cursor-pointer rounded-full bg-orange-600 px-3 py-1.5 text-xs font-medium text-white shadow-lg transition hover:bg-orange-500"
           @click="jumpToLatest"
         >
           Tin mới nhất
@@ -375,24 +365,36 @@ const handleAdd = async (f: FoodCard) => {
 
       <div v-if="!historyOpen" class="shrink-0 border-t border-stone-100 bg-white p-2.5">
         <NInput
+          type="textarea"
           :value="input"
           :disabled="unavailable"
           :placeholder="unavailable ? 'Trợ lý đang tạm tắt' : 'Nhập yêu cầu món ăn...'"
           :input-props="{ 'aria-label': 'Nhập câu hỏi cho chatbot' }"
+          :autosize="{ minRows: 1, maxRows: 4 }"
           class="!pr-1.5"
           size="large"
           @update:value="setInput"
-          @keyup.enter="handleSend()"
+          @keydown.enter="onEnterKey"
         >
           <template #suffix>
             <button
+              v-if="!loading"
               type="button"
               aria-label="Gửi câu hỏi"
-              :disabled="!input.trim() || loading || unavailable"
+              :disabled="!input.trim() || unavailable"
               class="grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-orange-600 text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:bg-stone-200"
               @click="handleSend()"
             >
               <NIcon :size="18"><SendOutline /></NIcon>
+            </button>
+            <button
+              v-else
+              type="button"
+              aria-label="Huỷ"
+              class="grid h-9 w-9 cursor-pointer place-items-center rounded-full border-0 bg-stone-500 text-white transition hover:bg-stone-600"
+              @click="stopStreaming"
+            >
+              <NIcon :size="18"><StopCircleOutline /></NIcon>
             </button>
           </template>
         </NInput>

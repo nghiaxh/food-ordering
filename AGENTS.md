@@ -210,12 +210,12 @@ bao giờ trả khóa) để client khóa ô nhập, hiện banner. Lỗi tạm 
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
   cách đó dễ trượt khi header đổi kích thước. Vùng trống của cụm có `pointer-events-none` nên
   không chặn bấm vào thẻ món.
-- **Gõ chữ chạy ở client**: server trả một JSON rồi `useChatConversation.ts` cắt dần câu trả lời.
-  Mốc cắt tính trên chuỗi gốc (`cutPoints`) nên giữ nguyên xuống dòng; nhịp 32ms, số từ mỗi khung
-  chia đều để câu dài không nhảy cục. Khung chỉ tự cuộn khi người đọc đang ở đáy (cách đáy ≤ 64px),
-  cuộn lên thì hiện nút "Tin mới nhất". Thẻ món hiện ngay từ đầu câu trả lời để layout không nhảy
-  khi gõ xong; tab bị ẩn hoặc đóng panel thì hiện luôn cả câu. Vùng tin nhắn là `role="log"` với
-  `aria-live` tắt trong lúc gõ để trình đọc màn hình không đọc lại từng khung.
+- **Trạng thái tiến trình thay cho gõ chữ**: server trả một JSON; trong lúc chờ, `useChatConversation.ts`
+  hiện các trạng thái "Đang hiểu yêu cầu..." → "Đang trích xuất tiêu chí..." → "Đang truy vấn thực đơn..."
+  → "Đang soạn câu trả lời...". Câu trả lời hiện nguyên khối khi có kết quả. Khung chỉ tự cuộn khi
+  người đọc đang ở đáy (cách đáy ≤ 64px), cuộn lên thì hiện nút "Tin mới nhất". Thẻ món và quick replies
+  hiện cùng lúc với câu trả lời. Vùng tin nhắn là `role="log"` với `aria-live` tắt trong lúc chờ để
+  trình đọc màn hình không đọc lại từng khung.
 - **Ảnh local phải là `.webp`**: `client/public/images` chỉ chứa webp, không có `.jpg`.
   Đường dẫn ảnh nằm trong DB (`food.image_url`, `category.image_url`) nên đổi định dạng phải
   sửa `server/src/db/seed.ts` **và** chạy `UPDATE ... WHERE right(image_url,4) = '.jpg'`; seeder bị bỏ qua

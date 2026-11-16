@@ -18,9 +18,10 @@ export const chat = (
   sessionId: string,
   history: string[] = [],
   lastFoodIds: number[] = [],
+  signal?: AbortSignal,
 ) =>
   http
-    .post<ChatResponse>('/chatbot/chat', { message, sessionId, history, lastFoodIds })
+    .post<ChatResponse>('/chatbot/chat', { message, sessionId, history, lastFoodIds }, { signal })
     .then((r) => r.data)
 
 export const getChatbotStatus = (signal?: AbortSignal) =>
