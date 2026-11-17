@@ -221,11 +221,10 @@ const askAi = () => ui.openChat()
                 </button>
               </div>
             </div>
-            <div class="hidden w-px self-stretch bg-stone-200 lg:block" />
-            <div class="flex items-center gap-2 pb-1 lg:w-48 lg:shrink-0 lg:pb-0">
-              <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">Khẩu phần</span>
+            <div class="flex items-center gap-2 pb-1 lg:w-64 lg:shrink-0 lg:pb-0">
+              <span class="shrink-0 whitespace-nowrap text-[11px] text-stone-500">Khẩu phần</span>
               <NSlider v-model:value="peopleDraft" :min="1" :max="5" :step="1" :marks="peopleMarks" class="min-w-0 flex-1" />
-              <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">người</span>
+              <span class="shrink-0 whitespace-nowrap text-[11px] text-stone-500">người</span>
             </div>
           </div>
         </div>
