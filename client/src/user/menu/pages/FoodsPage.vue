@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NDropdown, NEmpty, NIcon } from 'naive-ui'
+import { NButton, NDropdown, NEmpty, NIcon, NSlider } from 'naive-ui'
 import { AlertCircleOutline, ChevronDown } from '@vicons/ionicons5'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -60,6 +60,7 @@ const categoryId = computed(() => num(route.query.category))
 const keyword = computed(() => str(route.query.keyword))
 const minPrice = computed(() => num(route.query.min))
 const maxPrice = computed(() => num(route.query.max))
+const people = computed(() => Math.min(6, Math.max(1, num(route.query.people) ?? 1)))
 const pageParam = computed(() => num(route.query.page))
 const sort = computed(() => str(route.query.sort) ?? 'default')
 const sortLabel = computed(() => SORTS.find((s) => s.value === sort.value)?.label ?? 'Mặc định')
@@ -76,8 +77,8 @@ const {
   error,
   refresh,
 } = useAsyncData(
-  (signal) => getFoods({ categoryId: categoryId.value, keyword: keyword.value, minPrice: minPrice.value, maxPrice: maxPrice.value }, signal),
-  () => [categoryId.value, keyword.value, minPrice.value, maxPrice.value],
+  (signal) => getFoods({ categoryId: categoryId.value, keyword: keyword.value, minPrice: minPrice.value, maxPrice: maxPrice.value, people: people.value > 1 ? people.value : undefined }, signal),
+  () => [categoryId.value, keyword.value, minPrice.value, maxPrice.value, people.value],
 )
 
 watch(error, (e) => {
@@ -99,10 +100,19 @@ const patch = (next: Record<string, string | undefined>) => {
 }
 const clearFilters = () => router.replace({ query: {} })
 
+// Keo slider thi doi query sau 200ms, tranh replace router moi lan Kim tien di qua mot moc.
+const peopleDraft = ref(people.value)
+const peopleMarks = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6+' }
+watch(people, (value) => { peopleDraft.value = value })
+watch(peopleDraft, (_value, _old, onCleanup) => {
+  const timer = window.setTimeout(() => patch({ people: peopleDraft.value > 1 ? String(peopleDraft.value) : undefined }), 200)
+  onCleanup(() => window.clearTimeout(timer))
+})
+
 const filtersActive = computed(() =>
   Boolean(
     categoryId.value !== undefined || keyword.value || minPrice.value !== undefined || maxPrice.value !== undefined ||
-      sort.value !== 'default' || diet.value || noSpicy.value || onlyAvailable.value || onlyDeals.value,
+      people.value > 1 || sort.value !== 'default' || diet.value || noSpicy.value || onlyAvailable.value || onlyDeals.value,
   ),
 )
 
@@ -129,7 +139,7 @@ const filtered = computed(() => {
 
 // Doi bo loc thi ve trang dau, tranh dang o trang 3 ma danh sach ngan lai.
 watch(
-  [categoryId, keyword, minPrice, maxPrice, sort, diet, noSpicy, onlyAvailable, onlyDeals],
+  [categoryId, keyword, minPrice, maxPrice, people, sort, diet, noSpicy, onlyAvailable, onlyDeals],
   () => {
     if (route.query.page !== undefined) patch({ page: undefined })
   },
@@ -209,6 +219,10 @@ const askAi = () => ui.openChat()
                 {{ band.label }}
               </button>
             </div>
+          </div>
+          <div class="flex items-center gap-3 pb-1 lg:w-56 lg:shrink-0 lg:pb-0">
+            <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">Số người</span>
+            <NSlider v-model:value="peopleDraft" :min="1" :max="6" :step="1" :marks="peopleMarks" class="min-w-0 flex-1" />
           </div>
         </div>
       </div>

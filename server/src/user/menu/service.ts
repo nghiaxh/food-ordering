@@ -15,6 +15,7 @@ export async function searchFoods(filter: {
   categoryId?: number;
   minPrice?: number;
   maxPrice?: number;
+  people?: number;
 }) {
   const conditions = [];
   if (filter.categoryId !== undefined) {
@@ -25,6 +26,10 @@ export async function searchFoods(filter: {
   }
   if (filter.maxPrice !== undefined) {
     conditions.push(lte(foods.price, String(filter.maxPrice)));
+  }
+  // Loc theo khau phan: mon phuc vu tu so nguoi dang chon tro len.
+  if (filter.people !== undefined) {
+    conditions.push(gte(foods.servingSize, filter.people));
   }
 
   const foodList = await db.query.foods.findMany({

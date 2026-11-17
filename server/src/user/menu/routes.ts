@@ -9,6 +9,7 @@ const searchSchema = z.object({
   categoryId: z.coerce.number().int().positive().optional(),
   minPrice: z.coerce.number().nonnegative().optional(),
   maxPrice: z.coerce.number().nonnegative().optional(),
+  people: z.coerce.number().int().positive().optional(),
 });
 
 const idParam = (raw: string | string[] | undefined): number => {
