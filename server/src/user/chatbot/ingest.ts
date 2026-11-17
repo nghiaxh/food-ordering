@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { and, asc, count, eq, isNotNull } from "drizzle-orm";
+import { and, asc, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { env } from "../../config/env.js";
 import { chunkText, parseDocument } from "./documentParser.js";
 import * as gemini from "../../lib/gemini.js";
+import { searchChunks } from "./retrieval.js";
 
 const uploadDir = () => env.UPLOAD_DIR;
 
@@ -242,9 +243,72 @@ export const documentStats = async () => {
   const docs = await db.query.chatbotKnowledge.findMany({ columns: { status: true } });
   const chunkRows = await db.select({ value: count() }).from(chatbotKnowledgeChunk);
   const totalChunks = chunkRows[0]?.value ?? 0;
+  const embeddedRows = await db.select({ value: count() }).from(chatbotKnowledgeChunk).where(isNotNull(chatbotKnowledgeChunk.embedding));
+  const embeddedChunks = embeddedRows[0]?.value ?? 0;
   const ready = docs.filter((d) => d.status === "READY").length;
   const failed = docs.filter((d) => d.status === "FAILED").length;
-  return { totalDocuments: docs.length, totalChunks, ready, failed };
+  return { totalDocuments: docs.length, totalChunks, embeddedChunks, ready, failed };
+};
+
+export const embedDocument = async (documentId: number): Promise<{ embedded: number; failed: number }> => {
+  const chunks = await db.query.chatbotKnowledgeChunk.findMany({
+    where: eq(chatbotKnowledgeChunk.documentId, documentId),
+  });
+  let embedded = 0;
+  let failed = 0;
+  const batchSize = 16;
+  for (let i = 0; i < chunks.length; i += batchSize) {
+    const batch = chunks.slice(i, i + batchSize);
+    const vectors = await gemini.embedBatch(batch.map((c) => c.content));
+    for (let j = 0; j < batch.length; j++) {
+      const v = vectors[j];
+      if (v) {
+        await db.update(chatbotKnowledgeChunk)
+          .set({ embedding: v, embeddingModel: "gemini-embedding-2", embeddedAt: new Date() })
+          .where(eq(chatbotKnowledgeChunk.id, batch[j]!.id));
+        embedded++;
+      } else {
+        failed++;
+      }
+    }
+  }
+  return { embedded, failed };
+};
+
+export const embedMissing = async (): Promise<{ embedded: number; failed: number }> => {
+  const chunks = await db.query.chatbotKnowledgeChunk.findMany({
+    where: isNull(chatbotKnowledgeChunk.embedding),
+  });
+  let embedded = 0;
+  let failed = 0;
+  const batchSize = 16;
+  for (let i = 0; i < chunks.length; i += batchSize) {
+    const batch = chunks.slice(i, i + batchSize);
+    const vectors = await gemini.embedBatch(batch.map((c) => c.content));
+    for (let j = 0; j < batch.length; j++) {
+      const v = vectors[j];
+      if (v) {
+        await db.update(chatbotKnowledgeChunk)
+          .set({ embedding: v, embeddingModel: "gemini-embedding-2", embeddedAt: new Date() })
+          .where(eq(chatbotKnowledgeChunk.id, batch[j]!.id));
+        embedded++;
+      } else {
+        failed++;
+      }
+    }
+  }
+  return { embedded, failed };
+};
+
+export const searchPreview = async (question: string, topK: number): Promise<Array<{ documentId: number; title: string | null; chunkIndex: number; score: number; content: string }>> => {
+  const chunks = await searchChunks(question, topK);
+  return chunks.map((c) => ({
+    documentId: c.chunk.documentId,
+    title: c.document?.title ?? null,
+    chunkIndex: c.chunk.chunkIndex,
+    score: c.score,
+    content: c.chunk.content,
+  }));
 };
 
 export const listChunks = async (documentId: number) => {
