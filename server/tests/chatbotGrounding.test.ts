@@ -28,7 +28,7 @@ describe("verifyReply", () => {
   it("SDT bia -> vi pham", () => {
     const result = verifyReply("Gọi 0912345678 để đặt món.", ctx);
     expect(result.ok).toBe(false);
-    expect(result.violations.some((v) => v.includes("SDT"))).toBe(true);
+    expect(result.violations.some((v) => v.includes("SĐT"))).toBe(true);
   });
 
   it("gio bia -> vi pham", () => {
