@@ -5,7 +5,7 @@ export const getCategories = (signal?: AbortSignal) =>
   http.get<Category[]>('/categories', { signal }).then((r) => r.data)
 
 export const getFoods = (
-  params?: { keyword?: string; categoryId?: number; minPrice?: number; maxPrice?: number },
+  params?: { keyword?: string; categoryId?: number; minPrice?: number; maxPrice?: number; people?: number },
   signal?: AbortSignal,
 ) => http.get<Food[]>('/foods', { params, signal }).then((r) => r.data)
 

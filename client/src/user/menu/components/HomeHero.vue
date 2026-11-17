@@ -16,7 +16,7 @@ defineProps<{ onBrowse: () => void; onAsk: () => void }>()
     />
     <div class="absolute inset-0 bg-gradient-to-r from-stone-950/85 via-stone-950/55 to-stone-950/10" />
 
-    <div class="relative mx-auto flex h-[180px] max-w-[1600px] flex-col justify-center px-4 sm:h-[220px] sm:px-6 lg:h-[260px]">
+    <div class="relative mx-auto flex h-[220px] max-w-[1600px] flex-col justify-center px-4 sm:h-[260px] sm:px-6 lg:h-[300px]">
       <h1 class="max-w-lg text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
         Hôm nay ăn gì?
       </h1>

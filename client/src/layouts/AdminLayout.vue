@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NBadge, NButton, NAvatar, NConfigProvider, NDrawer, NDrawerContent, NDropdown, NIcon, type DropdownOption } from 'naive-ui'
+import { NBadge, NButton, NAvatar, NConfigProvider, NDrawer, NDrawerContent, NDropdown, NIcon, NTooltip, type DropdownOption } from 'naive-ui'
 import {
   HomeOutline,
   ReceiptOutline,
@@ -105,7 +105,12 @@ const onSelectMenu = (key: string) => {
           <NButton text class="lg:hidden" aria-label="Mở menu quản trị" @click="drawerOpen = true">
             <template #icon><NIcon :size="20"><MenuOutline /></NIcon></template>
           </NButton>
-          <BrandMark />
+          <NTooltip placement="bottom">
+            <template #trigger>
+              <BrandMark />
+            </template>
+            Về trang chủ
+          </NTooltip>
           <div class="ml-auto flex items-center gap-1">
             <NButton
               quaternary

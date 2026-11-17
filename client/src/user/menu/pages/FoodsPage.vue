@@ -60,6 +60,7 @@ const categoryId = computed(() => num(route.query.category))
 const keyword = computed(() => str(route.query.keyword))
 const minPrice = computed(() => num(route.query.min))
 const maxPrice = computed(() => num(route.query.max))
+const people = computed(() => Math.min(6, Math.max(1, num(route.query.people) ?? 1)))
 const pageParam = computed(() => num(route.query.page))
 const sort = computed(() => str(route.query.sort) ?? 'default')
 const sortLabel = computed(() => SORTS.find((s) => s.value === sort.value)?.label ?? 'Mặc định')
@@ -69,14 +70,15 @@ const onlyAvailable = computed(() => str(route.query.available) === '1')
 const onlyDeals = computed(() => str(route.query.deal) === '1')
 
 const { data: categories } = useAsyncData((signal) => getCategories(signal), () => [])
+
 const {
   data: foods,
   loading,
   error,
   refresh,
 } = useAsyncData(
-  (signal) => getFoods({ categoryId: categoryId.value, keyword: keyword.value, minPrice: minPrice.value, maxPrice: maxPrice.value }, signal),
-  () => [categoryId.value, keyword.value, minPrice.value, maxPrice.value],
+  (signal) => getFoods({ categoryId: categoryId.value, keyword: keyword.value, minPrice: minPrice.value, maxPrice: maxPrice.value, people: people.value > 1 ? people.value : undefined }, signal),
+  () => [categoryId.value, keyword.value, minPrice.value, maxPrice.value, people.value],
 )
 
 watch(error, (e) => {
@@ -98,10 +100,23 @@ const patch = (next: Record<string, string | undefined>) => {
 }
 const clearFilters = () => router.replace({ query: {} })
 
+const PEOPLE_OPTIONS = [
+  { key: 0, label: 'Mọi khẩu phần' },
+  { key: 1, label: '1 người' },
+  { key: 2, label: '2 người' },
+  { key: 3, label: '3 người' },
+  { key: 4, label: '4 người' },
+  { key: 6, label: 'Trên 5 người' },
+]
+const peopleLabel = computed(
+  () => PEOPLE_OPTIONS.find((o) => o.key === (people.value > 5 ? 6 : people.value))?.label ?? 'Mọi khẩu phần',
+)
+const onPeopleSelect = (key: string | number) => patch({ people: Number(key) === 0 ? undefined : String(key) })
+
 const filtersActive = computed(() =>
   Boolean(
     categoryId.value !== undefined || keyword.value || minPrice.value !== undefined || maxPrice.value !== undefined ||
-      sort.value !== 'default' || diet.value || noSpicy.value || onlyAvailable.value || onlyDeals.value,
+      people.value > 1 || sort.value !== 'default' || diet.value || noSpicy.value || onlyAvailable.value || onlyDeals.value,
   ),
 )
 
@@ -128,7 +143,7 @@ const filtered = computed(() => {
 
 // Doi bo loc thi ve trang dau, tranh dang o trang 3 ma danh sach ngan lai.
 watch(
-  [categoryId, keyword, minPrice, maxPrice, sort, diet, noSpicy, onlyAvailable, onlyDeals],
+  [categoryId, keyword, minPrice, maxPrice, people, sort, diet, noSpicy, onlyAvailable, onlyDeals],
   () => {
     if (route.query.page !== undefined) patch({ page: undefined })
   },
@@ -191,8 +206,36 @@ const askAi = () => ui.openChat()
     <HomeHero v-if="!filtersActive" :on-ask="askAi" :on-browse="scrollToMenu" />
 
     <div class="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
-      <div class="mt-3 sm:mt-4">
-        <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
+      <div class="sticky top-0 z-10 -mx-3 bg-stone-50/95 px-3 pb-2 pt-3 backdrop-blur sm:-mx-6 sm:px-6 sm:pt-4">
+        <div class="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-start lg:gap-x-5 lg:gap-y-2">
+          <div class="min-w-0 lg:flex-1">
+            <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
+          </div>
+          <div class="border-b border-stone-200/70 py-2 lg:shrink-0 lg:border-0 lg:py-0">
+            <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                v-for="(band, i) in PRICE_BANDS"
+                :key="band.label"
+                type="button"
+                :class="chipClass(activePriceBand === i)"
+                @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
+              >
+                {{ band.label }}
+              </button>
+            </div>
+          </div>
+          <div class="pb-1 lg:shrink-0 lg:pb-0">
+            <NDropdown trigger="click" placement="bottom-end" :options="PEOPLE_OPTIONS" @select="onPeopleSelect">
+              <button
+                type="button"
+                class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50"
+              >
+                Khẩu phần: {{ peopleLabel }}
+                <NIcon :size="9"><ChevronDown /></NIcon>
+              </button>
+            </NDropdown>
+          </div>
+        </div>
       </div>
 
       <div v-if="deals.length > 0 && !onlyDeals" class="mt-4 sm:mt-5">
@@ -222,24 +265,6 @@ const askAi = () => ui.openChat()
           </div>
         </div>
 
-        <div class="sticky top-0 z-10 -mx-3 mt-2 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-          <div class="flex min-w-0 flex-wrap gap-1.5">
-            <button type="button" :class="chipClass(onlyAvailable)" @click="patch({ available: onlyAvailable ? undefined : '1' })">Còn món</button>
-            <button type="button" :class="chipClass(diet === 'chay')" @click="patch({ diet: diet === 'chay' ? undefined : 'chay' })">Món chay</button>
-            <button type="button" :class="chipClass(noSpicy)" @click="patch({ spicy: noSpicy ? undefined : '0' })">Không cay</button>
-            <button type="button" :class="chipClass(onlyDeals)" @click="patch({ deal: onlyDeals ? undefined : '1' })">Đang giảm</button>
-            <span class="mx-1 hidden w-px self-stretch bg-stone-200 sm:block" />
-            <button
-              v-for="(band, i) in PRICE_BANDS"
-              :key="band.label"
-              type="button"
-              :class="chipClass(activePriceBand === i)"
-              @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
-            >
-              {{ band.label }}
-            </button>
-          </div>
-        </div>
 
         <div class="mt-3">
           <div v-if="error" class="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center">

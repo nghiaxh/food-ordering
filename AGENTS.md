@@ -217,13 +217,17 @@ Lỗi tạm thời mới rơi sang nhánh code ở trên.
   chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `UPLOAD_DIR`
   (volume `uploads`) và phục vụ tại `/api/uploads/**`; endpoint trả URL **tuyệt đối** nên
   không cần sửa nginx.
-- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, có hero ngắn, dải danh mục ảnh và
-  "Ưu đãi hôm nay" trước lưới món. Chi tiết món là **trang riêng** `/foods/:id` trong
+- **Giao diện kiểu kiosk**: thực đơn là trang chủ `/`, có hero ngắn, dải danh mục dạng chip chữ
+  và "Ưu đãi hôm nay" trước lưới món. Chi tiết món là **trang riêng** `/foods/:id` trong
   `DefaultLayout` (không còn Drawer hay route con). Bộ lọc của trang chủ nằm trên URL (`category`,
-  `keyword`, `min`, `max`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`), đọc bằng
-  `useRoute().query`. Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi trang 12 món và phân trang
-  số trang. Vị trí cuộn lưới lưu ở `sessionStorage['menu-scroll']`, nút quay lại của
-  trang chi tiết dùng `state.from` để giữ nguyên query.
+  `keyword`, `min`, `max`, `people`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`), đọc bằng
+  `useRoute().query`. `people` lọc món có `servingSize >= people`, gửi lên server qua `GET /api/foods`
+  và điều khiển bằng dropdown "Khẩu phần" với các lựa chọn `Mọi khẩu phần`, `1 người`, `2 người`,
+  `3 người`, `4 người`, `Trên 5 người` (gửi `people=6`). Khối danh mục + lọc
+  dùng chung một vùng `sticky top-0` ngay dưới header: desktop gom một hàng, tablet/mobile xếp 3
+  hàng (danh mục, khoảng giá, số người). Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi trang 12
+  món và phân trang số trang. Vị trí cuộn lưới lưu ở `sessionStorage['menu-scroll']`, nút quay lại
+  của trang chi tiết dùng `state.from` để giữ nguyên query.
 - **Nút bấm**: dùng trực tiếp `NButton` của Naive UI; không viết wrapper nút mới. Không ghi đè
   chiều cao bằng class `!h-*` đi ngược lại chiều cao mặc định của naive-ui.
 - **Thanh điều hướng một hàng ở mọi kích thước**: logo (`BrandMark`, bấm về `/`), ô tìm kiếm
