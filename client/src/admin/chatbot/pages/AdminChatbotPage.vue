@@ -37,6 +37,7 @@ import {
   adminDeleteDocument,
   adminUploadDocument,
   adminReingestDocument,
+  adminEmbedDocument,
 } from '@/admin/chatbot/api'
 import { getChatbotStatus } from '@/user/chatbot/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -219,6 +220,15 @@ const reingest = async (id: number) => {
     message.error(apiErrorMessage(e) ?? 'Tạo lại thất bại')
   }
 }
+const embedDoc = async (id: number) => {
+  try {
+    const res = await adminEmbedDocument(id)
+    message.success(`Đã embed ${res.embedded} phần, ${res.failed} lỗi`)
+    void refresh()
+  } catch (e) {
+    message.error(apiErrorMessage(e) ?? 'Embed thất bại')
+  }
+}
 const viewChunks = async (d: KnowledgeDoc) => {
   chunksDoc.value = d
   try {
@@ -250,6 +260,14 @@ const docColumns: DataTableColumns<KnowledgeDoc> = [
     key: 'chunkCount',
     width: 80,
     render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, row.chunkCount ?? 0),
+  },
+  {
+    title: 'Embedding',
+    key: 'embeddedChunks',
+    width: 100,
+    render: (row) =>
+      h('span', { class: 'tabular-nums text-stone-600' },
+        `${row.embeddedChunks ?? 0}/${row.chunkCount ?? 0}`),
   },
   {
     title: 'Tệp nguồn',
@@ -305,6 +323,14 @@ const docColumns: DataTableColumns<KnowledgeDoc> = [
             onClick: () => reingest(row.id),
           },
           [h(NIcon, { size: 12 }, () => h(RefreshOutline)), 'Tạo lại'],
+        ),
+        h(
+          'button',
+          {
+            class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1',
+            onClick: () => embedDoc(row.id),
+          },
+          [h(NIcon, { size: 12 }, () => h(CloudUploadOutline)), 'Embed'],
         ),
         h(
           'button',

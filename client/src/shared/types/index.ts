@@ -201,6 +201,7 @@ export interface KnowledgeDoc {
   fileName?: string | null
   fileSize?: number | null
   chunkCount?: number
+  embeddedChunks?: number
 }
 
 export interface KnowledgeChunkView {

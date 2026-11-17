@@ -34,4 +34,7 @@ export const adminUploadDocument = (file: File, title: string, category: string,
 export const adminReingestDocument = (id: number) =>
   http.post<KnowledgeDoc>(`/admin/chatbot/documents/${id}/reingest`, {}).then((r) => r.data)
 
+export const adminEmbedDocument = (id: number) =>
+  http.post<{ embedded: number; failed: number }>(`/admin/chatbot/documents/${id}/embed`, {}).then((r) => r.data)
+
 export type { AiSetting }
