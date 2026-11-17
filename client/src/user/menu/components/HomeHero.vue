@@ -12,7 +12,7 @@ defineProps<{ onBrowse: () => void; onAsk: () => void }>()
       alt=""
       loading="eager"
       fetchpriority="high"
-      class="absolute inset-0 h-full w-full object-cover object-[58%_45%] blur-[2px]"
+      class="absolute inset-0 h-full w-full object-cover object-[58%_45%]"
     />
     <div class="absolute inset-0 bg-gradient-to-r from-stone-950/85 via-stone-950/55 to-stone-950/10" />
 
