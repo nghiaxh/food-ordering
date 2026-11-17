@@ -230,7 +230,7 @@ const askAi = () => ui.openChat()
           </div>
         </div>
 
-        <div class="sticky top-[var(--header-h)] z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+        <div class="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
           <div class="flex min-w-0 flex-wrap items-center gap-1.5">
             <NDropdown trigger="click" placement="bottom-start" :options="categoryOptions" @select="onCategorySelect">
               <button type="button" class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50">
