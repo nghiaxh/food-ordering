@@ -264,7 +264,7 @@ const handleAdd = async (f: FoodCard) => {
         >
           <template v-if="showBody">
             <div v-for="(m, index) in renderedMessages" :key="index" :class="m.sender === 'BOT' ? '' : 'flex justify-end'">
-              <div :class="m.sender === 'BOT' ? 'max-w-[92%]' : 'max-w-[85%]'">
+              <div :class="m.sender === 'BOT' ? (ui.chatExpanded ? 'max-w-[60%]' : 'max-w-[92%]') : (ui.chatExpanded ? 'max-w-[60%]' : 'max-w-[85%]')">
                 <div v-if="m.sender === 'BOT'" data-testid="chatbot-bot-message" class="chat-rise whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-200/70">
                   {{ m.content }}
                 </div>

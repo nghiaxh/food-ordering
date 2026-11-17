@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { NTooltip, NIcon } from 'naive-ui'
-import { Add } from '@vicons/ionicons5'
+
 import type { Food } from '@/shared/types'
-import { useAuthStore } from '@/user/auth/store'
-import { useCartStore } from '@/user/cart/store'
+
 import { formatVND } from '@/shared/utils/format'
 import { foodChips, discountText } from '@/shared/utils/food-tags'
-import { message } from '@/shared/api/message'
 
 /** Chi hien 2 nhan dau: the mon phai con cho cho gia va nut, them nhan chi lam loang. */
 const MAX_CHIPS = 2
@@ -16,12 +12,8 @@ const MENU_SCROLL_KEY = 'menu-scroll'
 
 const props = withDefaults(defineProps<{ food: Food; class?: string }>(), { class: '' })
 
-const auth = useAuthStore()
-const cart = useCartStore()
 const route = useRoute()
 const router = useRouter()
-// Chan bam lap trong luc request them mon dang bay, tranh cong don hai lan.
-const adding = ref(false)
 const unit = () => props.food.discountedPrice ?? props.food.price
 
 // Ca the mo trang chi tiet; luu vi tri cuon cua bang mon de khoi phuc khi quay lai.
@@ -40,21 +32,6 @@ const onCardClick = (event: MouseEvent) => {
   openDetail()
 }
 
-const handleAdd = async () => {
-  if (!props.food.available || adding.value) return
-  if (!auth.user) {
-    message.info('Đăng nhập để thêm món vào giỏ')
-    router.push({ path: '/login', state: { from: { pathname: route.path, search: route.fullPath.slice(route.path.length) } } })
-    return
-  }
-  adding.value = true
-  try {
-    const ok = await cart.add(props.food)
-    if (ok) message.success(`Đã thêm ${props.food.name} vào giỏ`)
-  } finally {
-    adding.value = false
-  }
-}
 </script>
 
 <template>
@@ -79,20 +56,6 @@ const handleAdd = async () => {
           -{{ props.food.discountPercent }}%
         </span>
       </div>
-      <NTooltip trigger="hover" placement="bottom">
-        <template #trigger>
-          <button
-            type="button"
-            :aria-label="props.food.available ? `Thêm ${props.food.name} vào giỏ` : `${props.food.name} tạm hết`"
-            :disabled="!props.food.available || adding"
-            class="pointer-events-none absolute right-2 top-2 grid h-8 w-8 cursor-pointer place-items-center rounded-md border-0 bg-orange-700 leading-none text-white opacity-0 shadow-sm transition hover:bg-orange-800 focus-visible:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100 disabled:cursor-not-allowed disabled:bg-stone-400"
-            @click.stop="handleAdd"
-          >
-            <NIcon :size="16"><Add /></NIcon>
-          </button>
-        </template>
-        {{ props.food.available ? `Thêm ${props.food.name} vào giỏ` : `${props.food.name} tạm hết` }}
-      </NTooltip>
     </div>
 
     <div class="flex flex-1 flex-col p-2.5 sm:p-3">

@@ -168,7 +168,7 @@ watch(foodId, () => { qty.value = 1 })
 
     <div class="mt-3 grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start lg:gap-8">
       <div class="relative overflow-hidden rounded-2xl bg-stone-100 lg:sticky lg:top-[calc(var(--header-h)+1rem)]">
-        <img :src="food.imageUrl ?? ''" :alt="food.name" class="aspect-[16/10] w-full cursor-zoom-in object-cover" />
+        <img :src="food.imageUrl ?? ''" :alt="food.name" class="aspect-[16/10] w-full cursor-zoom-in object-cover transition duration-300 hover:scale-105" />
         <span v-if="!!food.discountPercent && food.available" class="absolute left-3 top-3 rounded-md bg-orange-700 px-2 py-0.5 text-xs font-semibold text-white">
           -{{ food.discountPercent }}%
         </span>
