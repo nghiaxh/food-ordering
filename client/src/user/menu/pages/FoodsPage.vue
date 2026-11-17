@@ -199,8 +199,33 @@ const askAi = () => ui.openChat()
     <HomeHero v-if="!filtersActive" :on-ask="askAi" :on-browse="scrollToMenu" />
 
     <div class="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
-      <div class="mt-3 sm:mt-4">
-        <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
+      <div class="sticky top-0 z-10 -mx-3 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+        <div class="mt-3 sm:mt-4">
+          <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
+        </div>
+        <div class="border-b border-stone-200/70 py-2">
+          <div class="flex min-w-0 flex-wrap items-center gap-1.5">
+            <NDropdown trigger="click" placement="bottom-start" :options="categoryOptions" @select="onCategorySelect">
+              <button type="button" class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50">
+                Danh mục: {{ activeCategoryLabel }}
+                <NIcon :size="9"><ChevronDown /></NIcon>
+              </button>
+            </NDropdown>
+            <button type="button" :class="chipClass(diet === 'chay')" @click="patch({ diet: diet === 'chay' ? undefined : 'chay' })">Món chay</button>
+            <button type="button" :class="chipClass(noSpicy)" @click="patch({ spicy: noSpicy ? undefined : '0' })">Không cay</button>
+            <button type="button" :class="chipClass(onlyDeals)" @click="patch({ deal: onlyDeals ? undefined : '1' })">Đang giảm</button>
+            <span class="mx-1 hidden w-px self-stretch bg-stone-200 sm:block" />
+            <button
+              v-for="(band, i) in PRICE_BANDS"
+              :key="band.label"
+              type="button"
+              :class="chipClass(activePriceBand === i)"
+              @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
+            >
+              {{ band.label }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div v-if="deals.length > 0 && !onlyDeals" class="mt-4 sm:mt-5">
@@ -230,29 +255,6 @@ const askAi = () => ui.openChat()
           </div>
         </div>
 
-        <div class="sticky top-0 z-10 -mx-3 border-b border-stone-200/70 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-          <div class="flex min-w-0 flex-wrap items-center gap-1.5">
-            <NDropdown trigger="click" placement="bottom-start" :options="categoryOptions" @select="onCategorySelect">
-              <button type="button" class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50">
-                Danh mục: {{ activeCategoryLabel }}
-                <NIcon :size="9"><ChevronDown /></NIcon>
-              </button>
-            </NDropdown>
-            <button type="button" :class="chipClass(diet === 'chay')" @click="patch({ diet: diet === 'chay' ? undefined : 'chay' })">Món chay</button>
-            <button type="button" :class="chipClass(noSpicy)" @click="patch({ spicy: noSpicy ? undefined : '0' })">Không cay</button>
-            <button type="button" :class="chipClass(onlyDeals)" @click="patch({ deal: onlyDeals ? undefined : '1' })">Đang giảm</button>
-            <span class="mx-1 hidden w-px self-stretch bg-stone-200 sm:block" />
-            <button
-              v-for="(band, i) in PRICE_BANDS"
-              :key="band.label"
-              type="button"
-              :class="chipClass(activePriceBand === i)"
-              @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
-            >
-              {{ band.label }}
-            </button>
-          </div>
-        </div>
 
         <div class="mt-3">
           <div v-if="error" class="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center">
