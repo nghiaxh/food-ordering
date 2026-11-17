@@ -192,21 +192,23 @@ const askAi = () => ui.openChat()
     <HomeHero v-if="!filtersActive" :on-ask="askAi" :on-browse="scrollToMenu" />
 
     <div class="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
-      <div class="sticky top-0 z-10 -mx-3 bg-stone-50/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-        <div class="mt-3 sm:mt-4">
-          <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
-        </div>
-        <div class="border-b border-stone-200/70 py-2">
-          <div class="flex min-w-0 flex-wrap items-center gap-1.5">
-            <button
-              v-for="(band, i) in PRICE_BANDS"
-              :key="band.label"
-              type="button"
-              :class="chipClass(activePriceBand === i)"
-              @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
-            >
-              {{ band.label }}
-            </button>
+      <div class="sticky top-0 z-10 -mx-3 bg-stone-50/95 px-3 pb-2 pt-3 backdrop-blur sm:-mx-6 sm:px-6 sm:pt-4">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
+          <div class="min-w-0 lg:min-w-0 lg:flex-1">
+            <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
+          </div>
+          <div class="border-b border-stone-200/70 py-2 lg:shrink-0 lg:border-0 lg:py-0">
+            <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                v-for="(band, i) in PRICE_BANDS"
+                :key="band.label"
+                type="button"
+                :class="chipClass(activePriceBand === i)"
+                @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
+              >
+                {{ band.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
