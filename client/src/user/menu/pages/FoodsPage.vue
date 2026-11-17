@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NDropdown, NEmpty, NIcon, NSlider } from 'naive-ui'
+import { NButton, NDropdown, NEmpty, NIcon } from 'naive-ui'
 import { AlertCircleOutline, ChevronDown } from '@vicons/ionicons5'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -100,14 +100,13 @@ const patch = (next: Record<string, string | undefined>) => {
 }
 const clearFilters = () => router.replace({ query: {} })
 
-// Keo slider thi doi query sau 200ms, tranh replace router moi lan Kim tien di qua mot moc.
-const peopleDraft = ref(people.value)
-const peopleMarks = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6+' }
-watch(people, (value) => { peopleDraft.value = value })
-watch(peopleDraft, (_value, _old, onCleanup) => {
-  const timer = window.setTimeout(() => patch({ people: peopleDraft.value > 1 ? String(peopleDraft.value) : undefined }), 200)
-  onCleanup(() => window.clearTimeout(timer))
-})
+const PEOPLE_BANDS = [
+  { label: '1', value: 1 },
+  { label: '2', value: 2 },
+  { label: '3', value: 3 },
+  { label: '4', value: 4 },
+  { label: '5+', value: 5 },
+]
 
 const filtersActive = computed(() =>
   Boolean(
@@ -162,6 +161,7 @@ const visible = computed(() =>
 )
 const deals = computed(() => (foods.value ?? []).filter((f) => (f.discountPercent ?? 0) > 0).slice(0, 8))
 const activePriceBand = computed(() => PRICE_BANDS.findIndex((b) => b.min === minPrice.value && b.max === maxPrice.value))
+const activePeople = computed(() => people.value > 5 ? 5 : people.value)
 
 const chipClass = (active: boolean) =>
   `inline-flex min-h-9 cursor-pointer items-center whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
@@ -203,26 +203,39 @@ const askAi = () => ui.openChat()
 
     <div class="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
       <div class="sticky top-0 z-10 -mx-3 bg-stone-50/95 px-3 pb-2 pt-3 backdrop-blur sm:-mx-6 sm:px-6 sm:pt-4">
-        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
-          <div class="min-w-0 lg:min-w-0 lg:flex-1">
+        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+          <div class="min-w-0 lg:flex-1">
             <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
           </div>
-          <div class="border-b border-stone-200/70 py-2 lg:shrink-0 lg:border-0 lg:py-0">
-            <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <button
-                v-for="(band, i) in PRICE_BANDS"
-                :key="band.label"
-                type="button"
-                :class="chipClass(activePriceBand === i)"
-                @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
-              >
-                {{ band.label }}
-              </button>
+          <div class="flex flex-col gap-2 lg:shrink-0 lg:flex-row lg:items-center lg:gap-3">
+            <div class="border-b border-stone-200/70 py-2 lg:border-0 lg:py-0">
+              <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button
+                  v-for="(band, i) in PRICE_BANDS"
+                  :key="band.label"
+                  type="button"
+                  :class="chipClass(activePriceBand === i)"
+                  @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
+                >
+                  {{ band.label }}
+                </button>
+              </div>
             </div>
-          </div>
-          <div class="flex items-center gap-3 pb-1 lg:w-56 lg:shrink-0 lg:pb-0">
-            <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">Số người</span>
-            <NSlider v-model:value="peopleDraft" :min="1" :max="6" :step="1" :marks="peopleMarks" class="min-w-0 flex-1" />
+            <div class="hidden w-px self-stretch bg-stone-200 lg:block" />
+            <div class="flex items-center gap-1.5 pb-1 lg:pb-0">
+              <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">Số người</span>
+              <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button
+                  v-for="band in PEOPLE_BANDS"
+                  :key="band.label"
+                  type="button"
+                  :class="chipClass(activePeople === band.value)"
+                  @click="patch({ people: band.value === 1 ? undefined : String(band.value) })"
+                >
+                  {{ band.label }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

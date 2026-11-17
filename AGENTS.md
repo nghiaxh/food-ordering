@@ -222,7 +222,7 @@ Lỗi tạm thời mới rơi sang nhánh code ở trên.
   `DefaultLayout` (không còn Drawer hay route con). Bộ lọc của trang chủ nằm trên URL (`category`,
   `keyword`, `min`, `max`, `people`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`), đọc bằng
   `useRoute().query`. `people` lọc món có `servingSize >= people`, gửi lên server qua `GET /api/foods`
-  và điều khiển bằng slider các mốc `1,2,3,4,5,6+` (6 nghĩa là từ 6 người). Khối danh mục + lọc
+  và điều khiển bằng dải chip `1,2,3,4,5+` (5+ gửi `people=5`). Khối danh mục + lọc
   dùng chung một vùng `sticky top-0` ngay dưới header: desktop gom một hàng, tablet/mobile xếp 3
   hàng (danh mục, khoảng giá, số người). Lưới món giữ 2 cột dưới `md`, 4 cột từ `md`, mỗi trang 12
   món và phân trang số trang. Vị trí cuộn lưới lưu ở `sessionStorage['menu-scroll']`, nút quay lại
