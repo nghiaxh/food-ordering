@@ -133,7 +133,7 @@ watch(applied, () => { refreshAll() })
       </div>
     </div>
 
-    <div class="mt-3 grid gap-3 lg:grid-cols-2">
+    <div class="mt-2 grid gap-2 lg:grid-cols-2">
       <PageCard>
         <div class="border-b border-stone-100 px-3 py-2.5">
           <h3 class="text-sm font-semibold text-stone-800">Doanh thu theo ngày</h3>

@@ -430,9 +430,6 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
   <div>
     <PageHeader title="Cấu hình chatbot">
       <template #extra>
-        <NTag :round="false" :bordered="false" :type="status?.available ? 'success' : 'warning'" size="small">
-          {{ status?.available ? 'AI sẵn sàng' : 'Chưa cấu hình AI' }}
-        </NTag>
         <NButton size="small" :loading="loading" @click="refresh">
           <template #icon><NIcon :size="14"><RefreshOutline /></NIcon></template>
           Tải lại
@@ -451,9 +448,6 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-4 py-3">
         <div class="flex items-center gap-2">
           <span class="font-semibold text-stone-800">Cài đặt mô hình & Quy tắc gợi ý</span>
-          <NTag :round="false" size="small" :bordered="false" class="bg-stone-100 font-medium text-stone-600">
-            {{ provider.toUpperCase() }}
-          </NTag>
         </div>
         <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">
           Lưu cài đặt
@@ -515,25 +509,13 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
         </NForm>
       </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 bg-stone-50/50 px-4 py-2.5 text-xs text-stone-500">
-        <div class="flex flex-wrap items-center gap-1.5">
-          <span>Cấu hình hiện tại:</span>
-          <span class="font-medium text-stone-700">Google Gemini</span>
-          <span>·</span>
-          <span class="font-mono text-stone-700">{{ model || 'Mặc định' }}</span>
-          <span>·</span>
-          <span>Tối đa {{ maxSuggestions }} món/lượt</span>
-        </div>
-        <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">
-          Lưu cài đặt
-        </NButton>
-      </div>
+
     </PageCard>
 
     <PageCard class="mb-4">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-4 py-3">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-stone-800">Tài liệu cơ sở tri thức</span>
+          <span class="font-semibold text-stone-800">Tài liệu</span>
           <NTag :round="false" size="small" :bordered="false" class="bg-stone-100 font-medium text-stone-600">
             {{ documents.length }} tài liệu
           </NTag>
