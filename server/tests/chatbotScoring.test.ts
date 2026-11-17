@@ -15,7 +15,7 @@ const makeFood = (id: number, name: string, price: number, overrides: Partial<Fo
     dietaryTags: null,
     category: null,
     ...overrides,
-  } as FoodWithCategory);
+  } as unknown as FoodWithCategory);
 
 describe("WEIGHT", () => {
   it("tong trong so bang 1", () => {

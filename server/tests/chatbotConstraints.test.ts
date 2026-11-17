@@ -3,7 +3,7 @@ import { readConstraints, matchDishes, isFoodQuestion, parseBudget, parsePeople 
 import type { FoodWithCategory } from "../src/user/chatbot/plan.js";
 
 const makeFood = (id: number, name: string): FoodWithCategory =>
-  ({ id, name, price: 45000, available: true, spicyLevel: 0, servingSize: 1, category: null }) as FoodWithCategory;
+  ({ id, name, price: 45000, available: true, spicyLevel: 0, servingSize: 1, category: null }) as unknown as FoodWithCategory;
 
 describe("readConstraints", () => {
   it("doc ngan sach", () => {
