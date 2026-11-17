@@ -139,7 +139,12 @@ const iconButtonClass =
 <template>
   <header class="sticky top-0 z-50 h-[var(--header-h)] border-b border-stone-200/70 bg-white/95 backdrop-blur-xl">
     <div class="mx-auto flex h-full max-w-[1600px] items-center gap-1.5 px-3 sm:gap-3 sm:px-5">
-      <BrandMark />
+      <NTooltip placement="bottom">
+        <template #trigger>
+          <BrandMark />
+        </template>
+        Về trang chủ
+      </NTooltip>
 
       <NInput
         v-model:value="draft"
