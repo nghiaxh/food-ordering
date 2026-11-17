@@ -70,13 +70,6 @@ const onlyDeals = computed(() => str(route.query.deal) === '1')
 
 const { data: categories } = useAsyncData((signal) => getCategories(signal), () => [])
 
-const categoryOptions = computed(() => [
-  { key: '', label: 'Tất cả' },
-  ...(categories.value ?? []).map((c) => ({ key: String(c.id), label: c.name })),
-])
-const activeCategoryLabel = computed(() => (categories.value ?? []).find((c) => c.id === categoryId.value)?.name ?? 'Tất cả')
-const onCategorySelect = (key: string | number) => pickCategory(key === '' ? undefined : Number(key))
-
 const {
   data: foods,
   loading,
@@ -205,16 +198,6 @@ const askAi = () => ui.openChat()
         </div>
         <div class="border-b border-stone-200/70 py-2">
           <div class="flex min-w-0 flex-wrap items-center gap-1.5">
-            <NDropdown trigger="click" placement="bottom-start" :options="categoryOptions" @select="onCategorySelect">
-              <button type="button" class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50">
-                Danh mục: {{ activeCategoryLabel }}
-                <NIcon :size="9"><ChevronDown /></NIcon>
-              </button>
-            </NDropdown>
-            <button type="button" :class="chipClass(diet === 'chay')" @click="patch({ diet: diet === 'chay' ? undefined : 'chay' })">Món chay</button>
-            <button type="button" :class="chipClass(noSpicy)" @click="patch({ spicy: noSpicy ? undefined : '0' })">Không cay</button>
-            <button type="button" :class="chipClass(onlyDeals)" @click="patch({ deal: onlyDeals ? undefined : '1' })">Đang giảm</button>
-            <span class="mx-1 hidden w-px self-stretch bg-stone-200 sm:block" />
             <button
               v-for="(band, i) in PRICE_BANDS"
               :key="band.label"
