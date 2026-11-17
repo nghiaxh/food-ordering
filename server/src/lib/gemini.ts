@@ -13,7 +13,9 @@ const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 const TIMEOUT_MS = 15_000;
 const EXTRACT_TIMEOUT_MS = 10_000;
 const REPLY_TIMEOUT_MS = 12_000;
+const EMBED_TIMEOUT_MS = 8_000;
 const MAX_OUTPUT_TOKENS = 500;
+export const EMBEDDING_DIM = 768;
 const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
 const PROBE_USER = "ping";
 const PROBE_RETRY_MS = 5 * 60 * 1000;
@@ -142,6 +144,69 @@ export const generate = async (
     }
     throw new Error(`Không gọi được dịch vụ AI: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
+};
+
+/** Sinh vector embedding cho mot doan van ban. Tra ve null neu khong cau hinh duoc. */
+export const embed = async (text: string): Promise<number[] | null> => {
+  const results = await embedBatch([text]);
+  return results[0] ?? null;
+};
+
+/** Sinh vector embedding cho nhieu doan van ban (loi 16 input/request). Tra ve null cho input loi. */
+export const embedBatch = async (texts: string[]): Promise<Array<number[] | null>> => {
+  if (!isConfigured()) return texts.map(() => null);
+  if (texts.length === 0) return [];
+
+  const apiKey = env.AI_API_KEY;
+  const model = await setting("embedding_model", "gemini-embedding-2");
+  const results: Array<number[] | null> = new Array(texts.length).fill(null);
+
+  // Chia lo 16 input
+  const batchSize = 16;
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batch = texts.slice(i, i + batchSize);
+    const requests = batch.map((t) => ({
+      model: `models/${model}`,
+      content: { parts: [{ text: `title: none | text: ${t}` }] },
+      outputDimensionality: EMBEDDING_DIM,
+    }));
+
+    try {
+      const response = await fetchWithTimeout(
+        `${GEMINI_URL}${model}:batchEmbedContents`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: JSON.stringify({ requests }),
+        },
+        EMBED_TIMEOUT_MS,
+      );
+
+      if (!response.ok) {
+        const body = await response.text();
+        if (response.status === 401 || response.status === 403 || body.includes("API_KEY_INVALID")) {
+          credentialsRejected = true;
+        }
+        console.warn(`[ai] embed loi ${response.status}`);
+        continue;
+      }
+
+      const json = await response.json() as { embeddings?: Array<{ values?: number[] }> };
+      const embeddings = json.embeddings ?? [];
+      for (let j = 0; j < batch.length; j++) {
+        const vals = embeddings[j]?.values;
+        if (vals && vals.length === EMBEDDING_DIM) {
+          results[i + j] = vals;
+        }
+      }
+      // Thanh cong thi bo hanh cho doi
+      rateLimitedUntil = 0;
+    } catch (error) {
+      console.warn(`[ai] embed exception: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  return results;
 };
 
 const isKeyRejected = (error: unknown): boolean => {
@@ -287,5 +352,5 @@ const text = (raw: string): string => {
 };
 
 /** Timeout rieng cho tung buoc: trich xuat phai nhanh, sinh cau tra loi dai hon mot chut. */
-export const AI_TIMEOUTS = { extract: EXTRACT_TIMEOUT_MS, reply: REPLY_TIMEOUT_MS } as const;
+export const AI_TIMEOUTS = { extract: EXTRACT_TIMEOUT_MS, reply: REPLY_TIMEOUT_MS, embed: EMBED_TIMEOUT_MS } as const;
 export const AI_MAX_OUTPUT_TOKENS = MAX_OUTPUT_TOKENS;

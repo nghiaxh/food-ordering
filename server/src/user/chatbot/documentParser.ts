@@ -24,18 +24,77 @@ export const parseDocument = async (fileName: string, buffer: Buffer): Promise<s
   throw new Error("Chỉ chấp nhận PDF, DOCX, TXT, MD");
 };
 
-/** Chia van ban thanh cac doan ~600 ky tu, overlap ~80 ky tu de khong vo y. */
+/** Chia van ban thanh cac doan ~600 ky tu, overlap 80 ky tu, khong cat giua tu, giu tieu de. */
 export const chunkText = (text: string): string[] => {
   if (!text?.trim()) return [];
-  const t = text.replaceAll(/\s+/g, " ").trim();
+  // Chuan hoa: \r\n -> \n, gop 3+ dong trong thanh 2
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  if (!normalized) return [];
+
   const SIZE = 600;
-  const STEP = 520;
-  const out: string[] = [];
-  for (let i = 0; i < t.length; i += STEP) {
-    const end = Math.min(t.length, i + SIZE);
-    const piece = t.slice(i, end).trim();
-    if (piece) out.push(piece);
-    if (end === t.length) break;
+  const OVERLAP = 80;
+  const MIN_CHUNK = 120;
+
+  // Tach theo doan (danh sach dong trong)
+  const paragraphs = normalized.split(/\n\n+/);
+  const chunks: string[] = [];
+  let current = "";
+  let currentHeading = "";
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) continue;
+
+    // Tieu de: dong ngan, khong ket thuc bang dau cham
+    const isHeading = trimmed.length < 80 && !/[.!?。]$/.test(trimmed);
+
+    if (isHeading) {
+      // Luu tieu de de gan vao chunk tiep theo
+      currentHeading = trimmed;
+      // Neu dang co chunk dang do, day ra
+      if (current.trim()) {
+        chunks.push(current.trim());
+        current = "";
+      }
+      continue;
+    }
+
+    const piece = currentHeading ? `${currentHeading}\n${trimmed}` : trimmed;
+
+    if (current && current.length + piece.length + 2 > SIZE) {
+      // Day chunk hien tai ra, bat dau chunk moi voi overlap
+      chunks.push(current.trim());
+      const tail = current.slice(Math.max(0, current.length - OVERLAP));
+      current = tail + "\n" + piece;
+    } else {
+      current = current ? current + "\n" + piece : piece;
+    }
   }
-  return out;
+
+  if (current.trim()) {
+    // Chunk cuoi qua ngan thi gop vao chunk truoc
+    if (current.trim().length < MIN_CHUNK && chunks.length > 0) {
+      chunks[chunks.length - 1] = chunks[chunks.length - 1] + "\n" + current.trim();
+    } else {
+      chunks.push(current.trim());
+    }
+  }
+
+  // Dam bao khong cat giua tu: cat tai khoang trang gan nhat
+  const result: string[] = [];
+  for (const chunk of chunks) {
+    if (chunk.length <= SIZE) {
+      result.push(chunk);
+    } else {
+      // Cat tai khoang trang
+      let pos = SIZE;
+      while (pos > 0 && chunk[pos] !== " " && chunk[pos] !== "\n") pos--;
+      if (pos === 0) pos = SIZE;
+      result.push(chunk.slice(0, pos).trim());
+      const rest = chunk.slice(pos).trim();
+      if (rest) result.push(rest);
+    }
+  }
+
+  return result.filter((c) => c.length > 0);
 };

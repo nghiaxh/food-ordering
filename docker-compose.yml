@@ -1,6 +1,6 @@
 services:
   database:
-    image: postgres:18-alpine
+    image: pgvector/pgvector:0.8.7-pg18
     container_name: food-ordering-database
     # Khong khai bao profiles: Postgres luon chay theo moi profile (dev, prod, tools)
     # va `docker compose up` khong profile chi dung rieng database.

@@ -10,6 +10,8 @@ import {
   jsonb,
   pgEnum,
   uniqueIndex,
+  index,
+  vector,
 } from "drizzle-orm/pg-core";
 
 // Enums khop voi Postgres enum hien tai.
@@ -237,17 +239,26 @@ export const chatbotKnowledge = pgTable("chatbot_knowledge", {
   fileName: varchar("file_name", { length: 255 }),
   fileSize: integer("file_size"),
   status: varchar("status", { length: 50 }).default("READY").notNull(),
+  embeddingError: varchar("embedding_error", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const EMBEDDING_DIM = 768;
 
 export const chatbotKnowledgeChunk = pgTable("chatbot_knowledge_chunk", {
   id: serial("id").primaryKey(),
   documentId: integer("document_id").notNull(),
   chunkIndex: integer("chunk_index").notNull(),
   content: text("content").notNull(),
+  embedding: vector("embedding", { dimensions: EMBEDDING_DIM }),
+  embeddingModel: varchar("embedding_model", { length: 64 }),
+  embeddedAt: timestamp("embedded_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("chatbot_knowledge_chunk_embedding_idx")
+    .using("hnsw", t.embedding.op("vector_cosine_ops")),
+]);
 
 export const aiSetting = pgTable("ai_setting", {
   settingKey: varchar("setting_key", { length: 100 }).primaryKey(),

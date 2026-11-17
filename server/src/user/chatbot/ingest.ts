@@ -6,6 +6,7 @@ import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { env } from "../../config/env.js";
 import { chunkText, parseDocument } from "./documentParser.js";
+import * as gemini from "../../lib/gemini.js";
 
 const uploadDir = () => env.UPLOAD_DIR;
 
@@ -62,9 +63,23 @@ const buildChunks = async (documentId: number, text: string) => {
   await db.delete(chatbotKnowledgeChunk).where(eq(chatbotKnowledgeChunk.documentId, documentId));
   const chunks = chunkText(text);
   if (chunks.length > 0) {
-    await db.insert(chatbotKnowledgeChunk).values(
+    const rows = await db.insert(chatbotKnowledgeChunk).values(
       chunks.map((content, chunkIndex) => ({ documentId, chunkIndex, content })),
-    );
+    ).returning({ id: chatbotKnowledgeChunk.id, content: chatbotKnowledgeChunk.content });
+
+    // Embed neu co khoa AI
+    if (gemini.isConfigured()) {
+      const contents = rows.map((r) => r.content);
+      const vectors = await gemini.embedBatch(contents);
+      for (let i = 0; i < rows.length; i++) {
+        const v = vectors[i];
+        if (v) {
+          await db.update(chatbotKnowledgeChunk)
+            .set({ embedding: v, embeddingModel: "gemini-embedding-2", embeddedAt: new Date() })
+            .where(eq(chatbotKnowledgeChunk.id, rows[i]!.id));
+        }
+      }
+    }
   }
 };
 
@@ -122,9 +137,13 @@ export const ingestFile = async (
 
   await db
     .update(chatbotKnowledge)
-    .set({ content: truncate(text, 4000), status: "READY" })
+    .set({ content: truncate(text, 4000), status: gemini.isConfigured() ? "EMBEDDING" : "READY" })
     .where(eq(chatbotKnowledge.id, doc!.id));
   await buildChunks(doc!.id, text);
+  await db
+    .update(chatbotKnowledge)
+    .set({ status: "READY" })
+    .where(eq(chatbotKnowledge.id, doc!.id));
   return toDoc({ ...doc!, content: truncate(text, 4000), status: "READY" });
 };
 
@@ -133,23 +152,25 @@ export const reingestDocument = async (documentId: number): Promise<KnowledgeDoc
   const doc = await db.query.chatbotKnowledge.findFirst({ where: eq(chatbotKnowledge.id, documentId) });
   if (!doc) throw new Error("Không tìm thấy tài liệu");
 
-  let text = doc.content ?? "";
-  if (!text.trim() && doc.fileName) {
+  let text = "";
+  if (doc.fileName) {
     try {
       const { readFileSync } = await import("node:fs");
       const buffer = readFileSync(storedFilePath(documentId, doc.fileName));
       text = await parseDocument(doc.fileName, buffer);
-      await db
-        .update(chatbotKnowledge)
-        .set({ content: truncate(text, 4000) })
-        .where(eq(chatbotKnowledge.id, documentId));
     } catch {
-      await db
-        .update(chatbotKnowledge)
-        .set({ status: "FAILED" })
-        .where(eq(chatbotKnowledge.id, documentId));
-      throw new Error("Không đọc lại được file của tài liệu này.");
+      // File khong doc duoc, thu content da luu
+      text = doc.content ?? "";
     }
+  } else {
+    text = doc.content ?? "";
+  }
+  // Cap nhat content da cat (chi de hien thi, khong anh huong chunk)
+  if (text.trim()) {
+    await db
+      .update(chatbotKnowledge)
+      .set({ content: truncate(text, 4000) })
+      .where(eq(chatbotKnowledge.id, documentId));
   }
 
   if (!text.trim()) {
