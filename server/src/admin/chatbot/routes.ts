@@ -13,6 +13,9 @@ import {
   ingestFile,
   reingestDocument,
   deleteDocument,
+  embedDocument,
+  embedMissing,
+  searchPreview,
 } from "../../user/chatbot/ingest.js";
 
 const idParam = (raw: string | string[] | undefined): number => {
@@ -76,4 +79,17 @@ chatbotAdminRouter.post("/chatbot/documents/upload", documentUpload.single("file
 });
 chatbotAdminRouter.post("/chatbot/documents/:id/reingest", async (req, res) => {
   res.json(await reingestDocument(idParam(req.params.id)));
+});
+chatbotAdminRouter.post("/chatbot/documents/:id/embed", async (req, res) => {
+  res.json(await embedDocument(idParam(req.params.id)));
+});
+chatbotAdminRouter.post("/chatbot/documents/embed-missing", async (_req, res) => {
+  res.json(await embedMissing());
+});
+chatbotAdminRouter.post("/chatbot/documents/search-preview", async (req, res) => {
+  const body = req.body as { question?: string; topK?: number };
+  const question = (body?.question ?? "").trim();
+  if (!question) throw badRequest("Câu hỏi không được rỗng");
+  const topK = Math.max(1, Math.min(10, Number(body?.topK) || 4));
+  res.json(await searchPreview(question, topK));
 });

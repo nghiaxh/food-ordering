@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { env } from "../../config/env.js";
 import { chunkText, parseDocument } from "./documentParser.js";
+import * as gemini from "../../lib/gemini.js";
+import { searchChunks } from "./retrieval.js";
 
 const uploadDir = () => env.UPLOAD_DIR;
 
@@ -24,6 +26,7 @@ export interface KnowledgeDocJson {
   fileName: string | null;
   fileSize: number | null;
   chunkCount: number;
+  embeddedChunks: number;
 }
 
 const toDoc = async (d: {
@@ -42,7 +45,12 @@ const toDoc = async (d: {
     .from(chatbotKnowledgeChunk)
     .where(eq(chatbotKnowledgeChunk.documentId, d.id));
   const chunkCount = rows[0]?.value ?? 0;
-  return { ...d, chunkCount };
+  const embeddedRows = await db
+    .select({ value: count() })
+    .from(chatbotKnowledgeChunk)
+    .where(and(eq(chatbotKnowledgeChunk.documentId, d.id), isNotNull(chatbotKnowledgeChunk.embedding)));
+  const embeddedChunks = embeddedRows[0]?.value ?? 0;
+  return { ...d, chunkCount, embeddedChunks };
 };
 
 const truncate = (s: string, max: number): string => {
@@ -62,9 +70,23 @@ const buildChunks = async (documentId: number, text: string) => {
   await db.delete(chatbotKnowledgeChunk).where(eq(chatbotKnowledgeChunk.documentId, documentId));
   const chunks = chunkText(text);
   if (chunks.length > 0) {
-    await db.insert(chatbotKnowledgeChunk).values(
+    const rows = await db.insert(chatbotKnowledgeChunk).values(
       chunks.map((content, chunkIndex) => ({ documentId, chunkIndex, content })),
-    );
+    ).returning({ id: chatbotKnowledgeChunk.id, content: chatbotKnowledgeChunk.content });
+
+    // Embed neu co khoa AI
+    if (gemini.isConfigured()) {
+      const contents = rows.map((r) => r.content);
+      const vectors = await gemini.embedBatch(contents);
+      for (let i = 0; i < rows.length; i++) {
+        const v = vectors[i];
+        if (v) {
+          await db.update(chatbotKnowledgeChunk)
+            .set({ embedding: v, embeddingModel: "gemini-embedding-2", embeddedAt: new Date() })
+            .where(eq(chatbotKnowledgeChunk.id, rows[i]!.id));
+        }
+      }
+    }
   }
 };
 
@@ -122,9 +144,13 @@ export const ingestFile = async (
 
   await db
     .update(chatbotKnowledge)
-    .set({ content: truncate(text, 4000), status: "READY" })
+    .set({ content: truncate(text, 4000), status: gemini.isConfigured() ? "EMBEDDING" : "READY" })
     .where(eq(chatbotKnowledge.id, doc!.id));
   await buildChunks(doc!.id, text);
+  await db
+    .update(chatbotKnowledge)
+    .set({ status: "READY" })
+    .where(eq(chatbotKnowledge.id, doc!.id));
   return toDoc({ ...doc!, content: truncate(text, 4000), status: "READY" });
 };
 
@@ -133,23 +159,25 @@ export const reingestDocument = async (documentId: number): Promise<KnowledgeDoc
   const doc = await db.query.chatbotKnowledge.findFirst({ where: eq(chatbotKnowledge.id, documentId) });
   if (!doc) throw new Error("Không tìm thấy tài liệu");
 
-  let text = doc.content ?? "";
-  if (!text.trim() && doc.fileName) {
+  let text = "";
+  if (doc.fileName) {
     try {
       const { readFileSync } = await import("node:fs");
       const buffer = readFileSync(storedFilePath(documentId, doc.fileName));
       text = await parseDocument(doc.fileName, buffer);
-      await db
-        .update(chatbotKnowledge)
-        .set({ content: truncate(text, 4000) })
-        .where(eq(chatbotKnowledge.id, documentId));
     } catch {
-      await db
-        .update(chatbotKnowledge)
-        .set({ status: "FAILED" })
-        .where(eq(chatbotKnowledge.id, documentId));
-      throw new Error("Không đọc lại được file của tài liệu này.");
+      // File khong doc duoc, thu content da luu
+      text = doc.content ?? "";
     }
+  } else {
+    text = doc.content ?? "";
+  }
+  // Cap nhat content da cat (chi de hien thi, khong anh huong chunk)
+  if (text.trim()) {
+    await db
+      .update(chatbotKnowledge)
+      .set({ content: truncate(text, 4000) })
+      .where(eq(chatbotKnowledge.id, documentId));
   }
 
   if (!text.trim()) {
@@ -215,9 +243,72 @@ export const documentStats = async () => {
   const docs = await db.query.chatbotKnowledge.findMany({ columns: { status: true } });
   const chunkRows = await db.select({ value: count() }).from(chatbotKnowledgeChunk);
   const totalChunks = chunkRows[0]?.value ?? 0;
+  const embeddedRows = await db.select({ value: count() }).from(chatbotKnowledgeChunk).where(isNotNull(chatbotKnowledgeChunk.embedding));
+  const embeddedChunks = embeddedRows[0]?.value ?? 0;
   const ready = docs.filter((d) => d.status === "READY").length;
   const failed = docs.filter((d) => d.status === "FAILED").length;
-  return { totalDocuments: docs.length, totalChunks, ready, failed };
+  return { totalDocuments: docs.length, totalChunks, embeddedChunks, ready, failed };
+};
+
+export const embedDocument = async (documentId: number): Promise<{ embedded: number; failed: number }> => {
+  const chunks = await db.query.chatbotKnowledgeChunk.findMany({
+    where: eq(chatbotKnowledgeChunk.documentId, documentId),
+  });
+  let embedded = 0;
+  let failed = 0;
+  const batchSize = 16;
+  for (let i = 0; i < chunks.length; i += batchSize) {
+    const batch = chunks.slice(i, i + batchSize);
+    const vectors = await gemini.embedBatch(batch.map((c) => c.content));
+    for (let j = 0; j < batch.length; j++) {
+      const v = vectors[j];
+      if (v) {
+        await db.update(chatbotKnowledgeChunk)
+          .set({ embedding: v, embeddingModel: "gemini-embedding-2", embeddedAt: new Date() })
+          .where(eq(chatbotKnowledgeChunk.id, batch[j]!.id));
+        embedded++;
+      } else {
+        failed++;
+      }
+    }
+  }
+  return { embedded, failed };
+};
+
+export const embedMissing = async (): Promise<{ embedded: number; failed: number }> => {
+  const chunks = await db.query.chatbotKnowledgeChunk.findMany({
+    where: isNull(chatbotKnowledgeChunk.embedding),
+  });
+  let embedded = 0;
+  let failed = 0;
+  const batchSize = 16;
+  for (let i = 0; i < chunks.length; i += batchSize) {
+    const batch = chunks.slice(i, i + batchSize);
+    const vectors = await gemini.embedBatch(batch.map((c) => c.content));
+    for (let j = 0; j < batch.length; j++) {
+      const v = vectors[j];
+      if (v) {
+        await db.update(chatbotKnowledgeChunk)
+          .set({ embedding: v, embeddingModel: "gemini-embedding-2", embeddedAt: new Date() })
+          .where(eq(chatbotKnowledgeChunk.id, batch[j]!.id));
+        embedded++;
+      } else {
+        failed++;
+      }
+    }
+  }
+  return { embedded, failed };
+};
+
+export const searchPreview = async (question: string, topK: number): Promise<Array<{ documentId: number; title: string | null; chunkIndex: number; score: number; content: string }>> => {
+  const chunks = await searchChunks(question, topK);
+  return chunks.map((c) => ({
+    documentId: c.chunk.documentId,
+    title: c.document?.title ?? null,
+    chunkIndex: c.chunk.chunkIndex,
+    score: c.score,
+    content: c.chunk.content,
+  }));
 };
 
 export const listChunks = async (documentId: number) => {

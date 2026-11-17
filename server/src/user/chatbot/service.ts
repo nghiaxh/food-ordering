@@ -6,31 +6,16 @@ import { db } from "../../lib/db.js";
 import * as gemini from "../../lib/gemini.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { sessionTitle, type ChatHistoryEntry, type ChatSessionSummary } from "./sessions.js";
-import {
-  BARE_NUMBER,
-  isFoodQuestion,
-  parseBudget,
-  parsePeople,
-  readFilters,
-  type Filters,
-} from "./filters.js";
-import {
-  isFollowUp,
-  isReferenceKeyword,
-  normalizeCriteria,
-  criteriaSchema,
-  type NormalizedCriteria,
-} from "./criteria.js";
-import {
-  fallbackReply,
-  pickWithinTotalBudget,
-  selectContextByCode,
-  selectFoods,
-  selectFoodsByCode,
-  type FoodWithCategory,
-  type Picked,
-} from "./select.js";
-import { keywordSearchKnowledge, searchChunks, type ScoredChunk } from "./retrieval.js";
+import { BARE_NUMBER, parseBudget, parsePeople, readConstraints, matchDishes, mergeConstraints, isFoodQuestion, vnd, type Constraints } from "./constraints.js";
+import { isFollowUp, isReferenceKeyword, normalizeCriteria, criteriaSchema, type NormalizedCriteria, readFilters, significantWords, type Filters } from "./constraints.js";
+import type { FoodWithCategory, Picked } from "./plan.js";
+import { filterCandidates } from "./filter.js";
+import { scoreAll } from "./scoring.js";
+import { planSelection, planLastPicks } from "./plan.js";
+import { renderReply } from "./render.js";
+import { routeIntent } from "./router.js";
+import { verifyReply } from "./grounding.js";
+import { searchChunks, type ScoredChunk } from "./retrieval.js";
 import { ANSWER_PROMPT, EXTRACT_PROMPT } from "./prompts.js";
 
 const MISSING_KEY_NOTICE = "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.";
@@ -393,13 +378,7 @@ export const chat = async (
         snippet: truncate(c.chunk.content, 120),
       }));
     } else {
-      const docs = await keywordSearchKnowledge(input.message);
-      if (docs.length === 0) {
-        reply = "Mình chưa có thông tin xác thực về mục này trong tài liệu của quán. Bạn xem thực đơn bên dưới hoặc hỏi nhân viên nhé!";
-      } else {
-        reply = docs.map((d) => `- ${(d.content ?? "").trim()}`).join("\n");
-        citations = docs.map((d) => ({ sourceName: d.title ?? "Tài liệu quán", snippet: truncate(d.content ?? "", 120) }));
-      }
+      reply = "Mình chưa có thông tin xác thực về mục này trong tài liệu của quán. Bạn xem thực đơn bên dưới hoặc hỏi nhân viên nhé!";
     }
     if (user) {
       await saveMessage(user.id, sessionId, "BOT", reply, {
@@ -435,25 +414,9 @@ export const chat = async (
     return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: QR_GREETING };
   }
 
-  const genericInfoMatch = !isFoodQuestion(p) && !isFollowUp(classifyMessage) && !p.includes("goi y") && !p.includes("mon");
-  const docChunks = genericInfoMatch ? await searchChunks(input.message, 5) : [];
-  if (genericInfoMatch && docChunks.length > 0) {
-    const reply = docChunks.map((c) => `- ${truncate(c.chunk.content, 400)}`).join("\n");
-    const citations = docChunks.map((c) => ({
-      sourceName: c.document?.title ?? "Tài liệu quán",
-      snippet: truncate(c.chunk.content, 120),
-    }));
-    if (user) {
-      await saveMessage(user.id, sessionId, "BOT", reply, {
-        intent: "RESTAURANT_INFO",
-        citations,
-        quickReplies: QR_INFO,
-      });
-    }
-    return { reply, foods: [], intent: "RESTAURANT_INFO", citations, quickReplies: QR_INFO };
-  }
-
-  if (genericInfoMatch && docChunks.length === 0) {
+  // Route intent bang regex (khong goi AI)
+  const intent = routeIntent(classifyMessage);
+  if (intent === "OUT_OF_SCOPE") {
     const reply = declineReply();
     if (user) {
       await saveMessage(user.id, sessionId, "BOT", reply, {
@@ -498,27 +461,78 @@ export const chat = async (
   const categoryNamesPlain = categoryNames.map((n) => plain(n));
   const categoryNamesText = categoryNames.join(", ");
 
+  // Regex doc rang buoc truoc, chi goi AI neu regex khong du
+  const regexConstraints = readConstraints(classifyMessage, menu);
+  const isCompleteRegex = regexConstraints.budgetTotal != null || regexConstraints.people != null ||
+    regexConstraints.spicyMax != null || regexConstraints.chay || regexConstraints.dishes.length > 0 ||
+    regexConstraints.exclude.length > 0 || regexConstraints.groups.length > 0;
+
   let criteria: NormalizedCriteria | null = null;
   let context: number[] | null = null;
   let aiPicked: Picked[] = [];
   let aiReply: string | null = null;
-  try {
-    criteria = await extractCriteria(workingMessage, history, categoryNamesText);
-    if (enrichedNames.length && criteria?.keywords) {
-      const filtered = criteria.keywords.filter((k) => !enrichedNames.includes(plain(k)));
-      criteria = { ...criteria, keywords: filtered.length ? filtered : null };
+
+  if (!isCompleteRegex) {
+    try {
+      criteria = await extractCriteria(workingMessage, history, categoryNamesText);
+      if (enrichedNames.length && criteria?.keywords) {
+        const filtered = criteria.keywords.filter((k) => !enrichedNames.includes(plain(k)));
+        criteria = { ...criteria, keywords: filtered.length ? filtered : null };
+      }
+      if (resolved.continued && criteria) {
+        criteria = withAnsweredConstraints(criteria, input.message);
+      }
+    } catch (error) {
+      if (error instanceof gemini.AiKeyRejectedException) {
+        throw new HttpError(503, MISSING_KEY_NOTICE);
+      }
+      throw error;
     }
-    if (resolved.continued && criteria) {
-      criteria = withAnsweredConstraints(criteria, input.message);
+  }
+
+  context = contextIds(classifyMessage, input.lastFoodIds, criteria, categoryNamesPlain, enrichedNames);
+
+  // Chuyen criteria tu AI sang Constraints
+  const aiConstraints: Partial<Constraints> | null = criteria ? {
+    spicyMax: criteria.maxSpicyLevel,
+    spicyRequired: false,
+    chay: false,
+    exclude: criteria.excludeAllergens ?? [],
+    diets: criteria.dietaryTags ?? [],
+    dishes: [],
+    groups: criteria.categories ?? [],
+    budgetTotal: criteria.maxBudget,
+    people: criteria.people,
+    scope: "ALL",
+    restrictIds: null,
+  } : null;
+
+  const constraints = mergeConstraints(aiConstraints, regexConstraints);
+
+  // Weighted scoring
+  const filterResult = filterCandidates(menu, constraints, constraints.people);
+  const soldCounts = new Map<number, number>();
+  const significant = significantWords(classifyMessage);
+  const scored = scoreAll(
+    filterResult.kept.map((c) => ({ food: c.food, portions: c.portions, totalPrice: c.totalPrice, matched: c.matched })),
+    classifyMessage,
+    constraints.budgetTotal,
+    maxSugg,
+    significant,
+    soldCounts,
+  );
+
+  // AI viet cau tra loi neu co
+  if (criteria && !isCompleteRegex) {
+    aiPicked = scored.slice(0, maxSugg).map((s) => ({ food: s.food, portions: s.portions, totalPrice: s.totalPrice }));
+    try {
+      aiReply = await generateReply(input.message, criteria, aiPicked, history);
+    } catch (error) {
+      if (error instanceof gemini.AiKeyRejectedException) {
+        throw new HttpError(503, MISSING_KEY_NOTICE);
+      }
+      aiReply = null;
     }
-    context = contextIds(classifyMessage, input.lastFoodIds, criteria, categoryNamesPlain, enrichedNames);
-    aiPicked = criteria == null ? [] : selectFoods(criteria, context, menu, maxSugg);
-    aiReply = criteria == null ? null : await generateReply(input.message, criteria, aiPicked, history);
-  } catch (error) {
-    if (error instanceof gemini.AiKeyRejectedException) {
-      throw new HttpError(503, MISSING_KEY_NOTICE);
-    }
-    throw error;
   }
 
   let picked: Picked[];
@@ -527,14 +541,25 @@ export const chat = async (
     picked = aiPicked;
     reply = aiReply;
   } else {
-    const filters = readFilters(classifyMessage);
     if (context !== null) {
-      picked = selectContextByCode(context, filters, menu);
+      picked = planLastPicks(context, { maxBudget: constraints.budgetTotal, people: constraints.people }, menu);
     } else {
-      picked = aiPicked.length > 0 ? aiPicked : selectFoodsByCode(classifyMessage, filters, menu, maxSugg);
+      const plan = planSelection(
+        scored.map((s) => ({ food: s.food, portions: s.portions, totalPrice: s.totalPrice })),
+        {
+          maxBudget: constraints.budgetTotal,
+          people: constraints.people,
+          groups: constraints.groups,
+          restrictIds: constraints.restrictIds,
+        },
+        maxSugg,
+      );
+      picked = plan.picks;
     }
-    reply = fallbackReply(picked, filters);
-    // Provider dang chan: bao ro cho khach biet cau tra loi do tu thuc don, khong phai AI.
+    reply = renderReply(
+      { picks: picked, totalPrice: picked.reduce((s, p) => s + p.totalPrice, 0) },
+      constraints,
+    );
     if (gemini.isRateLimited()) reply = `${RATE_LIMIT_NOTE}\n\n${reply}`;
   }
 
