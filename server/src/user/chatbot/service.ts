@@ -15,6 +15,7 @@ import { scoreAll } from "./scoring.js";
 import { planSelection, planLastPicks } from "./plan.js";
 import { renderReply } from "./render.js";
 import { routeIntent } from "./router.js";
+import { verifyReply } from "./grounding.js";
 import { searchChunks, type ScoredChunk } from "./retrieval.js";
 import { ANSWER_PROMPT, EXTRACT_PROMPT } from "./prompts.js";
 
