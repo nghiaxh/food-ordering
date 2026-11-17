@@ -34,4 +34,16 @@ export const adminUploadDocument = (file: File, title: string, category: string,
 export const adminReingestDocument = (id: number) =>
   http.post<KnowledgeDoc>(`/admin/chatbot/documents/${id}/reingest`, {}).then((r) => r.data)
 
+export const adminEmbedDocument = (id: number) =>
+  http.post<{ embedded: number; failed: number }>(`/admin/chatbot/documents/${id}/embed`, {}).then((r) => r.data)
+
+export const adminEmbedMissing = () =>
+  http.post<{ embedded: number; failed: number }>('/admin/chatbot/documents/embed-missing', {}).then((r) => r.data)
+
+export const adminSearchPreview = (question: string, topK = 4) =>
+  http.post<{ documentId: number; title: string | null; chunkIndex: number; score: number; content: string }[]>(
+    '/admin/chatbot/documents/search-preview',
+    { question, topK },
+  ).then((r) => r.data)
+
 export type { AiSetting }

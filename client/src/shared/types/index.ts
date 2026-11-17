@@ -201,17 +201,21 @@ export interface KnowledgeDoc {
   fileName?: string | null
   fileSize?: number | null
   chunkCount?: number
+  embeddedChunks?: number
+  embeddingModel?: string | null
 }
 
 export interface KnowledgeChunkView {
   id: number
   chunkIndex: number
   content: string
+  embedded?: boolean
 }
 
 export interface KnowledgeStats {
   totalDocuments: number
   totalChunks: number
+  embeddedChunks?: number
   ready: number
   failed: number
 }
