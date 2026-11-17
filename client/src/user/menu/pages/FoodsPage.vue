@@ -207,35 +207,33 @@ const askAi = () => ui.openChat()
 
     <div class="mx-auto max-w-[1600px] px-3 pb-4 sm:px-6">
       <div class="sticky top-0 z-10 -mx-3 bg-stone-50/95 px-3 pb-2 pt-3 backdrop-blur sm:-mx-6 sm:px-6 sm:pt-4">
-        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <div class="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center lg:justify-start lg:gap-x-5 lg:gap-y-2">
           <div class="min-w-0 lg:flex-1">
             <CategoryRail :categories="categories ?? []" :active-id="categoryId" @pick="pickCategory" />
           </div>
-          <div class="flex flex-col gap-2 lg:shrink-0 lg:flex-row lg:items-center lg:gap-3">
-            <div class="border-b border-stone-200/70 py-2 lg:border-0 lg:py-0">
-              <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <button
-                  v-for="(band, i) in PRICE_BANDS"
-                  :key="band.label"
-                  type="button"
-                  :class="chipClass(activePriceBand === i)"
-                  @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
-                >
-                  {{ band.label }}
-                </button>
-              </div>
+          <div class="border-b border-stone-200/70 py-2 lg:shrink-0 lg:border-0 lg:py-0">
+            <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                v-for="(band, i) in PRICE_BANDS"
+                :key="band.label"
+                type="button"
+                :class="chipClass(activePriceBand === i)"
+                @click="patch({ min: band.min?.toString(), max: band.max?.toString() })"
+              >
+                {{ band.label }}
+              </button>
             </div>
-            <div class="pb-1 lg:shrink-0 lg:pb-0">
-              <NDropdown trigger="click" placement="bottom-end" :options="PEOPLE_OPTIONS" @select="onPeopleSelect">
-                <button
-                  type="button"
-                  class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50"
-                >
-                  Khẩu phần: {{ peopleLabel }}
-                  <NIcon :size="9"><ChevronDown /></NIcon>
-                </button>
-              </NDropdown>
-            </div>
+          </div>
+          <div class="pb-1 lg:shrink-0 lg:pb-0">
+            <NDropdown trigger="click" placement="bottom-end" :options="PEOPLE_OPTIONS" @select="onPeopleSelect">
+              <button
+                type="button"
+                class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50"
+              >
+                Khẩu phần: {{ peopleLabel }}
+                <NIcon :size="9"><ChevronDown /></NIcon>
+              </button>
+            </NDropdown>
           </div>
         </div>
       </div>
