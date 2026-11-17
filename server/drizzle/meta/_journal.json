@@ -15,6 +15,20 @@
       "when": 1794645554635,
       "tag": "0001_tranquil_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795000000000,
+      "tag": "0002_pgvector_extension",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795000000001,
+      "tag": "0003_pgvector_columns",
+      "breakpoints": true
     }
   ]
 }

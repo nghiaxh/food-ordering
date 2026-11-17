@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, isNotNull } from "drizzle-orm";
 import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { env } from "../../config/env.js";
@@ -25,6 +25,7 @@ export interface KnowledgeDocJson {
   fileName: string | null;
   fileSize: number | null;
   chunkCount: number;
+  embeddedChunks: number;
 }
 
 const toDoc = async (d: {
@@ -43,7 +44,12 @@ const toDoc = async (d: {
     .from(chatbotKnowledgeChunk)
     .where(eq(chatbotKnowledgeChunk.documentId, d.id));
   const chunkCount = rows[0]?.value ?? 0;
-  return { ...d, chunkCount };
+  const embeddedRows = await db
+    .select({ value: count() })
+    .from(chatbotKnowledgeChunk)
+    .where(and(eq(chatbotKnowledgeChunk.documentId, d.id), isNotNull(chatbotKnowledgeChunk.embedding)));
+  const embeddedChunks = embeddedRows[0]?.value ?? 0;
+  return { ...d, chunkCount, embeddedChunks };
 };
 
 const truncate = (s: string, max: number): string => {
