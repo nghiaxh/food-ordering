@@ -37,11 +37,7 @@ const onItemClick = async (item: NotificationItem) => {
         <div class="flex items-center gap-2 pr-8">
           <NIcon :size="18"><NotificationsOutline /></NIcon>
           <span class="text-base font-semibold text-stone-900">Thông báo</span>
-          <div class="ml-auto flex items-center gap-3">
-            <button v-if="notifications.items.some((n) => n.read)" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-xs font-medium text-stone-500 hover:text-rose-600 hover:underline" @click="notifications.clearRead()">
-              Xóa đã đọc
-            </button>
-          </div>
+
         </div>
       </template>
 

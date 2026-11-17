@@ -2,7 +2,7 @@
 import { computed, h } from 'vue'
 import { NCard, NConfigProvider, NDrawer, NButton, NIcon, NSkeleton, NTag, NCheckbox } from 'naive-ui'
 import type { GlobalThemeOverrides } from 'naive-ui'
-import { CartOutline } from '@vicons/ionicons5'
+import { CartOutline, CloseOutline } from '@vicons/ionicons5'
 import { RouterLink, useRouter } from 'vue-router'
 import useCartQuote from '@/composables/useCartQuote'
 import { useCartStore } from '@/user/cart/store'
@@ -133,7 +133,7 @@ const discountTotal = computed(() => quote.value?.discountTotal ?? 0)
               v-for="item in cart.items"
               :key="item.food?.id"
               data-testid="cart-line"
-              class="flex gap-3 border-b border-stone-100 py-2.5 last:border-0"
+              class="relative flex gap-3 border-b border-stone-100 py-2.5 pr-8 last:border-0"
             >
               <NCheckbox
                 v-if="item.food"
@@ -194,6 +194,14 @@ const discountTotal = computed(() => quote.value?.discountTotal ?? 0)
                   </span>
                 </div>
               </div>
+              <button
+                type="button"
+                aria-label="Xóa món"
+                class="absolute right-0 top-2 grid h-7 w-7 cursor-pointer place-items-center rounded-full text-stone-400 transition hover:bg-stone-100 hover:text-red-500"
+                @click="item.food && removeLine(item.food, item.quantity)"
+              >
+                <NIcon :size="16"><CloseOutline /></NIcon>
+              </button>
             </div>
           </div>
 
