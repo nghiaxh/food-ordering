@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NDropdown, NEmpty, NIcon } from 'naive-ui'
+import { NButton, NDropdown, NEmpty, NIcon, NSlider } from 'naive-ui'
 import { AlertCircleOutline, ChevronDown } from '@vicons/ionicons5'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -60,7 +60,7 @@ const categoryId = computed(() => num(route.query.category))
 const keyword = computed(() => str(route.query.keyword))
 const minPrice = computed(() => num(route.query.min))
 const maxPrice = computed(() => num(route.query.max))
-const people = computed(() => Math.min(6, Math.max(1, num(route.query.people) ?? 1)))
+const people = computed(() => Math.min(5, Math.max(1, num(route.query.people) ?? 1)))
 const pageParam = computed(() => num(route.query.page))
 const sort = computed(() => str(route.query.sort) ?? 'default')
 const sortLabel = computed(() => SORTS.find((s) => s.value === sort.value)?.label ?? 'Mặc định')
@@ -100,13 +100,14 @@ const patch = (next: Record<string, string | undefined>) => {
 }
 const clearFilters = () => router.replace({ query: {} })
 
-const PEOPLE_BANDS = [
-  { label: '1', value: 1 },
-  { label: '2', value: 2 },
-  { label: '3', value: 3 },
-  { label: '4', value: 4 },
-  { label: '5+', value: 5 },
-]
+// Keo slider thi doi query sau 200ms, tranh replace router moi lan kim tien di qua mot moc.
+const peopleDraft = ref(people.value)
+const peopleMarks = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5+' }
+watch(people, (value) => { peopleDraft.value = value })
+watch(peopleDraft, (_value, _old, onCleanup) => {
+  const timer = window.setTimeout(() => patch({ people: peopleDraft.value > 1 ? String(peopleDraft.value) : undefined }), 200)
+  onCleanup(() => window.clearTimeout(timer))
+})
 
 const filtersActive = computed(() =>
   Boolean(
@@ -161,7 +162,6 @@ const visible = computed(() =>
 )
 const deals = computed(() => (foods.value ?? []).filter((f) => (f.discountPercent ?? 0) > 0).slice(0, 8))
 const activePriceBand = computed(() => PRICE_BANDS.findIndex((b) => b.min === minPrice.value && b.max === maxPrice.value))
-const activePeople = computed(() => people.value > 5 ? 5 : people.value)
 
 const chipClass = (active: boolean) =>
   `inline-flex min-h-9 cursor-pointer items-center whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
@@ -222,19 +222,10 @@ const askAi = () => ui.openChat()
               </div>
             </div>
             <div class="hidden w-px self-stretch bg-stone-200 lg:block" />
-            <div class="flex items-center gap-1.5 pb-1 lg:pb-0">
-              <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">Số người</span>
-              <div class="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <button
-                  v-for="band in PEOPLE_BANDS"
-                  :key="band.label"
-                  type="button"
-                  :class="chipClass(activePeople === band.value)"
-                  @click="patch({ people: band.value === 1 ? undefined : String(band.value) })"
-                >
-                  {{ band.label }}
-                </button>
-              </div>
+            <div class="flex items-center gap-2 pb-1 lg:w-48 lg:shrink-0 lg:pb-0">
+              <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">Khẩu phần</span>
+              <NSlider v-model:value="peopleDraft" :min="1" :max="5" :step="1" :marks="peopleMarks" class="min-w-0 flex-1" />
+              <span class="shrink-0 whitespace-nowrap text-xs text-stone-500">người</span>
             </div>
           </div>
         </div>
