@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton, NDropdown, NEmpty, NIcon, NSlider } from 'naive-ui'
+import { NButton, NDropdown, NEmpty, NIcon } from 'naive-ui'
 import { AlertCircleOutline, ChevronDown } from '@vicons/ionicons5'
 import { getCategories, getFoods } from '@/user/menu/api'
 import useAsyncData from '@/composables/useAsyncData'
@@ -60,7 +60,7 @@ const categoryId = computed(() => num(route.query.category))
 const keyword = computed(() => str(route.query.keyword))
 const minPrice = computed(() => num(route.query.min))
 const maxPrice = computed(() => num(route.query.max))
-const people = computed(() => Math.min(5, Math.max(1, num(route.query.people) ?? 1)))
+const people = computed(() => Math.min(6, Math.max(1, num(route.query.people) ?? 1)))
 const pageParam = computed(() => num(route.query.page))
 const sort = computed(() => str(route.query.sort) ?? 'default')
 const sortLabel = computed(() => SORTS.find((s) => s.value === sort.value)?.label ?? 'Mặc định')
@@ -100,14 +100,18 @@ const patch = (next: Record<string, string | undefined>) => {
 }
 const clearFilters = () => router.replace({ query: {} })
 
-// Keo slider thi doi query sau 200ms, tranh replace router moi lan kim tien di qua mot moc.
-const peopleDraft = ref(people.value)
-const peopleMarks = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5+' }
-watch(people, (value) => { peopleDraft.value = value })
-watch(peopleDraft, (_value, _old, onCleanup) => {
-  const timer = window.setTimeout(() => patch({ people: peopleDraft.value > 1 ? String(peopleDraft.value) : undefined }), 200)
-  onCleanup(() => window.clearTimeout(timer))
-})
+const PEOPLE_OPTIONS = [
+  { key: 0, label: 'Mọi khẩu phần' },
+  { key: 1, label: '1 người' },
+  { key: 2, label: '2 người' },
+  { key: 3, label: '3 người' },
+  { key: 4, label: '4 người' },
+  { key: 6, label: 'Trên 5 người' },
+]
+const peopleLabel = computed(
+  () => PEOPLE_OPTIONS.find((o) => o.key === (people.value > 5 ? 6 : people.value))?.label ?? 'Mọi khẩu phần',
+)
+const onPeopleSelect = (key: string | number) => patch({ people: Number(key) === 0 ? undefined : String(key) })
 
 const filtersActive = computed(() =>
   Boolean(
@@ -221,10 +225,16 @@ const askAi = () => ui.openChat()
                 </button>
               </div>
             </div>
-            <div class="flex items-center gap-2 pb-1 lg:w-64 lg:shrink-0 lg:pb-0">
-              <span class="shrink-0 whitespace-nowrap text-[11px] text-stone-500">Khẩu phần</span>
-              <NSlider v-model:value="peopleDraft" :min="1" :max="5" :step="1" :marks="peopleMarks" class="min-w-0 flex-1" />
-              <span class="shrink-0 whitespace-nowrap text-[11px] text-stone-500">người</span>
+            <div class="pb-1 lg:shrink-0 lg:pb-0">
+              <NDropdown trigger="click" placement="bottom-end" :options="PEOPLE_OPTIONS" @select="onPeopleSelect">
+                <button
+                  type="button"
+                  class="inline-flex min-h-9 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md bg-white px-3 py-1.5 text-[13px] font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-orange-50"
+                >
+                  Khẩu phần: {{ peopleLabel }}
+                  <NIcon :size="9"><ChevronDown /></NIcon>
+                </button>
+              </NDropdown>
             </div>
           </div>
         </div>
