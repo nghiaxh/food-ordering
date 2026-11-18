@@ -23,6 +23,7 @@ services:
       context: ./server
       target: dev
     container_name: food-ordering-server-dev
+    extra_hosts: ["host.docker.internal:host-gateway"]
     profiles: ["dev"]
     depends_on:
       database:
@@ -37,12 +38,17 @@ services:
       AI_API_KEY: ${AI_API_KEY}
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       AI_MODEL: ${AI_MODEL}
+      LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-ws://host.docker.internal:1234}
       UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
     # tsx watch tu reload khi file doi; khong can buoc compile rieng.
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -73,7 +79,8 @@ services:
       - "5173:5173"
     # Chi coi la san sang khi Vite that su phuc vu, tranh client goi vao backend chua chay.
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1"]
+      test:
+        ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5173/ || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -91,6 +98,7 @@ services:
       context: ./server
       target: prod
     container_name: food-ordering-server-prod
+    extra_hosts: ["host.docker.internal:host-gateway"]
     profiles: ["prod"]
     depends_on:
       database:
@@ -101,7 +109,11 @@ services:
     volumes:
       - uploads:/app/uploads
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://localhost:8080/api/categories || exit 1",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -134,8 +146,10 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@database:5432/${DB_NAME}
     ports:
       - "4983:4983"
-    command: ["npx", "drizzle-kit", "studio", "--port", "4983", "--host", "0.0.0.0"]
+    command:
+      ["npx", "drizzle-kit", "studio", "--port", "4983", "--host", "0.0.0.0"]
 
 volumes:
   db_data:
   uploads:
+
