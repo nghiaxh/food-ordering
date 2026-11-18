@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { plain } from "../../lib/text-normalizer.js";
-import type { FoodWithCategory } from "./plan.js";
+import type { Category, Food } from "../../db/schema.js";
+
+// Kieu dung chung cho mon an kem danh muc; truoc nam trong plan.ts (da xoa).
+export type FoodWithCategory = Food & { category: Category | null };
+
+// Kieu mon da chon de hien thi the (portions + tong tien). Truoc nam trong plan.ts (da xoa).
+export interface Picked {
+  food: FoodWithCategory;
+  portions: number;
+  totalPrice: number;
+}
 
 // Rang buoc doc tu cau hoi (khong cay, chay, loai tru, ngan sach, so nguoi, ten mon).
 export interface Constraints {

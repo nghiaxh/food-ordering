@@ -6,39 +6,14 @@ import { db } from "../../lib/db.js";
 import * as gemini from "../../lib/gemini.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { sessionTitle, type ChatHistoryEntry, type ChatSessionSummary } from "./sessions.js";
-import { BARE_NUMBER, parseBudget, parsePeople, readConstraints, matchDishes, mergeConstraints, isFoodQuestion, vnd, type Constraints } from "./constraints.js";
-import { isFollowUp, isReferenceKeyword, normalizeCriteria, criteriaSchema, type NormalizedCriteria, readFilters, significantWords, type Filters } from "./constraints.js";
-import type { FoodWithCategory, Picked } from "./plan.js";
+import { readConstraints, BARE_NUMBER, parseBudget, parsePeople, matchDishes, vnd } from "./constraints.js";
+import type { FoodWithCategory, Picked } from "./constraints.js";
 import { filterCandidates } from "./filter.js";
-import { scoreAll } from "./scoring.js";
-import { planSelection, planLastPicks } from "./plan.js";
-import { renderReply } from "./render.js";
-import { routeIntent } from "./router.js";
 import { verifyReply } from "./grounding.js";
 import { searchChunks, type ScoredChunk } from "./retrieval.js";
-import { ANSWER_PROMPT, EXTRACT_PROMPT } from "./prompts.js";
+import { CHAT_PROMPT } from "./prompts.js";
 
 const MISSING_KEY_NOTICE = "Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.";
-const RATE_LIMIT_NOTE = "Trợ lý AI đang bận nên mình tư vấn nhanh theo thực đơn.";
-
-const QR_FOOD = ["Món khác", "Món chay không cay", "Cách đặt món thế nào?"];
-const QR_FOOD_EMPTY = ["Món khác", "Món chay không cay"];
-const QR_INFO = ["Gợi ý món cho 2 người", "Cách đặt món thế nào?"];
-const QR_GUIDE = ["Gợi ý món cho 2 người"];
-const QR_DECLINE = ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?"];
-const QR_FOLLOWUP = ["1 người", "2 người", "4 người"];
-const QR_GREETING = ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?", "Cách đặt món thế nào?"];
-
-/** Cau hoi goc bi hoan khi bot hoi "may nguoi?" de ghep voi cau tra loi ngan cua khach. */
-const pendingFollowUp = new Map<string, { originalMessage: string; expiresAtMs: number }>();
-const FOLLOW_UP_TTL_MS = 10 * 60 * 1000;
-
-const prunePendingFollowUp = () => {
-  const now = Date.now();
-  for (const [key, value] of pendingFollowUp) {
-    if (value.expiresAtMs <= now) pendingFollowUp.delete(key);
-  }
-};
 
 export type ChatIntent = "FOOD" | "RESTAURANT_INFO" | "ORDER_GUIDE" | "GREETING" | "OUT_OF_SCOPE";
 
@@ -80,504 +55,251 @@ const maxSuggestions = async (): Promise<number> => {
 const extraRules = async (): Promise<string> => {
   const row = await db.query.aiSetting.findFirst({ where: eq(aiSetting.settingKey, "extra_rules") });
   const value = row?.settingValue?.trim();
-  return value ? `11. Quy tắc bổ sung của nhà hàng: ${value}` : "";
+  return value ? `Quy tắc bổ sung của nhà hàng: ${value}` : "";
 };
 
-// Intent + nhanh tra loi
-
-const isOrderGuideQuestion = (p: string): boolean =>
-  [
-    "cach dat", "dat mon", "dat hang", "thanh toan", "huy don", "don hang",
-    "trang thai don", "theo doi don", "xem don", "don cua toi", "giao hang the nao",
-  ].some((k) => p.includes(k));
-
-const isRestaurantInfoQuestion = (p: string): boolean =>
-  [
-    "mo cua", "dong cua", "gio mo", "gio dong", "o dia chi", "dia chi",
-    "phi ship", "thoi gian giao", "giao hang o dau", "quan o dau", "sdt", "so dien thoai",
-  ].some((k) => p.includes(k));
-
-const GREETING_PHRASES = [
-  "xin chao", "chao", "chao ban", "chao cac ban", "chao quy khach",
-  "hello", "hi", "hey", "alo", "good morning", "good afternoon", "good evening",
-  "buoi sang", "buoi chieu", "buoi toi",
-];
-
-const isGreetingQuestion = (p: string): boolean => {
-  const hasTopicKeyword = [
-    "mon", "thuc don", "menu", "goi y", "quan", "dat", "food", "dishes",
-    "mo cua", "dia chi", "phi ship", "thanh toan", "huy don", "don hang",
-  ].some((k) => p.includes(k));
-  if (hasTopicKeyword) return false;
-  return GREETING_PHRASES.some((g) => p === g || p.startsWith(`${g} `));
+const portionsFor = (food: FoodWithCategory, people: number | null | undefined): number => {
+  if (!people || people <= 0) return 1;
+  const serving = Math.max(1, food.servingSize);
+  return Math.ceil(people / serving);
 };
 
-export const guideReply =
-  () =>
-    "Để đặt món, bạn thêm món vào giỏ rồi vào trang thanh toán. Khách vãng lai cần đăng nhập mới thêm được vào giỏ.\n\n"
-    + "- Chỉ hủy được đơn đang CHỜ (PENDING) và CHƯA thanh toán (UNPAID). Đơn đã hoàn thành hoặc đã hủy không sửa được.\n"
-    + "- Trạng thái PREPARING hiện là \"Đang vận chuyển\". Bạn xem trạng thái đơn ở mục Đơn hàng của bạn.\n\n"
-    + "Nếu cần, mình cũng gợi ý món theo ngân sách. Bạn cho mình biết số người ăn nhé!";
-
-export const declineReply =
-  () =>
-    "Mình chỉ tư vấn được về món ăn của quán (gợi ý món, thông tin quán, hướng dẫn đặt hàng). "
-    + "Bạn muốn mình gợi ý món cho mấy người, hoặc hỏi giờ mở cửa/shipping thì cứ nhắn nhé!";
-
-export const greetingReply =
-  () =>
-    "Chào bạn! Mình là trợ lý của quán. Mình có thể gợi ý món theo ngân sách/số người, "
-    + "thông tin quán (giờ mở cửa, địa chỉ, phí ship) và hướng dẫn đặt món. Bạn muốn mình giúp gì nhé?";
+const toPicked = (food: FoodWithCategory, people: number | null | undefined): Picked => {
+  const portions = portionsFor(food, people);
+  return { food, portions, totalPrice: Number(food.price) * portions };
+};
 
 const truncate = (s: string, max: number): string => {
   const t = s.replaceAll(/\s+/g, " ").trim();
   return t.length <= max ? t : `${t.slice(0, max).trim()}...`;
 };
 
-const isDifferentRequest = (message: string): boolean => {
-  const p = plain(message).replaceAll(/[^\p{L}\p{N} ]+/gu, " ").replaceAll(/\s+/g, " ").trim();
-  return ["mon khac", "mon khac di", "khac di", "doi mon khac", "mon khac nha", "mon khac khong"].includes(p);
-};
+// --- Bước 1: Chuẩn bị dữ liệu (Drizzle, không gọi AI) ---
 
-const isWaitingFollowUpAnswer = (message: string): boolean => {
-  const trimmed = message.trim();
-  const bare = BARE_NUMBER.exec(trimmed);
-  if (bare) {
-    const n = Number(bare[1]);
-    return n >= 1 && n <= 50;
-  }
-  return parsePeople(trimmed) !== null || parseBudget(trimmed) !== null;
-};
+interface PreparedData {
+  menu: FoodWithCategory[];
+  filteredMenu: FoodWithCategory[];
+  chunks: ScoredChunk[];
+}
 
-/** Gop cau tra loi gon ("2", "200k") voi cau hoi goc dang cho; khong gop neu khach doi chu de. */
-const resolveFollowUpAnswer = (sessionId: string, message: string): { message: string; continued: boolean } => {
-  prunePendingFollowUp();
-  const pending = pendingFollowUp.get(sessionId);
-  if (!pending) return { message, continued: false };
-  if (pending.expiresAtMs <= Date.now()) {
-    pendingFollowUp.delete(sessionId);
-    return { message, continued: false };
-  }
-  const answer = isWaitingFollowUpAnswer(message) ? message : null;
-  if (answer === null) {
-    pendingFollowUp.delete(sessionId);
-    return { message, continued: false };
-  }
-  pendingFollowUp.delete(sessionId);
-  return { message: `${pending.originalMessage} ${answer}`, continued: true };
-};
-
-/** Giai quyet dai tu tham chieu: ghep ten cac mon vua goi y vao de AI trich tieu chi chinh xac hon. */
-export const enrichWithLastPicked = (message: string, lastFoodIds: number[] | undefined | null, menu: FoodWithCategory[]): string => {
-  const categoryNamesPlain = [...new Set(menu.map((f) => f.category?.name).filter((n): n is string => !!n))].map((n) => plain(n));
-  if (!(isFollowUp(message) || (lastFoodIds?.length ?? 0) > 0)) return message;
-  if (hasNewTopicByCode(message, categoryNamesPlain)) return message;
-  const names = menu.filter((f) => lastFoodIds?.includes(f.id)).map((f) => f.name);
-  if (names.length === 0) return message;
-  return `Dựa trên các món vừa gợi ý: ${names.join(", ")}. ${message}`;
-};
-
-/** Hoi follow-up tung buoc cho cau hoi qua chung; null neu nen goi y ngay. */
-const followUpQuestion = (message: string, filters: Filters, menu: FoodWithCategory[]): string | null => {
-  const p = plain(message);
-  if (p.includes("tuy ban") || p.includes("goi y luon") || p.includes("cu") || p.includes("ngon la duoc")) return null;
-  if (filters.people != null || filters.budget != null) return null;
-  if (filters.chay || filters.maxSpicyLevel != null || filters.excludeSeafood || filters.spicyRequired) return null;
-  if (!isFoodQuestion(p)) return null;
-  const q = p.toLowerCase();
-  const hasDishWord = menu.some((f) => f.name && plain(f.name).length > 3 && q.includes(plain(f.name)));
-  if (hasDishWord) return null;
-  return "Bạn đang muốn ăn cho mấy người? (Ví dụ: 2 người)";
-};
-
-/** ID cac mon duoc dung lam ngu canh cho luot nay, hoac null neu phai tim tren toan thuc don. */
-export const contextIds = (
+const prepare = async (
   message: string,
   lastFoodIds: number[] | undefined | null,
-  criteria: NormalizedCriteria | null,
-  categoryNamesPlain: string[],
-  enrichedNames: string[] = [],
-): number[] | null => {
-  if (!isFollowUp(message) || !lastFoodIds?.length) return null;
-  const newTopic = criteria ? hasNewTopic(criteria, enrichedNames) : hasNewTopicByCode(message, categoryNamesPlain);
-  return newTopic ? null : lastFoodIds;
+): Promise<PreparedData> => {
+  const menu = (await db.query.foods.findMany({ with: { category: true } })) as FoodWithCategory[];
+  const availableMenu = menu.filter((f) => f.available);
+
+  // Regex pre-filter nhẹ: chay / không cay / allergen
+  const constraints = readConstraints(message, availableMenu);
+  let filtered = availableMenu;
+  if (constraints.chay) {
+    filtered = filtered.filter((f) => (f.dietaryTags ?? "").toLowerCase().includes("chay"));
+  }
+  if (constraints.spicyMax != null) {
+    filtered = filtered.filter((f) => f.spicyLevel <= (constraints.spicyMax as number));
+  }
+  if (constraints.exclude.length > 0) {
+    filtered = filtered.filter((f) =>
+      !constraints.exclude.some(
+        (e) =>
+          (f.allergens ?? "").toLowerCase().includes(e.toLowerCase()) ||
+          (f.ingredients ?? "").toLowerCase().includes(e.toLowerCase()),
+      ),
+    );
+  }
+  if (filtered.length === 0) filtered = availableMenu;
+
+  const chunks = await searchChunks(message, 5);
+
+  return { menu: availableMenu, filteredMenu: filtered, chunks };
 };
 
-export const hasNewTopic = (c: NormalizedCriteria, enrichedNames: string[] = []): boolean => {
-  if (c.categories?.length) return true;
-  if (c.dietaryTags?.length) return true;
-  if (c.excludeAllergens?.length) return true;
-  const enriched = new Set(enrichedNames.map((n) => plain(n)));
-  return !!c.keywords?.some((k) => !isReferenceKeyword(k) && !enriched.has(plain(k)));
+// --- Bước 2: 1 lượt AI (jsonMode) ---
+
+interface AiResult {
+  intent: ChatIntent;
+  reply: string;
+  pickedIds: number[];
+  people: number | null;
+  quickReplies: string[];
+}
+
+const VALID_INTENTS: ChatIntent[] = ["FOOD", "RESTAURANT_INFO", "ORDER_GUIDE", "GREETING", "OUT_OF_SCOPE"];
+
+const analyze = async (
+  prepared: PreparedData,
+  message: string,
+  history: string[],
+  lastFoodIds: number[] | undefined | null,
+): Promise<AiResult> => {
+  const menuText = prepared.filteredMenu
+    .map((f) => `${f.id}|${f.name}|${Number(f.price)}|${f.category?.name ?? ""}|${f.spicyLevel}|${f.dietaryTags ?? ""}`)
+    .join("\n");
+
+  const chunksText = prepared.chunks.length > 0
+    ? prepared.chunks.map((c) => `- ${truncate(c.chunk.content, 300)}`).join("\n")
+    : "(không có)";
+
+  const historyText = history.length > 0 ? history.join("\n") : "(không có)";
+  const lastIdsText = lastFoodIds?.length ? lastFoodIds.join(", ") : "(không có)";
+
+  const systemPrompt = CHAT_PROMPT
+    .replace("%s", menuText)
+    .replace("%s", chunksText)
+    .replace("%s", historyText)
+    .replace("%s", lastIdsText);
+
+  const extra = await extraRules();
+  const fullSystem = extra ? `${systemPrompt}\n${extra}` : systemPrompt;
+
+  let raw: string;
+  try {
+    raw = await gemini.generate(fullSystem, message, true, {
+      timeoutMs: gemini.AI_TIMEOUTS.reply,
+      maxOutputTokens: gemini.AI_MAX_OUTPUT_TOKENS,
+    });
+  } catch (error) {
+    if (error instanceof gemini.AiKeyRejectedException) {
+      throw new HttpError(503, MISSING_KEY_NOTICE);
+    }
+    if (error instanceof gemini.AiRateLimitedException) {
+      throw new HttpError(429, "Dịch vụ AI đang giới hạn số yêu cầu, vui lòng thử lại sau");
+    }
+    throw new HttpError(502, "Không gọi được dịch vụ AI");
+  }
+
+  const cleaned = raw.replaceAll("```json", "").replaceAll("```", "").trim();
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(cleaned) as Record<string, unknown>;
+  } catch {
+    throw new HttpError(422, "Phản hồi AI không hợp lệ");
+  }
+
+  const intent = VALID_INTENTS.includes(parsed.intent as ChatIntent)
+    ? (parsed.intent as ChatIntent)
+    : "FOOD";
+
+  const reply = typeof parsed.reply === "string" && parsed.reply.trim()
+    ? parsed.reply.trim()
+    : "Mình chưa có câu trả lời phù hợp, bạn thử hỏi lại nhé!";
+
+  const pickedIds = Array.isArray(parsed.pickedIds)
+    ? (parsed.pickedIds as unknown[]).filter((x): x is number => typeof x === "number" && Number.isInteger(x))
+    : [];
+
+  const people = typeof parsed.people === "number" && parsed.people > 0 && parsed.people <= 50
+    ? parsed.people
+    : null;
+
+  const quickReplies = Array.isArray(parsed.quickReplies)
+    ? (parsed.quickReplies as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 4)
+    : [];
+
+  return { intent, reply, pickedIds, people, quickReplies };
 };
 
-export const hasNewTopicByCode = (question: string, categoryNamesPlain: string[]): boolean => {
-  const filters = readFilters(question);
-  if (filters.chay || filters.excludeSeafood) return true;
-  const p = plain(question);
-  return categoryNamesPlain.some((name) => p.includes(name));
-};
+// --- Bước 3: Validate picks + verify reply + save + return (gộp pick+verify) ---
 
-/** Ghep rang buoc khach neu van tat trong cau tra loi ("2", "200k") vao tieu chi AI trich. */
-const withAnsweredConstraints = (c: NormalizedCriteria, message: string): NormalizedCriteria => {
-  const bare = BARE_NUMBER.exec(message.trim());
-  const barePeople = bare?.[1] ? Number(bare[1]) : null;
-  const people = parsePeople(message) ?? barePeople;
-  const budget = parseBudget(message);
+const finalize = async (
+  prepared: PreparedData,
+  ai: AiResult,
+  email: string | null,
+  sessionId: string,
+  message: string,
+): Promise<ChatResponseBody> => {
+  const maxSugg = await maxSuggestions();
+
+  // PICK: validate id tồn tại & available, build cards từ DB (giá từ DB)
+  const cards = ai.pickedIds
+    .map((id) => prepared.menu.find((f) => f.id === id && f.available))
+    .filter((f): f is FoodWithCategory => !!f)
+    .slice(0, maxSugg)
+    .map((f) => toPicked(f, ai.people))
+    .map(toCard);
+
+  // VERIFY: nếu vi phạm → báo lỗi cho user (throw), không thay reply
+  const ctx = {
+    allowedPrices: cards.map((c) => Number(c.price)),
+    allowedFoodNames: cards.map((c) => c.name),
+    allowedChunks: prepared.chunks.map((c) => c.chunk.content),
+  };
+  const check = verifyReply(ai.reply, ctx);
+  if (!check.ok) {
+    throw new HttpError(422, "Câu trả lời không khớp dữ liệu món, vui lòng thử lại");
+  }
+
+  // SAVE + RETURN
+  const user = email ? await db.query.users.findFirst({ where: eq(users.email, email) }) : null;
+  if (user) {
+    await db.insert(chatMessages).values({
+      userId: user.id,
+      sessionId,
+      sender: "BOT",
+      content: ai.reply.slice(0, 4000),
+      payload: { foods: cards, intent: ai.intent, quickReplies: ai.quickReplies } as ChatMessagePayload,
+    });
+  }
+
+  const citations = prepared.chunks.length > 0
+    ? prepared.chunks.map((c: ScoredChunk) => ({
+        sourceName: c.document?.title ?? "Tài liệu quán",
+        snippet: truncate(c.chunk.content, 120),
+      }))
+    : null;
+
   return {
-    ...c,
-    maxBudget: c.maxBudget ?? budget,
-    people: c.people ?? people,
+    reply: ai.reply,
+    foods: cards,
+    intent: ai.intent,
+    citations: ai.intent === "RESTAURANT_INFO" ? citations : null,
+    quickReplies: ai.quickReplies.length > 0 ? ai.quickReplies : (cards.length > 0 ? ["Món khác", "Món chay không cay"] : ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?"]),
   };
 };
 
-const requestHistory = (history: string[] | undefined | null): string[] => {
-  if (!history) return [];
-  return history.map((s) => s.trim()).filter(Boolean).slice(0, 3);
-};
+// --- Orchestrator ---
 
-// Goi AI + kiem tra + chon mon
+export const chat = async (
+  email: string | null,
+  input: { message: string; sessionId?: string; history?: string[]; lastFoodIds?: number[] },
+): Promise<ChatResponseBody> => {
+  // requireConfigured
+  if (!gemini.isConfigured()) {
+    throw new HttpError(503, MISSING_KEY_NOTICE);
+  }
 
-/** Trich tieu chi bang AI; loi khoa -> AiKeyRejectedException (chat() doi thanh 503); loi khac -> null. */
-const extractCriteria = async (message: string, history: string[], categoryNames: string): Promise<NormalizedCriteria | null> => {
-  const previous = history.length ? history.join("\n") : "(không có)";
-  const prompt = EXTRACT_PROMPT.replace("%s", previous).replace("%s", categoryNames);
-  let raw: string;
-  try {
-    raw = await gemini.generate(prompt, message, true, {
-      timeoutMs: gemini.AI_TIMEOUTS.extract,
-      maxOutputTokens: 400,
+  const sessionId = input.sessionId?.trim() || randomUUID();
+  const history = (input.history ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 3);
+
+  const user = email ? await db.query.users.findFirst({ where: eq(users.email, email) }) : null;
+  if (user) {
+    await db.insert(chatMessages).values({
+      userId: user.id,
+      sessionId,
+      sender: "USER",
+      content: input.message.slice(0, 4000),
+      payload: null,
     });
-  } catch (error) {
-    if (error instanceof gemini.AiKeyRejectedException) throw error;
-    if (error instanceof gemini.AiRateLimitedException) {
-      console.warn("[chatbot] AI bi gioi han, chuyen sang tra loi theo thuc don");
-    }
-    return null;
   }
-  const cleaned = raw.replaceAll("```json", "").replaceAll("```", "").trim();
-  try {
-    const parsed = criteriaSchema.parse(JSON.parse(cleaned));
-    return normalizeCriteria(parsed);
-  } catch {
-    return null;
-  }
+
+  // Bước 1: Chuẩn bị dữ liệu
+  const prepared = await prepare(input.message, input.lastFoodIds);
+
+  // Bước 2: 1 lượt AI
+  const ai = await analyze(prepared, input.message, history, input.lastFoodIds);
+
+  // Bước 3: Validate + verify + save + return
+  return finalize(prepared, ai, email, sessionId, input.message);
 };
 
-/** Sinh cau tra loi tu danh sach mon da loc; loi khoa -> AiKeyRejectedException; loi khac -> null. */
-const generateReply = async (
-  question: string,
-  criteria: NormalizedCriteria,
-  foods: Picked[],
-  history: string[],
-): Promise<string | null> => {
-  const data: string[] = [];
-  if (history.length) {
-    data.push("CÁC CÂU HỎI TRƯỚC CỦA KHÁCH:");
-    for (const h of history) data.push(`- ${h}`);
-    data.push("");
-  }
-  data.push(`YÊU CẦU ĐÃ PHÂN TÍCH: ${JSON.stringify(criteria ?? {})}`);
-  data.push("");
-  data.push("DANH SÁCH MÓN PHÙ HỢP (dữ liệu thật từ thực đơn):");
-  if (foods.length === 0) data.push("(rỗng)");
-  // Chi lay mot phan mon va rut gon mo ta: prompt ngan giup model nem xong nhanh hon.
-  for (const p of foods.slice(0, 10)) {
-    const f = p.food;
-    data.push(
-      `- ${f.name} | loại: ${f.category?.name ?? ""} | giá: ${Number(f.price)} VND/phần | khẩu phần: ${f.servingSize} người | cần: ${p.portions} phần | tổng: ${p.totalPrice} VND | cay: ${f.spicyLevel}/3 | nguyên liệu: ${truncate(f.ingredients ?? "không có", 120)} | dị ứng: ${truncate(f.allergens ?? "không có", 120)} | nhãn: ${f.dietaryTags ?? "không có"} | mô tả: ${truncate(f.description ?? "không có", 120)}`,
-    );
-  }
-  const total = foods.reduce((sum, p) => sum + p.totalPrice, 0);
-  data.push("");
-  data.push(`TỔNG BỘ GỢI Ý: ${total} VND`);
-  if (criteria.maxBudget != null) data.push(`NGÂN SÁCH: ${criteria.maxBudget} VND`);
-  data.push(`CÂU HỎI CỦA KHÁCH: ${question}`);
-
-  try {
-    return await gemini.generate(
-      ANSWER_PROMPT.replace("%s", await extraRules()),
-      data.join("\n"),
-      false,
-      { timeoutMs: gemini.AI_TIMEOUTS.reply, maxOutputTokens: gemini.AI_MAX_OUTPUT_TOKENS },
-    );
-  } catch (error) {
-    if (error instanceof gemini.AiKeyRejectedException) throw error;
-    if (error instanceof gemini.AiRateLimitedException) {
-      console.warn("[chatbot] AI bi gioi han, chuyen sang tra loi theo thuc don");
-    }
-    return null;
-  }
-};
-
-const saveMessage = async (
-  userId: number,
-  sessionId: string,
-  sender: "USER" | "BOT",
-  content: string,
-  payload?: ChatMessagePayload,
-) => {
-  // Cot content la varchar(4000); cat de cau tra loi dai cua AI khong lam hong request.
-  await db.insert(chatMessages).values({
-    userId,
-    sessionId,
-    sender,
-    content: content.slice(0, 4000),
-    payload: payload ?? null,
-  });
-};
+// --- Status ---
 
 export const chatbotStatus = async () => {
   const available = await gemini.verifyKey();
   return { available, notice: available ? null : MISSING_KEY_NOTICE };
 };
 
-const requireConfigured = () => {
-  if (!gemini.isConfigured()) {
-    throw new HttpError(503, MISSING_KEY_NOTICE);
-  }
-};
-
-// Luong chinh
-
-// Luong chatbot: hai luot goi AI, bon buoc xu ly chong AI bia mon/gia.
-// The mon tra ve client lay ID/gia tu DB; chi khach da dang nhap moi luu lich su.
-export const chat = async (
-  email: string | null,
-  input: { message: string; sessionId?: string; history?: string[]; lastFoodIds?: number[] },
-): Promise<ChatResponseBody> => {
-  requireConfigured();
-
-  const sessionId = input.sessionId?.trim() || randomUUID();
-  const user = email ? await db.query.users.findFirst({ where: eq(users.email, email) }) : null;
-  const history = requestHistory(input.history);
-  if (user) await saveMessage(user.id, sessionId, "USER", input.message);
-
-  const resolved = resolveFollowUpAnswer(sessionId, input.message);
-  const classifyMessage = resolved.message;
-
-  const menu = await db.query.foods.findMany({ with: { category: true } });
-  const enrichedNames = (input.lastFoodIds ?? [])
-    .map((id) => menu.find((f) => f.id === id)?.name)
-    .filter((n): n is string => !!n)
-    .map((n) => plain(n));
-  const workingMessage = enrichWithLastPicked(classifyMessage, input.lastFoodIds, menu);
-
-  const p = plain(classifyMessage);
-  const maxSugg = await maxSuggestions();
-
-  // Thong tin quan: tra loi tu tai lieu admin nhap, khong goi AI de tranh bia.
-  if (isRestaurantInfoQuestion(p)) {
-    const chunks = await searchChunks(input.message, 5);
-    let reply: string;
-    let citations: Array<{ sourceName: string; snippet: string }> | null = null;
-    if (chunks.length > 0) {
-      reply = chunks.map((c) => `- ${truncate(c.chunk.content, 400)}`).join("\n");
-      citations = chunks.map((c: ScoredChunk) => ({
-        sourceName: c.document?.title ?? "Tài liệu quán",
-        snippet: truncate(c.chunk.content, 120),
-      }));
-    } else {
-      reply = "Mình chưa có thông tin xác thực về mục này trong tài liệu của quán. Bạn xem thực đơn bên dưới hoặc hỏi nhân viên nhé!";
-    }
-    if (user) {
-      await saveMessage(user.id, sessionId, "BOT", reply, {
-        intent: "RESTAURANT_INFO",
-        citations,
-        quickReplies: QR_INFO,
-      });
-    }
-    return { reply, foods: [], intent: "RESTAURANT_INFO", citations, quickReplies: QR_INFO };
-  }
-
-  // Huong dan dat hang: quy trinh co dinh bang code, khong goi AI.
-  if (isOrderGuideQuestion(p)) {
-    const reply = guideReply();
-    if (user) {
-      await saveMessage(user.id, sessionId, "BOT", reply, {
-        intent: "ORDER_GUIDE",
-        quickReplies: QR_GUIDE,
-      });
-    }
-    return { reply, foods: [], intent: "ORDER_GUIDE", citations: null, quickReplies: QR_GUIDE };
-  }
-
-  // Chao hoi: tra loi co dinh bang code, khong goi AI.
-  if (isGreetingQuestion(p)) {
-    const reply = greetingReply();
-    if (user) {
-      await saveMessage(user.id, sessionId, "BOT", reply, {
-        intent: "GREETING",
-        quickReplies: QR_GREETING,
-      });
-    }
-    return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: QR_GREETING };
-  }
-
-  // Route intent bang regex (khong goi AI)
-  const intent = routeIntent(classifyMessage);
-  if (intent === "OUT_OF_SCOPE") {
-    const reply = declineReply();
-    if (user) {
-      await saveMessage(user.id, sessionId, "BOT", reply, {
-        intent: "OUT_OF_SCOPE",
-        quickReplies: QR_DECLINE,
-      });
-    }
-    return { reply, foods: [], intent: "OUT_OF_SCOPE", citations: null, quickReplies: QR_DECLINE };
-  }
-
-  // "Mon khac" (khach bam nut): do code quyet dinh, khong goi AI.
-  if (isDifferentRequest(input.message)) {
-    const exclude = input.lastFoodIds ?? [];
-    const fresh = menu
-      .filter((f) => f.available && !exclude.includes(f.id))
-      .sort((a, b) => Number(a.price) - Number(b.price))
-      .slice(0, maxSugg)
-      .map((f) => ({ food: f, portions: 1, totalPrice: Number(f.price) }));
-    const reply = fresh.length === 0
-      ? "Mình chưa còn món nào khác phù hợp; bạn thử nói rõ hơn khẩu vị hoặc ngân sách nhé!"
-      : "Mình gợi ý một vài món khác, bấm vào thẻ để xem chi tiết nhé!";
-    const cards = fresh.map(toCard);
-    const quickReplies = cards.length ? QR_FOOD : QR_FOOD_EMPTY;
-    if (user) {
-      await saveMessage(user.id, sessionId, "BOT", reply, { foods: cards, intent: "FOOD", quickReplies });
-    }
-    return { reply, foods: cards, intent: "FOOD", citations: null, quickReplies };
-  }
-
-  // FOOD: hoi follow-up tung buoc cho cau hoi qua chung cua nguoi moi.
-  const earlyFilters = readFilters(classifyMessage);
-  const followUp = followUpQuestion(classifyMessage, earlyFilters, menu);
-  if (followUp !== null) {
-    if (user) {
-      await saveMessage(user.id, sessionId, "BOT", followUp, { intent: "FOOD", quickReplies: QR_FOLLOWUP });
-    }
-    pendingFollowUp.set(sessionId, { originalMessage: input.message, expiresAtMs: Date.now() + FOLLOW_UP_TTL_MS });
-    return { reply: followUp, foods: [], intent: "FOOD", citations: null, quickReplies: QR_FOLLOWUP };
-  }
-
-  const categoryNames = [...new Set(menu.map((f) => f.category?.name).filter((n): n is string => !!n))];
-  const categoryNamesPlain = categoryNames.map((n) => plain(n));
-  const categoryNamesText = categoryNames.join(", ");
-
-  // Regex doc rang buoc truoc, chi goi AI neu regex khong du
-  const regexConstraints = readConstraints(classifyMessage, menu);
-  const isCompleteRegex = regexConstraints.budgetTotal != null || regexConstraints.people != null ||
-    regexConstraints.spicyMax != null || regexConstraints.chay || regexConstraints.dishes.length > 0 ||
-    regexConstraints.exclude.length > 0 || regexConstraints.groups.length > 0;
-
-  let criteria: NormalizedCriteria | null = null;
-  let context: number[] | null = null;
-  let aiPicked: Picked[] = [];
-  let aiReply: string | null = null;
-
-  if (!isCompleteRegex) {
-    try {
-      criteria = await extractCriteria(workingMessage, history, categoryNamesText);
-      if (enrichedNames.length && criteria?.keywords) {
-        const filtered = criteria.keywords.filter((k) => !enrichedNames.includes(plain(k)));
-        criteria = { ...criteria, keywords: filtered.length ? filtered : null };
-      }
-      if (resolved.continued && criteria) {
-        criteria = withAnsweredConstraints(criteria, input.message);
-      }
-    } catch (error) {
-      if (error instanceof gemini.AiKeyRejectedException) {
-        throw new HttpError(503, MISSING_KEY_NOTICE);
-      }
-      throw error;
-    }
-  }
-
-  context = contextIds(classifyMessage, input.lastFoodIds, criteria, categoryNamesPlain, enrichedNames);
-
-  // Chuyen criteria tu AI sang Constraints
-  const aiConstraints: Partial<Constraints> | null = criteria ? {
-    spicyMax: criteria.maxSpicyLevel,
-    spicyRequired: false,
-    chay: false,
-    exclude: criteria.excludeAllergens ?? [],
-    diets: criteria.dietaryTags ?? [],
-    dishes: [],
-    groups: criteria.categories ?? [],
-    budgetTotal: criteria.maxBudget,
-    people: criteria.people,
-    scope: "ALL",
-    restrictIds: null,
-  } : null;
-
-  const constraints = mergeConstraints(aiConstraints, regexConstraints);
-
-  // Weighted scoring
-  const filterResult = filterCandidates(menu, constraints, constraints.people);
-  const soldCounts = new Map<number, number>();
-  const significant = significantWords(classifyMessage);
-  const scored = scoreAll(
-    filterResult.kept.map((c) => ({ food: c.food, portions: c.portions, totalPrice: c.totalPrice, matched: c.matched })),
-    classifyMessage,
-    constraints.budgetTotal,
-    maxSugg,
-    significant,
-    soldCounts,
-  );
-
-  // AI viet cau tra loi neu co
-  if (criteria && !isCompleteRegex) {
-    aiPicked = scored.slice(0, maxSugg).map((s) => ({ food: s.food, portions: s.portions, totalPrice: s.totalPrice }));
-    try {
-      aiReply = await generateReply(input.message, criteria, aiPicked, history);
-    } catch (error) {
-      if (error instanceof gemini.AiKeyRejectedException) {
-        throw new HttpError(503, MISSING_KEY_NOTICE);
-      }
-      aiReply = null;
-    }
-  }
-
-  let picked: Picked[];
-  let reply: string;
-  if (aiReply !== null) {
-    picked = aiPicked;
-    reply = aiReply;
-  } else {
-    if (context !== null) {
-      picked = planLastPicks(context, { maxBudget: constraints.budgetTotal, people: constraints.people }, menu);
-    } else {
-      const plan = planSelection(
-        scored.map((s) => ({ food: s.food, portions: s.portions, totalPrice: s.totalPrice })),
-        {
-          maxBudget: constraints.budgetTotal,
-          people: constraints.people,
-          groups: constraints.groups,
-          restrictIds: constraints.restrictIds,
-        },
-        maxSugg,
-      );
-      picked = plan.picks;
-    }
-    reply = renderReply(
-      { picks: picked, totalPrice: picked.reduce((s, p) => s + p.totalPrice, 0) },
-      constraints,
-    );
-    if (gemini.isRateLimited()) reply = `${RATE_LIMIT_NOTE}\n\n${reply}`;
-  }
-
-  const cards = picked.slice(0, maxSugg).map(toCard);
-  const quickReplies = cards.length > 0 ? QR_FOOD : QR_FOOD_EMPTY;
-  if (user) {
-    await saveMessage(user.id, sessionId, "BOT", reply, { foods: cards, intent: "FOOD", quickReplies });
-  }
-  return {
-    reply,
-    foods: cards,
-    intent: "FOOD",
-    citations: null,
-    quickReplies,
-  };
-};
-
-// Lich su hoi thoai cua khach da dang nhap
+// --- Sessions (unchanged) ---
 
 const getUserOrThrow = async (email: string) => {
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
@@ -585,7 +307,6 @@ const getUserOrThrow = async (email: string) => {
   return user;
 };
 
-/** Danh sach phien cua chinh nguoi goi, moi nhat truoc; tieu de lay tu cau hoi dau tien. */
 export const listSessions = async (email: string): Promise<ChatSessionSummary[]> => {
   const user = await getUserOrThrow(email);
   const rows = await db
@@ -603,7 +324,6 @@ export const listSessions = async (email: string): Promise<ChatSessionSummary[]>
   const sessionIds = rows.map((row) => row.sessionId).filter((id): id is string => !!id);
   if (sessionIds.length === 0) return [];
 
-  // Mot truy van lay tin USER dau tien cua moi phien, khong N+1 theo tung phien.
   const firsts = await db
     .select({ sessionId: chatMessages.sessionId, content: chatMessages.content })
     .from(chatMessages)
@@ -631,7 +351,6 @@ export const listSessions = async (email: string): Promise<ChatSessionSummary[]>
   });
 };
 
-/** Tin nhan cua mot phien thuoc ve nguoi goi; phien khong ton tai tra 404, khong lo du lieu nguoi khac. */
 export const getSession = async (
   email: string,
   sessionId: string,
@@ -665,6 +384,5 @@ export const deleteSession = async (email: string, sessionId: string) => {
     .where(and(eq(chatMessages.userId, user.id), eq(chatMessages.sessionId, sessionId)))
     .returning({ id: chatMessages.id });
   if (deleted.length === 0) throw notFound("Không tìm thấy hội thoại");
-  pendingFollowUp.delete(sessionId);
   return {};
 };
