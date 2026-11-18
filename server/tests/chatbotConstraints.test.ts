@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readConstraints, matchDishes, isFoodQuestion, parseBudget, parsePeople } from "../src/user/chatbot/constraints.js";
 import { normalizeCriteria, isFollowUp, isReferenceKeyword } from "../src/user/chatbot/constraints.js";
-import type { FoodWithCategory } from "../src/user/chatbot/plan.js";
+import type { FoodWithCategory } from "../src/user/chatbot/constraints.js";
 
 const makeFood = (id: number, name: string): FoodWithCategory =>
   ({ id, name, price: 45000, available: true, spicyLevel: 0, servingSize: 1, category: null }) as unknown as FoodWithCategory;

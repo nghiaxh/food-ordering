@@ -1,4 +1,4 @@
-import type { FoodWithCategory } from "./plan.js";
+import type { FoodWithCategory } from "./constraints.js";
 import type { Constraints } from "./constraints.js";
 
 export type RejectReason = "UNAVAILABLE" | "SPICY" | "ALLERGEN" | "DIET" | "DISH_NAME";

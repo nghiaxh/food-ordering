@@ -273,19 +273,10 @@ export const useChatConversation = () => {
     }
   }
 
-  // Trang thai tien trinh trong luc cho phan hoi; cap nhat statusText theo tung moc.
-  const startProgress = (isInfo: boolean) => {
+  // 1 luot AI duy nhat: chi hien 1 trang thai don gian trong luc cho.
+  const startProgress = (_isInfo: boolean) => {
     clearProgress()
-    statusText.value = 'Đang hiểu yêu cầu...'
-    progressTimer = window.setTimeout(() => {
-      statusText.value = isInfo ? 'Đang tra tài liệu quán...' : 'Đang trích xuất tiêu chí món ăn...'
-    }, 900)
-    window.setTimeout(() => {
-      statusText.value = isInfo ? 'Đang soạn câu trả lời...' : 'Đang truy vấn thực đơn...'
-    }, 1800)
-    window.setTimeout(() => {
-      statusText.value = 'Đang soạn câu trả lời...'
-    }, 2700)
+    statusText.value = 'Đang trả lời...'
   }
 
   onBeforeUnmount(() => {
@@ -302,10 +293,8 @@ export const useChatConversation = () => {
     const lastFoodIds = lastBotWithFoods?.foods?.map((f) => f.id) ?? []
     messages.value = [...messages.value, { sender: 'USER', content: text }]
     loading.value = true
-    // Status text cho nguoi moi biet bot dang lam gi.
-    const p = text.toLowerCase()
-    const isInfo = ['giờ', 'địa chỉ', 'giao hàng', 'ship', 'thanh toán', 'mở cửa', 'đóng cửa'].some((k) => p.includes(k))
-    startProgress(isInfo)
+    // 1 luot AI duy nhat: chi hien trang thai don gian.
+    startProgress(false)
 
     // Doi tai khoan hoac lam moi hoi thoai trong luc cho: bo phan hoi cua chu cu.
     const epoch = requestEpoch
