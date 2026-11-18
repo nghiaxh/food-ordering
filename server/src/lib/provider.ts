@@ -27,6 +27,7 @@ const MAX_RETRIES = 2;
 const RETRY_DELAYS_MS = [600, 1800];
 const RETRY_AFTER_CAP_MS = 5_000;
 const RATE_LIMIT_COOLDOWN_MS = 25_000;
+const LOCAL_MIN_TIMEOUT_MS = 30_000;
 
 export class AiKeyRejectedException extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -232,6 +233,14 @@ const isKeyRejectionStatus = (status: number, body: string): boolean => {
   return body.includes("API_KEY_INVALID") || body.includes("API key not valid");
 };
 
+// LM Studio chi khoa goi AI khi that su bi gioi han (429), khong khoa vi timeout hay loi mang.
+const isRateLimitFailure = (error: unknown): boolean => {
+  const status = (error as { status?: number })?.status ?? 0;
+  if (status === 429) return true;
+  const text = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return text.includes("429") || text.includes("rate limit") || text.includes("too many");
+};
+
 // --- generate ---
 
 export const generate = async (
@@ -300,13 +309,19 @@ export const generate = async (
   const client = new LMStudioClient({ baseUrl });
   const model = await client.llm.model(modelKey);
   const prompt = systemPrompt ? `${systemPrompt}\n\n${userPrompt}` : userPrompt;
+  // Model local chay cham hon cloud (nhat la khi bat thinking), nen giu timeout toi thieu 30s.
+  const localTimeoutMs = Math.max(timeoutMs, LOCAL_MIN_TIMEOUT_MS);
   try {
-    const prediction = model.complete(prompt, { maxTokens: options.maxOutputTokens ?? MAX_OUTPUT_TOKENS });
-    const result = await fetchWithTimeout(prediction, timeoutMs);
+    // Model nho can temperature thap khi trich JSON; van ban thi cao hon mot chut cho tu nhien.
+    const prediction = model.complete(prompt, {
+      maxTokens: options.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+      temperature: jsonMode ? 0.2 : 0.6,
+    });
+    const result = await fetchWithTimeout(prediction, localTimeoutMs);
     rateLimitedUntil = 0;
     return stripThinking((result as { content?: string }).content ?? "");
   } catch (error) {
-    rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+    if (isRateLimitFailure(error)) rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
     throw error instanceof Error ? error : new Error(String(error));
   }
 };

@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, desc, eq, inArray, isNotNull, lte, gt, sql, ilike, or, max } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, lte, gt, sql, ilike, or, max, type SQL } from "drizzle-orm";
 import { HttpError, notFound, unauthorized } from "../../lib/errors.js";
 import { aiSetting, chatMessages, foods, users, type ChatMessagePayload } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import * as provider from "../../lib/provider.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { sessionTitle, type ChatHistoryEntry, type ChatSessionSummary } from "./sessions.js";
-import { readConstraints, parsePeople, parseBudget } from "./constraints.js";
+import { readConstraints } from "./constraints.js";
 import type { FoodWithCategory } from "./constraints.js";
 import { verifyReply } from "./grounding.js";
 import { searchChunks, type ScoredChunk } from "./retrieval.js";
@@ -59,19 +59,8 @@ const truncate = (s: string, max: number): string => {
   return t.length <= max ? t : `${t.slice(0, max).trim()}...`;
 };
 
-// --- Bước 1: Chuẩn bị dữ liệu (Drizzle) ---
-
-interface PreparedData {
-  menu: FoodWithCategory[];
-  chunks: ScoredChunk[];
-}
-
-const prepare = async (message: string): Promise<PreparedData> => {
-  const menu = (await db.query.foods.findMany({ with: { category: true } })) as FoodWithCategory[];
-  const available = menu.filter((f) => f.available);
-  const chunks = await searchChunks(message, 5);
-  return { menu: available, chunks };
-};
+// --- Bước 1: Tai lieu quan (RAG) ---
+// Chi dung cho cau hoi thong tin quan. Nhanh goi y mon khong goi embedding de tiet kiem.
 
 // --- Bước 2: AI trích tiêu chí (call 1) ---
 
@@ -86,10 +75,21 @@ interface Criteria {
   categories: string[];
 }
 
-const emptyCriteria = (): Criteria => ({
-  budget: null, people: null, spicyMax: null, spicyRequired: false,
-  allergens: [], diet: [], keywords: [], categories: [],
-});
+// Ngan sach khach neu la TONG cho ca nhom, nen moi mon bi chan o muc budget / so nguoi.
+// Nho vay mot bo "so nguoi" mon luon nam trong ngan sach, khong can cong don o code.
+const perDishCap = (criteria: Criteria): number | null => {
+  if (!criteria.budget || criteria.budget <= 0) return null;
+  const people = Math.max(1, criteria.people ?? 1);
+  return Math.max(1, Math.floor(criteria.budget / people));
+};
+
+// Do uong / trang mieng chi duoc uu tien khi khach hoi ro; con lai de the mon khong toan tra, che.
+const DRINK_DESSERT_SLUGS = new Set(["do-uong", "trang-mieng"]);
+
+const asksForDrinkOrDessert = (criteria: Criteria): boolean => {
+  const text = plain([...criteria.categories, ...criteria.keywords].join(" "));
+  return ["uong", "tra", "ca phe", "sinh to", "nuoc", "che", "banh", "trang mieng", "dessert"].some((k) => text.includes(k));
+};
 
 const extractCriteria = async (message: string, history: string[]): Promise<Criteria> => {
   const historyText = history.length > 0 ? history.join("\n") : "(không có)";
@@ -99,7 +99,8 @@ const extractCriteria = async (message: string, history: string[]): Promise<Crit
   try {
     const raw = await provider.generate(prompt, userMsg, true, {
       timeoutMs: provider.AI_TIMEOUTS.extract,
-      maxOutputTokens: 300,
+      // Model co thinking can cho token truoc khi ra JSON; cat qua ngan se mat ca cau tra loi.
+      maxOutputTokens: 600,
     });
     const cleaned = raw.replaceAll("```json", "").replaceAll("```", "").trim();
     // Thử extract JSON nếu có text thừa
@@ -140,14 +141,15 @@ const filterMenu = async (
 ): Promise<FoodWithCategory[]> => {
   const isFollowUp = lastFoodIds?.length && !criteria.keywords.length && !criteria.categories.length && !criteria.allergens.length && !criteria.diet.length;
 
-  const whereConditions: any[] = [eq(foods.available, true)];
+  const whereConditions: SQL[] = [eq(foods.available, true)];
 
   if (isFollowUp) {
     whereConditions.push(inArray(foods.id, lastFoodIds!));
   }
   if (criteria.spicyMax != null) whereConditions.push(lte(foods.spicyLevel, criteria.spicyMax));
   if (criteria.spicyRequired) whereConditions.push(gt(foods.spicyLevel, 0));
-  if (criteria.budget) whereConditions.push(sql`${foods.price}::numeric <= ${criteria.budget}`);
+  const cap = perDishCap(criteria);
+  if (cap != null) whereConditions.push(sql`${foods.price}::numeric <= ${cap}`);
   if (criteria.allergens?.length) {
     for (const a of criteria.allergens) {
       whereConditions.push(sql`${foods.allergens} NOT ILIKE ${"%" + a + "%"}`);
@@ -166,79 +168,83 @@ const filterMenu = async (
     whereConditions.push(or(...kwConds)!);
   }
 
-  let result = await db.query.foods.findMany({
+  // Lay du rong de buoc loc do uong/trang mieng va loc danh muc phia duoi van con mon.
+  const rows = await db.query.foods.findMany({
     where: and(...whereConditions),
     with: { category: true },
     orderBy: [asc(foods.price)],
-    limit: 10,
+    limit: 100,
   }) as FoodWithCategory[];
 
-  // In-memory category filter
+  let result = rows.filter((f) => f.available);
+
+  // Khach hoi "mon an" chung chung thi bo do uong / trang mieng, nhung giu lai neu do la ket qua duy nhat.
+  if (!asksForDrinkOrDessert(criteria)) {
+    const mains = result.filter((f) => !DRINK_DESSERT_SLUGS.has(f.category?.slug ?? ""));
+    if (mains.length > 0) result = mains;
+  }
+
   if (criteria.categories?.length) {
-    const catLower = criteria.categories.map((c) => c.toLowerCase());
-    const filtered = result.filter((f) =>
-      catLower.some((c) => (f.category?.name ?? "").toLowerCase().includes(c)),
-    );
-    if (filtered.length > 0) result = filtered;
+    const wanted = criteria.categories.map((c) => plain(c));
+    const matched = result.filter((f) => {
+      const name = plain(f.category?.name ?? "");
+      if (!name) return false;
+      return wanted.some((c) => name.includes(c) || c.includes(name));
+    });
+    if (matched.length > 0) result = matched;
   }
 
-  // Fallback: nếu 0 kết quả, thử lại không có budget filter
-  if (result.length === 0 && criteria.budget) {
-    const fallbackConditions = whereConditions.filter((c) => c !== whereConditions.find((x) => String(x).includes("price")));
-    // Simpler: re-query without budget
-    const retryConditions = [eq(foods.available, true)];
-    if (criteria.spicyMax != null) retryConditions.push(lte(foods.spicyLevel, criteria.spicyMax));
-    if (criteria.spicyRequired) retryConditions.push(gt(foods.spicyLevel, 0));
-    if (criteria.allergens?.length) {
-      for (const a of criteria.allergens) {
-        retryConditions.push(sql`${foods.allergens} NOT ILIKE ${"%" + a + "%"}`);
-      }
-    }
-    if (criteria.diet?.length) {
-      for (const d of criteria.diet) {
-        retryConditions.push(sql`${foods.dietaryTags} ILIKE ${"%" + d + "%"}`);
-      }
-    }
-    result = await db.query.foods.findMany({
-      where: and(...retryConditions),
-      with: { category: true },
-      orderBy: [asc(foods.price)],
-      limit: 10,
-    }) as FoodWithCategory[];
-  }
-
-  return result.filter((f) => f.available);
+  return result.slice(0, 10);
 }
 
 // --- Bước 4: AI viết reply (call 2) ---
 
+const describeCriteria = (criteria: Criteria): string => {
+  const parts: string[] = [];
+  if (criteria.people) parts.push(`${criteria.people} người`);
+  if (criteria.budget) parts.push(`tổng ${criteria.budget.toLocaleString("vi-VN")}đ`);
+  if (criteria.spicyMax === 0) parts.push("không cay");
+  if (criteria.diet.length) parts.push(`chế độ ${criteria.diet.join(", ")}`);
+  if (criteria.allergens.length) parts.push(`tránh ${criteria.allergens.join(", ")}`);
+  if (criteria.categories.length) parts.push(`loại ${criteria.categories.join(", ")}`);
+  if (criteria.keywords.length) parts.push(`từ khóa ${criteria.keywords.join(", ")}`);
+  return parts.length > 0 ? parts.join("; ") : "khách chưa nêu điều kiện, gợi ý món bán chạy";
+};
+
+// Goi AI viet cau tra loi dua tren danh sach mon server da loc. Loi AI thi bao loi,
+// khong render template: nguoi dung can biet tro ly dang khong dung duoc.
 const generateReply = async (
   message: string,
   criteria: Criteria,
   foods: FoodWithCategory[],
-  history: string[],
 ): Promise<string> => {
   const menuText = foods
-    .map((f) => `${f.id}|${f.name}|${Number(f.price)}|${f.category?.name ?? ""}|${f.spicyLevel}`)
+    .map((f) => `${f.name} - ${Number(f.price).toLocaleString("vi-VN")}đ - ${f.category?.name ?? "món"}`)
     .join("\n");
-  const prompt = REPLY_PROMPT.replace("%s", menuText || "(rỗng)").replace("%s", message);
+  const prompt = REPLY_PROMPT
+    .replace("%s", describeCriteria(criteria))
+    .replace("%s", menuText || "(trống)")
+    .replace("%s", message);
 
+  let raw: string;
   try {
-    const raw = await provider.generate(prompt, "", false, {
+    raw = await provider.generate(prompt, "", false, {
       timeoutMs: provider.AI_TIMEOUTS.reply,
       maxOutputTokens: provider.AI_MAX_OUTPUT_TOKENS,
     });
-    // Strip ID patterns like "(1)", "(2)" from reply
-    let reply = raw.trim().replace(/\(\d+\)/g, "").replace(/\s{2,}/g, " ").trim();
-    return reply || "Tôi chưa có câu trả lời phù hợp, bạn thử hỏi lại nhé!";
   } catch {
-    // Fallback: simple message
-    if (foods.length > 0) {
-      const names = foods.slice(0, 3).map((f) => f.name).join(", ");
-      return `Tôi gợi ý các món: ${names}. Bạn bấm vào thẻ món để xem chi tiết nhé!`;
-    }
-    return "Tôi chưa tìm được món phù hợp, bạn thử nới điều kiện nhé!";
+    throw new HttpError(502, "Trợ lý AI đang gặp sự cố, quý khách vui lòng thử lại sau ít phút.");
   }
+
+  // Model nho hay copy lai dinh dang danh sach (kem ID); bo phan dinh dang con sot.
+  const reply = raw
+    .replace(/^\s*[-*•]\s*/gm, "")
+    .replace(/\s*[-–]\s*\d{1,3}\.\d{3}đ\s*-\s*.+$/gm, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (!reply) throw new HttpError(502, "Trợ lý AI chưa trả lời được, quý khách vui lòng thử lại.");
+  return reply;
 };
 
 // --- Bước 5: Finalize ---
@@ -249,18 +255,16 @@ const finalize = async (
   people: number | null,
   email: string | null,
   sessionId: string,
-  chunks: ScoredChunk[],
 ): Promise<ChatResponseBody> => {
   const maxSugg = await maxSuggestions();
   const cards = filtered.slice(0, maxSugg).map((f) => toCard(f, people));
 
-  // verifyReply: chỉ log warning, không throw (đã đơn giản hóa)
-  const ctx = {
+  // verifyReply chi con kiem do dai cau tra loi; sai thi ghi log, khong chan khach.
+  const check = verifyReply(reply, {
     allowedPrices: cards.map((c) => Number(c.price)),
     allowedFoodNames: cards.map((c) => c.name),
-    allowedChunks: chunks.map((c) => c.chunk.content),
-  };
-  const check = verifyReply(reply, ctx);
+    allowedChunks: [],
+  });
   if (!check.ok) {
     console.warn("[chatbot] verifyReply warnings:", check.violations);
   }
@@ -275,13 +279,6 @@ const finalize = async (
       payload: { foods: cards, intent: "FOOD", quickReplies: [] } as ChatMessagePayload,
     });
   }
-
-  const citations = chunks.length > 0
-    ? chunks.map((c: ScoredChunk) => ({
-        sourceName: c.document?.title ?? "Tài liệu quán",
-        snippet: truncate(c.chunk.content, 120),
-      }))
-    : null;
 
   return {
     reply,
@@ -349,20 +346,17 @@ export const chat = async (
     return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?", "Cách đặt món thế nào?"] };
   }
 
-  // Bước 1: Chuẩn bị
-  const { menu, chunks } = await prepare(input.message);
-
-  // Bước 2: Trích tiêu chí (AI call 1)
+  // Bước 1: Trích tiêu chí (AI call 1)
   const criteria = await extractCriteria(input.message, history);
 
-  // Bước 3: SQL filter
+  // Bước 2: SQL filter
   const filtered = await filterMenu(criteria, input.lastFoodIds);
 
-  // Bước 4: AI viết reply (call 2)
-  const reply = await generateReply(input.message, criteria, filtered, history);
+  // Bước 3: AI viết reply (call 2)
+  const reply = await generateReply(input.message, criteria, filtered);
 
-  // Bước 5: Finalize
-  return finalize(filtered, reply, criteria.people, email, sessionId, chunks);
+  // Bước 4: Finalize
+  return finalize(filtered, reply, criteria.people, email, sessionId);
 };
 
 export const chatbotStatus = async () => {
