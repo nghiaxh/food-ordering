@@ -82,6 +82,12 @@ const setting = async (key: string, fallback: string): Promise<string> => {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+// Gemma 4 tra ve thinking tokens (<|channel>thought...<channel|>) truoc answer.
+// Strip de lay ket qua sach cho JSON parsing.
+const stripThinking = (text: string): string => {
+  return text.replace(/<\|channel>thought[\s\S]*?<channel\|>/g, "").trim();
+};
+
 /** Detect provider: env AI_PROVIDER > auto-detect (key present => gemini, else lmstudio). */
 const detectProviderSync = (): string => {
   const fromEnv = (env.AI_PROVIDER ?? "").trim().toLowerCase();
@@ -262,7 +268,7 @@ export const generate = async (
         );
         const text = response.text ?? "";
         rateLimitedUntil = 0;
-        return text;
+        return stripThinking(text);
       } catch (error) {
         lastError = error;
         const status = (error as { status?: number })?.status ?? 0;
@@ -298,7 +304,7 @@ export const generate = async (
     const prediction = model.complete(prompt, { maxTokens: options.maxOutputTokens ?? MAX_OUTPUT_TOKENS });
     const result = await fetchWithTimeout(prediction, timeoutMs);
     rateLimitedUntil = 0;
-    return (result as { content?: string }).content ?? "";
+    return stripThinking((result as { content?: string }).content ?? "");
   } catch (error) {
     rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
     throw error instanceof Error ? error : new Error(String(error));
