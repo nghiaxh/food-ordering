@@ -124,7 +124,7 @@ const openHistory = () => {
 }
 const pickSession = async (id: string) => {
   if (!(await openSession(id))) {
-    message.error('Không mở được hội thoại, bạn thử lại nhé!')
+    message.error('Không mở được hội thoại, quý khách thử lại nhé!')
     return
   }
   historyOpen.value = false
