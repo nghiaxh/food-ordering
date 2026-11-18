@@ -19,6 +19,19 @@ describe("readConstraints", () => {
     expect(c.chay).toBe(true);
   });
 
+  it("doc teencode ko cay nhu khong cay", () => {
+    const c = readConstraints("gợi ý món ko cay dưới 100k cho 2 người", []);
+    expect(c.spicyMax).toBe(0);
+    expect(c.budgetTotal).toBe(100000);
+    expect(c.people).toBe(2);
+  });
+
+  it("'khong chay' khong phai yeu cau mon chay", () => {
+    const c = readConstraints("minh khong chay, an mon man", []);
+    expect(c.chay).toBe(false);
+    expect(c.diets).toEqual([]);
+  });
+
   it("doc loai tru hai san", () => {
     const c = readConstraints("khong hai san", []);
     expect(c.exclude).toContain("hải sản");

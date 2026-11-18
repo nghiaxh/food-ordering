@@ -4,9 +4,9 @@ import type { ChatCitation, ChatHistoryEntry, ChatMessage, ChatSessionSummary, C
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { useAuthStore } from '@/user/auth/store'
 
-export const GREETING_INTRO = 'Chào bạn! Mình là trợ lý đặt món của quán.'
+export const GREETING_INTRO = 'Chào quý khách! Tôi là trợ lý đặt món của quán.'
 export const GREETING_TASKS =
-  'Bạn chưa biết ăn gì? Cứ nhắn mình số người và ngân sách, ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.'
+  'Quý khách chưa biết ăn gì? Nhắn tôi số người và ngân sách, ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.'
 
 /** Bon diem vao dat duoi loi chao; bam la gui tin nhu khach tu go. */
 export const GREETING_STARTERS = [
@@ -30,6 +30,8 @@ const greetingMessages = (): ChatMessage[] => [
 
 // Loi chao cu duoc tach 2 bubble; loc bo de hoi thoai cu cua khach dung loi chao moi.
 const OLD_GREETING_BUBBLES = new Set([
+  'Chào bạn! Mình là trợ lý đặt món của quán.',
+  'Bạn chưa biết ăn gì? Cứ nhắn mình số người và ngân sách, ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.',
   'Mình giúp bạn 3 việc:\n1) Gợi ý món theo số người, ngân sách tổng, độ cay, dị ứng.\n2) Hỏi thông tin quán: giờ mở cửa, giao hàng, thanh toán.\n3) Hướng dẫn cách đặt và hủy đơn.\nVí dụ: Cho 2 người 200k, không cay.',
   'Chào bạn! Gợi ý món theo số người, ngân sách, độ cay hay dị ứng thì cứ nhắn. Ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.',
 ])
@@ -317,7 +319,7 @@ export const useChatConversation = () => {
       const httpStatus = (e as { response?: { status?: number } }).response?.status
       if (httpStatus === 429) {
         error.value = true
-        messages.value = [...messages.value, { sender: 'BOT', content: 'Quá nhiều yêu cầu, bạn thử lại sau ít phút nhé!' }]
+        messages.value = [...messages.value, { sender: 'BOT', content: 'Quá nhiều yêu cầu, quý khách vui lòng thử lại sau ít phút!' }]
         return
       }
       if (httpStatus === 503) {
@@ -326,7 +328,10 @@ export const useChatConversation = () => {
         return
       }
       error.value = true
-      messages.value = [...messages.value, { sender: 'BOT', content: 'Mình chưa gửi được câu hỏi, bạn thử lại nhé!' }]
+      messages.value = [
+        ...messages.value,
+        { sender: 'BOT', content: apiErrorMessage(e) ?? 'Trợ lý đang gặp sự cố, quý khách vui lòng thử lại sau ít phút!' },
+      ]
     } finally {
       // Chi ha loading cho chinh luot nay, tranh tat loading cua luot moi hon.
       if (epoch === requestEpoch) {
