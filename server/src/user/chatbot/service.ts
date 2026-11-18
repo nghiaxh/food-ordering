@@ -182,6 +182,31 @@ const filterMenu = async (
     if (filtered.length > 0) result = filtered;
   }
 
+  // Fallback: nếu 0 kết quả, thử lại không có budget filter
+  if (result.length === 0 && criteria.budget) {
+    const fallbackConditions = whereConditions.filter((c) => c !== whereConditions.find((x) => String(x).includes("price")));
+    // Simpler: re-query without budget
+    const retryConditions = [eq(foods.available, true)];
+    if (criteria.spicyMax != null) retryConditions.push(lte(foods.spicyLevel, criteria.spicyMax));
+    if (criteria.spicyRequired) retryConditions.push(gt(foods.spicyLevel, 0));
+    if (criteria.allergens?.length) {
+      for (const a of criteria.allergens) {
+        retryConditions.push(sql`${foods.allergens} NOT ILIKE ${"%" + a + "%"}`);
+      }
+    }
+    if (criteria.diet?.length) {
+      for (const d of criteria.diet) {
+        retryConditions.push(sql`${foods.dietaryTags} ILIKE ${"%" + d + "%"}`);
+      }
+    }
+    result = await db.query.foods.findMany({
+      where: and(...retryConditions),
+      with: { category: true },
+      orderBy: [asc(foods.price)],
+      limit: 10,
+    }) as FoodWithCategory[];
+  }
+
   return result.filter((f) => f.available);
 }
 
@@ -198,11 +223,22 @@ const generateReply = async (
     .join("\n");
   const prompt = REPLY_PROMPT.replace("%s", menuText || "(rỗng)").replace("%s", message);
 
-  const raw = await provider.generate(prompt, "", false, {
-    timeoutMs: provider.AI_TIMEOUTS.reply,
-    maxOutputTokens: provider.AI_MAX_OUTPUT_TOKENS,
-  });
-  return raw.trim() || "Mình chưa có câu trả lời phù hợp, bạn thử hỏi lại nhé!";
+  try {
+    const raw = await provider.generate(prompt, "", false, {
+      timeoutMs: provider.AI_TIMEOUTS.reply,
+      maxOutputTokens: provider.AI_MAX_OUTPUT_TOKENS,
+    });
+    // Strip ID patterns like "(1)", "(2)" from reply
+    let reply = raw.trim().replace(/\(\d+\)/g, "").replace(/\s{2,}/g, " ").trim();
+    return reply || "Tôi chưa có câu trả lời phù hợp, bạn thử hỏi lại nhé!";
+  } catch {
+    // Fallback: simple message
+    if (foods.length > 0) {
+      const names = foods.slice(0, 3).map((f) => f.name).join(", ");
+      return `Tôi gợi ý các món: ${names}. Bạn bấm vào thẻ món để xem chi tiết nhé!`;
+    }
+    return "Tôi chưa tìm được món phù hợp, bạn thử nới điều kiện nhé!";
+  }
 };
 
 // --- Bước 5: Finalize ---
@@ -285,23 +321,30 @@ export const chat = async (
 
   const p = plain(input.message);
 
+  // Xu ly graceful cho input khong ro: "Xac nhan", single word, etc.
+  if (p === "xac nhan" || p === "xacnhan" || p === "ok" || p === "dong y") {
+    const reply = "Quý khách muốn xác nhận gì ạ? Nếu muốn đặt món, quý khách bấm vào thẻ món rồi thêm vào giỏ nhé!";
+    if (user) await db.insert(chatMessages).values({ userId: user.id, sessionId, sender: "BOT", content: reply, payload: { intent: "FOOD", quickReplies: [] } as ChatMessagePayload });
+    return { reply, foods: [], intent: "FOOD", citations: null, quickReplies: ["Gợi ý món cho 2 người"] };
+  }
+
   // Static intents (no AI)
   if (isRestaurantInfoQuestion(p)) {
     const chunks = await searchChunks(input.message, 5);
     const reply = chunks.length > 0
       ? chunks.map((c) => `- ${truncate(c.chunk.content, 400)}`).join("\n")
-      : "Mình chưa có thông tin xác thực về mục này trong tài liệu của quán.";
+      : "Tôi chưa có thông tin xác thực về mục này trong tài liệu của quán.";
     const citations = chunks.length > 0 ? chunks.map((c: ScoredChunk) => ({ sourceName: c.document?.title ?? "Tài liệu quán", snippet: truncate(c.chunk.content, 120) })) : null;
     if (user) await db.insert(chatMessages).values({ userId: user.id, sessionId, sender: "BOT", content: reply.slice(0, 4000), payload: { intent: "RESTAURANT_INFO", citations, quickReplies: [] } as ChatMessagePayload });
     return { reply, foods: [], intent: "RESTAURANT_INFO", citations, quickReplies: ["Gợi ý món cho 2 người", "Cách đặt món thế nào?"] };
   }
   if (isOrderGuideQuestion(p)) {
-    const reply = "Để đặt món, bạn thêm món vào giỏ rồi vào trang thanh toán.\n- Chỉ hủy được đơn PENDING + UNPAID.\n- Trạng thái PREPARING = \"Đang vận chuyển\".";
+    const reply = "Để đặt món, quý khách thêm món vào giỏ rồi vào trang thanh toán. Thanh toán COD hoặc quét QR đều được.\n\n- Chỉ hủy được đơn đang chờ xử lý và chưa thanh toán.\n- Đơn đã hoàn thành hoặc đã hủy thì không thể sửa.\n- Khi đơn ở trạng thái \"Đang vận chuyển\", quán đang giao hàng cho quý khách.\n- Quý khách xem trạng thái đơn ở mục Đơn hàng của mình.";
     if (user) await db.insert(chatMessages).values({ userId: user.id, sessionId, sender: "BOT", content: reply, payload: { intent: "ORDER_GUIDE", quickReplies: [] } as ChatMessagePayload });
     return { reply, foods: [], intent: "ORDER_GUIDE", citations: null, quickReplies: ["Gợi ý món cho 2 người"] };
   }
   if (isGreetingQuestion(p)) {
-    const reply = "Chào bạn! Mình là trợ lý của quán. Mình có thể gợi ý món theo ngân sách/số người, thông tin quán và hướng dẫn đặt món.";
+    const reply = "Chào quý khách! Tôi là trợ lý của quán. Tôi có thể gợi ý món theo ngân sách/số người, thông tin quán và hướng dẫn đặt món.";
     if (user) await db.insert(chatMessages).values({ userId: user.id, sessionId, sender: "BOT", content: reply, payload: { intent: "GREETING", quickReplies: [] } as ChatMessagePayload });
     return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?", "Cách đặt món thế nào?"] };
   }
