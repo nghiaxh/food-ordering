@@ -50,18 +50,6 @@ import PageCard from '@/admin/components/PageCard.vue'
 import PageHeader from '@/admin/components/PageHeader.vue'
 import FormModal from '@/components/FormModal.vue'
 
-const PROVIDER_OPTIONS = [
-  { value: 'gemini', label: 'Google Gemini' },
-]
-// Danh sach mo hinh de xuat theo nha cung cap; admin van nhap duoc ten mo hinh khac.
-const MODEL_OPTIONS: Record<string, Array<{ value: string; label: string }>> = {
-  gemini: [
-    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
-    { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash' },
-    { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
-    { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite' },
-  ],
-}
 const CATEGORY_OPTIONS = [
   { value: 'HOURS', label: 'Giờ mở cửa' },
   { value: 'DELIVERY', label: 'Giao hàng' },
@@ -83,8 +71,6 @@ const formatTime = (iso: string) =>
 
 const maxSuggestions = ref(5)
 const extraRules = ref('')
-const provider = ref('gemini')
-const model = ref('')
 
 const docModal = ref(false)
 const editingDoc = ref<KnowledgeDoc | null>(null)
@@ -102,29 +88,7 @@ watch(data, (value) => {
   const settings = Object.fromEntries(value[1].map((s) => [s.settingKey, s.settingValue]))
   maxSuggestions.value = Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5))
   extraRules.value = settings.extra_rules ?? ''
-  // Chi con Gemini: provider cu (neu co) duoc chuan hoa ve gemini.
-  const rawProvider = settings.provider?.trim().toLowerCase() || 'gemini'
-  provider.value = rawProvider === 'openai' ? 'gemini' : rawProvider
-  if (provider.value !== 'gemini') provider.value = 'gemini'
-  model.value = settings.model?.trim() || MODEL_OPTIONS[provider.value]?.[0]?.value || ''
 }, { immediate: true })
-
-const modelOptions = computed(() => {
-  const base = MODEL_OPTIONS[provider.value] ?? []
-  // Mo hinh dang luu khong nam trong danh sach goi y thi van cho chon duoc.
-  return model.value && !base.some((o) => o.value === model.value)
-    ? [...base, { value: model.value, label: model.value }]
-    : base
-})
-
-const onProviderChange = (value: string) => {
-  provider.value = value
-  // Mo hinh cua nha cung cap truoc co the khong con dung nen ve danh sach goi y.
-  const options = MODEL_OPTIONS[value] ?? []
-  if (!options.some((o) => o.value === model.value)) {
-    model.value = options[0]?.value ?? model.value
-  }
-}
 
 const history = computed(() => data.value?.[0] ?? [])
 const status = computed<ChatbotStatus | null>(() => (data.value?.[2] as ChatbotStatus | undefined) ?? null)
@@ -144,8 +108,6 @@ const { run: saveSettings, pending: savingSettings } = useAsyncAction(() =>
   Promise.all([
     adminSaveSetting('max_suggestions', String(maxSuggestions.value)),
     adminSaveSetting('extra_rules', extraRules.value),
-    adminSaveSetting('provider', provider.value),
-    adminSaveSetting('model', String(model.value).trim()),
   ]),
 )
 const onSaveSettings = async () => {
@@ -456,26 +418,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
 
       <div class="p-4">
         <NForm :show-feedback="false" class="space-y-4">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <NFormItem label="Nhà cung cấp AI">
-              <NSelect
-                :value="provider"
-                :options="PROVIDER_OPTIONS"
-                size="small"
-                @update:value="onProviderChange"
-              />
-            </NFormItem>
-            <NFormItem label="Tên mô hình">
-              <NSelect
-                :value="model"
-                :options="modelOptions"
-                filterable
-                tag
-                size="small"
-                placeholder="Chọn hoặc nhập tên mô hình"
-                @update:value="(v: string) => (model = v)"
-              />
-            </NFormItem>
+          <div class="grid gap-4 sm:grid-cols-1">
             <NFormItem label="Số món gợi ý tối đa">
               <NInputNumber
                 :value="maxSuggestions"

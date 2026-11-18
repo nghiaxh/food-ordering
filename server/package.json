@@ -18,6 +18,8 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
+    "@google/genai": "^3.6.0",
+    "@lmstudio/sdk": "^2.1.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.10",

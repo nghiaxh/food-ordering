@@ -3,7 +3,7 @@ import { and, asc, count, desc, eq, inArray, isNotNull, max } from "drizzle-orm"
 import { HttpError, notFound, unauthorized } from "../../lib/errors.js";
 import { aiSetting, chatMessages, foods, users, type ChatMessagePayload } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
-import * as gemini from "../../lib/gemini.js";
+import * as provider from "../../lib/provider.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { sessionTitle, type ChatHistoryEntry, type ChatSessionSummary } from "./sessions.js";
 import { readConstraints, BARE_NUMBER, parseBudget, parsePeople, matchDishes, vnd } from "./constraints.js";
@@ -154,15 +154,15 @@ const analyze = async (
 
   let raw: string;
   try {
-    raw = await gemini.generate(fullSystem, message, true, {
-      timeoutMs: gemini.AI_TIMEOUTS.reply,
-      maxOutputTokens: gemini.AI_MAX_OUTPUT_TOKENS,
+    raw = await provider.generate(fullSystem, message, true, {
+      timeoutMs: provider.AI_TIMEOUTS.reply,
+      maxOutputTokens: provider.AI_MAX_OUTPUT_TOKENS,
     });
   } catch (error) {
-    if (error instanceof gemini.AiKeyRejectedException) {
+    if (error instanceof provider.AiKeyRejectedException) {
       throw new HttpError(503, MISSING_KEY_NOTICE);
     }
-    if (error instanceof gemini.AiRateLimitedException) {
+    if (error instanceof provider.AiRateLimitedException) {
       throw new HttpError(429, "Dịch vụ AI đang giới hạn số yêu cầu, vui lòng thử lại sau");
     }
     throw new HttpError(502, "Không gọi được dịch vụ AI");
@@ -264,7 +264,7 @@ export const chat = async (
   input: { message: string; sessionId?: string; history?: string[]; lastFoodIds?: number[] },
 ): Promise<ChatResponseBody> => {
   // requireConfigured
-  if (!gemini.isConfigured()) {
+  if (!provider.isConfigured()) {
     throw new HttpError(503, MISSING_KEY_NOTICE);
   }
 
@@ -295,7 +295,7 @@ export const chat = async (
 // --- Status ---
 
 export const chatbotStatus = async () => {
-  const available = await gemini.verifyKey();
+  const available = await provider.verifyKey();
   return { available, notice: available ? null : MISSING_KEY_NOTICE };
 };
 

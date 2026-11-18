@@ -6,7 +6,7 @@ import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { env } from "../../config/env.js";
 import { chunkText, parseDocument } from "./documentParser.js";
-import * as gemini from "../../lib/gemini.js";
+import * as provider from "../../lib/provider.js";
 import { searchChunks } from "./retrieval.js";
 
 const uploadDir = () => env.UPLOAD_DIR;
@@ -75,9 +75,9 @@ const buildChunks = async (documentId: number, text: string) => {
     ).returning({ id: chatbotKnowledgeChunk.id, content: chatbotKnowledgeChunk.content });
 
     // Embed neu co khoa AI
-    if (gemini.isConfigured()) {
+    if (provider.isConfigured()) {
       const contents = rows.map((r) => r.content);
-      const vectors = await gemini.embedBatch(contents);
+      const vectors = await provider.embedBatch(contents);
       for (let i = 0; i < rows.length; i++) {
         const v = vectors[i];
         if (v) {
@@ -144,7 +144,7 @@ export const ingestFile = async (
 
   await db
     .update(chatbotKnowledge)
-    .set({ content: truncate(text, 4000), status: gemini.isConfigured() ? "EMBEDDING" : "READY" })
+    .set({ content: truncate(text, 4000), status: provider.isConfigured() ? "EMBEDDING" : "READY" })
     .where(eq(chatbotKnowledge.id, doc!.id));
   await buildChunks(doc!.id, text);
   await db
@@ -259,7 +259,7 @@ export const embedDocument = async (documentId: number): Promise<{ embedded: num
   const batchSize = 16;
   for (let i = 0; i < chunks.length; i += batchSize) {
     const batch = chunks.slice(i, i + batchSize);
-    const vectors = await gemini.embedBatch(batch.map((c) => c.content));
+    const vectors = await provider.embedBatch(batch.map((c) => c.content));
     for (let j = 0; j < batch.length; j++) {
       const v = vectors[j];
       if (v) {
@@ -284,7 +284,7 @@ export const embedMissing = async (): Promise<{ embedded: number; failed: number
   const batchSize = 16;
   for (let i = 0; i < chunks.length; i += batchSize) {
     const batch = chunks.slice(i, i + batchSize);
-    const vectors = await gemini.embedBatch(batch.map((c) => c.content));
+    const vectors = await provider.embedBatch(batch.map((c) => c.content));
     for (let j = 0; j < batch.length; j++) {
       const v = vectors[j];
       if (v) {
