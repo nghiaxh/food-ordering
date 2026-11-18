@@ -119,7 +119,7 @@ const detectChatModel = async (provider: string): Promise<string> => {
     return chatModel.name.replace(/^models\//, "");
   }
   // LM Studio
-  const baseUrl = env.LMSTUDIO_BASE_URL || "http://localhost:1234";
+  const baseUrl = env.LMSTUDIO_BASE_URL || "ws://localhost:1234";
   const client = new LMStudioClient({ baseUrl });
   const downloaded = await client.system.listDownloadedModels();
   const llm = (downloaded as Array<{ type?: string; modelKey?: string }>).find((m) => m.type === "llm");
@@ -142,7 +142,7 @@ const detectEmbedModel = async (provider: string): Promise<string> => {
     return embModel.name.replace(/^models\//, "");
   }
   // LM Studio
-  const baseUrl = env.LMSTUDIO_BASE_URL || "http://localhost:1234";
+  const baseUrl = env.LMSTUDIO_BASE_URL || "ws://localhost:1234";
   const client = new LMStudioClient({ baseUrl });
   const downloaded = await client.system.listDownloadedModels();
   const emb = (downloaded as Array<{ type?: string; modelKey?: string }>).find((m) => m.type === "embedding");
@@ -289,7 +289,7 @@ export const generate = async (
 
   // LM Studio
   if (Date.now() < rateLimitedUntil) throw new AiRateLimitedException("Dịch vụ AI đang giới hạn số yêu cầu, vui lòng thử lại sau");
-  const baseUrl = env.LMSTUDIO_BASE_URL || "http://localhost:1234";
+  const baseUrl = env.LMSTUDIO_BASE_URL || "ws://localhost:1234";
   const modelKey = await getChatModel();
   const client = new LMStudioClient({ baseUrl });
   const model = await client.llm.model(modelKey);
@@ -356,7 +356,7 @@ export const embedBatch = async (texts: string[]): Promise<Array<number[] | null
   }
 
   // LM Studio
-  const baseUrl = env.LMSTUDIO_BASE_URL || "http://localhost:1234";
+  const baseUrl = env.LMSTUDIO_BASE_URL || "ws://localhost:1234";
   const modelKey = await getEmbedModel();
   const client = new LMStudioClient({ baseUrl });
   try {
