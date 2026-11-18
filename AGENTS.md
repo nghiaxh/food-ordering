@@ -14,22 +14,21 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   JWT bằng `jsonwebtoken` (HS256) + `bcrypt`; validate đầu vào bằng `zod`. Cấu trúc `src/user/` và `src/admin/`
   theo module chức năng giống client, lớp chính `src/server.ts`; middleware tập trung ở
   `src/middleware/` (auth, error), tiện ích ở `src/lib/`.
-- **AI** - `server/src/lib/gemini.ts` là lớp DUY NHẤT gọi API AI (REST bằng `fetch`, `jsonMode` ép
-  JSON, timeout 15s mặc định) và DUY NHẤT sinh vector embedding (`embed`, `embedBatch` qua
-  Gemini Embedding API). Chỉ hỗ trợ Gemini; tên mô hình chat đọc từ `ai_setting.model`, tên mô hình
-  embedding đọc từ `ai_setting.embedding_model` (mặc định `gemini-embedding-2`), fallback về biến
-  môi trường. Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Khóa API lấy từ `AI_API_KEY`, không
-  gửi xuống client. AI chỉ hoạt động khi `isConfigured()` trả true; không có khóa thì code mode
-  (regex + weighted scoring + template) vẫn chạy, RAG trả "Mình chưa có thông tin".
-  Trang Chatbot của admin đọc `provider`/`model` từ `ai_setting` (không hardcode `gemini`), danh sách
-  mô hình gợi ý theo từng nhà cung cấp và vẫn nhập được tên mô hình khác; `settingValue` cho phép
-  rỗng để xoá quy tắc bổ sung.
-- **Chịu tải provider**: `gemini.ts` retry tối đa 2 lần cho 429/5xx (delay 600ms rồi 1800ms, tôn
-  trọng `Retry-After` cap 5s) và **khoá gọi AI 25s** sau một 429 (`AiRateLimitedException`, đọc bằng
-  `isRateLimited()`); trong lúc khoá, `generate()` không gọi provider mà ném lỗi luôn. Timeout riêng
-  theo bước (`AI_TIMEOUTS.extract` 10s, `AI_TIMEOUTS.reply` 12s) và `maxOutputTokens` để model nhanh
-  hơn. Lỗi 429/timeout khi trích xuất tiêu chí → `service.ts` rơi nhánh dự phòng theo code và thêm
-  ghi chú `RATE_LIMIT_NOTE`; prompt trả lời chỉ gửi 10 món, mô tả cắt còn 120 ký tự.
+- **AI** - `server/src/lib/provider.ts` là lớp DUY NHẤT gọi API AI (`generate` với `jsonMode` ép
+  JSON, timeout 15s mặc định) và DUY NHẤT sinh vector embedding (`embed`, `embedBatch`). Hỗ trợ hai
+  nhà cung cấp: Gemini (`@google/genai`) và LM Studio (`@lmstudio/sdk`); provider chọn theo thứ tự
+  `AI_PROVIDER` > `ai_setting.provider` > tự đoán (có `AI_API_KEY` thì Gemini, không thì LM Studio).
+  Tên mô hình chat chọn theo `AI_MODEL` > `ai_setting.model` > tự dò; mô hình embedding theo
+  `EMBEDDING_MODEL` > `ai_setting.embedding_model` > tự dò. Vector 768 chiều
+  (`EMBEDDING_DIM`). Muốn thêm nhà cung cấp thứ ba chỉ sửa file này. Gemini cần `AI_API_KEY`; LM
+  Studio dùng `LMSTUDIO_BASE_URL`, không cần khóa. Khóa không bao giờ gửi xuống client.
+  Trang Chatbot của admin chỉ lưu `max_suggestions` và `extra_rules`; provider/model/embedding đọc từ
+  biến môi trường hoặc `ai_setting` do hệ thống ghi, không hardcode `gemini`.
+- **Chịu tải provider**: `provider.ts` retry tối đa 2 lần cho 429/5xx (delay 600ms rồi 1800ms, tôn
+  trọng `Retry-After` cap 5s) và **khoá gọi AI 25s** sau một 429 thật (`AiRateLimitedException`, đọc
+  bằng `isRateLimited()`); trong lúc khoá, `generate()` không gọi provider mà ném lỗi luôn. Timeout
+  riêng theo bước (`AI_TIMEOUTS.extract` 10s, `AI_TIMEOUTS.reply` 12s, `embed` 8s); LM Studio có sàn
+  timeout 30s vì model local chậm. Prompt trả lời chỉ gửi tên/giá/loại của tối đa 10 món.
 - **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
   client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
   (Drizzle Studio). Service `database` không khai báo `profiles` nên Postgres luôn chạy theo mọi
@@ -42,76 +41,70 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
 
 ```
 server/src/user/chatbot/
-  router.ts          - routeIntent (regex tầng 1 + AI intent tầng 2)
-  constraints.ts     - gộp criteria.ts + filters.ts, readConstraints, matchDishes, mergeConstraints
-  filter.ts          - filterCandidates (cổng cứng)
-  scoring.ts         - scoreFood, scoreAll, WEIGHT (0.5/0.3/0.2), kiểm tổng = 1
-  plan.ts            - planSelection (R1..R5), planLastPicks, portionsFor, picked
-  render.ts          - renderReply (template + breakdown), renderFallback
-  grounding.ts       - verifyReply (chống bịa: giá, tên món, SĐT, giờ)
+  routes.ts          - endpoint /chat, /status, /sessions (rate limit, optionalAuth)
+  intent.ts          - hasFoodSignal, looksLikeGibberish, wantsMoreDishes, refersToLastPicks
+  constraints.ts     - readConstraints (regex), matchDishes, isReferenceKeyword, kiểu Constraints
+  prompts.ts         - EXTRACT_PROMPT (JSON tiêu chí), REPLY_PROMPT (câu trả lời)
+  service.ts         - điều phối: intent -> trích tiêu chí -> lọc SQL -> reply -> thẻ món
+  grounding.ts       - verifyReply (độ dài), hasForeignScript, dropTrailingQuestion, limitSentences
   retrieval.ts       - pgvector retrieval (bỏ tsvector)
   ingest.ts          - upload, chunk, embed
   documentParser.ts  - parse + chunk v2
-  service.ts         - điều phối
   sessions.ts        - lịch sử hội thoại
-  prompts.ts         - EXTRACT_PROMPT, ANSWER_PROMPT
 ```
 
 ### Chatbot - hai lượt gọi AI, bốn bước chống AI bịa món/giá
 
 ```
-Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [gemini.ts, jsonMode]
+Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [provider.ts, jsonMode]
            → (2) Server truy vấn DB và lọc món bằng code xác định
            → (3) AI viết câu trả lời dựa TRÊN DANH SÁCH MÓN THẬT
            → (4) Thẻ món trả về client luôn lấy ID từ DB, không từ text AI
 ```
 
-AI **không bao giờ** được tự nghĩ ra món/giá. Prompt truy vấn món chỉ nhận danh sách
-có sẵn từ `user/menu`; nếu lỗi AI/JSON sai thì `service.ts` extractCriteria trả `null` và
-`chat()` chuyển sang nhánh dự phòng. Đừng coi `null` là tiêu chí rỗng: tiêu chí rỗng
-khớp mọi món, danh sách ra là vài món rẻ nhất không liên quan gì tới câu hỏi, khách hỏi
-món chay lại nhận cà phê đá. Chỉ khách **đã đăng nhập** mới ghi lịch sử hội thoại; khách
-vãng lai chat được nhờ `history`/`lastFoodIds` client gửi kèm, không lưu vào DB.
+AI **không bao giờ** được tự nghĩ ra món/giá. Prompt trả lời chỉ nhận danh sách món server đã lọc từ
+`foods`; nếu AI/JSON lỗi thì `service.ts` dùng tiêu chí regex (`criteriaFromRegex`) chứ không coi là
+tiêu chí rỗng: tiêu chí rỗng khớp mọi món, khách hỏi món chay lại nhận cà phê đá. Chỉ khách **đã
+đăng nhập** mới ghi lịch sử hội thoại; khách vãng lai chat được nhờ `history`/`lastFoodIds` client gửi
+kèm, không lưu vào DB.
 
-**Cách áp tiêu chí** (`chatbot/constraints.ts` + `chatbot/filter.ts` + `chatbot/plan.ts` + `chatbot/scoring.ts`):
-Regex đọc ràng buộc từ câu (budget, people, spicy, diet, exclude, dishes), rồi:
-1. `filterCandidates`: lọc thuộc tính món (còn phục vụ, độ cay, thành phần loại trừ, nhãn chế độ ăn, tên món). Đây là cổng cứng.
-2. `scoreAll`: chấm điểm từng món theo weighted scoring: `score = 0.5 × từKhóa + 0.3 × phổBiến + 0.2 × giáPhùHợp`.
-   Trọng số khai báo trong `WEIGHT` (không dùng `w`), kiểm tổng = 1 khi khởi động.
-3. `planSelection`: chọn bộ món trong ngân sách (R1 tổng <= budget, R2 tổng lớn nhất, R3 nhiều món hơn, R4 id tăng dần, R5 phổ biến hơn).
-`maxBudget` là **TỔNG** tiền của cả bộ gợi ý, không phải giá một món. Số phần tính theo khẩu phần
-(`ceil(people / servingSize)`). `categories` là danh sách loại món kèm số lượng, dùng cho câu hỏi
-kiểu "một món chính và một món uống". Mỗi lượt trả tối đa **5 thẻ**; `maxSuggestions()` kẹp cấu hình
-về 1..5. Số phần và tổng tiền phải tính ở server và gửi kèm thẻ món, không giao cho AI tự tính.
-Khi không có từ khóa ("ăn gì đây"): `keywordScore = 0` mọi món, chọn theo phổ biến và giá.
-Khi DB chưa có đơn: `popularityScore = 0` mọi món, không crash.
+**Cổng ý định**: `normalizeChat` đổi teencode phủ định ("ko/k/hok/hem" -> "không", "100 k" -> "100k")
+trước khi đọc regex. Câu không có tín hiệu món ăn (`hasFoodSignal`) **và** không có ràng buộc nào
+(ngân sách, số người, độ cay, chế độ ăn, tên món), hoặc gõ lung tung (`looksLikeGibberish`, cụm phụ
+âm >= 5) trả câu từ chối cố định, `intent = OUT_OF_SCOPE`, không gọi AI và không trả thẻ món.
 
-**Nhánh dự phòng (không gọi được AI hoặc không có khóa)** (429/5xx, hết thời gian chờ, JSON hỏng, không có khóa):
-`chat()` dùng `constraints.ts` readConstraints (regex) + `filter.ts` filterCandidates + `scoring.ts` scoreAll
-+ `plan.ts` planSelection + `render.ts` renderReply (template). Không chấm điểm từ khóa mờ nữa.
-Câu trả lời chỉ tóm tắt một dòng rồi mời khách bấm thẻ món, **không** liệt kê lại danh sách món
-(thẻ món đã hiện bên dưới) - luật 9 của prompt AI cũng cấm AI làm vậy. Câu hỏi ngoài lề không
-gợi ý món nào. Thẻ món vẫn lấy ID/giá từ DB nên không có chuyện AI bịa món.
-Khi regex đọc đủ ràng buộc (budget/people/spicy/diet/dishes), không gọi AI lượt 1 để tiết kiệm.
+**Cách áp tiêu chí** (`chatbot/constraints.ts` + `chatbot/service.ts`):
+Regex đọc ràng buộc từ câu (budget, people, spicy, diet, exclude, dishes) rồi gộp với JSON của AI;
+ràng buộc regex **thắng** khi cả hai cùng có (`mergeCriteria`) vì model nhỏ hay bỏ sót "ko cay".
+Việc lọc món chạy hoàn toàn bằng SQL Drizzle trong `filterMenu`:
+1. Chỉ món `available`; `lastFoodIds` dùng để loại ("món khác" -> `NOT IN`) hoặc giới hạn ("món đó" -> `IN`).
+2. Lọc `spicyMax`, `spicyRequired`, nhãn chế độ ăn, thành phần loại trừ; `spicyMax = 0` chặn thêm
+   tên/nguyên liệu chứa "ớt" vì dữ liệu `spicyLevel` có thể sai.
+3. Ngân sách là **TỔNG** của cả nhóm nên mỗi món bị chặn ở `floor(budget / people)`.
+Kết quả lấy tối đa 10 dòng, thẻ trả về tối đa **5** (`ai_setting.max_suggestions`, kẹp 1..5). Số phần
+`ceil(people / servingSize)` và tổng tiền tính trong `toCard` ở server, không giao cho AI tự tính.
 
-**RAG tài liệu quán** (chỉ khi có khóa AI): pgvector + Gemini Embedding.
+**Khi AI lỗi**: `extractCriteria` lỗi (429/5xx, timeout, JSON hỏng) thì dùng tiêu chí regex
+(`criteriaFromRegex`). `generateReply` lỗi thì `chat()` ném `502` kèm câu xin thử lại, **không** render
+template; câu trả lời lệch ngôn ngữ (Thái/Trung/Nhật/Hàn) được gọi lại 1 lần, vẫn lệch thì 502. Câu
+trả lời được dọn ở server: `dropTrailingQuestion` bỏ câu hỏi cuối, `limitSentences` cắt còn 4 câu.
+Thẻ món luôn lấy ID/giá từ DB nên không có chuyện AI bịa món.
+
+**RAG tài liệu quán** (chỉ khi provider dùng được): pgvector + embedding.
 - Upload, parse, chunk không gọi AI, luôn chạy. Chunk v2: tách theo đoạn, giữ tiêu đề, overlap 80 ký tự, không cắt giữa từ.
-- Embed chunk chỉ khi `isConfigured()` = true; không có khóa thì chunk vẫn lưu, thiếu vector.
-- Retrieval: có khóa -> pgvector cosine search (ngữ nghĩa); không có khóa -> "Mình chưa có thông tin".
-- Generation: có khóa -> AI soạn câu trả lời từ chunk + `verifyReply`; không có khóa -> "Mình chưa có thông tin".
+- Embed chunk chỉ khi `isConfigured()` = true; thiếu khóa/provider lỗi thì chunk vẫn lưu, thiếu vector.
+- Retrieval: `searchChunks` nhúng câu hỏi, cosine top 5, ngưỡng 0.55, chỉ tài liệu `enabled`; thiếu vector -> rỗng.
+- Trả lời: `service.ts` ghép bullet trích chunk (cắt 400 ký tự) kèm `citations`, không gọi AI lượt 2; rỗng -> "Mình chưa có thông tin xác thực...".
 - Bỏ hoàn toàn tsvector và `keywordSearchKnowledge`. Không còn fallback keyword.
-- Model embedding: `gemini-embedding-2`, 768 chiều, lưu trong `ai_setting.embedding_model`.
+- Model embedding: 768 chiều, chọn theo `EMBEDDING_MODEL` > `ai_setting.embedding_model` > tự dò.
 - Image Postgres: `pgvector/pgvector:0.8.7-pg18`. Extension `vector`, cột `vector(768)`, HNSW index `vector_cosine_ops`.
-- `verifyReply` (chatbot/grounding.ts): kiểm tra giá, tên món, SĐT, giờ phải có trong chunk. Vi phạm -> dump chunk.
-- `WEIGHT` trong `chatbot/scoring.ts`: từ khóa 0.5, phổ biến 0.3, giá phù hợp 0.2. Kiểm tổng = 1 khi khởi động.
-- Pipeline: `parse` -> `pick` -> `reply`. `parse` đọc ràng buộc, `pick` lọc + chấm điểm + chọn bộ, `reply` sinh câu trả lời template.
+- `verifyReply` (chatbot/grounding.ts) chỉ kiểm độ dài <= 800 ký tự; vi phạm chỉ ghi log, không chặn khách.
 
-**Câu hỏi tiếp**: client gửi `history` (3 câu gần nhất) và `lastFoodIds` (món ở tin bot
-gần nhất). Server chỉ dùng `lastFoodIds` khi câu có cụm tham chiếu rõ ("món đó", "cái đó",
-"món này", "món vừa gợi ý", "mấy món trên", "trong số đó") và tiêu chí không mở chủ đề mới
-(`categories`/`keywords`/`dietaryTags`/`excludeAllergens`); khi đó lấy đúng `Food` theo ID
-và áp ràng buộc mới. Không dùng độ dài câu để đoán hỏi tiếp. Nhánh dự phòng khi AI lỗi cũng
-bám context này.
+**Câu hỏi tiếp**: client gửi `history` (3 câu gần nhất) và `lastFoodIds` (món ở tin bot gần nhất).
+`wantsMoreDishes` ("món khác", "gợi ý thêm") loại đúng các món đó bằng `NOT IN`; `refersToLastPicks`
+("món đó", "mấy món trên") chỉ xét trong `lastFoodIds` bằng `IN`. Từ khoá là đại từ bị
+`isReferenceKeyword` loại trước khi lọc ILIKE, không thì danh sách ra rỗng. Không dùng độ dài câu để
+đoán hỏi tiếp. Khi AI lỗi, tiêu chí regex vẫn bám context này.
 
 **Lịch sử hội thoại**: chỉ khách đã đăng nhập mới có lịch sử (`GET`/`DELETE /api/chatbot/sessions/**`,
 `requireAuth`; `listSessions`/`getSession`/`deleteSession` trong `user/chatbot/service.ts`). Tin BOT
@@ -127,17 +120,17 @@ gọi từ `App.vue` (widget chỉ mount ở layout khách, trang đăng nhập/
 khi đổi tài khoản; mỗi lần đổi chủ hoặc làm mới hội thoại tăng `requestEpoch` để phản hồi đang bay
 của chủ cũ bị bỏ, không rơi vào hội thoại mới. Tin khách gửi trước khi đăng nhập không được tải lên server.
 
-**Thiếu hoặc hỏng khóa AI**: `lib/gemini.ts` isConfigured() false khi `AI_API_KEY` rỗng **hoặc** nhà
-cung cấp đã từ chối khóa (401/403, hay 400 kèm `API_KEY_INVALID` của Gemini); cờ "bị từ chối"
-giữ tới khi khởi động lại server. `GET /api/chatbot/status` gọi `verifyKey()`.
+**Thiếu hoặc hỏng khoá AI**: `lib/provider.ts` `isConfigured()` false khi provider là Gemini mà
+`AI_API_KEY` rỗng **hoặc** nhà cung cấp đã từ chối khoá (401/403, hay 400 kèm `API_KEY_INVALID`); cờ
+"bị từ chối" giữ tới khi khởi động lại server. LM Studio không cần khoá nên `isConfigured()` luôn
+true, lỗi kết nối chỉ lộ ra lúc gọi. `GET /api/chatbot/status` gọi `verifyKey()` (chỉ probe Gemini,
+lỗi tạm thời được coi là vẫn dùng được và thử lại sau 5 phút).
 Khi không dùng được:
 - `chat()` ném `503 SERVICE_UNAVAILABLE` trước khi lưu câu hỏi hay chọn món.
-- status trả `available = false` để client khóa ô nhập, hiện banner.
+- status trả `available = false` để client khoá ô nhập, hiện banner.
 - RAG trả "Mình chưa có thông tin xác thực về mục này trong tài liệu của quán."
 - Embedding không chạy, chunk vẫn lưu nhưng thiếu vector.
-- Các nhánh không AI (chào, hướng dẫn, món khác) vẫn chạy bình thường.
-- Code mode (regex + weighted scoring + template) vẫn gợi ý món khi không có khóa (nếu bỏ `requireConfigured()`).
-Lỗi tạm thời mới rơi sang nhánh code ở trên.
+- Nhánh không gọi AI (chào, cảm ơn, hướng dẫn đặt món, câu ngoài phạm vi) vẫn chạy bình thường.
 
 ### Key wiring (không rõ từ tên file)
 
@@ -204,14 +197,19 @@ Lỗi tạm thời mới rơi sang nhánh code ở trên.
   quản trị. Chi tiết kiểm thử xem README và CI.
 - **Types client phải đồng bộ với DTO server** (thủ công). Sửa DTO nhớ cập nhật
   `client/src/shared/types/index.ts` và file `api.ts` của module tương ứng.
-- **Weighted scoring** thay `selectFoodsByCode`: `chatbot/scoring.ts` chấm điểm 3 yếu tố (từ khóa 0.5,
-  phổ biến 0.3, giá phù hợp 0.2). Cổng cứng (`filter.ts`) loại món vi phạm ràng buộc trước khi chấm điểm.
-  Trọng số khai báo trong `WEIGHT` (không dùng `w`), kiểm tổng = 1 khi khởi động.
-- **RAG chỉ dùng pgvector**: bỏ tsvector và `keywordSearchKnowledge`. Không có khóa -> RAG trả "Mình chưa có thông tin".
-  Upload + chunk không gọi AI, luôn chạy. Embed chỉ khi có khóa.
-- **AI chỉ hoạt động khi có khóa**: `isConfigured()` kiểm tra. Không có khóa thì code mode vẫn chạy (regex + weighted scoring + template).
-- **Hai model riêng**: `ai_setting.model` cho chat, `ai_setting.embedding_model` cho embedding. Cùng `AI_API_KEY`.
-- **Pipeline**: `parse` -> `pick` -> `reply`. `parse` đọc ràng buộc, `pick` lọc + chấm điểm + chọn bộ, `reply` sinh câu trả lời template.
+- **Lọc món bằng SQL**: `chatbot/service.ts` `filterMenu` dựng điều kiện Drizzle (`available`,
+  `inArray`/`notInArray` cho `lastFoodIds`, `spicyLevel`, ILIKE NOT cho thành phần dị ứng, giá
+  `<= floor(budget / people)`), sắp theo giá tăng dần và ưu tiên món chính. Không còn
+  `filter.ts`/`scoring.ts`/`plan.ts`: không chấm điểm, không chọn bộ.
+- **RAG chỉ dùng pgvector**: bỏ tsvector và `keywordSearchKnowledge`. Provider không dùng được -> RAG
+  trả "Mình chưa có thông tin". Upload + chunk không gọi AI, luôn chạy. Embed chỉ khi `isConfigured()`.
+- **AI chỉ hoạt động khi `isConfigured()`**: Gemini cần `AI_API_KEY`; LM Studio không cần khoá nhưng
+  phải đang chạy. Thiếu cấu hình thì `chat()` trả 503, không có code mode gợi ý món.
+- **Hai model riêng**: chat theo `AI_MODEL` > `ai_setting.model`; embedding theo `EMBEDDING_MODEL` >
+  `ai_setting.embedding_model`; cả hai tự dò nếu để trống. Cùng provider nên dùng chung khoá.
+- **Pipeline**: `intent` -> `extract` (AI call 1) -> `mergeCriteria` (regex thắng) -> `filterMenu`
+  (SQL) -> `reply` (AI call 2) -> `toCard` (số phần + tổng tiền từ DB). Không còn `parse/pick/reply`
+  template.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
   lên qua `POST /api/admin/uploads/image` (JPG/PNG/WEBP, ≤ 2 MB, kiểm bằng chữ ký đầu file
   chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `UPLOAD_DIR`
@@ -297,7 +295,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - `docker compose up` (không profile) chỉ khởi động Postgres.
 - Compose tự dựng `DATABASE_URL` từ `DB_NAME`; `AI_PROVIDER` mặc định `gemini`, `UPLOAD_DIR=/app/uploads`.
   Các biến còn lại đọc từ `.env`, tên khớp cấu hình server (`DB_USER`/`DB_PASSWORD`, `JWT_SECRET`,
-  `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_MODEL`).
+  `JWT_EXPIRATION_MS`, `AI_API_KEY`, `AI_MODEL`, `EMBEDDING_MODEL`, `LMSTUDIO_BASE_URL`).
 
 ## Quy ước comment và tài liệu
 
@@ -325,7 +323,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 
 ## Gotchas
 
-- **`.env` bắt buộc** và chứa mọi bí mật (DB, JWT, Gemini). Copy từ `.env.example` →
+- **`.env` bắt buộc** và chứa mọi bí mật (DB, JWT, khoá AI). Copy từ `.env.example` →
   `.env`. `.gitignore` đã chặn `.env` ở root.
 - **`docker compose up` lần đầu chậm ~30s là đúng**: `client-dev`/`client-prod` chờ
   `condition: service_healthy`, mà server cần thời gian cài deps + khởi động Node. Trước đó client
@@ -358,11 +356,11 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   dùng class `orange-*`, không dùng `amber-*` (màu của khu khách) và không tự đặt hex.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
-- **`AI_API_KEY` trong `.env` phải là khóa thật.** Để trống, sai hoặc hết hạn thì trợ lý bị khóa
-  hẳn ngay khi mở trang: `/api/chatbot/status` trả `available = false`, khung chat hiện banner và
-  khóa ô nhập. Đó là hành vi dự kiến chứ không phải lỗi code. Muốn demo luồng có gợi ý món thì
-  phải thay khoá thật rồi khởi động lại server (kết quả kiểm tra khóa cũ được giữ trong bộ nhớ).
+- **`AI_API_KEY` trong `.env` phải là khóa thật** khi dùng Gemini. Để trống, sai hoặc hết hạn thì
+  trợ lý bị khóa hẳn ngay khi mở trang: `/api/chatbot/status` trả `available = false`, khung chat hiện
+  banner và khóa ô nhập. Đó là hành vi dự kiến chứ không phải lỗi code. Muốn demo luồng có gợi ý món
+  thì phải thay khoá thật rồi khởi động lại server (kết quả kiểm tra khóa cũ được giữ trong bộ nhớ).
+  Dùng LM Studio thì bỏ trống khoá và đặt `AI_PROVIDER=lmstudio`.
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.
 - **pgvector yêu cầu image `pgvector/pgvector:0.8.7-pg18`**. Volume cũ dùng lại được (cùng major 18). Chạy `CREATE EXTENSION IF NOT EXISTS vector;` trong migration trước khi thêm cột `vector(768)`.
-- **Embedding chỉ chạy khi có khóa.** Không có khóa thì chunk vẫn lưu nhưng thiếu vector. Admin bấm "Tạo embedding" khi khóa có. Status endpoint trả `embeddingReady`, `embeddedChunks`, `totalChunks`.
-- **Trọng số dùng tên `WEIGHT`**, không dùng `w` hay `w1`, `w2`. Ví dụ `WEIGHT.keyword`, `WEIGHT.popularity`, `WEIGHT.priceFit`.
+- **Embedding chỉ chạy khi provider dùng được.** Gemini cần khoá, LM Studio cần model embedding đã nạp. Không dùng được thì chunk vẫn lưu nhưng thiếu vector. Admin bấm "Tạo embedding" khi provider sẵn sàng; `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
