@@ -1,7 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
-import * as gemini from "../../lib/gemini.js";
+import * as provider from "../../lib/provider.js";
 
 // Tra cuu tai lieu quan (RAG): pgvector + cosine similarity.
 // Khong con tsvector. Khong co vector (khong co khoa AI) -> tra rong.
@@ -13,9 +13,9 @@ export interface ScoredChunk {
 
 export async function searchChunks(question: string, topK: number): Promise<ScoredChunk[]> {
   if (!question.trim()) return [];
-  if (!gemini.isConfigured()) return [];
+  if (!provider.isConfigured()) return [];
 
-  const queryVector = await gemini.embed(question);
+  const queryVector = await provider.embed(question);
   if (!queryVector) return [];
 
   const limit = topK * 5; // bu recall vi HNSW loc sau

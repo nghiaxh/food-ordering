@@ -27,7 +27,9 @@ const schema = z.object({
   JWT_EXPIRATION_MS: z.coerce.number().default(86_400_000),
   AI_API_KEY: z.string().default(""),
   AI_PROVIDER: z.string().default("gemini"),
-  AI_MODEL: z.string().default("gemini-3.8-flash"),
+  AI_MODEL: z.string().default(""),
+  EMBEDDING_MODEL: z.string().default(""),
+  LMSTUDIO_BASE_URL: z.string().default("http://localhost:1234"),
   UPLOAD_DIR: z.string().default("uploads"),
   PORT: z.coerce.number().default(8080),
 });

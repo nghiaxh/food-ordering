@@ -301,12 +301,10 @@ async function main() {
       { userId: linh.id, foodId: banhFlan.id, quantity: 1 },
     ]);
 
-    // 3 khoa doc o trang Chatbot cua admin. Admin doi duoc provider/model
-    // nen seed chi dat gia tri mac dinh.
+    // Cai dat chatbot: chi luu max_suggestions va extra_rules. Provider/model/embedding
+    // doc tu bien moi truong (AI_PROVIDER, AI_MODEL, EMBEDDING_MODEL) hoac tu dong detect.
     await tx.insert(aiSetting).values([
       { settingKey: "max_suggestions", settingValue: "5" },
-      { settingKey: "provider", settingValue: "gemini" },
-      { settingKey: "model", settingValue: "gemini-3.8-flash" },
     ]);
 
     // 8 tai lieu nen chatbot tra loi duoc cau hoi ngoai le (gio mo cua, dia chi, phi ship).
