@@ -1,14 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, desc, eq, inArray, isNotNull, lte, gt, sql, ilike, or, max, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, lte, gt, sql, ilike, or, max, notInArray, type SQL } from "drizzle-orm";
 import { HttpError, notFound, unauthorized } from "../../lib/errors.js";
 import { aiSetting, chatMessages, foods, users, type ChatMessagePayload } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import * as provider from "../../lib/provider.js";
-import { plain } from "../../lib/text-normalizer.js";
+import { plain, normalizeChat } from "../../lib/text-normalizer.js";
 import { sessionTitle, type ChatHistoryEntry, type ChatSessionSummary } from "./sessions.js";
-import { readConstraints } from "./constraints.js";
+import { readConstraints, isReferenceKeyword, type Constraints } from "./constraints.js";
 import type { FoodWithCategory } from "./constraints.js";
-import { verifyReply } from "./grounding.js";
+import { dropTrailingQuestion, hasForeignScript, limitSentences, verifyReply } from "./grounding.js";
+import { hasFoodSignal, looksLikeGibberish, refersToLastPicks, wantsMoreDishes } from "./intent.js";
 import { searchChunks, type ScoredChunk } from "./retrieval.js";
 import { EXTRACT_PROMPT, REPLY_PROMPT } from "./prompts.js";
 
@@ -91,7 +92,35 @@ const asksForDrinkOrDessert = (criteria: Criteria): boolean => {
   return ["uong", "tra", "ca phe", "sinh to", "nuoc", "che", "banh", "trang mieng", "dessert"].some((k) => text.includes(k));
 };
 
-const extractCriteria = async (message: string, history: string[]): Promise<Criteria> => {
+const criteriaFromRegex = (c: Constraints): Criteria => ({
+  budget: c.budgetTotal,
+  people: c.people,
+  spicyMax: c.spicyMax,
+  spicyRequired: c.spicyRequired,
+  allergens: c.exclude,
+  diet: c.diets,
+  keywords: [],
+  categories: c.groups.map((g) => g.name),
+});
+
+/**
+ * Regex doc dung cac rang buoc ro rang (khong cay, chay, ngan sach, so nguoi) nen duoc quyen
+ * quyet dinh truoc AI: model nho hay bo sot "ko cay" va tra ve ca mon cay. AI chi bo sung
+ * tu khoa va loai mon, la nhung thu regex khong doc duoc.
+ */
+const mergeCriteria = (ai: Criteria, regex: Constraints): Criteria => ({
+  budget: regex.budgetTotal ?? ai.budget,
+  people: regex.people ?? ai.people,
+  spicyMax: regex.spicyMax ?? ai.spicyMax,
+  spicyRequired: regex.spicyRequired || ai.spicyRequired,
+  allergens: regex.exclude.length > 0 ? regex.exclude : ai.allergens,
+  diet: regex.diets.length > 0 ? regex.diets : ai.diet,
+  // "món đó", "mấy món trên" là đại từ, đem đi lọc ILIKE tên món thì ra rỗng.
+  keywords: ai.keywords.map((k) => k.trim()).filter((k) => k.length > 0 && !isReferenceKeyword(k)).slice(0, 5),
+  categories: ai.categories.length > 0 ? ai.categories : regex.groups.map((g) => g.name),
+});
+
+const extractCriteria = async (message: string, history: string[], regex: Constraints): Promise<Criteria> => {
   const historyText = history.length > 0 ? history.join("\n") : "(không có)";
   const prompt = EXTRACT_PROMPT;
   const userMsg = `CÂU HỎI TRƯỚC:\n${historyText}\n\nCÂU HỎI: ${message}`;
@@ -107,7 +136,7 @@ const extractCriteria = async (message: string, history: string[]): Promise<Crit
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
     const parsed = JSON.parse(jsonStr);
-    return {
+    const ai: Criteria = {
       budget: typeof parsed.budget === "number" && parsed.budget > 0 ? parsed.budget : null,
       people: typeof parsed.people === "number" && parsed.people > 0 && parsed.people <= 50 ? parsed.people : null,
       spicyMax: typeof parsed.spicyMax === "number" && parsed.spicyMax >= 0 && parsed.spicyMax <= 3 ? parsed.spicyMax : null,
@@ -117,37 +146,43 @@ const extractCriteria = async (message: string, history: string[]): Promise<Crit
       keywords: Array.isArray(parsed.keywords) ? parsed.keywords.filter((x: unknown) => typeof x === "string") : [],
       categories: Array.isArray(parsed.categories) ? parsed.categories.filter((x: unknown) => typeof x === "string") : [],
     };
+    return mergeCriteria(ai, regex);
   } catch {
-    // Fallback: regex
-    const c = readConstraints(message, []);
-    return {
-      budget: c.budgetTotal,
-      people: c.people,
-      spicyMax: c.spicyMax,
-      spicyRequired: c.spicyRequired,
-      allergens: c.exclude,
-      diet: c.diets,
-      keywords: [],
-      categories: c.groups.map((g) => g.name),
-    };
+    return criteriaFromRegex(regex);
   }
 };
 
 // --- Bước 3: SQL filter ---
 
-const filterMenu = async (
-  criteria: Criteria,
-  lastFoodIds: number[] | undefined | null,
-): Promise<FoodWithCategory[]> => {
-  const isFollowUp = lastFoodIds?.length && !criteria.keywords.length && !criteria.categories.length && !criteria.allergens.length && !criteria.diet.length;
+interface FilterOptions {
+  lastFoodIds?: number[] | null;
+  /** "mon khac": loai cac mon vua goi y de lan sau ra nhom mon khac. */
+  excludeIds?: number[];
+  /** "mon do/may mon tren": chi xet trong cac mon vua goi y. */
+  restrictToLast?: boolean;
+  /** Ten mon khop trong cau (regex), dung khi AI khong tra ve tu khoa nao. */
+  restrictIds?: number[];
+}
 
+const filterMenu = async (criteria: Criteria, options: FilterOptions): Promise<FoodWithCategory[]> => {
   const whereConditions: SQL[] = [eq(foods.available, true)];
 
-  if (isFollowUp) {
-    whereConditions.push(inArray(foods.id, lastFoodIds!));
+  if (options.restrictToLast && options.lastFoodIds?.length) {
+    whereConditions.push(inArray(foods.id, options.lastFoodIds));
+  }
+  if (options.restrictIds?.length) {
+    whereConditions.push(inArray(foods.id, options.restrictIds));
+  }
+  if (options.excludeIds?.length) {
+    whereConditions.push(notInArray(foods.id, options.excludeIds));
   }
   if (criteria.spicyMax != null) whereConditions.push(lte(foods.spicyLevel, criteria.spicyMax));
   if (criteria.spicyRequired) whereConditions.push(gt(foods.spicyLevel, 0));
+  // "Khong cay" phai chan ca mon co ten/nguyen lieu la ot, vi du lieu spicyLevel co the sai.
+  if (criteria.spicyMax === 0) {
+    whereConditions.push(sql`${foods.name} NOT ILIKE ${"%ớt%"}`);
+    whereConditions.push(sql`${foods.ingredients} NOT ILIKE ${"%ớt%"}`);
+  }
   const cap = perDishCap(criteria);
   if (cap != null) whereConditions.push(sql`${foods.price}::numeric <= ${cap}`);
   if (criteria.allergens?.length) {
@@ -226,22 +261,34 @@ const generateReply = async (
     .replace("%s", menuText || "(trống)")
     .replace("%s", message);
 
-  let raw: string;
-  try {
-    raw = await provider.generate(prompt, "", false, {
-      timeoutMs: provider.AI_TIMEOUTS.reply,
-      maxOutputTokens: provider.AI_MAX_OUTPUT_TOKENS,
-    });
-  } catch {
-    throw new HttpError(502, "Trợ lý AI đang gặp sự cố, quý khách vui lòng thử lại sau ít phút.");
+  const callOnce = async (): Promise<string> => {
+    try {
+      return await provider.generate(prompt, "", false, {
+        timeoutMs: provider.AI_TIMEOUTS.reply,
+        maxOutputTokens: provider.AI_MAX_OUTPUT_TOKENS,
+      });
+    } catch {
+      throw new HttpError(502, "Trợ lý AI đang gặp sự cố, quý khách vui lòng thử lại sau ít phút.");
+    }
+  };
+
+  // Model nho thinh thoang lot tieng Thai/Trung vao cau; thu lai mot lan roi moi bao loi.
+  let raw = await callOnce();
+  if (hasForeignScript(raw)) {
+    console.warn("[chatbot] cau tra loi lan 1 lan ngon ngu khac, goi lai");
+    raw = await callOnce();
+    if (hasForeignScript(raw)) {
+      throw new HttpError(502, "Trợ lý AI đang trả lời chưa đúng, quý khách vui lòng thử lại.");
+    }
   }
 
-  // Model nho hay copy lai dinh dang danh sach (kem ID); bo phan dinh dang con sot.
-  const reply = raw
+  // Model nho hay copy lai dinh dang danh sach va dat cau hoi cuoi cau; don sach truoc khi tra ve.
+  const cleaned = raw
     .replace(/^\s*[-*•]\s*/gm, "")
     .replace(/\s*[-–]\s*\d{1,3}\.\d{3}đ\s*-\s*.+$/gm, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+  const reply = limitSentences(dropTrailingQuestion(cleaned));
 
   if (!reply) throw new HttpError(502, "Trợ lý AI chưa trả lời được, quý khách vui lòng thử lại.");
   return reply;
@@ -316,7 +363,7 @@ export const chat = async (
     await db.insert(chatMessages).values({ userId: user.id, sessionId, sender: "USER", content: input.message.slice(0, 4000), payload: null });
   }
 
-  const p = plain(input.message);
+  const p = plain(normalizeChat(input.message));
 
   // Xu ly graceful cho input khong ro: "Xac nhan", single word, etc.
   if (p === "xac nhan" || p === "xacnhan" || p === "ok" || p === "dong y") {
@@ -346,14 +393,47 @@ export const chat = async (
     return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?", "Cách đặt món thế nào?"] };
   }
 
-  // Bước 1: Trích tiêu chí (AI call 1)
-  const criteria = await extractCriteria(input.message, history);
+  // Cam on / tam biet: tra loi lien, khong de roi vao nhanh ngoai pham vi.
+  if (["cam on", "thank", "thanks", "tam biet", "bye"].some((k) => p === k || p.startsWith(`${k} `))) {
+    const reply = "Rất vui được hỗ trợ quý khách. Khi cần gợi ý món, quý khách cứ nhắn số người và ngân sách nhé!";
+    if (user) await db.insert(chatMessages).values({ userId: user.id, sessionId, sender: "BOT", content: reply, payload: { intent: "GREETING", quickReplies: [] } as ChatMessagePayload });
+    return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: ["Gợi ý món cho 2 người"] };
+  }
 
-  // Bước 2: SQL filter
-  const filtered = await filterMenu(criteria, input.lastFoodIds);
+  // Cau khong nhac gi toi mon an va khong co rang buoc nao: tra loi ngoai pham vi luon.
+  // Khong goi AI, khong tra the mon: "hom nay la thu may" ma tra ve 5 the mon la sai.
+  // Chi lay id + ten de doi chieu ten mon khach goi, khong keo ca ban ghi.
+  const dishRows = await db.query.foods.findMany({ columns: { id: true, name: true } });
+  const regex = readConstraints(input.message, dishRows);
+  const hasConstraints = regex.budgetTotal != null || regex.people != null || regex.spicyMax != null
+    || regex.diets.length > 0 || regex.groups.length > 0 || regex.dishes.length > 0;
+  if (looksLikeGibberish(p) || (!hasFoodSignal(p) && !hasConstraints)) {
+    const reply = "Tôi chỉ tư vấn về món ăn của quán: gợi ý món theo số người, ngân sách, khẩu vị, thông tin quán và cách đặt món. Quý khách thử hỏi lại theo các mục đó nhé.";
+    if (user) {
+      await db.insert(chatMessages).values({
+        userId: user.id, sessionId, sender: "BOT", content: reply,
+        payload: { intent: "OUT_OF_SCOPE", quickReplies: [] } as ChatMessagePayload,
+      });
+    }
+    return { reply, foods: [], intent: "OUT_OF_SCOPE", citations: null, quickReplies: ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?"] };
+  }
+
+  // Bước 1: Trích tiêu chí (AI call 1), gop voi rang buoc regex doc duoc.
+  const message = normalizeChat(input.message);
+  const criteria = await extractCriteria(message, history, regex);
+
+  // Bước 2: SQL filter. "Mon khac" thi loai mon vua goi y; "mon do" thi chi xet may mon do.
+  const more = wantsMoreDishes(p);
+  const filtered = await filterMenu(criteria, {
+    lastFoodIds: input.lastFoodIds,
+    excludeIds: more && input.lastFoodIds?.length ? input.lastFoodIds : undefined,
+    restrictToLast: !more && refersToLastPicks(p),
+    // Khach goi ten mon ("com ga xoi mo") nhung AI khong tra tu khoa: dung ten regex da khop.
+    restrictIds: criteria.keywords.length === 0 ? regex.dishes : undefined,
+  });
 
   // Bước 3: AI viết reply (call 2)
-  const reply = await generateReply(input.message, criteria, filtered);
+  const reply = await generateReply(message, criteria, filtered);
 
   // Bước 4: Finalize
   return finalize(filtered, reply, criteria.people, email, sessionId);

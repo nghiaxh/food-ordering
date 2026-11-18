@@ -1,9 +1,12 @@
 import { z } from "zod";
-import { plain } from "../../lib/text-normalizer.js";
+import { normalizeChat, plain } from "../../lib/text-normalizer.js";
 import type { Category, Food } from "../../db/schema.js";
 
 // Kieu dung chung cho mon an kem danh muc; truoc nam trong plan.ts (da xoa).
 export type FoodWithCategory = Food & { category: Category | null };
+
+// Chi can id + ten de doi chieu ten mon khach goi, khong keo ca ban ghi.
+export type DishName = { id: number; name: string | null };
 
 // Kieu mon da chon de hien thi the (portions + tong tien). Truoc nam trong plan.ts (da xoa).
 export interface Picked {
@@ -28,11 +31,15 @@ export interface Constraints {
 }
 
 // Doc rang buoc tu cau hoi bang regex, khong goi AI.
-export function readConstraints(question: string, menu: FoodWithCategory[]): Constraints {
-  const p = plain(question);
+export function readConstraints(question: string, menu: DishName[]): Constraints {
+  // Teencode "ko cay" phai thanh "khong cay" truoc khi doc, khong thi lot mon cay.
+  const text = normalizeChat(question);
+  const p = plain(text);
   const noSpicy = p.includes("khong cay");
   const spicy = !noSpicy && p.includes("cay");
   const excludeSeafood = p.includes("hai san") && (p.includes("khong") || p.includes("di ung") || p.includes("tranh"));
+  // "khong chay" la phu dinh chu khong phai yeu cau mon chay.
+  const vegetarian = p.includes("chay") && !p.includes("khong chay");
 
   const exclude: string[] = [];
   if (excludeSeafood) exclude.push("hải sản");
@@ -41,14 +48,14 @@ export function readConstraints(question: string, menu: FoodWithCategory[]): Con
   if (p.includes("khong dau phong") || p.includes("di ung dau phong")) exclude.push("đậu phộng");
 
   const diets: string[] = [];
-  if (p.includes("chay")) diets.push("chay");
+  if (vegetarian) diets.push("chay");
 
   // Doc ngan sach va so nguoi (tu filters.ts cu)
-  const budget = parseBudget(question);
-  const people = parsePeople(question);
+  const budget = parseBudget(text);
+  const people = parsePeople(text);
 
   // Doc ten mon khach goi dich danh
-  const dishes = matchDishes(question, menu);
+  const dishes = matchDishes(text, menu);
 
   // Doc loai mon (nhom) tu cau: "mot mon chinh va mot mon uong"
   const groups: { name: string; count: number }[] = [];
@@ -60,7 +67,7 @@ export function readConstraints(question: string, menu: FoodWithCategory[]): Con
   return {
     spicyMax: noSpicy ? 0 : null,
     spicyRequired: spicy,
-    chay: p.includes("chay"),
+    chay: vegetarian,
     exclude,
     diets,
     dishes,
@@ -107,7 +114,7 @@ export function parsePeople(question: string): number | null {
  * Chieu so khop: TEN MON phai nam trong CAU (khong phai nguoc lai).
  * Chi nhan ten >= 2 tu hoac >= 5 ky tu.
  */
-export function matchDishes(text: string, menu: FoodWithCategory[]): number[] {
+export function matchDishes(text: string, menu: DishName[]): number[] {
   const p = plain(text);
   const matches: { id: number; len: number }[] = [];
   for (const food of menu) {
