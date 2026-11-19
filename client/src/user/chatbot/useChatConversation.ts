@@ -22,6 +22,28 @@ const CHATBOT_OFF_NOTICE = 'Trợ lý AI chưa được cấu hình, vui lòng t
 const PROGRESS_TEXTS = ['Đang phân tích...', 'Đang tra cứu...', 'Đang soạn câu trả lời...'];
 const PROGRESS_INTERVAL_MS = 3000;
 
+/** Giu phan hoi hien it nhat 2s de khong nhay qua nhanh khi server tra ve tuc thi. */
+const MIN_REPLY_MS = 2000;
+
+/** Cho du thoi gian toi thieu; tra false neu nguoi dung huy giua luc cho. */
+const waitMinimumReply = (startedAt: number, signal: AbortSignal): Promise<boolean> => {
+  if (signal.aborted) return Promise.resolve(false)
+  const remaining = MIN_REPLY_MS - (Date.now() - startedAt)
+  if (remaining <= 0) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    let timer = 0
+    const onAbort = () => {
+      window.clearTimeout(timer)
+      resolve(false)
+    }
+    timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve(true)
+    }, remaining)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
 const greetingMessages = (): ChatMessage[] => [
   { sender: 'BOT', content: GREETING_INTRO },
   { sender: 'BOT', content: GREETING_TASKS },
@@ -157,8 +179,11 @@ export const useChatConversation = () => {
     const epoch = requestEpoch
     abortController = new AbortController()
     const signal = abortController.signal
+    const startedAt = Date.now()
     try {
       const res = await chat(text, sessionId.value, signal)
+      if (epoch !== requestEpoch) return
+      if (!(await waitMinimumReply(startedAt, signal))) return
       if (epoch !== requestEpoch) return
       clearProgress()
       error.value = false
@@ -169,8 +194,10 @@ export const useChatConversation = () => {
       pushBotMessage(res.reply, foods, citations, intent, quickReplies)
     } catch (e) {
       if (epoch !== requestEpoch) return
-      clearProgress()
       if ((e as { name?: string }).name === 'CanceledError' || (e as { code?: string }).code === 'ERR_CANCELED') return
+      if (!(await waitMinimumReply(startedAt, signal))) return
+      if (epoch !== requestEpoch) return
+      clearProgress()
       const httpStatus = (e as { response?: { status?: number } }).response?.status
       if (httpStatus === 429) {
         error.value = true

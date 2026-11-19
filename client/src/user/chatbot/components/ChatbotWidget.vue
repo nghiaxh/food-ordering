@@ -308,7 +308,7 @@ const renderedMessages = computed(() => messages.value)
             </div>
           </template>
 
-          <div v-if="loading" role="status" class="rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
+          <div v-if="loading" role="status" class="w-fit max-w-[92%] rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
             <span class="text-xs text-stone-500">{{ statusText ?? 'Đang trả lời...' }}</span>
           </div>
 
