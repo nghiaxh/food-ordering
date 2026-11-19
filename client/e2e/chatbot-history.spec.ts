@@ -65,7 +65,7 @@ const mockHistory = async (page: Page) => {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sessions()) })
     }
     if (request.method() === 'GET' && sessionId !== null) {
-      const detail = details[sessionId]
+      const detail = details[sessionId === 'latest' ? 'session-lunch' : sessionId]
       if (!detail) {
         return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: 'Không tìm thấy hội thoại' }) })
       }
@@ -163,5 +163,5 @@ test('Chat cache owned by another account is dropped on sign-in', async ({ page,
   await openChat(page)
 
   await expect(page.getByText('Món riêng của tài khoản trước')).toHaveCount(0)
-  await expect(page.getByText('Chào bạn! Mình là trợ lý đặt món của quán.')).toBeVisible()
+  await expect(page.getByText('Chào quý khách! Tôi là trợ lý đặt món của quán.')).toBeVisible()
 })
