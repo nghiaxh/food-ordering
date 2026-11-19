@@ -15,6 +15,9 @@ config({
   quiet: true,
 });
 
+const DEFAULT_AI_MODELS = "gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.6-flash";
+const DEFAULT_EMBEDDING_MODELS = "gemini-embedding-2";
+
 const schema = z.object({
   // Compose dung DATABASE_URL tu DB_*; chay local khong co thi tu ghep tu DB_* hoac fallback mac dinh.
   DATABASE_URL: z.string().optional(),
@@ -25,10 +28,9 @@ const schema = z.object({
   DB_PORT: z.coerce.number().default(5432),
   JWT_SECRET: z.string().min(32, "JWT_SECRET phai co it nhat 32 ky tu"),
   JWT_EXPIRATION_MS: z.coerce.number().default(86_400_000),
-  AI_API_KEY: z.string().default(""),
   AI_API_KEYS: z.string().default(""),
-  AI_MODEL: z.string().default("gemini-3.5-flash-lite"),
-  EMBEDDING_MODEL: z.string().default("gemini-embedding-2"),
+  AI_MODELS: z.string().default(DEFAULT_AI_MODELS).transform((v) => v.trim() || DEFAULT_AI_MODELS),
+  EMBEDDING_MODELS: z.string().default(DEFAULT_EMBEDDING_MODELS).transform((v) => v.trim() || DEFAULT_EMBEDDING_MODELS),
   UPLOAD_DIR: z.string().default("uploads"),
   PORT: z.coerce.number().default(8080),
 });

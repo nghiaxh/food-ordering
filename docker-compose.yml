@@ -34,10 +34,9 @@ services:
       DB_NAME: ${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
-      AI_API_KEY: ${AI_API_KEY}
       AI_API_KEYS: ${AI_API_KEYS}
-      AI_MODEL: ${AI_MODEL}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      AI_MODELS: ${AI_MODELS}
+      EMBEDDING_MODELS: ${EMBEDDING_MODELS}
       UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"

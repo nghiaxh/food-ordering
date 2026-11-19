@@ -85,6 +85,7 @@ export const composeFoodReply = async (
     });
   } catch (e) {
     if (e instanceof provider.AiRateLimitedException) throw new HttpError(429, "Quá nhiều yêu cầu, quý khách vui lòng thử lại sau ít phút.");
+    console.warn(`[ai] goi y mon that bai: ${e instanceof Error ? e.message : String(e)}`);
     throw new HttpError(502, "Trợ lý AI đang gặp sự cố, quý khách vui lòng thử lại sau ít phút.");
   }
 

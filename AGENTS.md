@@ -16,19 +16,20 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   `src/middleware/` (auth, error), tiện ích ở `src/lib/`.
 - **AI** - `server/src/lib/provider.ts` là lớp DUY NHẤT gọi API AI (`generate` với `jsonMode` ép
   JSON, timeout 15s mặc định) và DUY NHẤT sinh vector embedding (`embed`, `embedBatch`). Chỉ hỗ trợ
-  Gemini (`@google/genai`); hỗ trợ nhiều khoá qua `AI_API_KEYS` (phân tách dấu phẩy/xuống dòng) hoặc
-  `AI_API_KEY` (đơn), tự xoay khoá khi một khoá bị 429 và loại khoá bị từ chối (401/403 hoặc
-  `API_KEY_INVALID`) tới khi khởi động lại server. Tên mô hình chat theo `AI_MODEL` (mặc định
-  `gemini-3.5-flash-lite`), mô hình embedding theo `EMBEDDING_MODEL` (mặc định `gemini-embedding-2`),
-  cả hai trống thì tự dò. Vector 768 chiều (`EMBEDDING_DIM`). Muốn thêm nhà cung cấp khác chỉ sửa
-  file này. Khoá không bao giờ gửi xuống client.
+  Gemini (`@google/genai`); khoá đọc từ `AI_API_KEYS`, model chat từ `AI_MODELS`, model embedding từ
+  `EMBEDDING_MODELS`; cả ba nhận một giá trị hoặc danh sách phân tách dấu phẩy/xuống dòng. Tự xoay
+  khoá khi một khoá bị 429 và loại khoá bị từ chối (401/403 hoặc `API_KEY_INVALID`) tới khi khởi
+  động lại server. Danh sách model mặc định `gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.6-flash`;
+  gặp 503/404/timeout thì xoay model kế tiếp, model 404 bị loại tới khi restart, model 503/timeout
+  nghỉ 60s. Vector 768 chiều (`EMBEDDING_DIM`). Muốn thêm nhà cung cấp khác chỉ sửa file này. Khoá
+  không bao giờ gửi xuống client.
   Trang Chatbot của admin chỉ lưu `max_suggestions` và `extra_rules`; model/embedding đọc từ biến
   môi trường, không hardcode `gemini`.
-- **Chịu tải provider**: `provider.ts` retry tối đa 2 lần cho 429/5xx (delay 600ms rồi 1800ms, tôn
-  trọng `Retry-After` cap 5s) và **khoá gọi AI 25s** sau một 429 thật (`AiRateLimitedException`, đọc
-  bằng `isRateLimited()`); trong lúc khoá, `generate()` không gọi provider mà ném lỗi luôn. Timeout
-  riêng theo bước (`AI_TIMEOUTS.extract` 10s, `AI_TIMEOUTS.reply` 12s, `embed` 8s). Prompt trả lời
-  chỉ gửi tên/giá/loại của tối đa 10 món.
+- **Chịu tải provider**: `provider.ts` retry tối đa 2 lần cho 5xx (delay 600ms rồi 1800ms), khoá
+  25s sau một 429 thật và xoay khoá khác (`AiRateLimitedException`), model 503/timeout nghỉ 60s
+  rồi xoay model kế tiếp, deadline tổng 30s. Timeout riêng theo bước (`AI_TIMEOUTS.reply` 20s,
+  `embed` 8s); `thinkingBudget: 0` chỉ gửi cho model flash không phải lite. Prompt trả lời chỉ gửi
+  tên/giá/loại của tối đa 10 món.
 - **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
   client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
   (Drizzle Studio). Service `database` không khai báo `profiles` nên Postgres luôn chạy theo mọi
@@ -96,7 +97,7 @@ Thẻ món luôn lấy ID/giá từ DB nên không có chuyện AI bịa món.
 - Retrieval: `searchChunks` nhúng câu hỏi, cosine top 5, ngưỡng 0.55, chỉ tài liệu `enabled`; thiếu vector -> rỗng.
 - Trả lời: `service.ts` ghép bullet trích chunk (cắt 400 ký tự) kèm `citations`, không gọi AI lượt 2; rỗng -> "Mình chưa có thông tin xác thực...".
 - Bỏ hoàn toàn tsvector và `keywordSearchKnowledge`. Không còn fallback keyword.
-- Model embedding: 768 chiều, chọn theo `EMBEDDING_MODEL`, trống thì tự dò.
+- Model embedding: 768 chiều, chọn theo `EMBEDDING_MODELS` (danh sách, mặc định `gemini-embedding-2`).
 - Image Postgres: `pgvector/pgvector:0.8.7-pg18`. Extension `vector`, cột `vector(768)`, HNSW index `vector_cosine_ops`.
 - `verifyReply` (chatbot/grounding.ts) chỉ kiểm độ dài <= 800 ký tự; vi phạm chỉ ghi log, không chặn khách.
 
@@ -121,10 +122,10 @@ khi đổi tài khoản; mỗi lần đổi chủ hoặc làm mới hội thoạ
 của chủ cũ bị bỏ, không rơi vào hội thoại mới. Tin khách gửi trước khi đăng nhập không được tải lên server.
 
 **Thiếu hoặc hỏng khoá AI**: `lib/provider.ts` `isConfigured()` false khi không có khoá nào còn sống,
-tức `AI_API_KEYS`/`AI_API_KEY` rỗng **hoặc** mọi khoá đều bị từ chối (401/403, hay 400 kèm
+tức `AI_API_KEYS` rỗng **hoặc** mọi khoá đều bị từ chối (401/403, hay 400 kèm
 `API_KEY_INVALID`); cờ "bị từ chối" giữ tới khi khởi động lại server. Hết khoá khả dụng tạm thời
-(429) thì tất cả khoá còn sống đều đang cooldown. `GET /api/chatbot/status` gọi `verifyKey()` (probe
-Gemini, lỗi tạm thời được coi là vẫn dùng được và thử lại sau 5 phút).
+(429) thì tất cả khoá còn sống đều đang cooldown. `GET /api/chatbot/status` gọi `verifyKey()`; chỉ
+trả `available = true` khi có ít nhất một model trả lời, kết quả false giữ 60s còn true giữ 5 phút.
 Khi không dùng được:
 - `chat()` ném `503 SERVICE_UNAVAILABLE` trước khi lưu câu hỏi hay chọn món.
 - status trả `available = false` để client khoá ô nhập, hiện banner.
@@ -203,10 +204,10 @@ Khi không dùng được:
   `filter.ts`/`scoring.ts`/`plan.ts`: không chấm điểm, không chọn bộ.
 - **RAG chỉ dùng pgvector**: bỏ tsvector và `keywordSearchKnowledge`. Provider không dùng được -> RAG
   trả "Mình chưa có thông tin". Upload + chunk không gọi AI, luôn chạy. Embed chỉ khi `isConfigured()`.
-- **AI chỉ hoạt động khi `isConfigured()`**: cần ít nhất một khoá Gemini còn sống trong `AI_API_KEYS`/
-  `AI_API_KEY`. Thiếu cấu hình thì `chat()` trả 503, không có code mode gợi ý món.
-- **Hai model riêng**: chat theo `AI_MODEL` > `ai_setting.model`; embedding theo `EMBEDDING_MODEL` >
-  `ai_setting.embedding_model`; cả hai tự dò nếu để trống. Cùng provider nên dùng chung khoá.
+- **AI chỉ hoạt động khi `isConfigured()`**: cần ít nhất một khoá Gemini còn sống trong `AI_API_KEYS`.
+  Thiếu cấu hình thì `chat()` trả 503, không có code mode gợi ý món.
+- **Hai danh sách model riêng**: chat theo `AI_MODELS`; embedding theo `EMBEDDING_MODELS`; mỗi biến
+  nhận một giá trị hoặc danh sách, trống thì dùng danh sách mặc định. Cùng provider nên dùng chung khoá.
 - **Pipeline**: `intent` -> `extract` (AI call 1) -> `mergeCriteria` (regex thắng) -> `filterMenu`
   (SQL) -> `reply` (AI call 2) -> `toCard` (số phần + tổng tiền từ DB). Không còn `parse/pick/reply`
   template.
@@ -296,7 +297,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - `docker compose up` (không profile) chỉ khởi động Postgres.
 - Compose tự dựng `DATABASE_URL` từ `DB_NAME`; `UPLOAD_DIR=/app/uploads`.
   Các biến còn lại đọc từ `.env`, tên khớp cấu hình server (`DB_USER`/`DB_PASSWORD`, `JWT_SECRET`,
-  `JWT_EXPIRATION_MS`, `AI_API_KEYS`, `AI_API_KEY`, `AI_MODEL`, `EMBEDDING_MODEL`).
+  `JWT_EXPIRATION_MS`, `AI_API_KEYS`, `AI_MODELS`, `EMBEDDING_MODELS`).
 
 ## Quy ước comment và tài liệu
 
@@ -357,11 +358,11 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   dùng class `orange-*`, không dùng `amber-*` (màu của khu khách) và không tự đặt hex.
 - **Seed bị bỏ qua nếu DB đã có user.** Đổi dữ liệu mẫu (ví dụ mật khẩu demo) thì database cũ
   vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
-- **`AI_API_KEY` trong `.env` phải là khóa thật** khi dùng Gemini. Để trống, sai hoặc hết hạn thì
-  trợ lý bị khóa hẳn ngay khi mở trang: `/api/chatbot/status` trả `available = false`, khung chat hiện
-  banner và khóa ô nhập. Đó là hành vi dự kiến chứ không phải lỗi code. Muốn demo luồng có gợi ý món
-  thì phải thay khoá thật rồi khởi động lại server (kết quả kiểm tra khóa cũ được giữ trong bộ nhớ).
-  Nhiều khoá Gemini thì đặt `AI_API_KEYS=key1,key2` (hoặc giữ `AI_API_KEY` cho một khoá).
+- **`AI_API_KEYS` trong `.env` phải là khoá thật** khi dùng Gemini. Để trống, sai hoặc hết hạn thì
+  trợ lý bị khoá hẳn ngay khi mở trang: `/api/chatbot/status` trả `available = false`, khung chat hiện
+  banner và khoá ô nhập. Đó là hành vi dự kiến chứ không phải lỗi code. Muốn demo luồng có gợi ý món
+  thì phải thay khoá thật rồi khởi động lại server (kết quả kiểm tra khoá cũ được giữ trong bộ nhớ).
+  Nhiều khoá Gemini thì đặt `AI_API_KEYS=key1,key2`.
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.
 - **pgvector yêu cầu image `pgvector/pgvector:0.8.7-pg18`**. Volume cũ dùng lại được (cùng major 18). Chạy `CREATE EXTENSION IF NOT EXISTS vector;` trong migration trước khi thêm cột `vector(768)`.
 - **Embedding chỉ chạy khi provider dùng được.** Cần ít nhất một khoá Gemini còn sống. Không dùng được thì chunk vẫn lưu nhưng thiếu vector. Admin bấm "Tạo embedding" khi provider sẵn sàng; `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
