@@ -118,16 +118,8 @@ export interface Review {
 export interface FoodCard {
   id: number
   name: string
-  price: string
-  imageUrl: string
+  imageUrl: string | null
   categoryName: string | null
-  /**
-   * So phan khach can de du cho so nguoi an. Lon hon 1 khi khach noi ro so nguoi va khau
-   * phan cua mon nho hon so do; server da tinh san nen client khong tu suy luan lai.
-   */
-  portions?: number
-  /** Tong tien cua `portions` phan, dung de khach thay dung so tien phai tra. */
-  totalPrice?: string
 }
 
 /** Nguon trich dan khi bot tra tai lieu quan; client hien duoi cau tra loi. */

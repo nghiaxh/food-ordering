@@ -7,7 +7,6 @@ import dateViVN from 'naive-ui/es/locales/date/viVN'
 import ScrollManager from '@/components/ScrollManager.vue'
 import { useAuthStore } from '@/user/auth/store'
 import { useCartStore } from '@/user/cart/store'
-import { syncChatOwner } from '@/user/chatbot/useChatConversation'
 
 // Dong bo gio khi doi trang thai dang nhap: da dang nhap thi tai gio tu server,
 // dang xuat thi xoa gio cua tai khoan khoi state. Khach vang lai khong co gio.
@@ -19,14 +18,6 @@ watch(
     if (user) void cart.load()
     else cart.resetLocal()
   },
-  { immediate: true },
-)
-
-// Cache chatbot gan chu so huu; dat o day vi widget chi mount o layout khach, con trang
-// dang nhap/dang ky thi khong, nen doi tai khoan o do se khong tu don cache.
-watch(
-  () => auth.user?.id ?? null,
-  (id) => syncChatOwner(id),
   { immediate: true },
 )
 </script>

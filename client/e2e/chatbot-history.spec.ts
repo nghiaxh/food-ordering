@@ -11,11 +11,8 @@ const demoEmail = 'tuanpham@demo.com'
 const foodCard = {
   id: 1,
   name: 'Cơm tấm sườn',
-  price: '45000',
   imageUrl: null,
   categoryName: 'Món chính',
-  portions: 2,
-  totalPrice: '90000',
 }
 
 const sessionSummary = (sessionId: string, title: string, updatedAt: string, messageCount = 2) => ({

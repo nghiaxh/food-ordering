@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasFoodSignal, looksLikeGibberish, refersToLastPicks, wantsMoreDishes } from "../src/user/chatbot/intent.js";
+import { hasFoodSignal, looksLikeGibberish, refersToLastPicks, wantsMoreDishes } from "../src/user/chatbot/parse.js";
 
 // Cau khong co tin hieu mon an phai bi chan truoc khi goi AI, neu khong tro ly
 // tra ve the mon cho ca cau hoi ngoai pham vi ("hom nay la thu may").

@@ -9,5 +9,6 @@ export const chatRateLimiter = rateLimit({
   limit: 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  keyGenerator: (req) => (req.user?.id ? `user:${req.user.id}` : req.ip ?? "unknown"),
   message: { message: "Bạn gửi quá nhiều câu hỏi, vui lòng thử lại sau ít phút." },
 });
