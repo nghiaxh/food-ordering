@@ -4,10 +4,8 @@ import { API_URL, listFoods } from './extended-api'
 export interface ChatFoodCard {
   id: number
   name: string
-  price: string
+  imageUrl: string | null
   categoryName: string | null
-  portions?: number
-  totalPrice?: string
 }
 
 export interface ChatResponse {

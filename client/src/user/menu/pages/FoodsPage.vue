@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/user/auth/store'
 import { NButton, NDropdown, NEmpty, NIcon } from 'naive-ui'
 import { AlertCircleOutline, ChevronDown } from '@vicons/ionicons5'
 import { getCategories, getFoods } from '@/user/menu/api'
@@ -52,6 +53,7 @@ const hasDietTag = (food: Food, tag: string) =>
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const scroller = ref<HTMLElement | null>(null)
 const ui = useUiStore()
 
@@ -197,7 +199,13 @@ const pageButtonClass = (active: boolean) =>
 
 const sortOptions = SORTS.map((s) => ({ key: s.value, label: s.label }))
 const onSort = (key: string | number) => patch({ sort: key === 'default' ? undefined : String(key) })
-const askAi = () => ui.openChat()
+const askAi = () => {
+  if (auth.user?.role !== 'CUSTOMER') {
+    void router.push('/login')
+    return
+  }
+  ui.openChat()
+}
 </script>
 
 <template>

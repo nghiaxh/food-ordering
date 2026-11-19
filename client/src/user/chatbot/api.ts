@@ -16,13 +16,14 @@ export interface ChatResponse {
 export const chat = (
   message: string,
   sessionId: string,
-  history: string[] = [],
-  lastFoodIds: number[] = [],
   signal?: AbortSignal,
 ) =>
   http
-    .post<ChatResponse>('/chatbot/chat', { message, sessionId, history, lastFoodIds }, { signal })
+    .post<ChatResponse>('/chatbot/chat', { message, sessionId }, { signal })
     .then((r) => r.data)
+
+export const getLatestChatSession = () =>
+  http.get<{ sessionId: string | null; messages: ChatHistoryEntry[] }>('/chatbot/sessions/latest').then((r) => r.data)
 
 export const getChatbotStatus = (signal?: AbortSignal) =>
   http.get<{ available: boolean; notice: string | null }>('/chatbot/status', { signal }).then((r) => r.data)

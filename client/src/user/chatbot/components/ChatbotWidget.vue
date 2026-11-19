@@ -6,7 +6,6 @@ import {
   ChatbubbleOutline,
   CloseOutline,
   SendOutline,
-  CartOutline,
   RefreshOutline,
   StopCircleOutline,
   TimeOutline,
@@ -14,13 +13,13 @@ import {
   TrashOutline,
   ExpandOutline,
   ContractOutline,
+  ChevronForwardOutline,
 } from '@vicons/ionicons5'
-import type { Food, FoodCard } from '@/shared/types'
-import { formatVND, formatRelativeTime } from '@/shared/utils/format'
+
+import { formatRelativeTime } from '@/shared/utils/format'
 import { useHasBottomBar } from '@/composables/useHasBottomBar'
 import { useChatConversation, GREETING_STARTERS } from '@/user/chatbot/useChatConversation'
 import { useAuthStore } from '@/user/auth/store'
-import { useCartStore } from '@/user/cart/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 import { message } from '@/shared/api/message'
 
@@ -31,7 +30,6 @@ const route = useRoute()
 const bottomBar = useHasBottomBar()
 const ui = useUiStore()
 const auth = useAuthStore()
-const cart = useCartStore()
 
 const {
   input, setInput, loading, statusText, error, messages,
@@ -95,7 +93,6 @@ const panelClass = computed(() =>
 )
 
 const isAdmin = computed(() => route.path.startsWith('/admin') || auth.user?.role === 'ADMIN')
-const canAdd = computed(() => auth.user !== null && auth.user.role !== 'ADMIN')
 const canUseHistory = computed(() => auth.user?.role === 'CUSTOMER')
 
 // Dong khung chat thi thoat man lich su va hien luon cau dang go; mo lai thi bam day tin moi nhat.
@@ -141,12 +138,6 @@ const showStarters = computed(
 )
 const renderedMessages = computed(() => messages.value)
 
-const handleAdd = async (f: FoodCard) => {
-  if (!canAdd.value) return
-  const portions = f.portions && f.portions > 0 ? f.portions : 1
-  const ok = await cart.add(f as unknown as Food, portions)
-  if (ok) message.success(`Đã thêm ${portions}x ${f.name} vào giỏ!`)
-}
 </script>
 
 <template>
@@ -277,31 +268,13 @@ const handleAdd = async (f: FoodCard) => {
                 </p>
 
                 <div v-if="m.foods && m.foods.length > 0" class="chat-rise mt-2 divide-y divide-stone-100 overflow-hidden rounded-xl bg-white ring-1 ring-stone-200/70">
-                  <RouterLink v-for="f in m.foods" :key="f.id" :to="`/foods/${f.id}`" data-testid="chatbot-food-card" class="flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-orange-50">
+                  <RouterLink v-for="f in m.foods" :key="f.id" :to="`/foods/${f.id}`" data-testid="chatbot-food-card" class="flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-orange-50" :aria-label="`Xem chi tiết ${f.name}`">
                     <img :src="f.imageUrl ?? ''" :alt="f.name" loading="lazy" class="h-10 w-10 shrink-0 rounded-lg object-cover" />
-                    <span class="min-w-0 flex-1 truncate text-sm font-medium text-stone-800">
-                      {{ f.name }}
-                      <span v-if="f.portions && f.portions > 1" class="ml-1.5 text-xs font-normal text-stone-500">x{{ f.portions }} phần</span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-medium text-stone-800">{{ f.name }}</span>
+                      <span v-if="f.categoryName" class="block truncate text-xs text-stone-500">{{ f.categoryName }}</span>
                     </span>
-                    <span data-testid="chatbot-food-total" class="shrink-0 text-sm font-bold tabular-nums text-orange-700">
-                      {{ f.portions && f.portions > 1 && f.totalPrice ? formatVND(Number(f.totalPrice)) : formatVND(Number(f.price)) }}
-                    </span>
-                    <NTooltip :disabled="canAdd">
-                      <template #trigger>
-                        <span class="ml-1 inline-flex shrink-0" @click="!canAdd && $event.preventDefault()">
-                          <button
-                            type="button"
-                            :disabled="!canAdd"
-                            :aria-label="`Thêm ${f.name} vào giỏ`"
-                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-orange-700 transition hover:bg-orange-600 hover:text-white disabled:pointer-events-none disabled:bg-stone-100 disabled:text-stone-400"
-                            @click.stop="handleAdd(f)"
-                          >
-                            <NIcon :size="14"><CartOutline /></NIcon>
-                          </button>
-                        </span>
-                      </template>
-                      {{ auth.user?.role === 'ADMIN' ? 'Tài khoản quản trị không đặt món' : 'Đăng nhập để thêm món vào giỏ' }}
-                    </NTooltip>
+                    <NIcon class="shrink-0 text-stone-400" :size="16"><ChevronForwardOutline /></NIcon>
                   </RouterLink>
                 </div>
 

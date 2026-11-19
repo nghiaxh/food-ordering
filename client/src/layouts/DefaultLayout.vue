@@ -38,5 +38,5 @@ watch(
   </div>
   <CartDrawer />
   <NotificationsDrawer />
-  <ChatbotWidget />
+  <ChatbotWidget v-if="auth.user?.role === 'CUSTOMER'" />
 </template>

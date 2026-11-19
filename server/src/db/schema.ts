@@ -208,11 +208,8 @@ export interface ChatMessagePayload {
   foods?: Array<{
     id: number;
     name: string;
-    price: string;
     imageUrl: string | null;
     categoryName: string | null;
-    portions: number;
-    totalPrice: string;
   }>;
   intent?: string;
   citations?: Array<{ sourceName: string; snippet: string }> | null;
