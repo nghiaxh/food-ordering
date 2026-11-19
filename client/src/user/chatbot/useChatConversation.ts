@@ -18,6 +18,10 @@ export const GREETING_STARTERS = [
 
 const CHATBOT_OFF_NOTICE = 'Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.'
 
+/** Trang thai tieu trinh: chat server tra 1 response tu luc dau, khong stream. */
+const PROGRESS_TEXTS = ['Đang phân tích...', 'Đang tra cứu...', 'Đang soạn câu trả lời...'];
+const PROGRESS_INTERVAL_MS = 3000;
+
 const greetingMessages = (): ChatMessage[] => [
   { sender: 'BOT', content: GREETING_INTRO },
   { sender: 'BOT', content: GREETING_TASKS },
@@ -77,6 +81,7 @@ export const useChatConversation = () => {
   const statusNotice = computed(() => status.value?.notice ?? CHATBOT_OFF_NOTICE)
 
   let progressTimer: number | undefined
+  let progressStage = 0
   let abortController: AbortController | null = null
 
   onMounted(async () => {
@@ -119,14 +124,21 @@ export const useChatConversation = () => {
 
   const clearProgress = () => {
     if (progressTimer) {
-      window.clearTimeout(progressTimer)
+      window.clearInterval(progressTimer)
       progressTimer = undefined
     }
+    progressStage = 0
   }
 
+  // Vong qua cac trang thai progress theo gio de vong tay nhung chu he thong
   const startProgress = (_isInfo: boolean) => {
     clearProgress()
-    statusText.value = 'Đang trả lời...'
+    progressStage = 0
+    statusText.value = PROGRESS_TEXTS[0]!
+    progressTimer = window.setInterval(() => {
+      progressStage = (progressStage + 1) % PROGRESS_TEXTS.length;
+      statusText.value = PROGRESS_TEXTS[progressStage]!;
+    }, PROGRESS_INTERVAL_MS);
   }
 
   onBeforeUnmount(() => {

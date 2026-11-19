@@ -21,8 +21,8 @@ export function dropTrailingQuestion(reply: string): string {
   return parts.join(" ");
 }
 
-/** Cat bot cau tra loi dai dong: toi da 4 cau, cau cuoi luon co dau ket cau. */
-export function limitSentences(reply: string, max = 4): string {
+/** Cat bot cau tra loi dai dong: toi da 3 cau, cau cuoi luon co dau ket cau. */
+export function limitSentences(reply: string, max = 3): string {
   const parts = reply.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
   const kept = parts.slice(0, max).join(" ");
   return /[.!?]$/.test(kept) ? kept : `${kept}.`;

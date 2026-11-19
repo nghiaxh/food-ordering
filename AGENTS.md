@@ -259,9 +259,10 @@ Khi không dùng được:
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
   cách đó dễ trượt khi header đổi kích thước. Vùng trống của cụm có `pointer-events-none` nên
   không chặn bấm vào thẻ món.
-- **Trạng thái tiến trình thay cho gõ chữ**: server trả một JSON; trong lúc chờ, `useChatConversation.ts`
-  hiện các trạng thái "Đang hiểu yêu cầu..." → "Đang trích xuất tiêu chí..." → "Đang truy vấn thực đơn..."
-  → "Đang soạn câu trả lời...". Câu trả lời hiện nguyên khối khi có kết quả. Khung chỉ tự cuộn khi
+- **Trạng thái tiến trình thay cho gõ chữ**: server trả một JSON (không streaming); trong lúc chờ,
+  `useChatConversation.ts` vòng qua các trạng thái "Đang phân tích..." → "Đang tra cứu..." →
+  "Đang soạn câu trả lời..." (khoảng 3s/bước). Câu trả lời AI tối đa 2 câu (`CHAT_PROMPT`,
+  `limitSentences` 3 câu). Câu trả lời hiện nguyên khối khi có kết quả. Khung chỉ tự cuộn khi
   người đọc đang ở đáy (cách đáy ≤ 64px), cuộn lên thì hiện nút "Tin mới nhất". Thẻ món và quick replies
   hiện cùng lúc với câu trả lời. Vùng tin nhắn là `role="log"` với `aria-live` tắt trong lúc chờ để
   trình đọc màn hình không đọc lại từng khung.
