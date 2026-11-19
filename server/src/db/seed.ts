@@ -301,8 +301,8 @@ async function main() {
       { userId: linh.id, foodId: banhFlan.id, quantity: 1 },
     ]);
 
-    // Cai dat chatbot: chi luu max_suggestions va extra_rules. Provider/model/embedding
-    // doc tu bien moi truong (AI_PROVIDER, AI_MODEL, EMBEDDING_MODEL) hoac tu dong detect.
+    // Cai dat chatbot: chi luu max_suggestions va extra_rules. Model/embedding doc tu
+    // bien moi truong (AI_MODEL, EMBEDDING_MODEL, AI_API_KEYS), trống thi tu dong do.
     await tx.insert(aiSetting).values([
       { settingKey: "max_suggestions", settingValue: "5" },
     ]);

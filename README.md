@@ -32,9 +32,8 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 
 Yêu cầu: Docker + Docker Compose, hoặc Node.js 20.19 trở lên (khuyến nghị 26) để chạy từng phần lẻ.
 
-Tạo file `.env` từ mẫu rồi điền `AI_API_KEY` (Gemini) và `JWT_SECRET`. Chạy trợ lý bằng LM Studio
-local thì đặt `AI_PROVIDER=lmstudio` và `LMSTUDIO_BASE_URL` (Docker dùng
-`ws://host.docker.internal:1234`), không cần `AI_API_KEY`.
+Tạo file `.env` từ mẫu rồi điền `AI_API_KEY` (hoặc `AI_API_KEYS` cho nhiều khoá Gemini) và
+`JWT_SECRET`. Model chat mặc định `gemini-3.5-flash-lite`, embedding `text-embedding-004`.
 
 ```bash
 cp .env.example .env
@@ -98,7 +97,7 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại (`docker compos
 | Client | Vue 3, TypeScript 5.9, Vite 8, Naive UI, Tailwind CSS 4, Pinia, Axios, Vue Router |
 | Server | Express 5, TypeScript 7, Drizzle ORM 0.45, JWT (jsonwebtoken), bcrypt, zod |
 | Database | PostgreSQL 18 + pgvector (cosine, vector 768 chiều cho RAG tài liệu quán) |
-| AI | Gemini hoặc LM Studio qua `server/src/lib/provider.ts` (chat + embedding) |
+| AI | Gemini qua `server/src/lib/provider.ts` (chat + embedding), hỗ trợ nhiều khoá xoay tự động |
 | Hạ tầng | Docker Compose, 1 file 3 profile dev, prod và tools |
 
 ## Kiểm tra nhanh

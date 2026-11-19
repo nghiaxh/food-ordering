@@ -26,10 +26,9 @@ const schema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET phai co it nhat 32 ky tu"),
   JWT_EXPIRATION_MS: z.coerce.number().default(86_400_000),
   AI_API_KEY: z.string().default(""),
-  AI_PROVIDER: z.string().default("gemini"),
-  AI_MODEL: z.string().default(""),
-  EMBEDDING_MODEL: z.string().default(""),
-  LMSTUDIO_BASE_URL: z.string().default("http://localhost:1234"),
+  AI_API_KEYS: z.string().default(""),
+  AI_MODEL: z.string().default("gemini-3.5-flash-lite"),
+  EMBEDDING_MODEL: z.string().default("text-embedding-004"),
   UPLOAD_DIR: z.string().default("uploads"),
   PORT: z.coerce.number().default(8080),
 });

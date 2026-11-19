@@ -23,7 +23,6 @@ services:
       context: ./server
       target: dev
     container_name: food-ordering-server-dev
-    extra_hosts: ["host.docker.internal:host-gateway"]
     profiles: ["dev"]
     depends_on:
       database:
@@ -36,9 +35,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
       AI_API_KEY: ${AI_API_KEY}
-      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      AI_API_KEYS: ${AI_API_KEYS}
       AI_MODEL: ${AI_MODEL}
-      LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-ws://host.docker.internal:1234}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
       UPLOAD_DIR: /app/uploads
     ports:
       - "8080:8080"
@@ -98,7 +97,6 @@ services:
       context: ./server
       target: prod
     container_name: food-ordering-server-prod
-    extra_hosts: ["host.docker.internal:host-gateway"]
     profiles: ["prod"]
     depends_on:
       database:
