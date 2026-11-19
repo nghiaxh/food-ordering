@@ -306,13 +306,8 @@ const renderedMessages = computed(() => messages.value)
             </div>
           </template>
 
-          <div v-if="loading" role="status" class="inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
+          <div v-if="loading" role="status" class="rounded-2xl rounded-bl-md bg-white px-3 py-2.5 ring-1 ring-stone-200/70">
             <span class="text-xs text-stone-500">{{ statusText ?? 'Đang trả lời...' }}</span>
-            <span class="flex items-center gap-1" aria-hidden="true">
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400 motion-reduce:animate-none" style="animation-delay: 0ms" />
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400 motion-reduce:animate-none" style="animation-delay: 150ms" />
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-orange-400 motion-reduce:animate-none" style="animation-delay: 300ms" />
-            </span>
           </div>
 
           <button

@@ -52,8 +52,8 @@ describe("dropTrailingQuestion", () => {
 });
 
 describe("limitSentences", () => {
-  it("cat con 4 cau", () => {
-    expect(limitSentences("Một. Hai. Ba. Bốn. Năm.")).toBe("Một. Hai. Ba. Bốn.");
+  it("cat con 3 cau", () => {
+    expect(limitSentences("Một. Hai. Ba. Bốn. Năm.")).toBe("Một. Hai. Ba.");
   });
 
   it("them dau cham khi cau cuoi thieu", () => {
