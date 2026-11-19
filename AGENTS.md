@@ -27,9 +27,9 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   môi trường, không hardcode `gemini`.
 - **Chịu tải provider**: `provider.ts` retry tối đa 2 lần cho 5xx (delay 600ms rồi 1800ms), khoá
   25s sau một 429 thật và xoay khoá khác (`AiRateLimitedException`), model 503/timeout nghỉ 60s
-  rồi xoay model kế tiếp, deadline tổng 30s. Timeout riêng theo bước (`AI_TIMEOUTS.reply` 20s,
-  `embed` 8s); `thinkingBudget: 0` chỉ gửi cho model flash không phải lite. Prompt trả lời chỉ gửi
-  tên/giá/loại của tối đa 10 món.
+  rồi xoay model kế tiếp, deadline tổng 45s. Timeout riêng theo bước (`AI_TIMEOUTS.reply` 20s,
+  `embed` 8s); `thinkingBudget: 0` gửi cho mọi model chat, model nào trả 400 thì bỏ cờ và ghi nhớ
+  theo model. Prompt trả lời chỉ gửi tên/giá/loại của tối đa 10 món.
 - **Infra** - `docker-compose.yml` 1 file, 3 profile: `prod` (db + server-prod +
   client-prod), `dev` (db + server-dev + client-dev với volume mount, hot reload) và `tools`
   (Drizzle Studio). Service `database` không khai báo `profiles` nên Postgres luôn chạy theo mọi
@@ -124,8 +124,9 @@ của chủ cũ bị bỏ, không rơi vào hội thoại mới. Tin khách gử
 **Thiếu hoặc hỏng khoá AI**: `lib/provider.ts` `isConfigured()` false khi không có khoá nào còn sống,
 tức `AI_API_KEYS` rỗng **hoặc** mọi khoá đều bị từ chối (401/403, hay 400 kèm
 `API_KEY_INVALID`); cờ "bị từ chối" giữ tới khi khởi động lại server. Hết khoá khả dụng tạm thời
-(429) thì tất cả khoá còn sống đều đang cooldown. `GET /api/chatbot/status` gọi `verifyKey()`; chỉ
-trả `available = true` khi có ít nhất một model trả lời, kết quả false giữ 60s còn true giữ 5 phút.
+(429) thì tất cả khoá còn sống đều đang cooldown. `GET /api/chatbot/status` gọi `verifyKey()` và probe
+song song các model; `available = false` chỉ khi **mọi** model đều báo lỗi rõ ràng (503/404), còn một
+model chậm (timeout) hay chết riêng lẻ vẫn tính là dùng được. Kết quả false giữ 60s, true giữ 5 phút.
 Khi không dùng được:
 - `chat()` ném `503 SERVICE_UNAVAILABLE` trước khi lưu câu hỏi hay chọn món.
 - status trả `available = false` để client khoá ô nhập, hiện banner.

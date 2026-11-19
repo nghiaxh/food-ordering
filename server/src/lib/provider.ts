@@ -11,7 +11,7 @@ import { parseList, supportsThinking } from "./aiModels.js";
 const TIMEOUT_MS = 15_000;
 const REPLY_TIMEOUT_MS = 20_000;
 const EMBED_TIMEOUT_MS = 8_000;
-const TOTAL_TIMEOUT_MS = 30_000;
+const TOTAL_TIMEOUT_MS = 45_000;
 const MAX_OUTPUT_TOKENS = 300;
 export const EMBEDDING_DIM = 768;
 const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
@@ -359,18 +359,18 @@ export const verifyKey = async (): Promise<boolean> => {
   }
 
   // Probe song song de /status tra loi som khi co mot model chay duoc, va khong treo
-  // qua lau khi tat ca deu loi.
-  const probeDeadline = Date.now() + 15_000;
-  const probeModel = async (model: string): Promise<boolean> => {
+  // qua lau khi tat ca deu loi. Model cham (timeout) khong bi coi la hong.
+  const probeDeadline = Date.now() + 25_000;
+  const probeModel = async (model: string): Promise<"ok" | "down" | "slow"> => {
     for (const key of keys) {
       if (stateOf(key).rejected) continue;
       try {
         await generateWithKey(key, model, PROBE_SYSTEM, PROBE_USER, false, {
-          timeoutMs: 10_000,
+          timeoutMs: 20_000,
           maxOutputTokens: 16,
           deadline: probeDeadline,
         });
-        return true;
+        return "ok";
       } catch (error) {
         if (error instanceof AiKeyRejectedException) {
           markRejected(key);
@@ -385,35 +385,32 @@ export const verifyKey = async (): Promise<boolean> => {
         if (status === 404) markModelRejected(model);
         else if (status !== 0) markModelCooldown(model);
         console.warn(`[ai] probe model ${model} that bai: ${messageOf(error)}`);
-        return false;
+        return status === 0 ? "slow" : "down";
       }
     }
-    return false;
+    return "down";
   };
 
   const probes = models.filter((m) => modelAvailable(m)).map((m) => probeModel(m));
-  const ok = await new Promise<boolean>((resolve) => {
+  const results = await new Promise<Array<"ok" | "down" | "slow">>((resolve) => {
     if (probes.length === 0) {
-      resolve(false);
+      resolve([]);
       return;
     }
+    const done: Array<"ok" | "down" | "slow"> = [];
     let pending = probes.length;
-    let settled = false;
     for (const p of probes) {
       p.then((result) => {
+        done.push(result);
         pending -= 1;
-        if (settled) return;
-        if (result) {
-          settled = true;
-          resolve(true);
-        } else if (pending === 0) {
-          settled = true;
-          resolve(false);
-        }
+        if (result === "ok" || pending === 0) resolve(done);
       });
     }
   });
 
+  // Chi bao hong khi moi model deu loi ro rang. Mot model chet (404/503) khong duoc keo
+  // ca he thong xuong, vi model ke tiep van co the tra loi.
+  const ok = results.some((r) => r !== "down");
   keyAccepted = ok;
   keyCheckedAt = Date.now();
   return ok;
