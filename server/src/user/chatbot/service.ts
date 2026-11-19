@@ -69,7 +69,9 @@ const saveBotMessage = async (userId: number, sessionId: string, reply: string, 
 
 export const chatbotStatus = async () => {
   const available = await provider.verifyKey();
-  return { available, notice: available ? null : MISSING_KEY_NOTICE };
+  // Co khoa nhung moi model deu loi thi bao qua tai, khong bao thieu cau hinh.
+  const notice = available ? null : provider.hasKeys() ? "Trợ lý AI đang quá tải, vui lòng thử lại sau." : MISSING_KEY_NOTICE;
+  return { available, notice };
 };
 
 export const chat = async (

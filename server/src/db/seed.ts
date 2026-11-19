@@ -302,7 +302,7 @@ async function main() {
     ]);
 
     // Cai dat chatbot: chi luu max_suggestions va extra_rules. Model/embedding doc tu
-    // bien moi truong (AI_MODEL, EMBEDDING_MODEL, AI_API_KEYS), trống thi tu dong do.
+    // bien moi truong (AI_MODELS, EMBEDDING_MODELS, AI_API_KEYS), trống thi dung danh sách mặc định.
     await tx.insert(aiSetting).values([
       { settingKey: "max_suggestions", settingValue: "5" },
     ]);
