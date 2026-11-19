@@ -1,5 +1,7 @@
 import { expect, type Page, type APIRequestContext } from '@playwright/test'
-import { API_URL, listFoods } from './extended-api'
+import { API_URL, apiLogin, listFoods } from './extended-api'
+
+const DEMO_EMAIL = 'tuanpham@demo.com'
 
 export interface ChatFoodCard {
   id: number
@@ -63,4 +65,10 @@ export async function ask(page: Page, question: string) {
 export async function foodsById(request: APIRequestContext) {
   const foods = await listFoods(request)
   return new Map(foods.map((food) => [food.id, food]))
+}
+
+export async function signIn(page: Page) {
+  const session = await apiLogin(page.request, DEMO_EMAIL)
+  await page.addInitScript((user) => localStorage.setItem('auth', JSON.stringify(user)), session)
+  await page.goto('/')
 }

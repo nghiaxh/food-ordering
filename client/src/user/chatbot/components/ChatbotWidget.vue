@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
-import { NInput, NIcon, NPopconfirm, NTooltip } from 'naive-ui'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { NButton, NInput, NIcon, NPopconfirm, NTooltip } from 'naive-ui'
 import {
   ChatbubbleOutline,
   CloseOutline,
@@ -27,6 +27,7 @@ import { message } from '@/shared/api/message'
  * Widget chatbot noi o moi trang khach voi mot session duy nhat luu qua localStorage.
  */
 const route = useRoute()
+const router = useRouter()
 const bottomBar = useHasBottomBar()
 const ui = useUiStore()
 const auth = useAuthStore()
@@ -94,6 +95,7 @@ const panelClass = computed(() =>
 
 const isAdmin = computed(() => route.path.startsWith('/admin') || auth.user?.role === 'ADMIN')
 const canUseHistory = computed(() => auth.user?.role === 'CUSTOMER')
+const isGuest = computed(() => auth.user?.role !== 'CUSTOMER')
 
 // Dong khung chat thi thoat man lich su va hien luon cau dang go; mo lai thi bam day tin moi nhat.
 watch(() => ui.chatOpen, (open) => {
@@ -242,7 +244,7 @@ const renderedMessages = computed(() => messages.value)
         </div>
       </div>
 
-      <div v-else class="relative flex min-h-0 flex-1 flex-col">
+      <div v-else-if="!isGuest" class="relative flex min-h-0 flex-1 flex-col">
         <div
           ref="listRef"
           role="log"
@@ -331,7 +333,12 @@ const renderedMessages = computed(() => messages.value)
         </button>
       </div>
 
-      <div v-if="!historyOpen" class="shrink-0 border-t border-stone-100 bg-white p-2.5">
+      <div v-if="isGuest" class="shrink-0 border-t border-stone-100 bg-white p-4 flex flex-col items-center justify-center gap-2 text-center">
+        <p class="text-xs text-stone-500">Bạn cần đăng nhập để sử dụng chatbot.</p>
+        <NButton type="primary" size="small" @click="router.push('/login')">Đăng nhập</NButton>
+      </div>
+
+      <div v-if="!historyOpen && !isGuest" class="shrink-0 border-t border-stone-100 bg-white p-2.5">
         <NInput
           type="textarea"
           :value="input"

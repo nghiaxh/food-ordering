@@ -10,10 +10,11 @@ export interface SelectedDish {
 }
 
 const DRINK_DESSERT_SLUGS = new Set(["do-uong", "trang-mieng"]);
+const DRINK_WORDS = ["uong", "tra", "ca phe", "sinh to", "nuoc", "che", "banh", "trang mieng", "dessert"];
 
 const asksForDrinkOrDessert = (criteria: Criteria): boolean => {
   const text = plain([...criteria.groups, ...criteria.dishIds.map(String)].join(" "));
-  return ["uong", "tra", "ca phe", "sinh to", "nuoc", "che", "banh", "trang mieng", "dessert"].some((k) => text.includes(k));
+  return DRINK_WORDS.some((k) => text.includes(k));
 };
 
 const perDishCap = (criteria: Criteria): number | null => {
@@ -66,12 +67,18 @@ export const filterMenu = async (criteria: Criteria, options: { lastFoodIds?: nu
 
   let result = rows.filter((f) => f.available);
 
-  if (!asksForDrinkOrDessert(criteria)) {
+  const wantsMain = criteria.groups.some((g) => plain(g).includes("mon chinh") || plain(g).includes("mon man"));
+  const wantsDrink = asksForDrinkOrDessert(criteria);
+  const both = wantsDrink && wantsMain;
+
+  if (!wantsDrink || wantsMain) {
     const mains = result.filter((f) => !DRINK_DESSERT_SLUGS.has(f.category?.slug ?? ""));
+    const drinks = result.filter((f) => DRINK_DESSERT_SLUGS.has(f.category?.slug ?? ""));
     if (mains.length > 0) result = mains;
+    if (both && drinks.length > 0) result = result.concat(drinks);
   }
 
-  if (criteria.groups?.length) {
+  if (criteria.groups?.length && !both) {
     const wanted = criteria.groups.map((c) => plain(c));
     const matched = result.filter((f) => {
       const name = plain(f.category?.name ?? "");

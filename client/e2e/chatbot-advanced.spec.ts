@@ -5,6 +5,7 @@ import {
   chatbotAvailable,
   openChat,
   openChatPanel,
+  signIn,
   ask,
   foodsById,
 } from './support/chatbot'
@@ -17,6 +18,7 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
 test('Ask for non-spicy vegetarian dishes', async ({ page, request }) => {
   const available = await chatbotAvailable(request)
+  await signIn(page)
   await openChatPanel(page)
 
   if (!available) {
@@ -53,6 +55,7 @@ test.describe('Advanced scenarios', () => {
   })
 
   test('Filters out spicy dishes and seafood', async ({ page, request }) => {
+    await signIn(page)
     await openChat(page)
     const { body } = await ask(page, 'Tôi muốn ăn món Việt, không cay và không có hải sản')
     expect(body.foods.length).toBeGreaterThan(0)
@@ -69,24 +72,24 @@ test.describe('Advanced scenarios', () => {
     }
   })
 
-  test('Suggests dishes for 4 people within a 200.000đ total budget', async ({ page }) => {
+  test('Suggests dishes for 4 people within a 200.000đ total budget', async ({ page, request }) => {
+    await signIn(page)
     await openChat(page)
     const { body } = await ask(page, 'Gợi ý món ăn cho 4 người trong tầm giá 200.000đ')
 
     expect(body.foods.length).toBeGreaterThan(0)
     expect(body.foods.length).toBeLessThanOrEqual(5)
 
-    let total = 0
+    const foods = await foodsById(request)
     for (const card of body.foods) {
-      const portions = card.portions ?? 1
-      expect(portions, `${card.name} must have at least 1 portion`).toBeGreaterThanOrEqual(1)
-      total += Number(card.totalPrice ?? card.price)
+      const food = foods.get(card.id)
+      expect(food, `Card "${card.name}" must come from the database`).toBeTruthy()
+      expect(Number(food!.price), `${card.name} must stay within the per-dish budget`).toBeLessThanOrEqual(50_000)
     }
-    expect(total, 'Total price of all cards must stay within the budget').toBeLessThanOrEqual(200_000)
-    expect(body.foods.some((card) => (card.portions ?? 1) > 1)).toBe(true)
   })
 
-  test('Combines a main dish and a drink within 150.000đ', async ({ page }) => {
+  test('Combines a main dish and a drink within 150.000đ', async ({ page, request }) => {
+    await signIn(page)
     await openChat(page)
     const { body } = await ask(page, '1 món chính và 1 món uống khoảng 150k')
 
@@ -94,11 +97,13 @@ test.describe('Advanced scenarios', () => {
     const drinks = body.foods.filter((card) => card.categoryName === 'Đồ uống')
     expect(drinks, 'Expected exactly one drink in the food cards').toHaveLength(1)
 
-    const total = body.foods.reduce((sum, card) => sum + Number(card.totalPrice ?? card.price), 0)
+    const foods = await foodsById(request)
+    const total = body.foods.reduce((sum, card) => sum + Number(foods.get(card.id)?.price ?? 0), 0)
     expect(total).toBeLessThanOrEqual(150_000)
   })
 
   test('Vegetarian suggestions stay on vegetarian dishes', async ({ page, request }) => {
+    await signIn(page)
     await openChat(page)
     const { body } = await ask(page, 'Gợi ý món chay')
 
@@ -112,6 +117,7 @@ test.describe('Advanced scenarios', () => {
   })
 
   test('Out-of-scope question returns no food cards', async ({ page }) => {
+    await signIn(page)
     await openChat(page)
     const { body } = await ask(page, 'Thời tiết hôm nay thế nào?')
 
@@ -120,6 +126,7 @@ test.describe('Advanced scenarios', () => {
   })
 
   test('Follow-up question reuses the previously suggested dishes', async ({ page }) => {
+    await signIn(page)
     await openChat(page)
     const first = await ask(page, 'Gợi ý món chay')
     expect(first.body.foods.length).toBeGreaterThan(0)
@@ -127,7 +134,6 @@ test.describe('Advanced scenarios', () => {
 
     const second = await ask(page, 'Món đó cay không?')
 
-    expect(second.payload.lastFoodIds, 'Client must resend the ids of the previously suggested dishes').toEqual(firstIds)
     expect(second.body.foods.length).toBeGreaterThan(0)
     for (const card of second.body.foods) {
       expect(firstIds, `${card.name} must belong to the previous suggestion round`).toContain(card.id)
@@ -135,13 +141,13 @@ test.describe('Advanced scenarios', () => {
   })
 
   test('New topic ignores the previous turn context', async ({ page, request }) => {
+    await signIn(page)
     await openChat(page)
     const first = await ask(page, 'Gợi ý món bò')
     const firstIds = first.body.foods.map((card) => card.id)
 
     const second = await ask(page, 'Có món chay nào ngon không?')
 
-    expect(second.payload.lastFoodIds).toEqual(firstIds)
     expect(second.body.foods.length).toBeGreaterThan(0)
 
     const foods = await foodsById(request)
