@@ -21,14 +21,14 @@ describe("parseList", () => {
 });
 
 describe("supportsThinking", () => {
-  it("flash ban day du nhan thinkingConfig", () => {
+  it("model chat Gemini deu thu thinking truoc", () => {
     expect(supportsThinking("gemini-3.6-flash")).toBe(true);
-    expect(supportsThinking("gemini-3.5-flash")).toBe(true);
+    expect(supportsThinking("gemini-3.1-flash-lite")).toBe(true);
+    expect(supportsThinking("gemini-3.5-flash-lite")).toBe(true);
   });
 
-  it("lite va image khong nhan thinkingConfig", () => {
-    expect(supportsThinking("gemini-3.1-flash-lite")).toBe(false);
-    expect(supportsThinking("gemini-3.5-flash-lite")).toBe(false);
+  it("model image va embedding thi khong", () => {
     expect(supportsThinking("gemini-3.1-flash-image")).toBe(false);
+    expect(supportsThinking("gemini-embedding-2")).toBe(false);
   });
 });
