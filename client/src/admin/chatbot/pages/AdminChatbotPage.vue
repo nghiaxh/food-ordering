@@ -403,7 +403,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       <p class="text-sm">Đã có lỗi khi kết nối máy chủ. Kiểm tra kết nối rồi tải lại trang.</p>
     </NAlert>
     <NAlert v-if="status && !status.available" type="warning" title="Chưa cấu hình trợ lý AI" class="mb-4">
-      Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEY</code> trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.
+      Trợ lý chưa dùng được vì máy chủ thiếu khóa API hoặc mọi khóa đã bị nhà cung cấp từ chối. Kiểm tra biến <code>AI_API_KEYS</code> (hoặc <code>AI_API_KEY</code>) trong tệp <code>.env</code> ở thư mục gốc rồi khởi động lại máy chủ.
     </NAlert>
 
     <PageCard class="mb-4">
