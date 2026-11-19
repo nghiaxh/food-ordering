@@ -28,7 +28,7 @@ const schema = z.object({
   AI_API_KEY: z.string().default(""),
   AI_API_KEYS: z.string().default(""),
   AI_MODEL: z.string().default("gemini-3.5-flash-lite"),
-  EMBEDDING_MODEL: z.string().default("text-embedding-004"),
+  EMBEDDING_MODEL: z.string().default("gemini-embedding-2"),
   UPLOAD_DIR: z.string().default("uploads"),
   PORT: z.coerce.number().default(8080),
 });

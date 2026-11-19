@@ -19,7 +19,7 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
   Gemini (`@google/genai`); hỗ trợ nhiều khoá qua `AI_API_KEYS` (phân tách dấu phẩy/xuống dòng) hoặc
   `AI_API_KEY` (đơn), tự xoay khoá khi một khoá bị 429 và loại khoá bị từ chối (401/403 hoặc
   `API_KEY_INVALID`) tới khi khởi động lại server. Tên mô hình chat theo `AI_MODEL` (mặc định
-  `gemini-3.5-flash-lite`), mô hình embedding theo `EMBEDDING_MODEL` (mặc định `text-embedding-004`),
+  `gemini-3.5-flash-lite`), mô hình embedding theo `EMBEDDING_MODEL` (mặc định `gemini-embedding-2`),
   cả hai trống thì tự dò. Vector 768 chiều (`EMBEDDING_DIM`). Muốn thêm nhà cung cấp khác chỉ sửa
   file này. Khoá không bao giờ gửi xuống client.
   Trang Chatbot của admin chỉ lưu `max_suggestions` và `extra_rules`; model/embedding đọc từ biến
@@ -96,7 +96,7 @@ Thẻ món luôn lấy ID/giá từ DB nên không có chuyện AI bịa món.
 - Retrieval: `searchChunks` nhúng câu hỏi, cosine top 5, ngưỡng 0.55, chỉ tài liệu `enabled`; thiếu vector -> rỗng.
 - Trả lời: `service.ts` ghép bullet trích chunk (cắt 400 ký tự) kèm `citations`, không gọi AI lượt 2; rỗng -> "Mình chưa có thông tin xác thực...".
 - Bỏ hoàn toàn tsvector và `keywordSearchKnowledge`. Không còn fallback keyword.
-- Model embedding: 768 chiều, chọn theo `EMBEDDING_MODEL` > `ai_setting.embedding_model` > tự dò.
+- Model embedding: 768 chiều, chọn theo `EMBEDDING_MODEL`, trống thì tự dò.
 - Image Postgres: `pgvector/pgvector:0.8.7-pg18`. Extension `vector`, cột `vector(768)`, HNSW index `vector_cosine_ops`.
 - `verifyReply` (chatbot/grounding.ts) chỉ kiểm độ dài <= 800 ký tự; vi phạm chỉ ghi log, không chặn khách.
 
@@ -123,8 +123,8 @@ của chủ cũ bị bỏ, không rơi vào hội thoại mới. Tin khách gử
 **Thiếu hoặc hỏng khoá AI**: `lib/provider.ts` `isConfigured()` false khi không có khoá nào còn sống,
 tức `AI_API_KEYS`/`AI_API_KEY` rỗng **hoặc** mọi khoá đều bị từ chối (401/403, hay 400 kèm
 `API_KEY_INVALID`); cờ "bị từ chối" giữ tới khi khởi động lại server. Hết khoá khả dụng tạm thời
-(429) thì `isRateLimited()` true. `GET /api/chatbot/status` gọi `verifyKey()` (probe Gemini, lỗi tạm
-thời được coi là vẫn dùng được và thử lại sau 5 phút).
+(429) thì tất cả khoá còn sống đều đang cooldown. `GET /api/chatbot/status` gọi `verifyKey()` (probe
+Gemini, lỗi tạm thời được coi là vẫn dùng được và thử lại sau 5 phút).
 Khi không dùng được:
 - `chat()` ném `503 SERVICE_UNAVAILABLE` trước khi lưu câu hỏi hay chọn món.
 - status trả `available = false` để client khoá ô nhập, hiện banner.

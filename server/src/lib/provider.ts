@@ -4,7 +4,6 @@ import { GoogleGenAI } from "@google/genai";
 // Ho tro nhieu khoa Gemini qua env AI_API_KEYS (phan tach dau phay/xuong dong) hoac AI_API_KEY (don).
 // Khi mot khoa bi 429, tu dong xoay sang khoa khac va retry; khoa bi tu choi (401/403/API_KEY_INVALID)
 // bi loai vinh vien toi khi khoi dong lai server.
-export const PROVIDER_GEMINI = "gemini";
 
 const TIMEOUT_MS = 15_000;
 const REPLY_TIMEOUT_MS = 12_000;
@@ -122,13 +121,6 @@ const clearCooldown = (key: string): void => {
   const s = stateOf(key);
   s.rateLimitedUntil = 0;
   keyStates.set(key, s);
-};
-
-export const isRateLimited = (): boolean => {
-  const live = keys.filter((k) => !stateOf(k).rejected);
-  if (live.length === 0) return false;
-  const now = Date.now();
-  return live.every((k) => stateOf(k).rateLimitedUntil > now);
 };
 
 export const isConfigured = (): boolean => {
@@ -365,5 +357,5 @@ export const embedBatch = async (texts: string[]): Promise<Array<number[] | null
   return results;
 };
 
-export const AI_TIMEOUTS = { extract: 10_000, reply: REPLY_TIMEOUT_MS, embed: EMBED_TIMEOUT_MS } as const;
+export const AI_TIMEOUTS = { reply: REPLY_TIMEOUT_MS, embed: EMBED_TIMEOUT_MS } as const;
 export const AI_MAX_OUTPUT_TOKENS = MAX_OUTPUT_TOKENS;
