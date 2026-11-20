@@ -64,7 +64,7 @@ const onSubmit = async () => {
 
 <template>
   <AuthShell title="Đăng nhập">
-    <NForm ref="formRef" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="onSubmit">
+    <NForm ref="formRef" class="auth-form" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="onSubmit">
       <NFormItem label="Email" path="email" :rule="emailRules" :label-props="{ for: 'login-email' }">
         <NInput ref="emailInputRef" v-model:value="form.email" :input-props="{ id: 'login-email' }" placeholder="ban@example.com" autocomplete="username" size="medium" />
       </NFormItem>
@@ -84,7 +84,7 @@ const onSubmit = async () => {
           </template>
         </NInput>
       </NFormItem>
-      <div class="mb-3 -mt-3 flex items-center justify-between gap-2">
+      <div class="mb-3 flex items-center justify-between gap-2">
         <NCheckbox v-model:checked="remember"><span class="text-sm text-stone-600">Ghi nhớ đăng nhập</span></NCheckbox>
         <button v-if="usingRememberedEmail" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-orange-700 hover:underline" @click="switchAccount">
           Đổi tài khoản

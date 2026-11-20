@@ -66,7 +66,7 @@ const onSubmit = async () => {
 
 <template>
   <AuthShell title="Đăng ký" max-width="max-w-[440px]">
-    <NForm ref="formRef" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="onSubmit">
+    <NForm ref="formRef" class="auth-form" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="onSubmit">
       <NFormItem label="Họ tên" path="fullName" :rule="fullNameRules" :label-props="{ for: 'register-full-name' }">
         <NInput v-model:value="form.fullName" :input-props="{ id: 'register-full-name' }" placeholder="Nguyễn Văn A" autocomplete="name" size="medium" />
       </NFormItem>
