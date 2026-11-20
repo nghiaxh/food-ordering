@@ -91,7 +91,7 @@ const onSelectMenu = (key: string) => {
   if (key === 'account') router.push('/profile')
   else {
     auth.logout()
-    router.push('/')
+    router.replace('/login')
   }
 }
 </script>
