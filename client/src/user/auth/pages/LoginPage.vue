@@ -15,8 +15,20 @@ const auth = useAuthStore()
 const loading = ref(false)
 const remember = ref(true)
 
-const form = reactive({ email: '', password: '' })
+const rememberedEmail = auth.rememberedEmail()
+// Da nho email thi khach chi con nhap mat khau; nut "Doi tai khoan" xoa email da nho.
+const usingRememberedEmail = ref(Boolean(rememberedEmail))
+const form = reactive({ email: rememberedEmail, password: '' })
 const formRef = ref<InstanceType<typeof NForm> | null>(null)
+const emailInputRef = ref<InstanceType<typeof NInput> | null>(null)
+
+const switchAccount = () => {
+  auth.forgetRememberedEmail()
+  usingRememberedEmail.value = false
+  form.email = ''
+  form.password = ''
+  emailInputRef.value?.focus()
+}
 
 const showPassword = ref(false)
 const emailRules: FormItemRule[] = [{ required: true, message: 'Vui lòng nhập email', trigger: ['blur', 'input'] }]
@@ -54,12 +66,12 @@ const onSubmit = async () => {
   <AuthShell title="Đăng nhập">
     <NForm ref="formRef" :model="form" layout="vertical" :show-require-mark="false" @submit.prevent="onSubmit">
       <NFormItem label="Email" path="email" :rule="emailRules" :label-props="{ for: 'login-email' }">
-        <NInput v-model:value="form.email" :input-props="{ id: 'login-email' }" placeholder="ban@example.com" autocomplete="username" size="medium" />
+        <NInput ref="emailInputRef" v-model:value="form.email" :input-props="{ id: 'login-email' }" placeholder="ban@example.com" autocomplete="username" size="medium" />
       </NFormItem>
       <NFormItem label="Mật khẩu" path="password" :rule="passwordRules" :label-props="{ for: 'login-password' }">
         <NInput
           v-model:value="form.password"
-          :input-props="{ id: 'login-password' }"
+          :input-props="{ id: 'login-password', autofocus: usingRememberedEmail }"
           :type="showPassword ? 'text' : 'password'"
           placeholder="••••••••"
           autocomplete="current-password"
@@ -72,8 +84,11 @@ const onSubmit = async () => {
           </template>
         </NInput>
       </NFormItem>
-      <div class="mb-3 -mt-3">
+      <div class="mb-3 -mt-3 flex items-center justify-between gap-2">
         <NCheckbox v-model:checked="remember"><span class="text-sm text-stone-600">Ghi nhớ đăng nhập</span></NCheckbox>
+        <button v-if="usingRememberedEmail" type="button" class="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-orange-700 hover:underline" @click="switchAccount">
+          Đổi tài khoản
+        </button>
       </div>
       <NButton type="primary" size="large" attr-type="submit" strong block :loading="loading">
         Đăng nhập
