@@ -92,7 +92,7 @@ const openCart = () => {
 const onSelectMenu = (key: string) => {
   if (key === 'logout') {
     auth.logout()
-    router.push('/')
+    router.replace('/login')
     return
   }
   if (key === 'notifications') {

@@ -104,6 +104,16 @@ html:has(.auth-shell)::-webkit-scrollbar {
 }
 
 /*
+  Dai feedback mac dinh cua naive cao 24px nen chu loi chi cach o nhap 4px ma cach
+  control ben duoi 2.5px, trong khi hang "Ghi nho dang nhap" con bi keo len.
+  Noi dai thanh 30px de chu loi cach deu 6px tren va 6.5px duoi, khong de len nhau.
+*/
+.auth-form .n-form-item-feedback-wrapper {
+  --n-feedback-height: 30px;
+  --n-feedback-padding: 6px 0 0 2px;
+}
+
+/*
   Trang thuc don tu cuon trong vung rieng. Khoa cuon tai lieu de khong hien them scrollbar
   cua html: chieu cao `calc(100dvh - header)` le vai phan muoi px nen html van du dieu kien
   cuon, sinh scrollbar thu hai va keo lech header.
