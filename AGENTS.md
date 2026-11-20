@@ -370,3 +370,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.
 - **pgvector yêu cầu image `pgvector/pgvector:0.8.7-pg18`**. Volume cũ dùng lại được (cùng major 18). Chạy `CREATE EXTENSION IF NOT EXISTS vector;` trong migration trước khi thêm cột `vector(768)`.
 - **Embedding chỉ chạy khi provider dùng được.** Cần ít nhất một khoá Gemini còn sống. Không dùng được thì chunk vẫn lưu nhưng thiếu vector. Admin bấm "Tạo embedding" khi provider sẵn sàng; `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
+- **Cả client và server dùng TypeScript 6.0.3.** `vue-tsc` 3.3.14 chỉ chạy với TypeScript < 7 vì bản 7
+  là compiler native (Go), package `typescript` không còn API JS (`./lib/tsc`), còn `@volar/typescript`
+  khai báo peer `typescript: "<7"`. Chỉ nâng lên 7.1 khi Vue Language Tools v4 (content mapper) ổn định;
+  lúc đó bỏ `vue-tsc`, thêm `contentMappers` vào `tsconfig.json` và chạy `tsc --runExternalCode`.

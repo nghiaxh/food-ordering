@@ -2,7 +2,7 @@
 
 [![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](https://vitejs.dev)
 [![Vue](https://img.shields.io/badge/Vue%203-3.5-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9%2F7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Naive UI](https://img.shields.io/badge/Naive%20UI-2.45-18a058?logo=vuedotjs&logoColor=white)](https://www.naiveui.com)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
@@ -95,8 +95,8 @@ Reset dữ liệu demo: xoá volume `db_data` rồi chạy lại (`docker compos
 
 | Tầng | Công nghệ |
 |---|---|
-| Client | Vue 3, TypeScript 5.9, Vite 8, Naive UI, Tailwind CSS 4, Pinia, Axios, Vue Router |
-| Server | Express 5, TypeScript 7, Drizzle ORM 0.45, JWT (jsonwebtoken), bcrypt, zod |
+| Client | Vue 3, TypeScript 6.0, Vite 8, Naive UI, Tailwind CSS 4, Pinia, Axios, Vue Router |
+| Server | Express 5, TypeScript 6.0, Drizzle ORM 0.45, JWT (jsonwebtoken), bcrypt, zod |
 | Database | PostgreSQL 18 + pgvector (cosine, vector 768 chiều cho RAG tài liệu quán) |
 | AI | Gemini qua `server/src/lib/provider.ts` (chat + embedding), hỗ trợ nhiều khoá xoay tự động |
 | Hạ tầng | Docker Compose, 1 file 3 profile dev, prod và tools |
