@@ -91,7 +91,7 @@ const onSubmit = async () => {
           size="medium"
         >
           <template #suffix>
-            <button type="button" class="cursor-pointer border-0 bg-transparent p-0 text-stone-400 hover:text-stone-600" :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showPassword = !showPassword">
+            <button type="button" class="grid h-full cursor-pointer place-items-center border-0 bg-transparent p-0 text-stone-400 hover:text-stone-600" :aria-label="showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showPassword = !showPassword">
               <NIcon :size="18"><EyeOffOutline v-if="showPassword" /><EyeOutline v-else /></NIcon>
             </button>
           </template>
