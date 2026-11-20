@@ -2,6 +2,14 @@ import { defineStore } from 'pinia'
 import type { AuthUser } from '@/shared/types'
 
 const KEY = 'auth'
+// Email nho san de lan sau chi can nhap mat khau; chi luu khi khach tick "Ghi nho dang nhap".
+const REMEMBERED_EMAIL_KEY = 'auth.remembered-email'
+
+const readRememberedEmail = (): string => {
+  const email = localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? ''
+  // Storage bi sua tay co the chua chuoi rac, tranh bom vao o email cua form dang nhap.
+  return email.includes('@') ? email : ''
+}
 
 // Shape khop AuthUser trong shared/types; storage bai hoac bieu tu ban lam UI tuong
 // da dang nhap va request rong token, nen khong hop le thi coi nhu chua dang nhap.
@@ -45,7 +53,16 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem(KEY)
       sessionStorage.removeItem(KEY)
       ;(persist ? localStorage : sessionStorage).setItem(KEY, JSON.stringify(user))
+      // Bo tick "Ghi nho dang nhap" thi xoa email da nho; logout() thi giu lai.
+      if (persist) localStorage.setItem(REMEMBERED_EMAIL_KEY, user.email)
+      else localStorage.removeItem(REMEMBERED_EMAIL_KEY)
       this.user = user
+    },
+    rememberedEmail() {
+      return readRememberedEmail()
+    },
+    forgetRememberedEmail() {
+      localStorage.removeItem(REMEMBERED_EMAIL_KEY)
     },
     logout() {
       localStorage.removeItem(KEY)

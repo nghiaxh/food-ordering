@@ -338,7 +338,10 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - **Hot reload server**: `tsx watch` tự restart khi file trong `src/` đổi — không cần bước compile riêng.
 - **Lưu ý phiên đăng nhập:** `authStore` hỗ trợ `localStorage` và `sessionStorage`;
   `client/src/shared/api/http.ts` đọc token từ `localStorage` rồi fallback `sessionStorage`, nên ô
-  "Ghi nhớ đăng nhập" hoạt động đúng cả hai chế độ.
+  "Ghi nhớ đăng nhập" hoạt động đúng cả hai chế độ. Tích ô này thì email được lưu ở
+  `localStorage['auth.remembered-email']` để trang đăng nhập tự điền và khách chỉ cần nhập mật
+  khẩu (nút "Đổi tài khoản" xoá email đó); bỏ tích thì xoá email, còn `logout()` giữ lại. Không
+  lưu mật khẩu, và "ghi nhớ" không kéo dài hạn token (`JWT_EXPIRATION_MS`).
 - **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
   `AdminLayout` (menu trái 4 nhóm / 8 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
   báo trong `AdminLayout`, đừng gắn vào `DefaultLayout`.
