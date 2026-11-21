@@ -45,7 +45,10 @@ export function nextStatus(status: OrderStatus): OrderStatus | null {
 /** Cac trang thai ma quan tri vien co the chuyen toi tu trang thai hien tai. */
 export function allowedNextStatuses(status: OrderStatus): OrderStatus[] {
   const next = nextStatus(status)
-  return next ? [next, 'CANCELLED'] : []
+  if (!next) return []
+  // Trạng thái PREPARING ("Đang vận chuyển") chỉ đổi tiếp khi Hoàn thành, không cho hủy theo quy tắc hệ thống.
+  const canCancel = status === 'PENDING' || status === 'CONFIRMED'
+  return canCancel ? [next, 'CANCELLED'] : [next]
 }
 
 /**

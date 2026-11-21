@@ -17,6 +17,8 @@ export const canEditItems = (order: { status: OrderStatus; paymentStatus: string
 // Luat chuyen trang thai don hang mot chieu; tach khoi service de test doc lap khong can DB.
 export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
   if (from === "COMPLETED" || from === "CANCELLED") return false;
+  // Trạng thái "Đang vận chuyển" (PREPARING) chỉ được chuyển sang Hoàn thành, không hủy được.
+  if (from === "PREPARING" && to === "CANCELLED") return false;
   if (to === "CANCELLED") return true;
   switch (from) {
     case "PENDING":

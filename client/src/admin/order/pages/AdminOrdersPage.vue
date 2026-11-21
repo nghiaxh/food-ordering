@@ -426,7 +426,7 @@ const statusSelectOptions = computed(() => {  const d = detail.value
         </NFormItem>
 
         <div class="grid gap-x-3 sm:grid-cols-3">
-          <NFormItem label="Thanh toán" path="paymentMethod" :rule="[{ required: true }]">
+          <NFormItem label="Thanh toán" path="paymentMethod" :rule="[{ required: true }]" :disabled="itemsLocked">
             <NSelect v-model:value="form.paymentMethod" :options="PAYMENT_METHODS" />
           </NFormItem>
           <NFormItem label="Trạng thái" path="status">

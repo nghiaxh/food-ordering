@@ -21,10 +21,10 @@ describe("isValidTransition", () => {
     expect(isValidTransition("PREPARING", "CONFIRMED")).toBe(false);
   });
 
-  it("CANCELLED hợp lệ từ mọi trạng thái chưa chốt, không hợp lệ từ COMPLETED/CANCELLED", () => {
+  it("CANCELLED hợp lệ từ PENDING/CONFIRMED, không hợp lệ từ PREPARING/COMPLETED/CANCELLED", () => {
     expect(isValidTransition("PENDING", "CANCELLED")).toBe(true);
     expect(isValidTransition("CONFIRMED", "CANCELLED")).toBe(true);
-    expect(isValidTransition("PREPARING", "CANCELLED")).toBe(true);
+    expect(isValidTransition("PREPARING", "CANCELLED")).toBe(false);
     expect(isValidTransition("COMPLETED", "CANCELLED")).toBe(false);
     expect(isValidTransition("CANCELLED", "PENDING")).toBe(false);
     expect(isValidTransition("COMPLETED", "PREPARING")).toBe(false);
