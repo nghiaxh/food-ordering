@@ -141,10 +141,13 @@ describe("matches / bestFor", () => {
     expect(tie?.name).toBe("cao điểm ưu tiên");
   });
 
-  it("bỏ qua khuyến mãi khi giá món thấp hơn minOrderTotal", () => {
+  it("áp KM cho dòng có giá thấp hơn minOrderTotal khi đơn đã đạt hạn mức", () => {
     const minimum = promo({ id: 50, scope: "GLOBAL", minOrderTotal: "100000", name: "Đơn từ 100k" });
-    expect(bestFor(95000, food(7, 2), rulesOf([minimum]))).toBeNull();
-    expect(bestFor(120000, food(7, 2), rulesOf([minimum]))?.id).toBe(50);
+    // Hạn mức chỉ gate duy nhất ở buildRules, nên bestFor phải vẫn trả KM cho dòng dưới ngưỡng.
+    expect(bestFor(95000, food(7, 2), rulesOf([minimum]))?.id).toBe(50);
+    // Khi đơn chưa đạt hạn mức (buildRules loại), bestFor không được dùng - giữ nguyên cho
+    // trường hợp gọi trực tiếp thì nhất quán với hành vi hệ thống thực tế.
+    expect(minOrderReached(minimum, 95000)).toBe(false);
   });
 
   it("KM randomCount chỉ áp cho món được băm trúng trong ngày", () => {
