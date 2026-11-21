@@ -27,7 +27,6 @@ import StatusDot from '@/admin/components/StatusDot.vue'
 import TableSkeleton from '@/admin/components/TableSkeleton.vue'
 import FormModal from '@/components/FormModal.vue'
 
-const initialOf = (u: User): string => (u.fullName?.trim() || u.email?.trim() || '?').charAt(0).toUpperCase()
 
 const { data: users, loading, error, refresh } = useAsyncData(() => adminGetUsers(), () => [])
 watchEffect(() => {
@@ -171,7 +170,6 @@ const columns: DataTableColumns<User> = [
   {
     title: 'Họ tên', key: 'fullName', fixed: 'left',
     render: (row) => h('div', { class: 'flex items-center gap-2.5' }, [
-      h('span', { class: 'grid h-8 w-8 shrink-0 place-items-center rounded-md bg-stone-100 text-xs font-semibold text-stone-600' }, initialOf(row)),
       h('span', { class: 'text-sm font-medium text-stone-700' }, row.fullName || '—'),
     ]),
   },
@@ -225,13 +223,21 @@ const columns: DataTableColumns<User> = [
       <NButton type="primary" size="small" @click="openCreate">Thêm khách hàng</NButton>
     </template></PageHeader>
 
-    <div class="mb-3 flex flex-wrap items-center gap-2">
-      <NInput v-model:value="search" placeholder="Tìm theo tên, email hoặc SĐT..." clearable size="small" class="w-full sm:w-64">
-        <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
-      </NInput>
-      <NSelect v-model:value="roleFilter" size="small" class="min-w-0 flex-1 sm:flex-none sm:w-36" :options="ROLE_OPTIONS" />
-      <NSelect v-model:value="statusFilter" size="small" class="min-w-0 flex-1 sm:flex-none sm:w-40" :options="STATUS_OPTIONS" />
-      <span v-if="search.trim() || roleFilter !== 'CUSTOMER' || statusFilter !== 'all'" class="text-xs text-stone-400">
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div class="w-full sm:w-64">
+        <NInput v-model:value="search" placeholder="Tìm theo tên, email hoặc SĐT..." clearable size="small">
+          <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
+        </NInput>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
+        <div class="min-w-0 sm:w-36">
+          <NSelect v-model:value="roleFilter" size="small" :options="ROLE_OPTIONS" />
+        </div>
+        <div class="min-w-0 sm:w-40">
+          <NSelect v-model:value="statusFilter" size="small" :options="STATUS_OPTIONS" />
+        </div>
+      </div>
+      <span v-if="search.trim() || roleFilter !== 'CUSTOMER' || statusFilter !== 'all'" class="text-xs text-stone-400 sm:ml-auto">
         Hiển thị {{ rows.length }} / {{ users?.length ?? 0 }} tài khoản
       </span>
     </div>
@@ -242,7 +248,7 @@ const columns: DataTableColumns<User> = [
       <NDataTable v-else :columns="columns" :data="rows" :row-key="(row: User) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="900" size="small" />
     </PageCard>
 
-    <FormModal :title="editing ? `Sửa: ${editing.fullName}` : 'Thêm khách hàng'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
+    <FormModal :title="editing ? editing.fullName : 'Thêm khách hàng'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
       <NForm ref="formRef" :model="form" :show-require-mark="false" size="small" class="mt-3">
         <NFormItem label="Họ và tên" path="fullName" :rule="nameRules">
           <NInput v-model:value="form.fullName" placeholder="Nguyễn Văn A" />

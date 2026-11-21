@@ -117,11 +117,15 @@ watch(applied, () => { refreshAll() })
       </NButton>
     </template></PageHeader>
 
-    <div class="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-stone-200 bg-white p-2">
-      <NDatePicker v-model:value="range" type="daterange" clearable class="min-w-[260px]" size="small" />
-      <NButton type="primary" size="small" @click="applied = range">Lọc dữ liệu</NButton>
-      <NButton v-if="applied" size="small" @click="() => { range = null; applied = null }">Bỏ lọc</NButton>
-      <span class="ml-auto text-xs text-stone-400">
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center rounded-md border border-stone-200 bg-white p-2">
+      <div class="w-full sm:w-[280px]">
+        <NDatePicker v-model:value="range" type="daterange" clearable size="small" class="w-full" />
+      </div>
+      <div class="flex gap-2">
+        <NButton type="primary" size="small" @click="applied = range">Lọc dữ liệu</NButton>
+        <NButton v-if="applied" size="small" @click="() => { range = null; applied = null }">Bỏ lọc</NButton>
+      </div>
+      <span class="text-xs text-stone-400 sm:ml-auto">
         {{ applied ? `${dayLabel(pickedDay(applied[0]))} – ${dayLabel(pickedDay(applied[1]))}` : '30 ngày gần nhất' }}
       </span>
     </div>

@@ -46,10 +46,9 @@ const rows = computed(() => {
   const kw = search.value.trim().toLowerCase()
   const list = !kw
     ? (data.value ?? [])
-    : (data.value ?? []).filter((c) => c.name.toLowerCase().includes(kw) || (c.slug ?? '').toLowerCase().includes(kw))
+    : (data.value ?? []).filter((c) => c.name.toLowerCase().includes(kw))
   return [...list].sort((a, b) => b.id - a.id)
 })
-const slugPreview = computed(() => editing.value?.slug ?? slugify(form.name.trim()))
 
 const openCreate = () => {
   editing.value = null
@@ -106,14 +105,16 @@ const remove = async (id: number) => {
 <template>
   <div>
     <PageHeader title="Danh mục"><template #extra>
-      <NButton type="primary" size="small" @click="openCreate">Tạo danh mục</NButton>
+      <NButton type="primary" size="small" @click="openCreate">Thêm danh mục</NButton>
     </template></PageHeader>
 
-    <div class="mb-3 flex flex-wrap items-center gap-2">
-      <NInput v-model:value="search" placeholder="Tìm theo tên hoặc slug..." clearable size="small" class="w-full sm:w-64">
-        <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
-      </NInput>
-      <span v-if="search.trim()" class="text-xs text-stone-400">Hiển thị {{ rows.length }} / {{ data?.length ?? 0 }} danh mục</span>
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div class="w-full sm:w-64">
+        <NInput v-model:value="search" placeholder="Tìm theo tên danh mục..." clearable size="small">
+          <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
+        </NInput>
+      </div>
+      <span v-if="search.trim()" class="text-xs text-stone-400 sm:ml-auto">Hiển thị {{ rows.length }} / {{ data?.length ?? 0 }} danh mục</span>
     </div>
 
     <div v-if="loading && !data" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -136,7 +137,6 @@ const remove = async (id: number) => {
         </div>
         <div class="p-2.5">
           <p class="truncate text-sm font-semibold text-stone-800" :title="c.name">{{ c.name }}</p>
-          <p class="mt-0.5 truncate text-[11px] text-stone-400">/{{ c.slug }}</p>
           <div class="mt-2 flex items-center gap-1.5">
             <NButton size="small" class="flex-1" @click="openEdit(c)">Sửa</NButton>
             <NTooltip :disabled="(counts.get(c.id) ?? 0) === 0">
@@ -166,7 +166,7 @@ const remove = async (id: number) => {
     </PageCard>
 
     <FormModal
-      :title="editing ? `Sửa: ${editing.name}` : 'Tạo danh mục'"
+      :title="editing ? editing.name : 'Thêm danh mục'"
       :show="modal"
       :saving="saving"
       :on-close="() => { modal = false }"
@@ -176,7 +176,6 @@ const remove = async (id: number) => {
         <NFormItem label="Tên danh mục" path="name" :rule="[{ required: true, message: 'Nhập tên danh mục', trigger: ['blur', 'input'] }]">
           <NInput v-model:value="form.name" placeholder="Món Việt" @keyup.enter="submit" />
         </NFormItem>
-        <p class="-mt-2 mb-4 text-xs text-stone-400">Slug tự động: <span class="font-medium text-stone-500">/{{ slugPreview }}</span></p>
         <NFormItem label="Mô tả" path="description">
           <NInput v-model:value="form.description" type="textarea" :autosize="{ minRows: 2 }" placeholder="Mô tả ngắn danh mục, tuỳ chọn" />
         </NFormItem>

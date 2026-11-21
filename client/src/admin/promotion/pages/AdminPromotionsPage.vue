@@ -213,16 +213,20 @@ const columns: DataTableColumns<Promotion> = [
       <NButton type="primary" size="small" @click="openCreate">Thêm khuyến mãi</NButton>
     </template></PageHeader>
 
-    <div class="mb-3 flex flex-wrap items-center gap-2">
-      <NInput v-model:value="search" clearable size="small" placeholder="Tìm tên hoặc mô tả..." class="w-full sm:w-64">
-        <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
-      </NInput>
-      <NSelect v-model:value="statusFilter" size="small" class="w-full sm:w-40" :options="[
-        { label: 'Tất cả trạng thái', value: 'all' },
-        { label: 'Đang bật', value: 'active' },
-        { label: 'Đang tắt', value: 'inactive' },
-      ]" />
-      <span v-if="search.trim() || statusFilter !== 'all'" class="text-xs text-stone-400">Hiển thị {{ rows.length }} / {{ promotions?.length ?? 0 }} khuyến mãi</span>
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div class="w-full sm:w-64">
+        <NInput v-model:value="search" clearable size="small" placeholder="Tìm tên hoặc mô tả...">
+          <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
+        </NInput>
+      </div>
+      <div class="min-w-0 sm:w-40">
+        <NSelect v-model:value="statusFilter" size="small" class="w-full" :options="[
+          { label: 'Tất cả trạng thái', value: 'all' },
+          { label: 'Đang bật', value: 'active' },
+          { label: 'Đang tắt', value: 'inactive' },
+        ]" />
+      </div>
+      <span v-if="search.trim() || statusFilter !== 'all'" class="text-xs text-stone-400 sm:ml-auto">Hiển thị {{ rows.length }} / {{ promotions?.length ?? 0 }} khuyến mãi</span>
     </div>
 
     <PageCard>
@@ -231,7 +235,7 @@ const columns: DataTableColumns<Promotion> = [
       <NDataTable v-else :columns="columns" :data="rows" :row-key="(row: Promotion) => row.id" :pagination="{ pageSize: 10 }" :scroll-x="900" size="small" />
     </PageCard>
 
-    <FormModal :title="editing ? 'Sửa khuyến mãi' : 'Thêm khuyến mãi'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
+    <FormModal :title="editing ? editing.name : 'Thêm khuyến mãi'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
       <NForm ref="formRef" :model="form" :show-require-mark="false" size="small" class="mt-3">
         <NFormItem label="Tên chương trình" path="name" :rule="[{ required: true, message: 'Nhập tên chương trình', trigger: ['blur', 'input'] }]">
           <NInput v-model:value="form.name" />
