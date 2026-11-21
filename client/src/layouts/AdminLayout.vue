@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, h } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { NBadge, NButton, NAvatar, NConfigProvider, NDrawer, NDrawerContent, NDropdown, NIcon, NTooltip, type DropdownOption } from 'naive-ui'
 import {
   HomeOutline,
@@ -16,7 +16,6 @@ import {
   PersonOutline,
   LogOutOutline,
 } from '@vicons/ionicons5'
-import BrandMark from '@/components/BrandMark.vue'
 import NotificationsDrawer from '@/user/notification/components/NotificationsDrawer.vue'
 import { adminGetOrders } from '@/admin/order/api'
 import { useAuthStore } from '@/user/auth/store'
@@ -107,28 +106,37 @@ const onSelectMenu = (key: string) => {
           </NButton>
           <NTooltip placement="bottom">
             <template #trigger>
-              <BrandMark />
+              <RouterLink
+                to="/"
+                aria-label="Về trang chủ"
+                class="relative flex cursor-pointer items-center justify-center rounded-full p-2.5 transition hover:bg-orange-50"
+              >
+                <NIcon :size="20" aria-hidden="true"><HomeOutline /></NIcon>
+              </RouterLink>
             </template>
             Về trang chủ
           </NTooltip>
           <div class="ml-auto flex items-center gap-1">
-            <NButton
-              quaternary
-              circle
-              size="small"
+            <button
+              type="button"
               :aria-label="unread > 0 ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'"
+              class="relative flex cursor-pointer items-center justify-center rounded-full p-2.5 transition hover:bg-orange-50"
               @click="ui.openDrawer('notifications')"
             >
               <NBadge :value="unread" :show="unread > 0" dot color="#c2410c">
-                <NIcon :size="18"><NotificationsOutline /></NIcon>
+                <NIcon :size="20"><NotificationsOutline /></NIcon>
               </NBadge>
-            </NButton>
+            </button>
             <NDropdown trigger="click" placement="bottom-end" :options="menuOptions" @select="onSelectMenu">
-              <NButton quaternary circle size="small" aria-label="Menu tài khoản">
-                <NAvatar round :size="32" color="#c2410c">
-                  <span class="text-[13px] font-semibold text-white">{{ user?.fullName?.charAt(0).toUpperCase() }}</span>
+              <button
+                type="button"
+                aria-label="Menu tài khoản"
+                class="relative flex cursor-pointer items-center rounded-full p-0.5 transition hover:bg-orange-50"
+              >
+                <NAvatar round :size="36" color="#c2410c" class="text-base font-semibold">
+                  {{ user?.fullName?.charAt(0).toUpperCase() }}
                 </NAvatar>
-              </NButton>
+              </button>
             </NDropdown>
           </div>
         </div>
