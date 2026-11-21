@@ -125,8 +125,8 @@ const onSelectMenu = (key: string) => {
             </NButton>
             <NDropdown trigger="click" placement="bottom-end" :options="menuOptions" @select="onSelectMenu">
               <NButton quaternary circle size="small" aria-label="Menu tài khoản">
-                <NAvatar round :size="26" color="#c2410c">
-                  <span class="text-xs font-semibold text-white">{{ user?.fullName?.charAt(0).toUpperCase() }}</span>
+                <NAvatar round :size="32" color="#c2410c">
+                  <span class="text-[13px] font-semibold text-white">{{ user?.fullName?.charAt(0).toUpperCase() }}</span>
                 </NAvatar>
               </NButton>
             </NDropdown>

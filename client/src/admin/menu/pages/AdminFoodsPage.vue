@@ -32,7 +32,6 @@ import ImageField from '@/admin/components/ImageField.vue'
 import FormModal from '@/components/FormModal.vue'
 
 const search = ref('')
-const catFilter = ref<number | undefined>(undefined)
 const statusFilter = ref<'all' | 'available' | 'hidden'>('all')
 const modal = ref(false)
 const editing = ref<Food | null>(null)
@@ -66,7 +65,6 @@ const rows = computed(() => {
     if (kw && !f.name.toLowerCase().includes(kw) && !(f.category?.name ?? '').toLowerCase().includes(kw)) {
       return false
     }
-    if (catFilter.value !== undefined && f.category?.id !== catFilter.value) return false
     if (statusFilter.value === 'available' && !f.available) return false
     if (statusFilter.value === 'hidden' && f.available) return false
     return true
@@ -181,13 +179,16 @@ const columns: DataTableColumns<Food> = [
       <NButton type="primary" size="small" @click="openCreate">Thêm món</NButton>
     </template></PageHeader>
 
-    <div class="mb-3 flex flex-wrap items-center gap-2">
-      <NInput v-model:value="search" placeholder="Tìm theo tên hoặc danh mục..." clearable size="small" class="w-full sm:w-64">
-        <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
-      </NInput>
-      <NSelect v-model:value="catFilter" clearable placeholder="Tất cả danh mục" size="small" class="min-w-0 flex-1 sm:flex-none sm:w-48" :options="categoryOptions" />
-      <NSelect v-model:value="statusFilter" size="small" class="min-w-0 flex-1 sm:flex-none sm:w-40" :options="STATUS_OPTIONS" />
-      <span v-if="search.trim() || catFilter !== undefined || statusFilter !== 'all'" class="text-xs text-stone-400">
+    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div class="w-full sm:w-64">
+        <NInput v-model:value="search" placeholder="Tìm theo tên hoặc danh mục..." clearable size="small">
+          <template #prefix><NIcon :size="14" class="text-stone-400"><SearchOutline /></NIcon></template>
+        </NInput>
+      </div>
+      <div class="min-w-0 sm:w-40">
+        <NSelect v-model:value="statusFilter" size="small" :options="STATUS_OPTIONS" />
+      </div>
+      <span v-if="search.trim() || statusFilter !== 'all'" class="text-xs text-stone-400 sm:ml-auto">
         Hiển thị {{ rows.length }} / {{ data?.length ?? 0 }} món
       </span>
     </div>
@@ -199,7 +200,7 @@ const columns: DataTableColumns<Food> = [
     </PageCard>
 
     <FormModal
-      :title="editing ? `Sửa món: ${editing.name}` : 'Thêm món mới'"
+      :title="editing ? editing.name : 'Thêm món'"
       :show="modal"
       :saving="saving"
       :on-close="() => { modal = false }"
@@ -239,9 +240,9 @@ const columns: DataTableColumns<Food> = [
           <NFormItem label="Ảnh món ăn" path="imageUrl" class="md:col-span-2">
             <ImageField v-model:value="form.imageUrl" />
           </NFormItem>
-          <NCheckbox v-model:checked="form.available" class="md:col-span-2 rounded-md border border-stone-200 px-2.5 py-1.5">
-            <span class="text-sm font-medium text-emerald-700">Đang bán</span>
-            <span class="text-xs text-stone-500"> — tắt để ẩn món khỏi thực đơn</span>
+          <NCheckbox v-model:checked="form.available" class="md:col-span-2">
+            <span class="text-sm font-medium text-stone-700">Đang bán</span>
+            <span class="ml-1 text-xs text-stone-500">Bỏ chọn để ẩn món khỏi thực đơn.</span>
           </NCheckbox>
         </div>
       </NForm>

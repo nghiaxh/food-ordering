@@ -406,7 +406,7 @@ const statusSelectOptions = computed(() => {  const d = detail.value
     </NDrawer>
 
     <!-- Form tao/sua don -->
-    <FormModal :title="editing ? `Sửa đơn #${editing.id}` : 'Thêm đơn hàng'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
+    <FormModal :title="editing ? `Đơn #${orderCode(editing.id)}` : 'Thêm đơn'" :show="modal" :saving="saving" :on-close="() => { modal = false }" :on-submit="submit">
       <NForm ref="formRef" :model="form" :show-require-mark="false" size="small" class="mt-3">
         <NFormItem label="Khách hàng" path="customerEmail" :rule="[{ required: true, message: 'Chọn khách hàng', trigger: 'change' }]">
           <NSelect v-model:value="form.customerEmail" filterable placeholder="Chọn khách để gắn đơn" :options="userOptions" />

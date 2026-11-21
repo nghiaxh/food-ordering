@@ -21,10 +21,7 @@ import {
 import {
   CloudUploadOutline,
   InformationCircleOutline,
-  EyeOutline,
-  CreateOutline,
   RefreshOutline,
-  TrashOutline,
   AddOutline,
 } from '@vicons/ionicons5'
 import {
@@ -262,47 +259,12 @@ const docColumns: DataTableColumns<KnowledgeDoc> = [
     key: 'actions',
     width: 260,
     render: (row) =>
-      h('div', { class: 'flex flex-wrap items-center gap-x-3 gap-y-1 text-xs' }, [
-        h(
-          'button',
-          {
-            class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1',
-            onClick: () => openEditDoc(row),
-          },
-          [h(NIcon, { size: 12 }, () => h(CreateOutline)), 'Sửa'],
-        ),
-        h(
-          'button',
-          {
-            class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1',
-            onClick: () => viewChunks(row),
-          },
-          [h(NIcon, { size: 12 }, () => h(EyeOutline)), 'Xem'],
-        ),
-        h(
-          'button',
-          {
-            class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1',
-            onClick: () => reingest(row.id),
-          },
-          [h(NIcon, { size: 12 }, () => h(RefreshOutline)), 'Tạo lại'],
-        ),
-        h(
-          'button',
-          {
-            class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-orange-700 hover:underline inline-flex items-center gap-1',
-            onClick: () => embedDoc(row.id),
-          },
-          [h(NIcon, { size: 12 }, () => h(CloudUploadOutline)), 'Embed'],
-        ),
-        h(
-          'button',
-          {
-            class: 'cursor-pointer border-0 bg-transparent p-0 font-medium text-red-600 hover:underline inline-flex items-center gap-1',
-            onClick: () => deleteDoc(row),
-          },
-          [h(NIcon, { size: 12 }, () => h(TrashOutline)), 'Xóa'],
-        ),
+      h('div', { class: 'flex flex-wrap items-center gap-1.5' }, [
+        h(NButton, { size: 'tiny', onClick: () => openEditDoc(row) }, () => 'Sửa'),
+        h(NButton, { size: 'tiny', onClick: () => viewChunks(row) }, () => 'Xem'),
+        h(NButton, { size: 'tiny', onClick: () => reingest(row.id) }, () => 'Tạo lại'),
+        h(NButton, { size: 'tiny', onClick: () => embedDoc(row.id) }, () => 'Embed'),
+        h(NButton, { size: 'tiny', type: 'error', ghost: true, onClick: () => deleteDoc(row) }, () => 'Xóa'),
       ]),
   },
 ]
@@ -408,15 +370,6 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
     </NAlert>
 
     <PageCard class="mb-4">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-4 py-3">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold text-stone-800">Cài đặt mô hình & Quy tắc gợi ý</span>
-        </div>
-        <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">
-          Lưu cài đặt
-        </NButton>
-      </div>
-
       <div class="p-4">
         <NForm :show-feedback="false" class="space-y-4">
           <div class="grid gap-4 sm:grid-cols-1">
@@ -442,14 +395,18 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
                 size="small"
                 @update:value="(v: string) => (extraRules = v)"
               />
-              <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-400">
-                <span>Quy tắc được nối vào prompt hệ thống của AI. Để trống nếu muốn xoá bỏ quy tắc.</span>
+              <div class="flex items-center justify-end">
                 <NButton v-if="extraRules.trim()" size="tiny" quaternary type="default" @click="extraRules = ''">
                   Xoá quy tắc
                 </NButton>
               </div>
             </div>
           </NFormItem>
+          <div class="flex justify-end">
+            <NButton type="primary" size="small" :loading="savingSettings" @click="onSaveSettings">
+              Lưu cài đặt
+            </NButton>
+          </div>
         </NForm>
       </div>
 
@@ -519,7 +476,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       />
     </PageCard>
 
-    <FormModal :title="editingDoc ? 'Sửa tài liệu' : 'Thêm tài liệu'" :show="docModal" :on-close="() => { docModal = false }" :on-submit="saveDoc">
+    <FormModal :title="editingDoc ? editingDoc.title : 'Thêm tài liệu'" :show="docModal" :on-close="() => { docModal = false }" :on-submit="saveDoc">
       <NForm :show-feedback="false" class="space-y-3 pt-1">
         <NFormItem label="Tiêu đề tài liệu">
           <NInput :value="docForm.title" placeholder="Ví dụ: Giờ mở cửa" size="small" @update:value="(v: string) => { docForm.title = v }" />
