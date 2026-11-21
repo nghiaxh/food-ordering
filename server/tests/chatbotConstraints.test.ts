@@ -74,6 +74,10 @@ describe("parseBudget", () => {
   it("doc 2 trieu", () => {
     expect(parseBudget("2 trieu")).toBe(2000000);
   });
+  it("doc ngan sach thap phan keo dai co don vi", () => {
+    expect(parseBudget("1.5 trieulo")).toBe(1500000);
+    expect(parseBudget("15.5k")).toBe(15500);
+  });
 });
 
 describe("parsePeople", () => {
