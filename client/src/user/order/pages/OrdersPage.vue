@@ -56,6 +56,13 @@ const qrError = ref('')
 let qrTimer: number | undefined
 // Moi lan mo modal QR tang so nay; ket qua await cua lan cu khong duoc dung timer cua lan moi.
 let qrToken = 0
+// Hen tai lai danh sach sau khi don cham han; moi don chi mot hen de khong ban request lien tuc.
+const expiryRefreshTimers = new Map<number, number>()
+// Mot moc thoi gian chung cho ca danh sach de dem nguoc han thanh toan khong lech giua cac don.
+const now = ref(Date.now())
+const clockTimer = window.setInterval(() => {
+  now.value = Date.now()
+}, 1000)
 
 const startQrTimer = () => {
   window.clearInterval(qrTimer)
@@ -91,6 +98,9 @@ watch(paying, async (order) => {
 onBeforeUnmount(() => {
   qrToken += 1
   window.clearInterval(qrTimer)
+  window.clearInterval(clockTimer)
+  for (const timer of expiryRefreshTimers.values()) window.clearTimeout(timer)
+  expiryRefreshTimers.clear()
 })
 
 /** Nut "Tao ma moi": dong ho cu da dung o 0 nen phai dung lai interval, chi reset so giay la khong du. */
@@ -134,6 +144,21 @@ const handleConfirmPaid = async () => {
 const qrExpired = computed(() => paying.value?.paymentMethod === 'QR' && qrSeconds.value === 0)
 const qrLabel = computed(() => `${Math.floor(qrSeconds.value / 60)}:${String(qrSeconds.value % 60).padStart(2, '0')}`)
 
+// Han tra tien do server tinh tu luc tao don; client chi dem nguoc, khong tu dat lai 30 phut.
+const paymentSecondsLeft = (order: Order): number | null => {
+  if (!order.paymentDeadlineAt) return null
+  return Math.max(0, Math.ceil((new Date(order.paymentDeadlineAt).getTime() - now.value) / 1000))
+}
+
+const paymentCountdown = (order: Order): string => {
+  const left = paymentSecondsLeft(order)
+  if (left === null) return ''
+  if (left === 0) return 'Đã hết hạn thanh toán, đơn sẽ sớm được hủy'
+  const minutes = Math.floor(left / 60)
+  const seconds = String(left % 60).padStart(2, '0')
+  return `Tự hủy sau ${minutes}:${seconds} nếu chưa thanh toán`
+}
+
 const statusParam = computed(() => route.query.status)
 const filter = computed<OrderStatus | 'ALL'>(() => (isOrderStatus(statusParam.value) ? statusParam.value : 'ALL'))
 // Thong bao dan toi `/orders?orderId=...`: cuon toi dung don sau khi du lieu tai xong.
@@ -155,6 +180,30 @@ watch(
 
 watch(error, (e) => {
   if (e) message.error('Không tải được danh sách đơn hàng')
+})
+
+/**
+ * Don cham han chua duoc server huy ngay vi sweeper chay moi 60s: hen tai lai sau 65s.
+ * Tai lai xong neu don van PENDING thi vong dem nguoc ke tiep se hen lai, khong ban request lien tuc.
+ */
+const scheduleExpiryRefresh = (id: number) => {
+  if (expiryRefreshTimers.has(id)) return
+  const timer = window.setTimeout(async () => {
+    expiryRefreshTimers.delete(id)
+    await refresh()
+  }, 65_000)
+  expiryRefreshTimers.set(id, timer)
+}
+
+watch(now, () => {
+  for (const order of orders.value ?? []) {
+    if (paymentSecondsLeft(order) !== 0) continue
+    if (paying.value?.id === order.id) {
+      paying.value = null
+      message.warning('Đơn đã hết thời gian thanh toán và sẽ sớm được hủy')
+    }
+    scheduleExpiryRefresh(order.id)
+  }
 })
 
 const setFilter = (next: OrderStatus | 'ALL') => {
@@ -304,6 +353,14 @@ const tabClass = (active: boolean) =>
 
             <OrderTimeline :status="o.status" />
 
+            <p
+              v-if="paymentCountdown(o)"
+              class="mt-1 text-[11px]"
+              :class="paymentSecondsLeft(o) === 0 ? 'text-red-600' : 'text-amber-700'"
+            >
+              {{ paymentCountdown(o) }}
+            </p>
+
             <div class="mt-2 divide-y divide-stone-100">
               <div v-for="it in o.items" :key="it.id" class="flex items-center gap-2.5 py-1.5">
                 <img v-if="it.food?.imageUrl" :src="it.food.imageUrl" alt="" class="h-9 w-9 shrink-0 rounded-md object-cover" />
@@ -337,7 +394,12 @@ const tabClass = (active: boolean) =>
 
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
               <NButton v-if="o.status === 'COMPLETED'" size="small" :loading="reorderingId === o.id" @click="reorder(o)">Đặt lại</NButton>
-              <NButton v-if="o.status === 'PENDING' && o.paymentStatus !== 'PAID' && o.paymentMethod === 'QR'" size="small" @click="paying = o">
+              <NButton
+                v-if="o.status === 'PENDING' && o.paymentStatus !== 'PAID' && o.paymentMethod === 'QR'"
+                size="small"
+                :disabled="paymentSecondsLeft(o) === 0"
+                @click="paying = o"
+              >
                 <template #icon><NIcon :size="14"><QrCodeOutline /></NIcon></template>
                 Thanh toán
               </NButton>
