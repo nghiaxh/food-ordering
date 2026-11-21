@@ -113,7 +113,7 @@ export async function updateFood(id: number, req: {
 }) {
   const food = await db.query.foods.findFirst({
     where: eq(foods.id, id),
-    columns: { id: true },
+    columns: { id: true, available: true, spicyLevel: true, dietaryTags: true, allergens: true, servingSize: true },
   });
   if (!food) throw notFound("Không tìm thấy món ăn");
 
@@ -132,11 +132,13 @@ export async function updateFood(id: number, req: {
       ingredients: req.ingredients ?? null,
       price: String(req.price),
       imageUrl: req.imageUrl ?? null,
-      servingSize: req.servingSize && req.servingSize > 0 ? req.servingSize : 1,
-      spicyLevel: req.spicyLevel ?? 0,
-      dietaryTags: req.dietaryTags ?? null,
-      allergens: req.allergens ?? null,
-      available: req.available ?? true,
+      // Giữ giá trị hiện tại khi request bỏ qua field: admin sửa món không cần gửi
+      // available/dietaryTags/allergens để không vô tình đặt lại giá trị rỗng.
+      servingSize: req.servingSize && req.servingSize > 0 ? req.servingSize : food.servingSize,
+      spicyLevel: req.spicyLevel ?? food.spicyLevel,
+      dietaryTags: req.dietaryTags ?? food.dietaryTags ?? null,
+      allergens: req.allergens ?? food.allergens ?? null,
+      available: req.available ?? food.available,
     })
     .where(eq(foods.id, id));
 
