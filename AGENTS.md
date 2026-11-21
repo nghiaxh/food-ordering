@@ -194,6 +194,14 @@ Khi không dùng được:
 - **Nhãn PREPARING là "Đang vận chuyển"**: mã trạng thái trong DB không đổi, chỉ đổi nhãn hiển thị
   (`ORDER_STATUS_LABEL`, `order` module, thông báo "đang được vận chuyển"); nút admin
   `CONFIRMED → PREPARING` là "Giao hàng", nút **Đặt lại** ở `/orders` chỉ hiện khi `COMPLETED`.
+- **Đơn QR quá hạn thanh toán tự hủy**: chỉ đơn `PENDING` + `UNPAID` + `QR` tạo quá
+  `ORDER_PAYMENT_TIMEOUT_MINUTES` (mặc định 30) mới bị hủy; COD trả khi giao nên không tính giờ.
+  `user/order/expiryJob.ts` quét ngay khi khởi động rồi mỗi 60s bằng một câu `UPDATE ... WHERE`
+  có điều kiện (đơn vừa thanh toán xong thì không khớp), thông báo tạo cùng transaction. Hủy tự động
+  không hoàn `usedCount` của khuyến mãi, giống luồng khách tự hủy. `updatePayment` chặn ghi `PAID`
+  cho đơn đã `CANCELLED` để không lọt trạng thái hủy mà vẫn thu tiền. `toOrderJson` trả thêm
+  `paymentDeadlineAt` (null với COD, đơn đã trả tiền hoặc đã chốt); `OrdersPage` đếm ngược hạn này,
+  khoá nút thanh toán khi hết hạn và tự tải lại danh sách sau khi server kịp quét.
 - **Ràng buộc biên**: mật khẩu ≥ 8 ký tự, SĐT `^0\d{9}$` (cả đơn khách lẫn đơn admin tạo/sửa),
   giỏ không nhận món ngừng phục vụ, trạng thái đơn đi đúng một chiều, không sửa/khoá/xoá tài khoản
   quản trị. Chi tiết kiểm thử xem README và CI.
@@ -298,7 +306,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - `docker compose up` (không profile) chỉ khởi động Postgres.
 - Compose tự dựng `DATABASE_URL` từ `DB_NAME`; `UPLOAD_DIR=/app/uploads`.
   Các biến còn lại đọc từ `.env`, tên khớp cấu hình server (`DB_USER`/`DB_PASSWORD`, `JWT_SECRET`,
-  `JWT_EXPIRATION_MS`, `AI_API_KEYS`, `AI_MODELS`, `EMBEDDING_MODELS`).
+  `JWT_EXPIRATION_MS`, `AI_API_KEYS`, `AI_MODELS`, `EMBEDDING_MODELS`, `ORDER_PAYMENT_TIMEOUT_MINUTES`).
 
 ## Quy ước comment và tài liệu
 

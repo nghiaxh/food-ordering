@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import {
   foods,
   notifications,
@@ -198,10 +198,19 @@ async function applyPaymentTx(
   paid: boolean,
 ) {
   const next = paid ? "PAID" : "UNPAID";
-  await tx
+  // Don vua bi sweeper huy thi khong duoc ghi PAID: chan race giua "Da chuyen khoan" va job qua han.
+  const updatedRows = await tx
     .update(orders)
     .set({ paymentStatus: next })
-    .where(eq(orders.id, order.id));
+    .where(
+      paid
+        ? and(eq(orders.id, order.id), ne(orders.status, "CANCELLED"))
+        : eq(orders.id, order.id),
+    )
+    .returning({ id: orders.id });
+  if (paid && updatedRows.length === 0) {
+    throw badRequest("Đơn đã hủy nên không thanh toán được");
+  }
 
   await tx
     .update(paymentTransactions)

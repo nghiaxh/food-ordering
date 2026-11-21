@@ -75,6 +75,8 @@ export interface Order {
   /** Ghi chu cua khach cho quan; null hoac rong nghia la khong co. */
   note?: string | null
   createdAt: string
+  /** Han tra tien QR do server tinh; null khi don khong con cho thanh toan. */
+  paymentDeadlineAt?: string | null
   items: OrderItem[]
   user?: User
 }

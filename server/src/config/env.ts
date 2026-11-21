@@ -33,6 +33,8 @@ const schema = z.object({
   EMBEDDING_MODELS: z.string().default(DEFAULT_EMBEDDING_MODELS).transform((v) => v.trim() || DEFAULT_EMBEDDING_MODELS),
   UPLOAD_DIR: z.string().default("uploads"),
   PORT: z.coerce.number().default(8080),
+  // Don QR chua thanh toan qua so phut nay thi sweeper tu huy.
+  ORDER_PAYMENT_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(30),
 });
 
 const parsed = schema.safeParse(process.env);

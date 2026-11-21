@@ -6,6 +6,10 @@ import type {
   OrderItem,
   User,
 } from "../db/schema.js";
+import { env } from "../config/env.js";
+import { paymentDeadlineAt } from "../user/order/expiry.js";
+
+const PAYMENT_TIMEOUT_MS = env.ORDER_PAYMENT_TIMEOUT_MINUTES * 60_000;
 
 export const toCategoryJson = (c: Category) => ({
   id: c.id,
@@ -85,6 +89,8 @@ export const toOrderJson = (
   address: order.address,
   note: order.note,
   createdAt: order.createdAt.toISOString(),
+  /** Han tra tien de client dem nguoc; null voi COD, don da tra tien hoac da chot. */
+  paymentDeadlineAt: paymentDeadlineAt(order, PAYMENT_TIMEOUT_MS),
   items: (order.items ?? []).map(toOrderItemJson),
 });
 
