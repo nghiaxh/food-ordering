@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import type { Food, Promotion } from "../../db/schema.js";
 import { foods, promotions } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
@@ -163,10 +163,19 @@ export async function decorateFoods<TFood extends FoodLike & { name: string; ima
 /** Ghi nhan luot dung cua cac KM da ap; goi trong cung transaction voi tao don. */
 export async function markUsed(applied: Promotion[], tx: DbClient) {
   for (const p of applied) {
-    await tx
+    // Where cau dieu kien de rollback khi da vuot luot dung (usageLimit): khach
+    // chi duoc huong KM khi con luot, sao khi bestFor da bao dam boi buildRules.
+    const updated = await tx
       .update(promotions)
       .set({ usedCount: sql`${promotions.usedCount} + 1` })
-      .where(eq(promotions.id, p.id));
+      .where(
+        and(
+          eq(promotions.id, p.id),
+          or(isNull(promotions.usageLimit), sql`${promotions.usedCount} < ${promotions.usageLimit}`),
+        ),
+      )
+      .returning({ id: promotions.id });
+    if (updated.length === 0) throw badRequest("Khuyến mãi đã hết lượt dùng, vui lòng thử lại");
   }
 }
 
