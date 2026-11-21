@@ -42,54 +42,55 @@ client-server, không có build tooling ở root; `client/` và `server/` build 
 
 ```
 server/src/user/chatbot/
-  routes.ts          - endpoint /chat, /status, /sessions (rate limit, optionalAuth)
-  intent.ts          - hasFoodSignal, looksLikeGibberish, wantsMoreDishes, refersToLastPicks
-  constraints.ts     - readConstraints (regex), matchDishes, isReferenceKeyword, kiểu Constraints
-  prompts.ts         - EXTRACT_PROMPT (JSON tiêu chí), REPLY_PROMPT (câu trả lời)
-  service.ts         - điều phối: intent -> trích tiêu chí -> lọc SQL -> reply -> thẻ món
-  grounding.ts       - verifyReply (độ dài), hasForeignScript, dropTrailingQuestion, limitSentences
-  retrieval.ts       - pgvector retrieval (bỏ tsvector)
+  routes.ts          - endpoint /chat (requireAuth), /status, /sessions (rate limit)
+  parse.ts           - intent (hasFoodSignal, looksLikeGibberish, wantsMoreDishes, refersToLastPicks, isReferenceKeyword), readConstraints
+  constraints.ts     - readConstraints (regex), matchDishes, kiểu Constraints
+  select.ts          - filterMenu (SQL), buildCards, quickRepliesFor
+  reply.ts           - composeFoodReply (AI), composeInfoReply (RAG)
+  prompts.ts         - CHAT_PROMPT (mẫu prompt AI viết câu trả lời)
+  service.ts         - điều phối: intent -> filterMenu -> composeFoodReply -> thẻ món
+  grounding.ts       - hasForeignScript, dropTrailingQuestion, limitSentences
+  retrieval.ts       - pgvector retrieval
   ingest.ts          - upload, chunk, embed
   documentParser.ts  - parse + chunk v2
   sessions.ts        - lịch sử hội thoại
 ```
 
-### Chatbot - hai lượt gọi AI, bốn bước chống AI bịa món/giá
+### Chatbot - một lượt gọi AI, bốn bước chống AI bịa món/giá
 
 ```
-Người dùng → Chatbot → (1) AI trích xuất tiêu chí (JSON)   [provider.ts, jsonMode]
-           → (2) Server truy vấn DB và lọc món bằng code xác định
-           → (3) AI viết câu trả lời dựa TRÊN DANH SÁCH MÓN THẬT
+Người dùng → Chatbot → (1) Server đọc tiêu chí bằng regex
+           → (2) Server lọc món bằng SQL Drizzle
+           → (3) AI viết câu trả lời dựa TRÊN DANH SÁCH MÓN THẬT (jsonMode)
            → (4) Thẻ món trả về client luôn lấy ID từ DB, không từ text AI
 ```
 
 AI **không bao giờ** được tự nghĩ ra món/giá. Prompt trả lời chỉ nhận danh sách món server đã lọc từ
-`foods`; nếu AI/JSON lỗi thì `service.ts` dùng tiêu chí regex (`criteriaFromRegex`) chứ không coi là
-tiêu chí rỗng: tiêu chí rỗng khớp mọi món, khách hỏi món chay lại nhận cà phê đá. Chỉ khách **đã
-đăng nhập** mới ghi lịch sử hội thoại; khách vãng lai chat được nhờ `history`/`lastFoodIds` client gửi
-kèm, không lưu vào DB.
+`foods`; criteria regex không bao giờ được coi là rỗng (tiêu chí rỗng khớp mọi món, khách hỏi món chay
+lại nhận cà phê đá). AI lỗi (429/5xx, timeout, JSON hỏng) thì `chat()` ném `502`. Chỉ khách **đã đăng
+nhập** mới ghi lịch sử hội thoại (`requireAuth` routes.ts); khách vãng lai chat được nhờ
+`history`/`lastFoodIds` đọc ở `loadContext` trong `service.ts`, không lưu vào DB.
 
 **Cổng ý định**: `normalizeChat` đổi teencode phủ định ("ko/k/hok/hem" -> "không", "100 k" -> "100k")
 trước khi đọc regex. Câu không có tín hiệu món ăn (`hasFoodSignal`) **và** không có ràng buộc nào
-(ngân sách, số người, độ cay, chế độ ăn, tên món), hoặc gõ lung tung (`looksLikeGibberish`, cụm phụ
-âm >= 5) trả câu từ chối cố định, `intent = OUT_OF_SCOPE`, không gọi AI và không trả thẻ món.
+(ngân sách, số người, độ cay, chế độ ăn, tên món, dị ứng loại trừ, yêu cầu độ cay), hoặc gõ lung
+tung (`looksLikeGibberish`, cụm phụ âm >= 5) trả câu từ chối cố định, `intent = OUT_OF_SCOPE`, không
+gọi AI và không trả thẻ món.
 
-**Cách áp tiêu chí** (`chatbot/constraints.ts` + `chatbot/service.ts`):
-Regex đọc ràng buộc từ câu (budget, people, spicy, diet, exclude, dishes) rồi gộp với JSON của AI;
-ràng buộc regex **thắng** khi cả hai cùng có (`mergeCriteria`) vì model nhỏ hay bỏ sót "ko cay".
+**Cách áp tiêu chí** (`chatbot/constraints.ts` + `chatbot/select.ts`):
+Regex đọc ràng buộc từ câu (budget, people, spicy, diet, exclude, dishes); criteria rỗng khớp mọi món.
 Việc lọc món chạy hoàn toàn bằng SQL Drizzle trong `filterMenu`:
 1. Chỉ món `available`; `lastFoodIds` dùng để loại ("món khác" -> `NOT IN`) hoặc giới hạn ("món đó" -> `IN`).
 2. Lọc `spicyMax`, `spicyRequired`, nhãn chế độ ăn, thành phần loại trừ; `spicyMax = 0` chặn thêm
    tên/nguyên liệu chứa "ớt" vì dữ liệu `spicyLevel` có thể sai.
 3. Ngân sách là **TỔNG** của cả nhóm nên mỗi món bị chặn ở `floor(budget / people)`.
 Kết quả lấy tối đa 10 dòng, thẻ trả về tối đa **5** (`ai_setting.max_suggestions`, kẹp 1..5). Số phần
-`ceil(people / servingSize)` và tổng tiền tính trong `toCard` ở server, không giao cho AI tự tính.
+cắt ở `buildCards` ở server (theo `max_suggestions`), không giao cho AI tự tính.
 
-**Khi AI lỗi**: `extractCriteria` lỗi (429/5xx, timeout, JSON hỏng) thì dùng tiêu chí regex
-(`criteriaFromRegex`). `generateReply` lỗi thì `chat()` ném `502` kèm câu xin thử lại, **không** render
-template; câu trả lời lệch ngôn ngữ (Thái/Trung/Nhật/Hàn) được gọi lại 1 lần, vẫn lệch thì 502. Câu
-trả lời được dọn ở server: `dropTrailingQuestion` bỏ câu hỏi cuối, `limitSentences` cắt còn 4 câu.
-Thẻ món luôn lấy ID/giá từ DB nên không có chuyện AI bịa món.
+**Khi AI lỗi**: `chat()` ném `502` kèm câu xin thử lại, **không** render template. Câu trả lời dùng
+template an toàn khi AI trả ngôn ngữ lệch (`hasForeignScript`). Câu trả lời được dọn ở server:
+`dropTrailingQuestion` bỏ câu hỏi cuối, `limitSentences` cắt còn 3 câu. Thẻ món luôn lấy ID/giá từ DB
+nên không có chuyện AI bịa món.
 
 **RAG tài liệu quán** (chỉ khi provider dùng được): pgvector + embedding.
 - Upload, parse, chunk không gọi AI, luôn chạy. Chunk v2: tách theo đoạn, giữ tiêu đề, overlap 80 ký tự, không cắt giữa từ.
@@ -99,13 +100,11 @@ Thẻ món luôn lấy ID/giá từ DB nên không có chuyện AI bịa món.
 - Bỏ hoàn toàn tsvector và `keywordSearchKnowledge`. Không còn fallback keyword.
 - Model embedding: 768 chiều, chọn theo `EMBEDDING_MODELS` (danh sách, mặc định `gemini-embedding-2`).
 - Image Postgres: `pgvector/pgvector:0.8.7-pg18`. Extension `vector`, cột `vector(768)`, HNSW index `vector_cosine_ops`.
-- `verifyReply` (chatbot/grounding.ts) chỉ kiểm độ dài <= 800 ký tự; vi phạm chỉ ghi log, không chặn khách.
-
-**Câu hỏi tiếp**: client gửi `history` (3 câu gần nhất) và `lastFoodIds` (món ở tin bot gần nhất).
-`wantsMoreDishes` ("món khác", "gợi ý thêm") loại đúng các món đó bằng `NOT IN`; `refersToLastPicks`
-("món đó", "mấy món trên") chỉ xét trong `lastFoodIds` bằng `IN`. Từ khoá là đại từ bị
-`isReferenceKeyword` loại trước khi lọc ILIKE, không thì danh sách ra rỗng. Không dùng độ dài câu để
-đoán hỏi tiếp. Khi AI lỗi, tiêu chí regex vẫn bám context này.
+**Câu hỏi tiếp**: `history` (3 câu gần nhất) và `lastFoodIds` (món ở tin bot gần nhất) đọc ở server
+(`loadContext`, không cần client gửi kèm). `wantsMoreDishes` ("món khác", "gợi ý thêm") loại đúng các
+món đó bằng `NOT IN`; `refersToLastPicks` ("món đó", "mấy món trên") chỉ xét trong `lastFoodIds` bằng
+`IN`. Từ khoá là đại từ bị `isReferenceKeyword` loại trước khi lọc ILIKE, không thì danh sách ra rỗng.
+Không dùng độ dài câu để đoán hỏi tiếp.
 
 **Lịch sử hội thoại**: chỉ khách đã đăng nhập mới có lịch sử (`GET`/`DELETE /api/chatbot/sessions/**`,
 `requireAuth`; `listSessions`/`getSession`/`deleteSession` trong `user/chatbot/service.ts`). Tin BOT
@@ -217,9 +216,7 @@ Khi không dùng được:
   Thiếu cấu hình thì `chat()` trả 503, không có code mode gợi ý món.
 - **Hai danh sách model riêng**: chat theo `AI_MODELS`; embedding theo `EMBEDDING_MODELS`; mỗi biến
   nhận một giá trị hoặc danh sách, trống thì dùng danh sách mặc định. Cùng provider nên dùng chung khoá.
-- **Pipeline**: `intent` -> `extract` (AI call 1) -> `mergeCriteria` (regex thắng) -> `filterMenu`
-  (SQL) -> `reply` (AI call 2) -> `toCard` (số phần + tổng tiền từ DB). Không còn `parse/pick/reply`
-  template.
+- **Pipeline**: `intent` -> `filterMenu` (SQL) -> `composeFoodReply` (AI call). Thẻ món lấy ID/giá từ DB.
 - **Ảnh món** trong seed dùng file local dưới `client/public/images/foods/`; admin tải ảnh
   lên qua `POST /api/admin/uploads/image` (JPG/PNG/WEBP, ≤ 2 MB, kiểm bằng chữ ký đầu file
   chứ không tin Content-Type) hoặc dán URL ngoài trong form. File lưu ở `UPLOAD_DIR`

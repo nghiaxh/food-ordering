@@ -46,7 +46,7 @@ export function readConstraints(question: string, menu: DishName[]): Constraints
 
   const groups: { name: string; count: number }[] = [];
   if (p.includes("mon chinh") || p.includes("mon man")) groups.push({ name: "món chính", count: 1 });
-  if (p.includes("mon uong") || p.includes("nuoc uong") || p.includes("do uong")) groups.push({ name: "đồ uống", count: 1 });
+  if (p.includes("mon uong") || p.includes("nuoc uong") || p.includes("do uong")) groups.push({ name: "Đồ uống", count: 1 });
   if (p.includes("mon khai vi") || p.includes("khai vi")) groups.push({ name: "khai vị", count: 1 });
   if (p.includes("mon trang mieng") || p.includes("trang mieng")) groups.push({ name: "tráng miệng", count: 1 });
 
@@ -66,7 +66,7 @@ export function readConstraints(question: string, menu: DishName[]): Constraints
 }
 
 export function parseBudget(question: string): number | null {
-  const MONEY = /(\d+(?:\.\d{3})+)|(?:(\d+)\s*(k|nghìn|nghin|ngan|ngàn|triệu|trieu))|(?:(\d+)\s*(đồng|dong|đ))/gi;
+  const MONEY = /(\d+(?:\.\d{3})+)|(?:(\d+(?:\.\d+)?)\s*(k|nghìn|nghin|ngan|ngàn|triệu|trieu))|(?:(\d+)\s*(đồng|dong|đ))/gi;
   let best: number | null = null;
   MONEY.lastIndex = 0;
   let m: RegExpExecArray | null;

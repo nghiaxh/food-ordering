@@ -162,9 +162,11 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
       receiverName: req.receiverName,
       phone: req.phone,
       address: req.address,
-      paymentMethod: req.paymentMethod ?? order.paymentMethod,
       note: trimNote(req.note),
     };
+    // Phương thức thanh toán chỉ sửa được khi đơn PENDING+UNPAID; đơn đã chốt thì chỉ
+    // thay đổi thông tin giao hàng (như định nghĩa canEditItems trong transitions.ts).
+    if (canEditItems(order)) data.paymentMethod = req.paymentMethod ?? order.paymentMethod;
 
     // items rong hoac khong gui nghia la KHONG doi mon; chi danh sach co mon moi duoc thay the.
     if (req.items && req.items.length > 0) {
@@ -215,9 +217,11 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
 
     if (req.status && req.status.trim()) {
       const next = parseStatus(req.status.trim());
-      if (next !== order.status) {
-        const current = await tx.query.orders.findFirst({ where: eq(orders.id, id) });
-        if (!current) throw notFound("Không tìm thấy đơn");
+      // So sánh với trạng thái hiện tại trong transaction: nếu có request khác cập
+      // nhật trùng, request này là no-op thay vì throw 400 "chuyển từ X sang X".
+      const current = await tx.query.orders.findFirst({ where: eq(orders.id, id) });
+      if (!current) throw notFound("Không tìm thấy đơn");
+      if (next !== current.status) {
         const draft = {
           status: current.status,
           paymentMethod: current.paymentMethod,

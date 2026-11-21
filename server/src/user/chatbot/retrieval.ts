@@ -35,7 +35,11 @@ export async function searchChunks(question: string, topK: number): Promise<Scor
       ORDER BY embedding <=> ${JSON.stringify(queryVector)}::vector
       LIMIT ${limit}
     `)
-    .catch(() => ({ rows: [] }));
+    .catch((err) => {
+      // Ky thuat khong duoc lam mat de user noi tieng: tra rong có nghia thay vì che giu len log.
+      console.warn(`[chatbot] truy van chunk that bai: ${err instanceof Error ? err.message : String(err)}`);
+      return { rows: [] };
+    });
 
   const rows = result.rows;
   if (!rows || rows.length === 0) return [];

@@ -259,7 +259,8 @@ async function main() {
     await createOrder(linh, "COMPLETED", "QR", "PAID", linh.address, null, daysAgo(2), [L(comTam, 1), L(huTieu, 1)]);
     const o6 = await createOrder(tuan, "PREPARING", "COD", "UNPAID", tuan.address, "Ít cay, gọi trước 10 phút", hoursAgo(3), [L(bunBoHue, 1), L(dauHu, 2)]);
     const o7 = await createOrder(khang, "PREPARING", "QR", "UNPAID", khang.address, null, hoursAgo(5), [L(pizza, 1), L(traSua, 1)]);
-    const o8 = await createOrder(thao, "PENDING", "QR", "UNPAID", thao.address, null, minutesAgo(30), [L(rau, 1), L(myY, 1)]);
+    // O8 PENDING QR UNPAID: tao truoc 30 phut so voi timeout mặc định để sweeper không hủy ngay.
+    const o8 = await createOrder(thao, "PENDING", "QR", "UNPAID", thao.address, null, minutesAgo(25), [L(rau, 1), L(myY, 1)]);
     await createOrder(linh, "PENDING", "COD", "UNPAID", linh.address, "Ít đường", minutesAgo(15), [L(banhFlan, 2), L(traChanh, 1)]);
     await createOrder(son, "CONFIRMED", "COD", "UNPAID", son.address, null, hoursAgo(8), [L(lauThai, 1), L(goiCuon, 1)]);
     const o11 = await createOrder(trung, "CONFIRMED", "QR", "PAID", trung.address, null, hoursAgo(10), [L(boLucLac, 1), L(sinhToBo, 1)]);

@@ -74,8 +74,11 @@ export const filterMenu = async (criteria: Criteria, options: { lastFoodIds?: nu
   if (!wantsDrink || wantsMain) {
     const mains = result.filter((f) => !DRINK_DESSERT_SLUGS.has(f.category?.slug ?? ""));
     const drinks = result.filter((f) => DRINK_DESSERT_SLUGS.has(f.category?.slug ?? ""));
-    if (mains.length > 0) result = mains;
-    if (both && drinks.length > 0) result = result.concat(drinks);
+    if (mains.length > 0) {
+      result = mains;
+      // both: nếu không có món chính nào khớp thì result đang chứa drinks, không concat lặp.
+      if (both && drinks.length > 0) result = result.concat(drinks);
+    }
   }
 
   if (criteria.groups?.length && !both) {

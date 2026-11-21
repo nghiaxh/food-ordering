@@ -116,6 +116,7 @@ export function parseMessage(raw: string, menu: DishName[]): ParsedQuery {
 
   const regex = readConstraints(raw, menu);
   const hasConstraints = regex.budgetTotal != null || regex.people != null || regex.spicyMax != null
+    || regex.spicyRequired || regex.exclude.length > 0
     || regex.diets.length > 0 || regex.groups.length > 0 || regex.dishIds.length > 0;
 
   const gib = looksLikeGibberish(p);
