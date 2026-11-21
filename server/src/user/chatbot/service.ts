@@ -104,8 +104,8 @@ export const chat = async (
   }
   if (parsed.intent === "THANKS") {
     const reply = "Rất vui được hỗ trợ quý khách. Khi cần gợi ý món, quý khách cứ nhắn số người và ngân sách nhé!";
-    await saveBotMessage(user.id, sessionId, reply, { intent: "GREETING", quickReplies: ["Gợi ý món cho 2 người"] });
-    return { reply, foods: [], intent: "GREETING", citations: null, quickReplies: ["Gợi ý món cho 2 người"] };
+    await saveBotMessage(user.id, sessionId, reply, { intent: "THANKS", quickReplies: ["Gợi ý món cho 2 người"] });
+    return { reply, foods: [], intent: "THANKS", citations: null, quickReplies: ["Gợi ý món cho 2 người"] };
   }
   if (parsed.intent === "ORDER_GUIDE") {
     const reply = "Để đặt món, quý khách thêm món vào giỏ rồi vào trang thanh toán. Thanh toán COD hoặc quét QR đều được.\n\n- Chỉ hủy được đơn đang chờ xử lý và chưa thanh toán.\n- Đơn đã hoàn thành hoặc đã hủy thì không thể sửa.\n- Khi đơn ở trạng thái \"Đang vận chuyển\", quán đang giao hàng cho quý khách.\n- Quý khách xem trạng thái đơn ở mục Đơn hàng của mình.";

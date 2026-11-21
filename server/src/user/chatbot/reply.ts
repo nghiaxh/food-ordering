@@ -68,13 +68,14 @@ export const composeFoodReply = async (
     .map((f) => `${f.id}|${f.name} - ${Number(f.price).toLocaleString("vi-VN")}đ - ${f.category?.name ?? "món"} - cay ${f.spicyLevel}`)
     .join("\n");
   const historyText = history.length > 0 ? history.join("\n") : "(không có)";
-  const lastIds = ""; // caller truyen qua criteria? placeholder
+  // Thay thế theo đúng thứ tự slot của CHAT_PROMPT: menu, shop, %d (maxSugg),
+  // câu hỏi trước, món vừa gợi ý, quy tắc bổ sung.
   const prompt = CHAT_PROMPT
     .replace("%s", menuText || "(trống)")
     .replace("%s", "(không có)")
-    .replace("%s", String(maxSugg))
+    .replace("%d", String(maxSugg))
     .replace("%s", historyText)
-    .replace("%s", lastIds)
+    .replace("%s", "")
     .replace("%s", extraRules || "(không có)");
 
   let raw: string;
