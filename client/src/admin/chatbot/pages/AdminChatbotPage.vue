@@ -61,6 +61,7 @@ const CATEGORY_OPTIONS = [
 ]
 const statusLabel = (status?: string, enabled = true): string => {
   if (status === 'PENDING') return 'Đang xử lý'
+  if (status === 'EMBEDDING') return 'Đang embed'
   if (status === 'FAILED') return 'Lỗi'
   return enabled ? 'Sẵn sàng' : 'Tạm ngừng'
 }
