@@ -60,7 +60,6 @@ const router = useRouter()
 const auth = useAuthStore()
 const cart = useCartStore()
 const ui = useUiStore()
-const NOTE_CHIPS = NOTE_SUGGESTIONS
 
 const ordering = ref(false)
 const addresses = ref<SavedAddress[]>([])
@@ -354,7 +353,7 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
             <NInput v-model:value="form.note" type="textarea" :autosize="{ minRows: 2 }" :maxlength="NOTE_MAX_LENGTH" show-count placeholder="Ví dụ: ít cay, không hành, gọi trước 10 phút" size="medium" />
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
               <span class="shrink-0 text-[11px] text-stone-400">Gợi ý:</span>
-              <NButton v-for="s in NOTE_CHIPS" :key="s" size="tiny" round quaternary type="primary" @click="addNote(s)">
+              <NButton v-for="s in NOTE_SUGGESTIONS" :key="s" size="tiny" round quaternary type="primary" @click="addNote(s)">
                 + {{ s }}
               </NButton>
             </div>

@@ -49,16 +49,9 @@ const greetingMessages = (): ChatMessage[] => [
   { sender: 'BOT', content: GREETING_TASKS },
 ]
 
-const OLD_GREETING_BUBBLES = new Set([
-  'Chào bạn! Mình là trợ lý đặt món của quán.',
-  'Bạn chưa biết ăn gì? Cứ nhắn mình số người và ngân sách, ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.',
-  'Mình giúp bạn 3 việc:\n1) Gợi ý món theo số người, ngân sách tổng, độ cay, dị ứng.\n2) Hỏi thông tin quán: giờ mở cửa, giao hàng, thanh toán.\n3) Hướng dẫn cách đặt và hủy đơn.\nVí dụ: Cho 2 người 200k, không cay.',
-  'Chào bạn! Gợi ý món theo số người, ngân sách, độ cay hay dị ứng thì cứ nhắn. Ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.',
-])
 const KNOWN_GREETING_BUBBLES = new Set([
   GREETING_INTRO,
   GREETING_TASKS,
-  ...OLD_GREETING_BUBBLES,
 ])
 
 const freshGreeting = () => ({ messages: greetingMessages(), sessionId: crypto.randomUUID() })

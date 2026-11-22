@@ -1,10 +1,6 @@
 import { normalizeChat, plain } from "../../lib/text-normalizer.js";
 import { readConstraints as readConstraintsRaw } from "./constraints.js";
 import type { DishName } from "./constraints.js";
-import type { Constraints as RawConstraints } from "./constraints.js";
-
-// constraints.ts van giu type FoodWithCategory va cac helper SQL; parse.ts chi dung type DishName.
-// (constraints.ts se duoc rut gon o buoc sau; hien tai van con cac export cu.)
 
 export type ChatIntent = "FOOD" | "RESTAURANT_INFO" | "ORDER_GUIDE" | "GREETING" | "THANKS" | "CONFIRM" | "OUT_OF_SCOPE";
 
