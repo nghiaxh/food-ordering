@@ -29,7 +29,6 @@ interface NavItem {
   icon: unknown
 }
 
-// Nhom theo viec quan lam hang ngay; thu tu co dinh theo quy trinh ban hang.
 const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   { title: 'Bán hàng', items: [
     { label: 'Tổng quan', to: '/admin/dashboard', icon: HomeOutline },
@@ -60,7 +59,6 @@ const drawerOpen = ref(false)
 const pendingCount = ref(0)
 const unread = computed(() => notifications.unread)
 
-// So don cho xac nhan tren muc "Don hang". nap lai moi lan vao khu quan tri.
 const loadPending = async () => {
   try {
     const orders = await adminGetOrders()
@@ -96,7 +94,6 @@ const onSelectMenu = (key: string) => {
 </script>
 
 <template>
-  <!-- Khu quan tri dung mau orange rieng; trang khach giu nguyen mau goc cua app. -->
   <NConfigProvider :theme-overrides="ADMIN_THEME_OVERRIDES">
     <div class="flex min-h-dvh flex-col bg-stone-50">
       <header class="sticky top-0 z-40 border-b border-stone-200 bg-white">
