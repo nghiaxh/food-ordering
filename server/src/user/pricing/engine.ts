@@ -36,10 +36,9 @@ export function isValid(p: Promotion, now: Date): boolean {
     const end = toMinutes(p.endTime);
     if (start == null || end == null) return true;
     if (start <= end) {
-      // Khung gio binh thuong trong ngay.
       if (minutes < start || minutes > end) return false;
     } else {
-      // Khung qua nua dem: [start, 24h) hoac [0, end].
+      // Qua nua dem: [start, 24h) U [0, end].
       if (minutes < start && minutes > end) return false;
     }
   }
@@ -68,7 +67,7 @@ const toMinutes = (hhmm: string): number | null => {
 export function discountAmount(basePrice: number, p: Pick<Promotion, "discountType" | "discountValue" | "maxDiscount">): number {
   let amount: number;
   if (p.discountType === "PERCENT") {
-    // Lam tron HALF_UP o dung 2 chu so le nhu BigDecimal(...).divide(100, 2, HALF_UP).
+    // HALF_UP: lam tron sau khi nhan, khop phuong phap BigDecimal.
     amount = Math.round(basePrice * Number(p.discountValue)) / 100;
   } else {
     amount = Number(p.discountValue);
@@ -133,7 +132,7 @@ export function computeRandomPicks(
   availableFoodIds: number[],
   now: Date,
 ): Map<number, Set<number>> {
-  // Khoa "ngay" theo lich VN de khop khai niem "moi ngay" cua khach, khong theo ngay UTC.
+  // Khoa "ngay" theo lich VN de khop khai niem "moi ngay" cua khach.
   const day = businessTimeParts(now).dayKey;
   const picks = new Map<number, Set<number>>();
   for (const p of auto) {

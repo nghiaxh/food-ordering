@@ -15,8 +15,7 @@ export interface BusinessTimeParts {
   minutes: number;
 }
 
-// Tach formatter ra module-level: isValid chay trong vong lap theo tung dong gio hang,
-// khong dung Intl.DateTimeFormat moi lan goi.
+// Tach formatter ra module-level tranh tao Intl moi lan goi trong vong lap.
 const partsFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: BUSINESS_TIME_ZONE,
   year: "numeric",
