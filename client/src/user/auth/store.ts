@@ -11,8 +11,7 @@ const readRememberedEmail = (): string => {
   return email.includes('@') ? email : ''
 }
 
-// Shape khop AuthUser trong shared/types; storage bai hoac bieu tu ban lam UI tuong
-// da dang nhap va request rong token, nen khong hop le thi coi nhu chua dang nhap.
+// Validate schema AuthUser tranh storage bi sua tay gay loi runtime.
 const isAuthUser = (value: unknown): value is AuthUser => {
   if (typeof value !== 'object' || value === null) return false
   const u = value as Record<string, unknown>

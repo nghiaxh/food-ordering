@@ -5,17 +5,11 @@ export interface FoodChip {
 
 export const SPICY_LEVELS = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Rất cay']
 
-const SPICY = SPICY_LEVELS
-
 export function spicyLabel(level: number): string {
-  return SPICY[Math.min(Math.max(level, 0), SPICY.length - 1)]
+  return SPICY_LEVELS[Math.min(Math.max(level, 0), SPICY_LEVELS.length - 1)]
 }
 
-/**
- * Ten nhan uu dai tu server viet theo chuong trinh ("Mon may man hom nay", "Cuoi tuan mat
- * lanh") nen dai va khong dong deu. Doi sang cum ngan va nhat quan cho giao dien; chi anh
- * xa hai dip da co, nhan moi khong khop thi giu nguyen.
- */
+// Chuan hoa nhan uu dai thanh cum tu ngan gon tren giao dien.
 export function discountText(label?: string | null): string | null {
   if (!label) return null
   if (label.includes('may mắn')) return 'Ưu đãi hôm nay'
@@ -41,8 +35,8 @@ export function foodChips(food: ChipSource): FoodChip[] {
   const chips: FoodChip[] = []
   if (food.category?.name) chips.push({ label: food.category.name, className: 'bg-orange-50 text-orange-700' })
 
-  const spicyIndex = Math.min(Math.max(food.spicyLevel, 0), SPICY.length - 1)
-  chips.push({ label: SPICY[spicyIndex], className: SPICY_CLASSES[spicyIndex] })
+  const spicyIndex = Math.min(Math.max(food.spicyLevel, 0), SPICY_LEVELS.length - 1)
+  chips.push({ label: SPICY_LEVELS[spicyIndex], className: SPICY_CLASSES[spicyIndex] })
   chips.push({ label: `Phục vụ ${food.servingSize} người`, className: 'bg-sky-50 text-sky-700' })
 
   const dietary = food.dietaryTags ? food.dietaryTags.split(',').map((t) => t.trim()).filter(Boolean) : []

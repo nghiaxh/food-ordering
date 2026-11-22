@@ -19,10 +19,6 @@ import { useNotificationStore } from '@/user/notification/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 import { message } from '@/shared/api/message'
 
-/**
- * Thanh dieu huong mot hang o moi kich thuoc: logo, o tim kiem, don hang, gio, tai khoan.
- * Tu `lg` thong bao va don hang co nut rieng; duoi `lg` chung nam trong menu tai khoan.
- */
 const route = useRoute()
 const router = useRouter()
 const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -33,14 +29,12 @@ const ui = useUiStore()
 const user = computed(() => auth.user)
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
-// O tim kiem ghi thang vao URL de trang thuc don doc duoc va chia se duoc duong dan da loc.
 const keyword = computed(() => (Array.isArray(route.query.keyword) ? route.query.keyword[0] : route.query.keyword) ?? '')
 const draft = ref(keyword.value)
 watch(keyword, (value) => {
   draft.value = value
 })
 
-// Nap lai so chua doc khi doi tai khoan hoac quay ve tu trang don hang.
 onMounted(() => {
   if (user.value) void notifications.load()
 })
@@ -55,7 +49,6 @@ watch(
   },
 )
 
-/** Ghi tu khoa vao URL: o trang chu de len bo loc hien co, o trang khac thi ve "/" kem tu khoa. */
 const commitSearch = (value: string) => {
   const params = new URLSearchParams()
   for (const [key, raw] of Object.entries(route.query)) {
@@ -72,14 +65,12 @@ const commitSearch = (value: string) => {
   }
 }
 
-// Debounce 300ms; input trong van ghi qua commitSearch de xoa tu khoa.
 watch(draft, (value, _oldValue, onCleanup) => {
   if (value === keyword.value) return
   const timer = window.setTimeout(() => commitSearch(value), 300)
   onCleanup(() => window.clearTimeout(timer))
 })
 
-/** Gio can dang nhap; khach vang lai duoc dua sang dang nhap roi mo lai gio. */
 const openCart = () => {
   if (!user.value) {
     message.info('Đăng nhập để xem giỏ hàng')

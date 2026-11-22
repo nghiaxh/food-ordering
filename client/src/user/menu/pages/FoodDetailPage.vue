@@ -133,7 +133,6 @@ watch(foodId, () => { qty.value = 1 })
 </script>
 
 <template>
-  <!-- Skeleton khi dang tai. -->
   <div v-if="foodLoading" class="mx-auto max-w-6xl px-4 py-6">
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       <div class="aspect-[4/3] animate-pulse rounded-2xl bg-stone-200/70" />

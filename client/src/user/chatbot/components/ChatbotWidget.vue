@@ -23,9 +23,6 @@ import { useAuthStore } from '@/user/auth/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 import { message } from '@/shared/api/message'
 
-/**
- * Widget chatbot noi o moi trang khach voi mot session duy nhat luu qua localStorage.
- */
 const route = useRoute()
 const router = useRouter()
 const bottomBar = useHasBottomBar()
@@ -49,7 +46,6 @@ const onEnterKey = (event: KeyboardEvent) => {
 const atBottom = ref(true)
 const NEAR_BOTTOM_PX = 64
 
-// Chi tu cuon khi nguoi doc dang o day; cuon len doc tin cu thi khong bi keo xuong.
 const stickToBottom = () => {
   void nextTick(() => {
     const el = listRef.value
@@ -65,7 +61,6 @@ const jumpToLatest = () => {
   atBottom.value = true
   stickToBottom()
 }
-// Tu cuon xuong cuoi moi khi co tin moi hoac dang cho phan hoi.
 watch(
   [messages, loading],
   () => {
@@ -73,7 +68,6 @@ watch(
   },
   { deep: true },
 )
-// Doi kich thuoc khung thi giu nguoi dung o tin moi nhat.
 watch(() => ui.chatExpanded, jumpToLatest)
 
 // Esc thu nho truoc, bam lan nua moi dong han; tranh dong mat hoi thoai dang doc.
@@ -85,8 +79,6 @@ const onKeydown = (event: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
-// Panel nho giu kich thuoc widget; mo rong thi phu kin vung duoi header, noi dung
-// ben trong van gioi han max-w-3xl de dong chu khong keo het chieu ngang.
 const panelClass = computed(() =>
   ui.chatExpanded
     ? 'max-h-none w-full max-w-none rounded-none border-0 shadow-none'
@@ -97,7 +89,6 @@ const isAdmin = computed(() => route.path.startsWith('/admin') || auth.user?.rol
 const canUseHistory = computed(() => auth.user?.role === 'CUSTOMER')
 const isGuest = computed(() => auth.user?.role !== 'CUSTOMER')
 
-// Dong khung chat thi thoat man lich su va hien luon cau dang go; mo lai thi bam day tin moi nhat.
 watch(() => ui.chatOpen, (open) => {
   if (!open) {
     historyOpen.value = false
@@ -134,7 +125,6 @@ const onDeleteSession = async (id: string) => {
 }
 
 const showBody = computed(() => !unavailable.value || messages.value.some((m) => m.sender === 'USER'))
-// Diem vao chi hien khi hoi thoai moi tinh (hai bubble loi chao); bien mat sau tin dau tien.
 const showStarters = computed(
   () => !unavailable.value && !loading.value && messages.value.length === 2 && messages.value.every((m) => m.sender === 'BOT'),
 )
@@ -320,7 +310,6 @@ const renderedMessages = computed(() => messages.value)
           >
             Thử lại
           </button>
-          <!-- nut huy da chuyen vao nut gui -->
         </div>
 
         <button

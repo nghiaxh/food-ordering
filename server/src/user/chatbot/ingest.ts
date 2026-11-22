@@ -13,8 +13,6 @@ const uploadDir = () => env.UPLOAD_DIR;
 
 mkdirSync(uploadDir(), { recursive: true });
 
-// Nap tai lieu quan vao kho cua chatbot: luu file, tach text, chia doan, luu chunk.
-// Khong embedding. chunk duoc tim bang tsvector (migration init co cot search_vector GENERATED).
 export interface KnowledgeDocJson {
   id: number;
   title: string | null;
