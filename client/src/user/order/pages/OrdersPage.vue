@@ -19,7 +19,6 @@ import type { Order, OrderStatus } from '@/shared/types'
 const HOTLINE = '0292.888.9999'
 const STATUSES = Object.keys(ORDER_STATUS_LABEL) as OrderStatus[]
 
-/** Theme chung cua app la amber; trang don hang dung orange cua Tailwind trong pham vi nay. */
 const ordersTheme: GlobalThemeOverrides = {
   common: {
     primaryColor: '#ea580c',

@@ -38,7 +38,6 @@ const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255
 const NOTE_SUGGESTIONS = ['Ít cay', 'Không hành', 'Gọi trước 10 phút']
 
-/** Theme chung cua app la amber; trang dat mon dung orange cua Tailwind trong pham vi nay. */
 const checkoutTheme: GlobalThemeOverrides = {
   common: {
     primaryColor: '#ea580c',
@@ -51,11 +50,6 @@ const checkoutTheme: GlobalThemeOverrides = {
 /** Naive chi nhan mau tag qua prop nen dung dung bac orange cua Tailwind. */
 const DEFAULT_TAG_COLOR = { color: '#fff7ed', textColor: '#c2410c' }
 
-/**
- * Trang dat mon duy nhat. Danh sach mon sua duoc da chuyen sang drawer gio; o day chi con
- * thong tin giao hang, thanh toan va tom tat tien. Server van la noi tinh tien duy nhat
- * qua useCartQuote; client khong tu nhan phan tram hay tru khuyen mai.
- */
 const router = useRouter()
 const auth = useAuthStore()
 const cart = useCartStore()

@@ -8,11 +8,7 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: 'Đã hủy',
 }
 
-/**
- * Nhan phuong thuc thanh toan. He thong chi ho tro hai cach tra tien: tien mat khi nhan
- * (`COD`) va quet ma QR (`QR`). Nhan nam o mot cho de trang khach va trang quan tri hien
- * giong nhau, khong lo ma thoi ra giao dien.
- */
+/** Nhan phuong thuc thanh toan (COD / QR); dung chung cho trang khach va quan tri. */
 export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   COD: 'Tiền mặt khi nhận',
   QR: 'Thanh toán bằng mã QR',
@@ -24,10 +20,7 @@ export const PAYMENT_METHODS = [
   { label: PAYMENT_METHOD_LABEL.QR, value: 'QR' },
 ]
 
-/**
- * Ma hoa don hien thi cho khach va quan tri vien: tien to `FO` kem id dem 4 chu so.
- * Mot cho sinh ma de hai ben khong lech nhau; id do server cap nen khong can doi du lieu.
- */
+/** Ma hoa don: tien to `FO` kem id dem 4 chu so; dung chung de hai ben hien giong nhau. */
 export function orderCode(id: number): string {
   return `FO-${String(id).padStart(4, '0')}`
 }
@@ -52,8 +45,8 @@ export function allowedNextStatuses(status: OrderStatus): OrderStatus[] {
 }
 
 /**
- * Khach tu huy duoc don chi khi con cho xac nhan va chua thanh toan; true khi du dieu kien.
- * OrderService.cancel ap cung rang buoc o server nen client chi an nut UX, khong quyet dinh rieng.
+ * Khach tu huy duoc don chi khi con PENDING va chua thanh toan.
+ * Server ap cung rang buoc; client chi an/hien nut UX.
  */
 export function canCancelOrder(order: Pick<Order, 'status' | 'paymentStatus'>): boolean {
   return order.status === 'PENDING' && order.paymentStatus !== 'PAID'
