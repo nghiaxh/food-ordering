@@ -44,7 +44,6 @@ import FormModal from '@/components/FormModal.vue'
 import { message } from '@/shared/api/message'
 
 const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PREPARING', 'COMPLETED', 'CANCELLED']
-// Trang thai duoc phep luc tao don moi: don bat dau o PENDING nen bo qua PREPARING/COMPLETED.
 const CREATABLE_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'CANCELLED']
 const STATUS_TONE: Record<OrderStatus, StatusTone> = {
   PENDING: 'warning',
@@ -85,8 +84,7 @@ const rows = computed(() => {
   return [...filtered].sort((a, b) => b.id - a.id)
 })
 const finalState = (o: Order) => o.status === 'COMPLETED' || o.status === 'CANCELLED'
-// Don da giao hoac da huy thi khoa hoan toan; don da thu tien hoac da xac nhan chi sua
-// duoc thong tin giao hang, khong doi mon. Server kiem lai dung luat nay.
+// Don da giao/huy bi khoa; da thu tien hoac da xac nhan chi sua thong tin giao hang.
 const itemsLocked = computed(() =>
   !!editing.value && !(editing.value.status === 'PENDING' && editing.value.paymentStatus === 'UNPAID'),
 )
@@ -112,7 +110,6 @@ const changePayment = async (id: number, paid: boolean) => {
   })
 }
 
-// Form tao/sua don
 const form = reactive({
   customerEmail: '',
   receiverName: '',
@@ -134,7 +131,6 @@ const foodOptions = computed(() =>
   })),
 )
 const statusOptions = computed(() =>
-  // Don moi luon bat dau o PENDING nen chi tao duoc trang thai di tiep duoc tu PENDING.
   (editing.value ? ORDER_STATUSES : CREATABLE_STATUSES).map((s) => ({
     label: ORDER_STATUS_LABEL[s],
     value: s,
@@ -175,8 +171,7 @@ const submit = async () => {
     message.error('Vui lòng nhập đầy đủ thông tin')
     return
   }
-  // Khi don da qua buoc dat mon, khong gui danh sach mon len de server khong hieu la
-  // dang thay mon (server chan thao tac do sau khi don da xac nhan hoac da thu tien).
+  // Don da qua buoc dat mon khong gui danh sach mon de tranh sua mon sai luat.
   const { items, ...rest } = form
   const data: AdminOrderPayload = {
     ...rest,
@@ -281,7 +276,6 @@ const STATUS_TABS = computed<Array<{ key: OrderStatus | 'ALL'; label: string; do
   ...ORDER_STATUSES.map((s) => ({ key: s as OrderStatus | 'ALL', label: `${ORDER_STATUS_LABEL[s]}${counts.value.get(s) ? ` (${counts.value.get(s)})` : ''}`, dot: STATUS_TONE_CLASS[STATUS_TONE[s]] })),
 ])
 
-// Options cho NSelect doi trang thai trong drawer; tinh o script de template khong phai narrow trong callback.
 const onDetailStatusChange = (s: string) => {
   if (detail.value) changeStatus(detail.value.id, s as OrderStatus)
 }

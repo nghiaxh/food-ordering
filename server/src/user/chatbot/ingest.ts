@@ -13,8 +13,6 @@ const uploadDir = () => env.UPLOAD_DIR;
 
 mkdirSync(uploadDir(), { recursive: true });
 
-// Nap tai lieu quan vao kho cua chatbot: luu file, tach text, chia doan, luu chunk.
-// Khong embedding. chunk duoc tim bang tsvector (migration init co cot search_vector GENERATED).
 export interface KnowledgeDocJson {
   id: number;
   title: string | null;
@@ -40,17 +38,11 @@ const toDoc = async (d: {
   fileName: string | null;
   fileSize: number | null;
 }): Promise<KnowledgeDocJson> => {
-  const rows = await db
-    .select({ value: count() })
-    .from(chatbotKnowledgeChunk)
-    .where(eq(chatbotKnowledgeChunk.documentId, d.id));
-  const chunkCount = rows[0]?.value ?? 0;
-  const embeddedRows = await db
-    .select({ value: count() })
-    .from(chatbotKnowledgeChunk)
-    .where(and(eq(chatbotKnowledgeChunk.documentId, d.id), isNotNull(chatbotKnowledgeChunk.embedding)));
-  const embeddedChunks = embeddedRows[0]?.value ?? 0;
-  return { ...d, chunkCount, embeddedChunks };
+  const [chunkRow, embeddedRow] = await Promise.all([
+    db.select({ value: count() }).from(chatbotKnowledgeChunk).where(eq(chatbotKnowledgeChunk.documentId, d.id)),
+    db.select({ value: count() }).from(chatbotKnowledgeChunk).where(and(eq(chatbotKnowledgeChunk.documentId, d.id), isNotNull(chatbotKnowledgeChunk.embedding))),
+  ]);
+  return { ...d, chunkCount: chunkRow[0]?.value ?? 0, embeddedChunks: embeddedRow[0]?.value ?? 0 };
 };
 
 const truncate = (s: string, max: number): string => {

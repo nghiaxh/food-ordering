@@ -11,6 +11,7 @@ import {
   NIcon,
   NTag,
   type DataTableColumns,
+  type FormItemRule,
 } from 'naive-ui'
 import { SearchOutline, TrashOutline } from '@vicons/ionicons5'
 import { adminDeleteUser, adminGetUsers, adminSaveUser, adminSetUserActive, type UserPayload } from '@/admin/customer/api'
@@ -137,7 +138,6 @@ const remove = async (u: User) => {
   })
 }
 
-import type { FormItemRule } from 'naive-ui'
 const nameRules: FormItemRule[] = [{ required: true, message: 'Nhập họ tên', trigger: ['blur', 'input'] }]
 const emailRules: FormItemRule[] = [
   { required: true, message: 'Nhập email', trigger: ['blur', 'input'] },

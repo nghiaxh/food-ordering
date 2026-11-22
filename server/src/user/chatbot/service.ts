@@ -38,11 +38,6 @@ const maxSuggestionsAndRules = async (): Promise<{ maxSugg: number; extraRules: 
   return { maxSugg, extraRules: map.get("extra_rules") ?? "" };
 };
 
-const truncate = (s: string, max: number): string => {
-  const t = s.replaceAll(/\s+/g, " ").trim();
-  return t.length <= max ? t : `${t.slice(0, max).trim()}...`;
-};
-
 const loadContext = async (userId: number, sessionId: string): Promise<{ history: string[]; lastFoodIds: number[] }> => {
   const userRows = await db.query.chatMessages.findMany({
     where: and(eq(chatMessages.userId, userId), eq(chatMessages.sessionId, sessionId), eq(chatMessages.sender, "USER")),

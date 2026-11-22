@@ -1,5 +1,3 @@
-// Mui gio nghiep vu cua quan la gio Viet Nam; server (dev/docker/CI) chay UTC.
-// Code can "ngay/thu/gio" cua khach phai di qua helper nay, khong doc truc tiep Date.
 import { badRequest } from "./errors.js";
 
 export const BUSINESS_TIME_ZONE = "Asia/Ho_Chi_Minh";
@@ -17,8 +15,7 @@ export interface BusinessTimeParts {
   minutes: number;
 }
 
-// Tach formatter ra module-level: isValid chay trong vong lap theo tung dong gio hang,
-// khong dung Intl.DateTimeFormat moi lan goi.
+// Tach formatter ra module-level tranh tao Intl moi lan goi trong vong lap.
 const partsFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: BUSINESS_TIME_ZONE,
   year: "numeric",

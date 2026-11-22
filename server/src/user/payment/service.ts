@@ -2,7 +2,6 @@ import { badRequest } from "../../lib/errors.js";
 import { toOrderJson } from "../../lib/serializers.js";
 import { ownOrder, updatePayment } from "../order/service.js";
 
-// Xu ly thanh toan gia lap cua khach: xac nhan da tra tien cho don chua huy.
 export async function payOrder(email: string, id: number) {
   const order = await ownOrder(email, id);
   if (order.status === "CANCELLED") {

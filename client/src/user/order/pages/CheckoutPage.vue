@@ -31,6 +31,7 @@ import { formatVND } from '@/shared/utils/format'
 import { PHONE_PATTERN } from '@/shared/utils/validators'
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
+import { USER_THEME_OVERRIDES } from '@/shared/theme'
 import FormModal from '@/components/FormModal.vue'
 import type { FormItemRule, GlobalThemeOverrides } from 'naive-ui'
 
@@ -38,29 +39,15 @@ const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255
 const NOTE_SUGGESTIONS = ['Ít cay', 'Không hành', 'Gọi trước 10 phút']
 
-/** Theme chung cua app la amber; trang dat mon dung orange cua Tailwind trong pham vi nay. */
-const checkoutTheme: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#ea580c',
-    primaryColorHover: '#c2410c',
-    primaryColorPressed: '#9a3412',
-    primaryColorSuppl: '#ea580c',
-  },
-}
+const checkoutTheme: GlobalThemeOverrides = USER_THEME_OVERRIDES
 
 /** Naive chi nhan mau tag qua prop nen dung dung bac orange cua Tailwind. */
 const DEFAULT_TAG_COLOR = { color: '#fff7ed', textColor: '#c2410c' }
 
-/**
- * Trang dat mon duy nhat. Danh sach mon sua duoc da chuyen sang drawer gio; o day chi con
- * thong tin giao hang, thanh toan va tom tat tien. Server van la noi tinh tien duy nhat
- * qua useCartQuote; client khong tu nhan phan tram hay tru khuyen mai.
- */
 const router = useRouter()
 const auth = useAuthStore()
 const cart = useCartStore()
 const ui = useUiStore()
-const NOTE_CHIPS = NOTE_SUGGESTIONS
 
 const ordering = ref(false)
 const addresses = ref<SavedAddress[]>([])
@@ -354,7 +341,7 @@ const addrAddressRules: FormItemRule[] = [{ required: true, message: 'Nhập đ�
             <NInput v-model:value="form.note" type="textarea" :autosize="{ minRows: 2 }" :maxlength="NOTE_MAX_LENGTH" show-count placeholder="Ví dụ: ít cay, không hành, gọi trước 10 phút" size="medium" />
             <div class="mt-2 flex flex-wrap items-center gap-1.5">
               <span class="shrink-0 text-[11px] text-stone-400">Gợi ý:</span>
-              <NButton v-for="s in NOTE_CHIPS" :key="s" size="tiny" round quaternary type="primary" @click="addNote(s)">
+              <NButton v-for="s in NOTE_SUGGESTIONS" :key="s" size="tiny" round quaternary type="primary" @click="addNote(s)">
                 + {{ s }}
               </NButton>
             </div>

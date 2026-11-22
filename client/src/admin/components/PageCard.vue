@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// Card nen trang dung chung cho admin; vien mong va bo do bo giup giao dien gon nhe.
 defineProps<{ class?: string }>()
 </script>
 

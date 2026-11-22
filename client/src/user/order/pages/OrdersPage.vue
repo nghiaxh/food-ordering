@@ -12,6 +12,7 @@ import { useUiStore } from '@/shared/stores/uiStore'
 import { canCancelOrder, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL, orderCode } from '@/shared/utils/orders'
 import { formatVND } from '@/shared/utils/format'
 import { message } from '@/shared/api/message'
+import { USER_THEME_OVERRIDES } from '@/shared/theme'
 import OrderTimeline from '@/user/order/components/OrderTimeline.vue'
 import type { GlobalThemeOverrides } from 'naive-ui'
 import type { Order, OrderStatus } from '@/shared/types'
@@ -19,15 +20,7 @@ import type { Order, OrderStatus } from '@/shared/types'
 const HOTLINE = '0292.888.9999'
 const STATUSES = Object.keys(ORDER_STATUS_LABEL) as OrderStatus[]
 
-/** Theme chung cua app la amber; trang don hang dung orange cua Tailwind trong pham vi nay. */
-const ordersTheme: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#ea580c',
-    primaryColorHover: '#c2410c',
-    primaryColorPressed: '#9a3412',
-    primaryColorSuppl: '#ea580c',
-  },
-}
+const ordersTheme: GlobalThemeOverrides = USER_THEME_OVERRIDES
 
 /** Mau NTag theo trang thai don; Naive lo phan to mau, khong viet hex tai cho. */
 const STATUS_TAG_TYPE: Record<OrderStatus, 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error'> = {

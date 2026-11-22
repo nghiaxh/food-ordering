@@ -13,8 +13,7 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 export const canEditItems = (order: { status: OrderStatus; paymentStatus: string }) =>
   order.status === "PENDING" && order.paymentStatus === "UNPAID";
 
-/** Mot quy tac chuyen trang thai dung chung cho moi loi vao. */
-// Luat chuyen trang thai don hang mot chieu; tach khoi service de test doc lap khong can DB.
+// Luat chuyen trang thai don hang mot chieu; tach khoi service de test doc lap.
 export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
   if (from === "COMPLETED" || from === "CANCELLED") return false;
   // Trạng thái "Đang vận chuyển" (PREPARING) chỉ được chuyển sang Hoàn thành, không hủy được.

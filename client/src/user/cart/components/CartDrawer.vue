@@ -8,22 +8,14 @@ import useCartQuote from '@/composables/useCartQuote'
 import { useCartStore } from '@/user/cart/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 import { formatVND } from '@/shared/utils/format'
+import { USER_THEME_OVERRIDES } from '@/shared/theme'
 import type { CartItem, Food } from '@/shared/types'
 import { discountText } from '@/shared/utils/food-tags'
 import { message } from '@/shared/api/message'
 import QuantityStepper from '@/components/QuantityStepper.vue'
 
-/**
- * Naive lay mau tu theme chung dang amber. Gio hang chuyen sang orange cua Tailwind
- * trong pham vi drawer nay de nut va tong tien cung mot tong mau.
- */
 const cartTheme: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#ea580c',
-    primaryColorHover: '#c2410c',
-    primaryColorPressed: '#9a3412',
-    primaryColorSuppl: '#ea580c',
-  },
+  ...USER_THEME_OVERRIDES,
   Drawer: {
     bodyPadding: '0',
     headerPadding: '12px 16px',

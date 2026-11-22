@@ -15,8 +15,7 @@ import {
   type PricingInputItem,
 } from "./engine.js";
 
-// Lop truy van + dieu phoi: goi engine de tinh, doc khuyen mai tu DB,
-// va cung cap cac ham dung chung cho cart/order (priceOrder, quote, decorate).
+// Lop truy van + dieu phoi cho pricing engine (priceOrder, quote, decorate).
 export type DrizzleTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type DbClient = typeof db | DrizzleTransaction;
 

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// Header chuan cho trang admin: tieu de trai, cum hanh dong phai.
-// Tieu de giu the h2 de trang co role heading cho trinh doc va cho e2e tim bang tieu de.
 defineProps<{ title: string }>()
 </script>
 

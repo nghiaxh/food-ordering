@@ -57,7 +57,6 @@ const auth = useAuthStore()
 const scroller = ref<HTMLElement | null>(null)
 const ui = useUiStore()
 
-// Bo loc nam tren URL nen chia se duoc va nut quay lai khong mat trang thai.
 const categoryId = computed(() => num(route.query.category))
 const keyword = computed(() => str(route.query.keyword))
 const minPrice = computed(() => num(route.query.min))
@@ -87,7 +86,6 @@ watch(error, (e) => {
   if (e) message.error('Không tải được thực đơn')
 })
 
-// Sua query giu nguyen cac param khac (keyword do header dieu khien, page, ...).
 const patch = (next: Record<string, string | undefined>) => {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(route.query)) {

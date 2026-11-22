@@ -38,7 +38,6 @@ const beginRequest = (foodId: number) => {
 const canApply = (foodId: number, token: { seq: number; generation: number }) =>
   token.generation === cartGeneration && requestSeq.get(foodId) === token.seq
 
-// Gio hang theo tai khoan: them mon theo thu tu request, thay dong tam bang CartItem server tra.
 export const useCartStore = defineStore('cart', {
   state: () => ({
     items: [] as CartItem[],
@@ -62,11 +61,9 @@ export const useCartStore = defineStore('cart', {
       }
       try {
         this.items = await getCart()
-        // Mac dinh chon tat ca mon trong gio moi tai.
         this.selectedIds = this.items.map((i) => i.food?.id).filter((id): id is number => id != null)
         this.loaded = true
       } catch {
-        // Khong can bao loi; gio se thu lai o lan tai sau.
         this.loaded = true
       }
     },
@@ -80,7 +77,6 @@ export const useCartStore = defineStore('cart', {
       this.items = existing
         ? before.map((i) => (i.food?.id === food.id ? { ...i, quantity: i.quantity + quantity } : i))
         : [...before, { food, quantity }]
-      // Mon moi them mac dinh duoc chon de dat.
       if (!this.selectedIds.includes(food.id)) this.selectedIds.push(food.id)
       try {
         const saved = await addCartItem(food.id, quantity)

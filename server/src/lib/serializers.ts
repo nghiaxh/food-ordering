@@ -19,10 +19,7 @@ export const toCategoryJson = (c: Category) => ({
   description: c.description,
 });
 
-/**
- * Shape Food tra ra client. `discountedPrice`/`discountAmount`/`discountPercent`/`discountLabel`
- * la truong transient do lop pricing dien (xem user/pricing); chua co thi bo han khoi JSON.
- */
+// Shape Food tra ra client; cac truong giam gia transient do lop pricing dien them.
 export const toFoodJson = (food: Food & { category?: Category | null } & Record<string, unknown>) => {
   const extras: Record<string, unknown> = {};
   if (food.discountedPrice !== undefined) extras.discountedPrice = Number(food.discountedPrice);
@@ -66,7 +63,6 @@ export const toOrderItemJson = (item: OrderItem & { food: (Food & { category?: C
   id: item.id,
   food: item.food ? toFoodJson(item.food) : null,
   quantity: item.quantity,
-  /** Gia duoc chup lai luc dat mon, khong phai gia hien tai cua mon. */
   price: Number(item.price),
   discountAmount: Number(item.discountAmount),
 });

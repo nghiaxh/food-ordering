@@ -1,8 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '@/user/auth/store'
 
-// Moi request di qua lop HTTP nay de viec gan token va xu ly 401 nhat quan.
-// HTTP client: gan Bearer token tu localStorage/sessionStorage, xu ly 401 toan cuc.
+// Moi request di qua lop nay de gan Bearer token va xu ly 401 nhat quan.
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api',
 })

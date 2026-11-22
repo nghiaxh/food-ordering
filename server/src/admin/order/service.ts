@@ -26,6 +26,14 @@ import type { z } from "zod";
 
 type AdminOrderRequest = z.infer<typeof adminOrderSchema>;
 
+const notifyMsg = (id: number, next: string): string | null =>
+  ({
+    CONFIRMED: `Đơn hàng #${id} đã được xác nhận.`,
+    PREPARING: `Đơn hàng #${id} đang được vận chuyển.`,
+    COMPLETED: `Đơn hàng #${id} đã hoàn thành. Cảm ơn bạn đã đặt món!`,
+    CANCELLED: `Đơn hàng #${id} đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.`,
+  }[next] ?? null);
+
 
 // Nghiep vu don hang: tao don (gia tu DB), vong doi trang thai mot chieu, thanh toan gia lap COD/QR.
 export const updatePaymentStatus = (
@@ -46,16 +54,7 @@ export async function adminUpdateStatus(id: number, status: string) {
   };
   transition(draft, next);
 
-  const content =
-    next === "CONFIRMED"
-      ? `Đơn hàng #${id} đã được xác nhận.`
-      : next === "PREPARING"
-        ? `Đơn hàng #${id} đang được vận chuyển.`
-        : next === "COMPLETED"
-          ? `Đơn hàng #${id} đã hoàn thành. Cảm ơn bạn đã đặt món!`
-          : next === "CANCELLED"
-            ? `Đơn hàng #${id} đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.`
-            : null;
+  const content = notifyMsg(id, next);
 
   const saved = await db.transaction(async (tx) => {
     await tx
@@ -230,16 +229,7 @@ export async function adminUpdateOrder(id: number, req: AdminOrderRequest) {
         transition(draft, next);
         await tx.update(orders).set({ status: next }).where(eq(orders.id, id));
 
-        const content =
-          next === "CONFIRMED"
-            ? `Đơn hàng #${id} đã được xác nhận.`
-            : next === "PREPARING"
-              ? `Đơn hàng #${id} đang được vận chuyển.`
-              : next === "COMPLETED"
-                ? `Đơn hàng #${id} đã hoàn thành. Cảm ơn bạn đã đặt món!`
-                : next === "CANCELLED"
-                  ? `Đơn hàng #${id} đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.`
-                  : null;
+        const content = notifyMsg(id, next);
         if (content) {
           const withUser = await tx.query.orders.findFirst({
             where: eq(orders.id, id),

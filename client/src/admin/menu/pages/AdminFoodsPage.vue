@@ -80,8 +80,7 @@ const openCreate = () => {
 
 const openEdit = (f: Food) => {
   editing.value = f
-  // Chi pick field form can: truyen ...f se keo theo id, category, discountLabel... vao payload
-  // gui API, nen luon co gia tri lai do server tu tim theo categoryId.
+  // Chi pick field form can thiet; tranh gui relations/computed fields len API.
   Object.assign(form, {
     name: f.name,
     categoryId: f.category?.id ?? undefined,
