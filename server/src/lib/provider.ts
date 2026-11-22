@@ -2,11 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env.js";
 import { parseList, supportsThinking } from "./aiModels.js";
 
-// Lop duy nhat goi API AI. Chi ho tro Gemini (cloud). Khong log khoa, khong tra khoa ve client.
-// Khoa va model doc tu danh sach trong AI_API_KEYS, AI_MODELS, EMBEDDING_MODELS
-// (phan tach dau phay/xuong dong); mot gia tri van chay nhu danh sach mot phan tu.
-// Khoa bi 429 thi xoay khoa khac; khoa bi tu choi (401/403/API_KEY_INVALID) bi loai toi khi
-// khoi dong lai. Model loi 503/404/timeout thi xoay model ke tiep.
+// Chi ho tro Gemini. Khoa bi 429 thi xoay; bi tu choi (401/403) thi loai toi khi restart.
 
 const TIMEOUT_MS = 15_000;
 const REPLY_TIMEOUT_MS = 20_000;

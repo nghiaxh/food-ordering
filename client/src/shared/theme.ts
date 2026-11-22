@@ -1,7 +1,4 @@
-/**
- * Mau chu dam cua khu vuc quan tri. Gia tri lay dung tu bang mau orange native cua
- * Tailwind (orange-700/800/900/600) de khop voi class orange-* trong giao dien.
- */
+// Mau chu dam cua khu vuc quan tri (orange Tailwind 700/800/900/600).
 export const ADMIN_THEME_OVERRIDES = {
   common: {
     primaryColor: '#c2410c',

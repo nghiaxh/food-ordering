@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { NSkeleton } from 'naive-ui'
 
-// Xuong bang dung chung: 5 cot gia, so dong tuy chinh.
 withDefaults(defineProps<{ rows?: number }>(), { rows: 7 })
 </script>
 

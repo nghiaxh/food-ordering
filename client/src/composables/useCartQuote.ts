@@ -2,17 +2,12 @@ import { ref, watch, type Ref } from 'vue'
 import { quoteCart } from '@/user/cart/api'
 import type { CartItem, CartQuote } from '@/shared/types'
 
-/** Bam so luong lien tuc thi chi gui bao gia mot lan, tranh moi lan bam mot request. */
 const QUOTE_DEBOUNCE_MS = 250
 
 /**
- * Bao gia gio do server tinh, dung chung cho drawer gio va trang checkout.
- *
- * Gui dung danh sach dong dang hien thi thay vi de server doc lai gio DB (request cu co
- * the ve sau va ghi de gio moi). Abort request cu de response muon khong thang. Giu so cu
- * trong luc tinh lai de khoi tong tien khong nhay sang "Dang cap nhat gia..." moi lan bam.
+ * Bao gia gio do server tinh; dung chung cho drawer va checkout.
+ * Debounce 250ms, abort request cu, giu gia cu khi cho de khong nhay "Dang cap nhat".
  */
-// Bao gia duy nhat cho gio va checkout: debounce, abort request cu, giu gia cu khi cho.
 export default function useCartQuote(items: () => CartItem[]) {
   const quote: Ref<CartQuote | null> = ref(null)
   const quoteLoading = ref(false)

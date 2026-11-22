@@ -2,8 +2,7 @@ import { createHash } from "node:crypto";
 import type { Food, Promotion } from "../../db/schema.js";
 import { businessTimeParts } from "../../lib/businessTime.js";
 
-// Tinh tien o server: nguon duy nhat ve gia va khuyen mai tu dong.
-// Moi dong chon MOT khuyen mai tu dong tot nhat; khung gio qua nua dem hieu start > end.
+// Nguon duy nhat tinh gia va khuyen mai tu dong; moi dong chon MOT KM tot nhat.
 export interface PricingInputItem {
   foodId: number | null;
   quantity: number;

@@ -1,5 +1,3 @@
-// Mui gio nghiep vu cua quan la gio Viet Nam; server (dev/docker/CI) chay UTC.
-// Code can "ngay/thu/gio" cua khach phai di qua helper nay, khong doc truc tiep Date.
 import { badRequest } from "./errors.js";
 
 export const BUSINESS_TIME_ZONE = "Asia/Ho_Chi_Minh";
