@@ -31,6 +31,7 @@ import { formatVND } from '@/shared/utils/format'
 import { PHONE_PATTERN } from '@/shared/utils/validators'
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
+import { USER_THEME_OVERRIDES } from '@/shared/theme'
 import FormModal from '@/components/FormModal.vue'
 import type { FormItemRule, GlobalThemeOverrides } from 'naive-ui'
 
@@ -38,14 +39,7 @@ const CHECKOUT_FORM_ID = 'checkout-form'
 const NOTE_MAX_LENGTH = 255
 const NOTE_SUGGESTIONS = ['Ít cay', 'Không hành', 'Gọi trước 10 phút']
 
-const checkoutTheme: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#ea580c',
-    primaryColorHover: '#c2410c',
-    primaryColorPressed: '#9a3412',
-    primaryColorSuppl: '#ea580c',
-  },
-}
+const checkoutTheme: GlobalThemeOverrides = USER_THEME_OVERRIDES
 
 /** Naive chi nhan mau tag qua prop nen dung dung bac orange cua Tailwind. */
 const DEFAULT_TAG_COLOR = { color: '#fff7ed', textColor: '#c2410c' }

@@ -31,16 +31,8 @@ const waitMinimumReply = (startedAt: number, signal: AbortSignal): Promise<boole
   const remaining = MIN_REPLY_MS - (Date.now() - startedAt)
   if (remaining <= 0) return Promise.resolve(true)
   return new Promise((resolve) => {
-    let timer = 0
-    const onAbort = () => {
-      window.clearTimeout(timer)
-      resolve(false)
-    }
-    timer = window.setTimeout(() => {
-      signal.removeEventListener('abort', onAbort)
-      resolve(true)
-    }, remaining)
-    signal.addEventListener('abort', onAbort, { once: true })
+    const timer = window.setTimeout(() => resolve(true), remaining)
+    signal.addEventListener('abort', () => { window.clearTimeout(timer); resolve(false) }, { once: true })
   })
 }
 
@@ -61,11 +53,11 @@ const isGreetingOnly = (messages: ChatMessage[]): boolean =>
 
 const keepLastBotActions = (messages: ChatMessage[]): ChatMessage[] => {
   let lastBot = -1
-  messages.forEach((m, index) => {
-    if (m.sender === 'BOT') lastBot = index
-  })
-  return messages.map((m, index) =>
-    m.sender === 'BOT' && index !== lastBot ? { sender: 'BOT' as const, content: m.content } : m,
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]!.sender === 'BOT') { lastBot = i; break }
+  }
+  return messages.map((m, i) =>
+    m.sender === 'BOT' && i !== lastBot ? { sender: 'BOT' as const, content: m.content } : m,
   )
 }
 

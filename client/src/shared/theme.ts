@@ -7,3 +7,13 @@ export const ADMIN_THEME_OVERRIDES = {
     primaryColorSuppl: '#ea580c',
   },
 }
+
+// Mau chu dam cua trang khach (orange Tailwind 600/700/800/600); dung chung cho checkout va orders.
+export const USER_THEME_OVERRIDES = {
+  common: {
+    primaryColor: '#ea580c',
+    primaryColorHover: '#c2410c',
+    primaryColorPressed: '#9a3412',
+    primaryColorSuppl: '#ea580c',
+  },
+}
