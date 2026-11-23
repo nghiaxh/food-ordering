@@ -410,7 +410,6 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
         </NForm>
       </div>
 
-
     </PageCard>
 
     <PageCard class="mb-4">

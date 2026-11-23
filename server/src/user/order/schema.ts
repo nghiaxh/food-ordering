@@ -19,7 +19,6 @@ export const createOrderSchema = z.object({
   note: noteSchema,
 });
 
-
 export const updateStatusSchema = z.object({
   status: z.string().min(1, "Trạng thái không được để trống"),
 });

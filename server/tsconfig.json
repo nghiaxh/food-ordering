@@ -4,6 +4,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,5 +14,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "tests", "prisma.config.ts", "prisma/seed.ts"]
+  "include": ["src", "tests"]
 }

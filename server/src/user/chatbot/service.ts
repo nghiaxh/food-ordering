@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, count, desc, eq, inArray, isNotNull, max } from "drizzle-orm";
 import { HttpError, notFound, unauthorized } from "../../lib/errors.js";
-import { aiSetting, chatMessages, foods, users, type ChatMessagePayload } from "../../db/schema.js";
+import { chatMessages, users, type ChatMessagePayload } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import * as provider from "../../lib/provider.js";
 import { sessionTitle, type ChatHistoryEntry, type ChatSessionSummary } from "./sessions.js";
-import { parseMessage, type ParsedQuery } from "./parse.js";
+import { parseMessage } from "./parse.js";
 import { filterMenu, buildCards, quickRepliesFor } from "./select.js";
 import { composeFoodReply, composeInfoReply } from "./reply.js";
 

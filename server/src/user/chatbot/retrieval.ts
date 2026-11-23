@@ -1,5 +1,5 @@
-import { eq, inArray, sql } from "drizzle-orm";
-import { chatbotKnowledge, chatbotKnowledgeChunk } from "../../db/schema.js";
+import { inArray, sql } from "drizzle-orm";
+import { chatbotKnowledge } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import * as provider from "../../lib/provider.js";
 

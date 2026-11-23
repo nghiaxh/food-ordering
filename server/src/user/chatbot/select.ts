@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lte, gt, sql, ilike, or, notInArray, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, gt, sql, notInArray, type SQL } from "drizzle-orm";
 import { foods } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { plain } from "../../lib/text-normalizer.js";

@@ -187,9 +187,6 @@ export async function cancelOrder(email: string, id: number) {
   return toOrderJson(saved!);
 }
 
-
-
-
 /** Dong bo trang thai thanh toan cua don voi giao dich tuong ung; gui thong bao (trong cung transaction). */
 async function applyPaymentTx(
   tx: DbClient,

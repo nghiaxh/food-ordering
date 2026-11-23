@@ -1,12 +1,10 @@
 import { HttpError } from "../../lib/errors.js";
 import * as provider from "../../lib/provider.js";
-import { plain } from "../../lib/text-normalizer.js";
 import { dropTrailingQuestion, hasForeignScript, limitSentences } from "./grounding.js";
 import { searchChunks, type ScoredChunk } from "./retrieval.js";
 import { CHAT_PROMPT } from "./prompts.js";
 import { filterMenu, buildCards, quickRepliesFor } from "./select.js";
 import type { FoodWithCategory } from "./constraints.js";
-import type { Criteria, ParsedQuery } from "./parse.js";
 
 export interface ReplyResult {
   reply: string;

@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { badRequest } from "../../lib/errors.js";
-import { parseBody, parseQuery } from "../../lib/validate.js";
+import { parseQuery } from "../../lib/validate.js";
 import { summary, revenueByDay, topFoods, exportExcel, parseRange } from "./service.js";
 
 const reportQuerySchema = z.object({

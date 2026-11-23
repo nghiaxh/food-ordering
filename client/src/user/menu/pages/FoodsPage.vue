@@ -270,7 +270,6 @@ const askAi = () => {
           </div>
         </div>
 
-
         <div class="mt-3">
           <div v-if="error" class="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 px-6 py-12 text-center">
             <NIcon :size="26" class="text-stone-300"><AlertCircleOutline /></NIcon>

@@ -1,14 +1,9 @@
-import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { asc, count, desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import {
-  aiSetting,
   cartItems,
   chatMessages,
   notifications,
   orders,
-  promotions,
   reviews,
   userAddresses,
   users,
@@ -17,9 +12,6 @@ import { db } from "../../lib/db.js";
 import { badRequest, conflict, notFound } from "../../lib/errors.js";
 import { hashPassword } from "../../lib/password.js";
 import { toUserJson } from "../../lib/serializers.js";
-import { env } from "../../config/env.js";
-
-
 
 // Quan ly tai khoan khach hang: tao, sua, khoa, xoa khi chua co don hang.
 export const listUsers = async () => {
