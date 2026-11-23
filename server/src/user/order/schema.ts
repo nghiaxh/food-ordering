@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-/** Hai phuong thuc thanh toan: COD (tien mat khi nhan) va QR (quet ma chuyen khoan). */
 export const PAYMENT_METHOD_PATTERN = /^(COD|QR)$/;
 
 export const phoneSchema = z.string().regex(/^0\d{9}$/, "Số điện thoại phải gồm đúng 10 chữ số");

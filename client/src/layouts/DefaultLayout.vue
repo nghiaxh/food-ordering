@@ -8,10 +8,6 @@ import ChatbotWidget from '@/user/chatbot/components/ChatbotWidget.vue'
 import { useAuthStore } from '@/user/auth/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 
-/**
- * Layout phia khach: thanh dieu huong. Gio/thong bao drawers va chatbot duoc cac
- * branch sau mount vao day - chua co component nen chua mount.
- */
 const auth = useAuthStore()
 const ui = useUiStore()
 

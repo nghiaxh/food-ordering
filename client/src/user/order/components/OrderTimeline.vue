@@ -5,11 +5,6 @@ import { CloseOutline, Checkmark } from '@vicons/ionicons5'
 import type { OrderStatus } from '@/shared/types'
 import { ORDER_FLOW, ORDER_STATUS_LABEL } from '@/shared/utils/orders'
 
-/**
- * Tien trinh don tu ve: chi danh dau buoc hien tai, khong bia moc gio; don da huy thi
- * khong ve day buoc. Duong noi chay tu tam buoc dau toi tam buoc cuoi.
- * Tinh o script (isCompleted boolean) de template khong bi narrow type lan lon.
- */
 const props = defineProps<{ status: OrderStatus }>()
 const isCompleted = computed(() => props.status === 'COMPLETED')
 const current = computed(() => ORDER_FLOW.indexOf(props.status))

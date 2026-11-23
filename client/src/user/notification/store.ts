@@ -8,10 +8,6 @@ import {
   markNotificationsRead,
 } from '@/user/notification/api'
 
-/**
- * Mot nguon du lieu thong bao cho ca header (so chua doc) va drawer (danh sach).
- * Header va drawer cung doc store nay nen hai noi khong bao gio lech so.
- */
 export const useNotificationStore = defineStore('notifications', {
   state: () => ({
     items: [] as NotificationItem[],

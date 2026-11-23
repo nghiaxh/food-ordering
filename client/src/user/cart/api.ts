@@ -14,9 +14,5 @@ export const removeCartItem = (foodId: number) => http.delete(`/cart/items/${foo
 
 export const clearCart = () => http.delete('/cart')
 
-/**
- * Bao gia do server tinh tren dung danh sach dong client dang hien thi; day la nguon
- * duy nhat cho moi con so tien trong gio. Quote khong doc lai gio DB.
- */
 export const quoteCart = (items: { foodId?: number; quantity: number }[], signal?: AbortSignal) =>
   http.post<CartQuote>('/cart/quote', { items }, { signal }).then((r) => r.data)

@@ -20,7 +20,6 @@ import { toUserJson } from "../../lib/serializers.js";
 import { env } from "../../config/env.js";
 
 
-// Khach hang (UC13)
 
 // Quan ly tai khoan khach hang: tao, sua, khoa, xoa khi chua co don hang.
 export const listUsers = async () => {

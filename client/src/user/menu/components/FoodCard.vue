@@ -6,7 +6,6 @@ import type { Food } from '@/shared/types'
 import { formatVND } from '@/shared/utils/format'
 import { foodChips, discountText } from '@/shared/utils/food-tags'
 
-/** Chi hien 2 nhan dau: the mon phai con cho cho gia va nut, them nhan chi lam loang. */
 const MAX_CHIPS = 2
 const MENU_SCROLL_KEY = 'menu-scroll'
 

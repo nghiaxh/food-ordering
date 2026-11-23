@@ -42,7 +42,6 @@ export const promotionScopeEnum = pgEnum("PromotionScope", [
   "FOOD",
 ]);
 
-// Tables.
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
@@ -262,7 +261,6 @@ export const aiSetting = pgTable("ai_setting", {
   settingValue: text("setting_value"),
 });
 
-// Infer types tien dung cho toan bo codebase
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Food = typeof foods.$inferSelect;

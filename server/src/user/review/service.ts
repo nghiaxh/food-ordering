@@ -8,7 +8,6 @@ import type { z } from "zod";
 type CreateReviewRequest = z.infer<typeof createReviewSchema>;
 type UpdateReviewRequest = z.infer<typeof updateReviewSchema>;
 
-/** Nhan xet khong bat buoc: chuoi rong hoac chi khoang trang duoc luu thanh null. */
 const normalizeComment = (comment?: string | null): string | null => {
   const trimmed = comment?.trim();
   return trimmed ? trimmed : null;

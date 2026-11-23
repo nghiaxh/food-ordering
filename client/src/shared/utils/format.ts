@@ -1,4 +1,3 @@
-// Lam tron VND de so trung binh (avgOrder) khong hien "153.333,33d".
 export const formatVND = (value: number | string) =>
   `${Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ`
 

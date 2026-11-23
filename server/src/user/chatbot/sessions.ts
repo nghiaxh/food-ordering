@@ -1,6 +1,5 @@
 import type { ChatMessagePayload } from "../../db/schema.js";
 
-/** Mot phien trong danh sach lich su; tieu de lay tu cau hoi dau tien cua khach. */
 export interface ChatSessionSummary {
   sessionId: string;
   title: string;

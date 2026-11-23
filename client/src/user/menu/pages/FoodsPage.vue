@@ -14,7 +14,6 @@ import CategoryRail from '@/user/menu/components/CategoryRail.vue'
 import DealRail from '@/user/menu/components/DealRail.vue'
 import { message } from '@/shared/api/message'
 
-/** So mon moi luot. 12 chia het cho 2 va 4 cot nen khong luot nao le hang. */
 const PAGE_SIZE = 12
 /** 2 cot tren mobile, 4 cot tu `md`, giu dung mat do hien tai. */
 const GRID_COLS = 'grid-cols-2 md:grid-cols-4'

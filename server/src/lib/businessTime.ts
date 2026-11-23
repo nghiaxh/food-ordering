@@ -2,8 +2,6 @@ import { badRequest } from "./errors.js";
 
 export const BUSINESS_TIME_ZONE = "Asia/Ho_Chi_Minh";
 
-/** Offset co dinh +07:00 - Viet Nam khong co DST nen khong can
- *  xu ly theo mua. Dung cho cac moc ISO "YYYY-MM-DDT..." can nghia theo ngay VN. */
 export const BUSINESS_UTC_OFFSET = "+07:00";
 
 export interface BusinessTimeParts {

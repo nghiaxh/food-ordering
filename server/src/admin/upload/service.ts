@@ -20,7 +20,6 @@ import { toUserJson } from "../../lib/serializers.js";
 import { env } from "../../config/env.js";
 
 
-// Anh mon an
 
 /** Tra ve phan mo rong neu 12 byte dau khop chu ky JPEG, PNG hoac WEBP. */
 const imageExtension = (head: Buffer): string | null => {

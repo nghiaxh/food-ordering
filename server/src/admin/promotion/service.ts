@@ -20,7 +20,6 @@ import { toUserJson } from "../../lib/serializers.js";
 import { env } from "../../config/env.js";
 
 
-// Khuyen mai
 
 // 0 hoac rong = khong gioi han luot dung; DB luu null cho truong hop nay.
 const normalizeUsageLimit = (usageLimit?: number | null): number | null =>

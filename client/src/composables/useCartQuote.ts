@@ -4,10 +4,6 @@ import type { CartItem, CartQuote } from '@/shared/types'
 
 const QUOTE_DEBOUNCE_MS = 250
 
-/**
- * Bao gia gio do server tinh; dung chung cho drawer va checkout.
- * Debounce 250ms, abort request cu, giu gia cu khi cho de khong nhay "Dang cap nhat".
- */
 export default function useCartQuote(items: () => CartItem[]) {
   const quote: Ref<CartQuote | null> = ref(null)
   const quoteLoading = ref(false)

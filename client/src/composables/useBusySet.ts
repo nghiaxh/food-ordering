@@ -1,6 +1,5 @@
 import { ref, computed } from 'vue'
 
-/** Danh dau cac dong dang xu ly (xoa, doi trang thai...) de hien thi loading rieng tung dong. */
 export default function useBusySet() {
   const busyIds = ref(new Set<number>())
   const mark = (id: number, value: boolean) => {

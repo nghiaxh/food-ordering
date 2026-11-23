@@ -62,7 +62,6 @@ export function isReferenceKeyword(keyword: string): boolean {
   return p.split(/\s+/).every((token) => REFERENCE_TOKENS.has(token));
 }
 
-// --- regex constraints (tu constraints.ts) ---
 
 export function readConstraints(question: string, menu: DishName[]): Criteria {
   const raw = readConstraintsRaw(question, menu);

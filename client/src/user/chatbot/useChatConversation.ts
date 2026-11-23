@@ -8,7 +8,6 @@ export const GREETING_INTRO = 'Chào quý khách! Tôi là trợ lý đặt món
 export const GREETING_TASKS =
   'Quý khách chưa biết ăn gì? Nhắn tôi số người và ngân sách, ví dụ: "Cho 2 người 200k, không cay". Hỏi giờ mở cửa, giao hàng hay cách đặt đơn cũng được.'
 
-/** Bon diem vao dat duoi loi chao; bam la gui tin nhu khach tu go. */
 export const GREETING_STARTERS = [
   'Gợi ý món cho 2 người',
   'Món chay không cay',

@@ -8,7 +8,6 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: 'Đã hủy',
 }
 
-/** Nhan phuong thuc thanh toan (COD / QR); dung chung cho trang khach va quan tri. */
 export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   COD: 'Tiền mặt khi nhận',
   QR: 'Thanh toán bằng mã QR',

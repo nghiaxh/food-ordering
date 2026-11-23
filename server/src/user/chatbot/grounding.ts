@@ -1,5 +1,3 @@
-// Chu Thai, Trung, Nhat, Han, Nga, A Rap... Model nho thinh thoang doi ngon ngu giua cau.
-// Gap ky tu ngoai Latin + dau Viet thi loai bo / xu ly, khong de hien cho khach.
 const FOREIGN_SCRIPT =
   /[\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F\u0E00-\u0E7F\u1100-\u11FF\u3130-\u318F\uAC00-\uD7AF\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF]/;
 
@@ -7,7 +5,6 @@ export function hasForeignScript(reply: string): boolean {
   return FOREIGN_SCRIPT.test(reply);
 }
 
-/** Model nho hay ket thuc bang cau hoi du prompt cam; bo cau hoi o cuoi, giu lai cau tra loi. */
 export function dropTrailingQuestion(reply: string): string {
   const parts = reply.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
   while (parts.length > 1 && parts[parts.length - 1]!.endsWith("?")) parts.pop();

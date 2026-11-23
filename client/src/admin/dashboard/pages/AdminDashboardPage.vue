@@ -12,10 +12,6 @@ import { message } from '@/shared/api/message'
 import PageCard from '@/admin/components/PageCard.vue'
 import PageHeader from '@/admin/components/PageHeader.vue'
 
-/**
- * Tong quan danh cho quan tri: chi so chinh, don dang cho va mon ban chay. Trang co y
- * khong dung the nhieu mau hay bieu do cau ky; viec can lam (duyet don) nam ngay tren dau.
- */
 const router = useRouter()
 const approving = ref<number | null>(null)
 

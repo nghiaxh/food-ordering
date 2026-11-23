@@ -12,10 +12,6 @@ interface UseAsyncDataOptions {
   retries?: number
 }
 
-/**
- * Tai du lieu co huy request cu khi dependencies doi (watch sau) va chi retry loi mang.
- * Moi lan chay tang sequence de response cu khong ghi de du lieu moi hon.
- */
 export default function useAsyncData<T>(
   fn: (signal: AbortSignal) => Promise<T>,
   deps: () => unknown[],

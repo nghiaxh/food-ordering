@@ -10,7 +10,6 @@ export interface ReportRange {
   to: Date;
 }
 
-/** from/to: ngay lich VN ("YYYY-MM-DD") hoac ISO datetime; mac dinh 30 ngay gan nhat. */
 export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange =>
   parseBusinessRange(fromRaw, toRaw);
 

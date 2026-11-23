@@ -9,10 +9,6 @@ export interface ChatResponse {
   quickReplies?: string[]
 }
 
-/**
- * Gui cau hoi kem 3 cau truoc va ID cac mon vua goi y de server hieu cau hoi tiep; server
- * khong luu ngu canh nay vao CSDL nen khach vang lai van dung duoc.
- */
 export const chat = (
   message: string,
   sessionId: string,

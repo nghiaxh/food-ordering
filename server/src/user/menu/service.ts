@@ -6,10 +6,6 @@ import { plain } from "../../lib/text-normalizer.js";
 import { toCategoryJson, toFoodJson } from "../../lib/serializers.js";
 import { decorateFoods } from "../pricing/service.js";
 
-/**
- * Tim mon: chi loc thuoc tinh toi duoc trong DB (danh muc, gia, con ban). Tu khoa loc bang JS
- * qua text-normalizer de "pho bo" ra "Pho bo" ma khong can extension unaccent cua PostgreSQL.
- */
 export async function searchFoods(filter: {
   keyword?: string;
   categoryId?: number;
