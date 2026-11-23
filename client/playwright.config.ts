@@ -8,7 +8,7 @@ export default defineConfig({
   },
   fullyParallel: true,
   retries: 1,
-  workers: 2,
+  workers: process.env.CI ? 1 : 2,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:5173',

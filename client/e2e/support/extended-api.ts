@@ -1,4 +1,4 @@
-import type { APIRequestContext, Page } from '@playwright/test'
+import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
 // Neu du an chua cai @types/node, khai bao toi thieu nay du cho `process.env.API_URL`.
 declare const process: { env: Record<string, string | undefined> }
@@ -75,6 +75,25 @@ export async function loginInBrowser(page: Page, email: string): Promise<void> {
 
 export async function clearCart(request: APIRequestContext, token: string): Promise<void> {
   await request.delete(`${API_URL}/cart`, { headers: authHeaders(token) })
+}
+
+/**
+ * Nut them chi co tren trang chi tiet; sau khi them drawer gio tu mo.
+ */
+export async function openFoodAndAdd(
+  page: Page,
+  food: { id: number; name: string },
+  quantity = 1,
+): Promise<void> {
+  await page.goto(`/foods/${food.id}`)
+  await expect(page.getByRole('heading', { name: food.name })).toBeVisible()
+  for (let i = 1; i < quantity; i += 1) {
+    await page.getByRole('button', { name: 'Tăng số lượng' }).click()
+  }
+  await page.getByRole('button', { name: 'Thêm vào giỏ' }).click()
+  await expect(
+    page.getByText(`Đã thêm ${quantity} phần ${food.name} vào giỏ`, { exact: true }),
+  ).toBeVisible()
 }
 
 export async function listFoods(request: APIRequestContext): Promise<ApiFood[]> {

@@ -288,7 +288,7 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - Dev server: `npm run dev` (http://localhost:5173)
 - Build: `npm run build` (vue-tsc --noEmit + vite build → `dist/`)
 - Typecheck: `npm run typecheck` (vue-tsc --noEmit). Không có lint target; kiểm tra bằng typecheck + build.
-- E2E: `npm run test:e2e` (Playwright, spec ở `client/e2e/`). Cần stack dev đang chạy; CI không chạy job này.
+- E2E: `npm run test:e2e` (Playwright, spec ở `client/e2e/`). Cần stack dev đang chạy. CI có job `e2e` dựng stack dev bằng compose và chạy suite này; khi `AI_API_KEYS` rỗng thì 2 ca chatbot cần AI tự skip, các ca còn lại vẫn chạy.
 - API client dùng `VITE_API_URL` làm `baseURL`; `vite.config.ts` không có proxy `/api`.
 
 **Server** (`./server`):

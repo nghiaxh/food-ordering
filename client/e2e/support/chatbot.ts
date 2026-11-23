@@ -22,7 +22,7 @@ export interface ChatPayload {
 }
 
 export const SKIP_REASON =
-  'Chatbot has no AI key configured (AI_API_KEY empty or rejected); set a real key and rerun.'
+  'Chatbot has no AI key configured (AI_API_KEYS empty or rejected); set a real key and rerun.'
 
 export async function chatbotAvailable(request: APIRequestContext) {
   const res = await request.get(`${API_URL}/chatbot/status`)

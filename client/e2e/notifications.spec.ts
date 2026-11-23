@@ -93,7 +93,7 @@ test('Clicking a notification opens the matching order and marks it read', async
   await expect(itemFor(page, orderId)).toHaveAttribute('data-read', 'true')
 })
 
-test('Delete read keeps unread notifications', async ({ page, request }) => {
+test('Deleting a read notification keeps unread ones', async ({ page, request }) => {
   const readOrderId = await createNotificationOrder(request)
   const unreadOrderId = await createNotificationOrder(request)
 
@@ -111,7 +111,9 @@ test('Delete read keeps unread notifications', async ({ page, request }) => {
   await expect(readItem).toHaveAttribute('data-read', 'true')
   await expect(unreadItem).toHaveAttribute('data-read', 'false')
 
-  await page.getByRole('button', { name: 'Xóa đã đọc', exact: true }).click()
+  // Nut xoan chi hien khi re vao dong thong bao o viewport desktop.
+  await readItem.hover()
+  await readItem.getByRole('button', { name: 'Xóa thông báo này' }).click()
 
   await expect(readItem).toHaveCount(0)
   await expect(unreadItem).toBeVisible()

@@ -123,6 +123,8 @@ cd client
 npm run test:e2e
 ```
 
+CI có job `e2e` tự dựng stack dev bằng Docker Compose rồi chạy suite này trên mỗi PR. Khi `AI_API_KEYS` rỗng, hai ca chatbot cần AI được bỏ qua, các ca còn lại vẫn chạy.
+
 ## Tài liệu
 
 - [AGENTS.md](AGENTS.md) - quy ước làm việc cho agent
