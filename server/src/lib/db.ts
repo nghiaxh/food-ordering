@@ -15,5 +15,3 @@ export const db = drizzle(pool, {
 });
 
 export type Database = typeof db;
-
-export const toNumber = (v: unknown): number => Number(v);

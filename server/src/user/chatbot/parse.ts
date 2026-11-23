@@ -53,15 +53,6 @@ export function refersToLastPicks(p: string): boolean {
   return ["mon do", "cai do", "mon nay", "mon vua", "may mon tren", "trong so do", "cac mon do"].some((k) => p.includes(k));
 }
 
-export function isReferenceKeyword(keyword: string): boolean {
-  const p = plain(keyword).trim();
-  if (!p) return true;
-  const FOLLOW_UP_PHRASES = ["mon do", "cai do", "mon nay", "cai nay", "mon vua goi y", "mon vua roi", "may mon tren", "trong so do", "cac mon do", "nhung mon do", "mon tren"];
-  const REFERENCE_TOKENS = new Set(["mon", "cai", "do", "nay", "vua", "goi", "y", "tren", "may", "trong", "so", "cac", "nhung", "roi", "vay"]);
-  if (FOLLOW_UP_PHRASES.some((phrase) => p.includes(phrase))) return true;
-  return p.split(/\s+/).every((token) => REFERENCE_TOKENS.has(token));
-}
-
 export function readConstraints(question: string, menu: DishName[]): Criteria {
   const raw = readConstraintsRaw(question, menu);
   return {

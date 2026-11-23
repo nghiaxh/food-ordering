@@ -262,9 +262,7 @@ export const aiSetting = pgTable("ai_setting", {
 });
 
 export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
 export type Food = typeof foods.$inferSelect;
-export type NewFood = typeof foods.$inferInsert;
 export type Category = typeof categories.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;

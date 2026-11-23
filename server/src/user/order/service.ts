@@ -11,17 +11,9 @@ import { db } from "../../lib/db.js";
 import { badRequest, forbidden, notFound, unauthorized } from "../../lib/errors.js";
 import { toOrderJson } from "../../lib/serializers.js";
 import { markUsed, priceOrder, type DbClient } from "../pricing/service.js";
-import {
-  canEditItems,
-  isValidTransition,
-  ORDER_STATUS_LABEL,
-  parseStatus,
-  type OrderStatus,
-} from "./transitions.js";
+import { isValidTransition, ORDER_STATUS_LABEL, type OrderStatus } from "./transitions.js";
 import type { createOrderSchema } from "./schema.js";
 import type { z } from "zod";
-
-export { canEditItems, isValidTransition, ORDER_STATUS_LABEL, parseStatus };
 
 type CreateOrderRequest = z.infer<typeof createOrderSchema>;
 

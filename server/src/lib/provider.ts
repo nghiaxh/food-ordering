@@ -69,16 +69,6 @@ const initKeys = (): void => {
 
 initKeys();
 
-export const _resetKeyStateForTests = (): void => {
-  initKeys();
-  modelStates.clear();
-  thinkingDisabledModels.clear();
-  keyAccepted = null;
-  keyCheckedAt = 0;
-  cachedChatModels = null;
-  cachedEmbedModels = null;
-};
-
 const sleep = (ms: number): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // Gemma 4 tra ve thinking tokens (<|channel>thought...<channel|>) truoc answer.
