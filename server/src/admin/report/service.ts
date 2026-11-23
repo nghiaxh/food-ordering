@@ -2,18 +2,9 @@ import { and, asc, gte, lte } from "drizzle-orm";
 import writeExcelFile from "write-excel-file/node";
 import { orders } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
-import { businessTimeParts, parseBusinessRange } from "../../lib/businessTime.js";
+import { businessTimeParts, type BusinessRange } from "../../lib/businessTime.js";
 
-// Bao cao doanh thu cho quan tri + xuat Excel bang write-excel-file.
-export interface ReportRange {
-  from: Date;
-  to: Date;
-}
-
-export const parseRange = (fromRaw?: string, toRaw?: string): ReportRange =>
-  parseBusinessRange(fromRaw, toRaw);
-
-const loadOrders = async ({ from, to }: ReportRange) => {
+const loadOrders = async ({ from, to }: BusinessRange) => {
   const orderList = await db.query.orders.findMany({
     where: and(gte(orders.createdAt, from), lte(orders.createdAt, to)),
     with: {
@@ -25,7 +16,7 @@ const loadOrders = async ({ from, to }: ReportRange) => {
   return orderList;
 };
 
-export const summary = async (range: ReportRange) => {
+export const summary = async (range: BusinessRange) => {
   const orderList = await loadOrders(range);
   const active = orderList.filter((o) => o.status !== "CANCELLED");
   const revenue = active.reduce((sum, o) => sum + Number(o.total), 0);
@@ -43,7 +34,7 @@ export const summary = async (range: ReportRange) => {
   };
 };
 
-export const revenueByDay = async (range: ReportRange) => {
+export const revenueByDay = async (range: BusinessRange) => {
   const orderList = await loadOrders(range);
   const byDay = new Map<string, { revenue: number; orders: number }>();
   for (const o of orderList) {
@@ -60,7 +51,7 @@ export const revenueByDay = async (range: ReportRange) => {
     .sort((a, b) => a.date.localeCompare(b.date));
 };
 
-export const topFoods = async (range: ReportRange, limit: number) => {
+export const topFoods = async (range: BusinessRange, limit: number) => {
   const orderList = await loadOrders(range);
   // Gom theo id mon chu khong theo ten: hai mon trung ten van la hai mon khac nhau.
   const stats = new Map<number, { name: string; quantity: number; revenue: number }>();
@@ -83,7 +74,7 @@ export const topFoods = async (range: ReportRange, limit: number) => {
 };
 
 /** Xuat Excel 4 sheet: Tong quan, Doanh thu, Top mon, Don hang. */
-export const exportExcel = async (range: ReportRange): Promise<Buffer> => {
+export const exportExcel = async (range: BusinessRange): Promise<Buffer> => {
   const orderList = await loadOrders(range);
   const s = await summary(range);
   const byDay = await revenueByDay(range);
