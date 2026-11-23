@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { NButton, NDrawer, NDrawerContent, NEmpty, NIcon, NSkeleton } from 'naive-ui'
-import { NotificationsOutline, CloseOutline } from '@vicons/ionicons5'
+import { CloseOutline } from '@vicons/ionicons5'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/user/notification/store'
 import { useUiStore } from '@/shared/stores/uiStore'
@@ -25,17 +25,9 @@ const onItemClick = async (item: NotificationItem) => {
 </script>
 
 <template>
-  <!-- NDrawer khong render slot header/footer; phai bo NDrawerContent de co tieu de, nut hanh dong va nut dong. -->
+  <!-- NDrawer khong render slot footer; phai dat trong NDrawerContent de co nut hanh dong. -->
   <NDrawer :show="show" placement="right" :width="'min(420px, 100vw)'" :mask-closable="true" :auto-focus="false" @update:show="(v: boolean) => !v && ui.closeDrawer()">
-    <NDrawerContent closable body-content-class="p-0">
-      <template #header>
-        <div class="flex items-center gap-2 pr-8">
-          <NIcon :size="18"><NotificationsOutline /></NIcon>
-          <span class="text-base font-semibold text-stone-900">Thông báo</span>
-
-        </div>
-      </template>
-
+    <NDrawerContent body-content-class="p-0">
       <template #default>
         <div v-if="notifications.loading && notifications.items.length === 0" class="p-5">
           <NSkeleton :repeat="4" height="48px" />
