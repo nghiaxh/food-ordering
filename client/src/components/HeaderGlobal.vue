@@ -195,7 +195,7 @@ const iconButtonClass =
             </NBadge>
           </button>
         </NDropdown>
-        <NButton v-else type="default" size="small" @click="router.push('/login')">Đăng nhập</NButton>
+        <NButton v-else type="primary" size="small" @click="router.push('/login')">Đăng nhập</NButton>
       </div>
     </div>
   </header>
