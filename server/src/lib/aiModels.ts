@@ -4,8 +4,6 @@ export const parseList = (raw: string | null | undefined): string[] => {
   return [...new Set(raw.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean))];
 };
 
-// Model chat Gemini 3.x mac dinh bat thinking, nen gui `thinkingBudget: 0` de bot tra loi nhanh.
-// Model khong ho tro se tra 400; provider thu lai khong thinking va ghi nho theo tung model,
-// vi vay o day khong doan theo ten (lite van co model nhan, co model khong).
+// Gui thinkingBudget: 0 cho model chat Gemini; model khong nhan se tra 400 va provider bo co.
 export const supportsThinking = (model: string): boolean =>
   model.startsWith("gemini-") && !model.includes("-image") && !model.includes("embedding");
