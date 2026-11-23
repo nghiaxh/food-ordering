@@ -347,7 +347,11 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   "Ghi nhớ đăng nhập" hoạt động đúng cả hai chế độ. Tích ô này thì email được lưu ở
   `localStorage['auth.remembered-email']` để trang đăng nhập tự điền và khách chỉ cần nhập mật
   khẩu (nút "Đổi tài khoản" xoá email đó); bỏ tích thì xoá email, còn `logout()` giữ lại. Không
-  lưu mật khẩu, và "ghi nhớ" không kéo dài hạn token (`JWT_EXPIRATION_MS`).
+  lưu mật khẩu, và "ghi nhớ" không kéo dài hạn token (`JWT_EXPIRATION_MS`). Ô này mặc định **không
+  tick**, nên đăng nhập mặc định chỉ lưu phiên ở `sessionStorage`, dù email cũ vẫn tự điền.
+- **Toast tối đa 3**: `client/src/shared/api/message.ts` truyền `messageProviderProps: { max: 3 }`
+  cho `createDiscreteApi`. Đây là nguồn toast duy nhất của app, không dùng `useMessage()` hay
+  `NMessageProvider` để báo lỗi/thành công.
 - **Hai layout riêng**: route khách nằm trong `DefaultLayout`, route `/admin/*` nằm trong
   `AdminLayout` (menu trái 4 nhóm / 8 mục, không có khung chatbot). Thêm route admin mới thì nhớ khai
   báo trong `AdminLayout`, đừng gắn vào `DefaultLayout`.
@@ -361,7 +365,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 - `requireAuth`/`optionalAuth` bọc lỗi không hợp lệ (coi như chưa đăng nhập) - đừng log token.
 - **`NDrawer` không render slot `#header`/`#header-extra`/`#footer`**: naive-ui chỉ hiện tiêu đề, nút
   đóng và footer khi nội dung nằm trong `NDrawerContent`. Slot đặt thẳng trên `NDrawer` bị bỏ qua
-  âm thầm (tiêu đề drawer, nút "Đã đọc", nút "Đóng" biến mất khỏi DOM).
+  âm thầm (tiêu đề drawer, nút "Đã đọc", nút "Đóng" biến mất khỏi DOM). Riêng drawer thông báo cố tình
+  bỏ `#header` và `closable`, nên không có thanh "Thông báo" hay nút X; đóng bằng mask hoặc Esc.
 - **Khu quản trị dùng palette orange riêng**: `client/src/shared/theme.ts` khai báo màu chủ đạo
   theo bảng màu native của Tailwind (orange-700/800/900) và `AdminLayout` bọc `NConfigProvider`
   riêng; trang khách giữ theme gốc khai trong `App.vue`. Vì vậy màu accent trong khu quản trị
