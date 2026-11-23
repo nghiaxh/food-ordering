@@ -18,11 +18,11 @@ export const GREETING_STARTERS = [
 const CHATBOT_OFF_NOTICE = 'Trợ lý AI chưa được cấu hình, vui lòng thử lại sau.'
 
 /** Trang thai tieu trinh: chat server tra 1 response tu luc dau, khong stream. */
-const PROGRESS_TEXTS = ['Đang phân tích...', 'Đang tra cứu...', 'Đang soạn câu trả lời...'];
-const PROGRESS_INTERVAL_MS = 3000;
+const PROGRESS_TEXTS = ['Đang phân tích...', 'Đang tra cứu...', 'Đang soạn câu trả lời...']
+const PROGRESS_INTERVAL_MS = 600
 
 /** Giu phan hoi hien it nhat 2s de khong nhay qua nhanh khi server tra ve tuc thi. */
-const MIN_REPLY_MS = 2000;
+const MIN_REPLY_MS = 2000
 
 /** Cho du thoi gian toi thieu; tra false neu nguoi dung huy giua luc cho. */
 const waitMinimumReply = (startedAt: number, signal: AbortSignal): Promise<boolean> => {
@@ -136,15 +136,15 @@ export const useChatConversation = () => {
     progressStage = 0
   }
 
-  // Vong qua cac trang thai progress theo gio de vong tay nhung chu he thong
+  // Doi nhanh de kip hien ca 3 buoc trong 2s; dung o buoc cuoi, khong lap lai buoc dau.
   const startProgress = (_isInfo: boolean) => {
     clearProgress()
     progressStage = 0
     statusText.value = PROGRESS_TEXTS[0]!
     progressTimer = window.setInterval(() => {
-      progressStage = (progressStage + 1) % PROGRESS_TEXTS.length;
-      statusText.value = PROGRESS_TEXTS[progressStage]!;
-    }, PROGRESS_INTERVAL_MS);
+      progressStage = Math.min(progressStage + 1, PROGRESS_TEXTS.length - 1)
+      statusText.value = PROGRESS_TEXTS[progressStage]!
+    }, PROGRESS_INTERVAL_MS)
   }
 
   onBeforeUnmount(() => {
