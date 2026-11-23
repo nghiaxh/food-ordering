@@ -79,14 +79,27 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
       - name: Start dev stack
-        run: docker compose --profile dev up --build -d
+        run: docker compose --profile dev up --build -d --wait --wait-timeout 180
       - name: Wait for services
         run: |
-          curl --fail --silent --show-error --retry 60 --retry-connrefused --retry-delay 2 http://localhost:8080/api/categories > /dev/null
-          curl --fail --silent --show-error --retry 60 --retry-connrefused --retry-delay 2 http://localhost:5173/ > /dev/null
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:8080/api/categories > /dev/null &&
+               curl --fail --silent http://localhost:5173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Dev stack did not become ready"
+          docker compose --profile dev ps
+          exit 1
       - name: Run E2E tests
         working-directory: client
         run: npm run test:e2e
+      - name: Dump stack logs on failure
+        if: failure()
+        run: |
+          docker compose --profile dev ps
+          docker compose --profile dev logs --tail=100
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4

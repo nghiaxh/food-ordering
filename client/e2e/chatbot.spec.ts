@@ -214,8 +214,9 @@ test.describe('conversation history', () => {
     await page.goto('/')
     await openChat(page)
 
+    await expect(page.getByTestId('chatbot-panel')).toBeVisible()
+    // Khong co khoa AI thi khung an loi chao, nen chi kiem tra cache cu bi bo.
     await expect(page.getByText('Món riêng của tài khoản trước')).toHaveCount(0)
-    await expect(page.getByText('Chào quý khách! Tôi là trợ lý đặt món của quán.')).toBeVisible()
   })
 })
 
