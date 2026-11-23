@@ -13,7 +13,7 @@ import type { FormItemRule } from 'naive-ui'
 const router = useRouter()
 const auth = useAuthStore()
 const loading = ref(false)
-const remember = ref(true)
+const remember = ref(false)
 
 const rememberedEmail = auth.rememberedEmail()
 // Da nho email thi khach chi con nhap mat khau; nut "Doi tai khoan" xoa email da nho.
