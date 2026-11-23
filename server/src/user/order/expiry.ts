@@ -12,7 +12,6 @@ export const isAwaitingQrPayment = (
   order: Pick<PaymentWindow, "status" | "paymentStatus" | "paymentMethod">,
 ) => order.status === "PENDING" && order.paymentStatus === "UNPAID" && order.paymentMethod === "QR";
 
-/** Qua han tinh tu luc tao don, khong phai tu luc mo ma QR. */
 export const isExpiredUnpaidQr = (order: PaymentWindow, now: Date, timeoutMs: number) =>
   isAwaitingQrPayment(order) && now.getTime() - order.createdAt.getTime() >= timeoutMs;
 

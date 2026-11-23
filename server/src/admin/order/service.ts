@@ -1,6 +1,5 @@
 import { desc, eq } from "drizzle-orm";
 import {
-  foods,
   notifications,
   orderItems,
   orders,
@@ -9,13 +8,12 @@ import {
   type Promotion,
 } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
-import { badRequest, forbidden, notFound, unauthorized } from "../../lib/errors.js";
+import { badRequest, notFound } from "../../lib/errors.js";
 import { toOrderJson } from "../../lib/serializers.js";
 import { markUsed, priceOrder, unmarkUsed, type DbClient } from "../../user/pricing/service.js";
 import {
   canEditItems,
   isCreatableStatus,
-  isValidTransition,
   ORDER_STATUS_LABEL,
   parseStatus,
   type OrderStatus,
@@ -33,7 +31,6 @@ const notifyMsg = (id: number, next: string): string | null =>
     COMPLETED: `Đơn hàng #${id} đã hoàn thành. Cảm ơn bạn đã đặt món!`,
     CANCELLED: `Đơn hàng #${id} đã bị hủy. Liên hệ hotline nếu bạn cần hỗ trợ.`,
   }[next] ?? null);
-
 
 // Nghiep vu don hang: tao don (gia tu DB), vong doi trang thai mot chieu, thanh toan gia lap COD/QR.
 export const updatePaymentStatus = (
@@ -71,8 +68,6 @@ export async function adminUpdateStatus(id: number, status: string) {
   });
   return toOrderJson(saved!);
 }
-
-// Quan tri: tao, sua, xoa don thay khach (UC12)
 
 export async function adminCreateOrder(req: AdminOrderRequest) {
   if (!req.items || req.items.length === 0) {

@@ -103,9 +103,7 @@ const applyAddress = (address: SavedAddress) => {
   form.address = address.address
 }
 
-// Danh sach doi (nap xong, luu dia chi moi, server doi mac dinh): chon lai mac dinh khi
-// lua chon cu khong con trong danh sach. Dia chi con ton tai thi giu nguyen de khong
-// ghi de phan khach da sua tay cho rieng don nay.
+// Chon lai dia chi mac dinh khi lua chon cu mat; con ton tai thi giu de khong ghi de sua tay.
 watch(addresses, (list) => {
   if (list.some((a) => a.id === selectedId.value)) return
   const def = list.find((a) => a.isDefault) ?? list[0]

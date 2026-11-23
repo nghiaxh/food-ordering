@@ -1,26 +1,8 @@
-import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { asc, count, desc, eq } from "drizzle-orm";
-import {
-  aiSetting,
-  cartItems,
-  chatMessages,
-  notifications,
-  orders,
-  promotions,
-  reviews,
-  userAddresses,
-  users,
-} from "../../db/schema.js";
+import { asc, desc } from "drizzle-orm";
+import { aiSetting, chatMessages } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
-import { badRequest, conflict, notFound } from "../../lib/errors.js";
-import { hashPassword } from "../../lib/password.js";
+import { badRequest } from "../../lib/errors.js";
 import { toUserJson } from "../../lib/serializers.js";
-import { env } from "../../config/env.js";
-
-
-// Cau hinh AI / lich su hoi thoai
 
 // Cau hinh AI, lich su hoi thoai va tai lieu chatbot danh cho quan tri.
 export const listAiSettings = async () => {

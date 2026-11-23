@@ -206,14 +206,6 @@ export interface KnowledgeChunkView {
   embedded?: boolean
 }
 
-export interface KnowledgeStats {
-  totalDocuments: number
-  totalChunks: number
-  embeddedChunks?: number
-  ready: number
-  failed: number
-}
-
 export interface Promotion {
   id: number
   name: string

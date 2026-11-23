@@ -1,5 +1,5 @@
 import { and, eq, isNull, or, sql } from "drizzle-orm";
-import type { Food, Promotion } from "../../db/schema.js";
+import type { Promotion } from "../../db/schema.js";
 import { foods, promotions } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { badRequest } from "../../lib/errors.js";

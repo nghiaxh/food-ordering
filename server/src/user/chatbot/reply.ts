@@ -1,18 +1,9 @@
 import { HttpError } from "../../lib/errors.js";
 import * as provider from "../../lib/provider.js";
-import { plain } from "../../lib/text-normalizer.js";
 import { dropTrailingQuestion, hasForeignScript, limitSentences } from "./grounding.js";
 import { searchChunks, type ScoredChunk } from "./retrieval.js";
 import { CHAT_PROMPT } from "./prompts.js";
-import { filterMenu, buildCards, quickRepliesFor } from "./select.js";
 import type { FoodWithCategory } from "./constraints.js";
-import type { Criteria, ParsedQuery } from "./parse.js";
-
-export interface ReplyResult {
-  reply: string;
-  pickedIds: number[];
-  citations: Array<{ sourceName: string; snippet: string }> | null;
-}
 
 const truncate = (s: string, max: number): string => {
   const t = s.replaceAll(/\s+/g, " ").trim();
@@ -113,24 +104,3 @@ export const composeInfoReply = async (message: string): Promise<{ reply: string
   const citations = chunks.length > 0 ? chunks.map((c: ScoredChunk) => ({ sourceName: c.document?.title ?? "Tài liệu quán", snippet: truncate(c.chunk.content, 120) })) : null;
   return { reply, citations };
 };
-
-export const composeStaticReply = (intent: string): string => {
-  if (intent === "ORDER_GUIDE") {
-    return "Để đặt món, quý khách thêm món vào giỏ rồi vào trang thanh toán. Thanh toán COD hoặc quét QR đều được.\n\n- Chỉ hủy được đơn đang chờ xử lý và chưa thanh toán.\n- Đơn đã hoàn thành hoặc đã hủy thì không thể sửa.\n- Khi đơn ở trạng thái \"Đang vận chuyển\", quán đang giao hàng cho quý khách.\n- Quý khách xem trạng thái đơn ở mục Đơn hàng của mình.";
-  }
-  if (intent === "GREETING") {
-    return "Chào quý khách! Tôi là trợ lý của quán. Tôi có thể gợi ý món theo ngân sách/số người, thông tin quán và hướng dẫn đặt món.";
-  }
-  if (intent === "THANKS") {
-    return "Rất vui được hỗ trợ quý khách. Khi cần gợi ý món, quý khách cứ nhắn số người và ngân sách nhé!";
-  }
-  if (intent === "CONFIRM") {
-    return "Quý khách muốn xác nhận gì ạ? Nếu muốn đặt món, quý khách bấm vào thẻ món rồi thêm vào giỏ nhé!";
-  }
-  if (intent === "OUT_OF_SCOPE") {
-    return "Tôi chỉ tư vấn về món ăn của quán: gợi ý món theo số người, ngân sách, khẩu vị, thông tin quán và cách đặt món. Quý khách thử hỏi lại theo các mục đó nhé.";
-  }
-  return "";
-};
-
-export { filterMenu, buildCards, quickRepliesFor };

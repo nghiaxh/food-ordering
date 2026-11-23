@@ -42,8 +42,3 @@ export const promotionRequestSchema = z
       });
     }
   });
-
-export const promotionSaveSchema = z.object({
-  settingKey: z.string().min(1),
-  settingValue: z.string().min(1),
-});

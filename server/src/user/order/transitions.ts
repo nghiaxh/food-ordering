@@ -9,7 +9,6 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: "Đã hủy",
 };
 
-/** Mon chi thay duoc khi don con cho xac nhan va chua thu tien. */
 export const canEditItems = (order: { status: OrderStatus; paymentStatus: string }) =>
   order.status === "PENDING" && order.paymentStatus === "UNPAID";
 

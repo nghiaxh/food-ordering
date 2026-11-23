@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 
 export type DrawerKind = 'cart' | 'notifications' | null
 
-/** Chi mot drawer mo tai mot thoi diem de hai lop mask khong chong len nhau. */
 export const useUiStore = defineStore('ui', {
   state: () => ({
     activeDrawer: null as DrawerKind,

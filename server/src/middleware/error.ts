@@ -6,10 +6,6 @@ interface DatabaseError {
   detail?: string;
 }
 
-/**
- * Handler loi cuoi cung: client chi nhan `{ message }` tieng Viet, chi tiet ky thuat nam o log.
- * Tranh lo ten bang/rang buoc CSDL ra ngoai nhu khi exception lot thang.
- */
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     res.status(err.status).json({ message: err.message });

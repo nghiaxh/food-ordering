@@ -1,13 +1,9 @@
-import { and, asc, eq, inArray, lte, gt, sql, ilike, or, notInArray, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, gt, sql, notInArray, type SQL } from "drizzle-orm";
 import { foods } from "../../db/schema.js";
 import { db } from "../../lib/db.js";
 import { plain } from "../../lib/text-normalizer.js";
 import type { FoodWithCategory } from "./constraints.js";
 import type { Criteria } from "./parse.js";
-
-export interface SelectedDish {
-  food: FoodWithCategory;
-}
 
 const DRINK_DESSERT_SLUGS = new Set(["do-uong", "trang-mieng"]);
 const DRINK_WORDS = ["uong", "tra", "ca phe", "sinh to", "nuoc", "che", "banh", "trang mieng", "dessert"];
@@ -106,5 +102,3 @@ export const buildCards = (foods: FoodWithCategory[], maxSugg: number): { id: nu
 export const quickRepliesFor = (cards: { id: number }[]): string[] => {
   return cards.length > 0 ? ["Món khác", "Món chay không cay"] : ["Gợi ý món cho 2 người", "Giờ mở cửa là mấy giờ?"];
 };
-
-export { perDishCap, asksForDrinkOrDessert };

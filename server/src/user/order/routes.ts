@@ -27,5 +27,3 @@ orderRouter.get("/my", async (req, res) => {
 orderRouter.patch("/:id/cancel", async (req, res) => {
   res.json(await orderService.cancelOrder(req.user!.email, idParam(req.params.id)));
 });
-
-

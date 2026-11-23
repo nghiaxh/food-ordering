@@ -4,7 +4,6 @@ import { addCartItem, clearCart, getCart, removeCartItem, setCartItemQuantity } 
 import { useAuthStore } from '@/user/auth/store'
 import { message } from '@/shared/api/message'
 
-/** Gio chi ton tai cho tai khoan da dang nhap; khach vang lai khong co gio local. */
 const loggedIn = () => !!useAuthStore().user
 
 /**

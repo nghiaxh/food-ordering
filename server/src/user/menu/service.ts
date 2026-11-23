@@ -1,15 +1,11 @@
-import { and, asc, count, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../lib/db.js";
-import { categories, cartItems, foods, orderItems } from "../../db/schema.js";
-import { badRequest, conflict, notFound } from "../../lib/errors.js";
+import { categories, foods } from "../../db/schema.js";
+import { notFound } from "../../lib/errors.js";
 import { plain } from "../../lib/text-normalizer.js";
 import { toCategoryJson, toFoodJson } from "../../lib/serializers.js";
 import { decorateFoods } from "../pricing/service.js";
 
-/**
- * Tim mon: chi loc thuoc tinh toi duoc trong DB (danh muc, gia, con ban). Tu khoa loc bang JS
- * qua text-normalizer de "pho bo" ra "Pho bo" ma khong can extension unaccent cua PostgreSQL.
- */
 export async function searchFoods(filter: {
   keyword?: string;
   categoryId?: number;

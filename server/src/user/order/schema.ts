@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-/** Hai phuong thuc thanh toan: COD (tien mat khi nhan) va QR (quet ma chuyen khoan). */
 export const PAYMENT_METHOD_PATTERN = /^(COD|QR)$/;
 
 export const phoneSchema = z.string().regex(/^0\d{9}$/, "Số điện thoại phải gồm đúng 10 chữ số");
@@ -18,9 +17,4 @@ export const createOrderSchema = z.object({
   address: z.string().min(1, "Nhập địa chỉ giao hàng"),
   paymentMethod: z.string().regex(PAYMENT_METHOD_PATTERN, "Phương thức thanh toán không hợp lệ"),
   note: noteSchema,
-});
-
-
-export const updateStatusSchema = z.object({
-  status: z.string().min(1, "Trạng thái không được để trống"),
 });

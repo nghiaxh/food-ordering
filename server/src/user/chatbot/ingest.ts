@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { and, asc, count, eq, isNotNull, isNull } from "drizzle-orm";
@@ -312,5 +311,3 @@ export const listChunks = async (documentId: number) => {
 };
 
 /** Hash noi dung - danh cho bao cao/doi soat neu can; hien chua hien thi tren UI. */
-export const contentHash = (text: string): string =>
-  createHash("sha256").update(text).digest("hex").slice(0, 16);

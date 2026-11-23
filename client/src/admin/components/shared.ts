@@ -3,10 +3,6 @@ import type { AsyncActionResult } from '@/composables/useAsyncAction'
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
 
-/**
- * Mau cua cham trang thai. Dung class Tailwind thay vi hex noi tuy nen doi mau
- * duoc theo bang mau chuan cua Tailwind ma khong can them gia tri mau tay.
- */
 export type StatusTone = 'success' | 'warning' | 'info' | 'progress' | 'danger' | 'neutral'
 
 export const STATUS_TONE_CLASS: Record<StatusTone, string> = {

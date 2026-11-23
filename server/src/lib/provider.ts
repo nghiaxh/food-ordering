@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env.js";
+import { EMBEDDING_DIM } from "../db/schema.js";
 import { parseList, supportsThinking } from "./aiModels.js";
 
 // Chi ho tro Gemini. Khoa bi 429 thi xoay; bi tu choi (401/403) thi loai toi khi restart.
@@ -9,7 +10,6 @@ const REPLY_TIMEOUT_MS = 20_000;
 const EMBED_TIMEOUT_MS = 8_000;
 const TOTAL_TIMEOUT_MS = 45_000;
 const MAX_OUTPUT_TOKENS = 300;
-export const EMBEDDING_DIM = 768;
 const PROBE_SYSTEM = "Bạn là máy kiểm tra kết nối. Trả lời đúng một từ.";
 const PROBE_USER = "ping";
 const PROBE_TRUE_TTL_MS = 5 * 60 * 1000;
@@ -68,16 +68,6 @@ const initKeys = (): void => {
 };
 
 initKeys();
-
-export const _resetKeyStateForTests = (): void => {
-  initKeys();
-  modelStates.clear();
-  thinkingDisabledModels.clear();
-  keyAccepted = null;
-  keyCheckedAt = 0;
-  cachedChatModels = null;
-  cachedEmbedModels = null;
-};
 
 const sleep = (ms: number): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, ms));
 

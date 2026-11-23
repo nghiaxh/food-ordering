@@ -7,10 +7,6 @@ const TIMEOUT_MINUTES = env.ORDER_PAYMENT_TIMEOUT_MINUTES;
 const TIMEOUT_MS = TIMEOUT_MINUTES * 60_000;
 const SWEEP_INTERVAL_MS = 60_000;
 
-/**
- * Huy don QR qua han bang MOT cau UPDATE co dieu kien: khach vua thanh toan thi dong do khong
- * con khop nen khong bi huy. Thong bao tao cung transaction voi viec huy.
- */
 export async function sweepExpiredOrders(now = new Date()) {
   const cutoff = new Date(now.getTime() - TIMEOUT_MS);
   return db.transaction(async (tx) => {

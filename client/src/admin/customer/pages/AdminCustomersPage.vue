@@ -28,7 +28,6 @@ import StatusDot from '@/admin/components/StatusDot.vue'
 import TableSkeleton from '@/admin/components/TableSkeleton.vue'
 import FormModal from '@/components/FormModal.vue'
 
-
 const { data: users, loading, error, refresh } = useAsyncData(() => adminGetUsers(), () => [])
 watchEffect(() => {
   if (error.value) message.error('Không tải được danh sách khách hàng')

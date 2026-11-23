@@ -13,7 +13,6 @@ export const createOrder = (data: {
 export const getMyOrders = (signal?: AbortSignal) =>
   http.get<Order[]>('/orders/my', { signal }).then((r) => r.data)
 
-/** Chi don con cho xac nhan moi huy duoc; server tra loi neu don da vao che bien. */
 export const cancelOrder = (id: number) => http.patch<Order>(`/orders/${id}/cancel`).then((r) => r.data)
 
 export interface AddressPayload {

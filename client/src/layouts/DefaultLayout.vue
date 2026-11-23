@@ -8,16 +8,10 @@ import ChatbotWidget from '@/user/chatbot/components/ChatbotWidget.vue'
 import { useAuthStore } from '@/user/auth/store'
 import { useUiStore } from '@/shared/stores/uiStore'
 
-/**
- * Layout phia khach: thanh dieu huong. Gio/thong bao drawers va chatbot duoc cac
- * branch sau mount vao day - chua co component nen chua mount.
- */
 const auth = useAuthStore()
 const ui = useUiStore()
 
-// Khach bam gio khi chua dang nhap duoc dua sang login kem co openCart;
-// quay lai thi mo drawer gio luon. Co openCart bi xoa ngay de reload hay quay lai
-// trang khong mo nham drawer khi user van dang nhap.
+// Co openCart mo drawer gio sau khi dang nhap, roi xoa co de khong mo nham lan sau.
 watch(
   () => auth.user,
   (user) => {

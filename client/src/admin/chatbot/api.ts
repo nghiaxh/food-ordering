@@ -1,5 +1,5 @@
 import http from '@/shared/api/http'
-import type { ChatHistoryMessage, KnowledgeChunkView, KnowledgeDoc, KnowledgeStats, AiSetting } from '@/shared/types'
+import type { ChatHistoryMessage, KnowledgeChunkView, KnowledgeDoc, AiSetting } from '@/shared/types'
 
 export const adminGetChatHistory = () => http.get<ChatHistoryMessage[]>('/admin/chatbot/history').then((r) => r.data)
 
@@ -9,8 +9,6 @@ export const adminSaveSetting = (settingKey: string, settingValue: string) =>
   http.put('/admin/chatbot/settings', { settingKey, settingValue })
 
 export const adminGetDocuments = () => http.get<KnowledgeDoc[]>('/admin/chatbot/documents').then((r) => r.data)
-
-export const adminGetDocumentStats = () => http.get<KnowledgeStats>('/admin/chatbot/documents/stats').then((r) => r.data)
 
 export const adminGetDocumentChunks = (id: number) =>
   http.get<KnowledgeChunkView[]>(`/admin/chatbot/documents/${id}/chunks`).then((r) => r.data)
@@ -37,12 +35,4 @@ export const adminReingestDocument = (id: number) =>
 export const adminEmbedDocument = (id: number) =>
   http.post<{ embedded: number; failed: number }>(`/admin/chatbot/documents/${id}/embed`, {}).then((r) => r.data)
 
-export const adminEmbedMissing = () =>
-  http.post<{ embedded: number; failed: number }>('/admin/chatbot/documents/embed-missing', {}).then((r) => r.data)
-
-export const adminSearchPreview = (question: string, topK = 4) =>
-  http.post<{ documentId: number; title: string | null; chunkIndex: number; score: number; content: string }[]>(
-    '/admin/chatbot/documents/search-preview',
-    { question, topK },
-  ).then((r) => r.data)
 export type { AiSetting }

@@ -1,5 +1,3 @@
-// Chuan hoa chu Viet de tim kiem khong dau: NFD tach dau khoi ky tu goc,
-// bo ky tu ket hop; d/D khong co NFD nen thay tay.
 export function plain(input: string | null | undefined): string {
   if (!input) return "";
   return input
@@ -13,11 +11,6 @@ export function plain(input: string | null | undefined): string {
 
 const TEENCODE_NO = new Set(["ko", "k", "kh", "khg", "hok", "hem", "hong"]);
 
-/**
- * Doi teencode "ko / k / kh / hok..." thanh "khong" truoc khi phan tich cau.
- * Ca regex lan model nho deu hieu "khong cay" tot hon "ko cay"; thieu buoc nay thi
- * "goi y mon ko cay" van tra ve mon cay.
- */
 export function normalizeChat(input: string | null | undefined): string {
   if (!input) return "";
   // "100 k" gop lai thanh "100k", khong thi mat so tien khi tach tu.

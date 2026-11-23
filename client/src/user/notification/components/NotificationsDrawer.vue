@@ -8,11 +8,6 @@ import { useUiStore } from '@/shared/stores/uiStore'
 import { formatRelativeTime } from '@/shared/utils/format'
 import type { NotificationItem } from '@/shared/types'
 
-/**
- * Thong bao chuyen tu popover tren header sang drawer de header con mot hang o mobile.
- * Thao tac giu nguyen: danh dau da doc, xoa tung cai, xoa cac thong bao da doc,
- * bam vao thong bao co don thi mo dung don.
- */
 const router = useRouter()
 const ui = useUiStore()
 const notifications = useNotificationStore()
