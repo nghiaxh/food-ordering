@@ -375,7 +375,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   Nhiều khoá Gemini thì đặt `AI_API_KEYS=key1,key2`.
 - Không giữ bí mật trong code hoặc trong file commit - chỉ trong `.env`.
 - **pgvector yêu cầu image `pgvector/pgvector:0.8.7-pg18`**. Volume cũ dùng lại được (cùng major 18). Chạy `CREATE EXTENSION IF NOT EXISTS vector;` trong migration trước khi thêm cột `vector(768)`.
-- **Embedding chỉ chạy khi provider dùng được.** Cần ít nhất một khoá Gemini còn sống. Không dùng được thì chunk vẫn lưu nhưng thiếu vector. Admin bấm "Tạo embedding" khi provider sẵn sàng; `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
+- **Embedding chỉ chạy khi provider dùng được.** Cần ít nhất một khoá Gemini còn sống. Không dùng được thì chunk vẫn lưu nhưng thiếu vector. Nút **Cập nhật** trong bảng tài liệu admin chia lại chunk rồi embed lại; `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
+- **Trang `/admin/chatbot`** chỉ có bảng tài liệu 4 cột: tiêu đề, nhóm, trạng thái, thao tác (Sửa/Xem/Cập nhật/Xóa). Nút "Tải lên tệp" mở modal kéo thả hoặc chọn tệp, upload ngay kèm progress bar (`onUploadProgress` của axios), nhận PDF/DOCX/TXT/MD tối đa 10 MB. Không còn nút "Thêm thủ công", nút Embed riêng hay khối lịch sử hội thoại; đã bỏ endpoint `/api/admin/chatbot/history`, hàm service và kiểu `ChatHistoryMessage`. Lịch sử của khách vẫn nằm ở `/api/chatbot/sessions/**`. Seed không còn 8 tài liệu mẫu, migration `0004_remove_demo_chatbot_documents.sql` xoá chúng trên DB cũ.
 - **Cả client và server dùng TypeScript 6.0.3.** `vue-tsc` 3.3.14 chỉ chạy với TypeScript < 7 vì bản 7
   là compiler native (Go), package `typescript` không còn API JS (`./lib/tsc`), còn `@volar/typescript`
   khai báo peer `typescript: "<7"`. Chỉ nâng lên 7.1 khi Vue Language Tools v4 (content mapper) ổn định;

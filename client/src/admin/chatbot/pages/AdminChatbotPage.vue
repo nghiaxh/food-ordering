@@ -12,20 +12,20 @@ import {
   NInputNumber,
   NModal,
   NPopover,
+  NProgress,
   NSelect,
   NSwitch,
   NTag,
   NUpload,
+  NUploadDragger,
   type DataTableColumns,
 } from 'naive-ui'
 import {
   CloudUploadOutline,
   InformationCircleOutline,
   RefreshOutline,
-  AddOutline,
 } from '@vicons/ionicons5'
 import {
-  adminGetChatHistory,
   adminGetSettings,
   adminSaveSetting,
   adminGetDocuments,
@@ -34,12 +34,11 @@ import {
   adminDeleteDocument,
   adminUploadDocument,
   adminReingestDocument,
-  adminEmbedDocument,
 } from '@/admin/chatbot/api'
 import { getChatbotStatus } from '@/user/chatbot/api'
 import useAsyncData from '@/composables/useAsyncData'
 import useAsyncAction from '@/composables/useAsyncAction'
-import type { ChatHistoryMessage, ChatbotStatus, KnowledgeChunkView, KnowledgeDoc } from '@/shared/types'
+import type { ChatbotStatus, KnowledgeChunkView, KnowledgeDoc } from '@/shared/types'
 import { apiErrorMessage } from '@/shared/utils/api-error'
 import { message } from '@/shared/api/message'
 import { confirmRemove } from '@/admin/components/shared'
@@ -64,9 +63,6 @@ const statusLabel = (status?: string, enabled = true): string => {
 }
 const categoryLabel = (v?: string | null): string =>
   CATEGORY_OPTIONS.find((o) => o.value === v)?.label ?? (v || 'Khác')
-const formatTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-
 const maxSuggestions = ref(5)
 const extraRules = ref('')
 
@@ -76,31 +72,25 @@ const docForm = reactive({ title: '', category: '', keywords: '', content: '', e
 const chunksDoc = ref<KnowledgeDoc | null>(null)
 const chunks = ref<KnowledgeChunkView[]>([])
 
+const uploadModal = ref(false)
+const uploading = ref(false)
+const uploadPercent = ref(0)
+const uploadName = ref('')
+
 const { data, loading, error, refresh } = useAsyncData(
-  () => Promise.all([adminGetChatHistory(), adminGetSettings(), getChatbotStatus(), adminGetDocuments()]),
+  () => Promise.all([adminGetSettings(), getChatbotStatus(), adminGetDocuments()]),
   () => [],
 )
 
 watch(data, (value) => {
   if (!value) return
-  const settings = Object.fromEntries(value[1].map((s) => [s.settingKey, s.settingValue]))
+  const settings = Object.fromEntries(value[0].map((s) => [s.settingKey, s.settingValue]))
   maxSuggestions.value = Math.min(5, Math.max(1, Number(settings.max_suggestions ?? 5) || 5))
   extraRules.value = settings.extra_rules ?? ''
 }, { immediate: true })
 
-const history = computed(() => data.value?.[0] ?? [])
-const status = computed<ChatbotStatus | null>(() => (data.value?.[2] as ChatbotStatus | undefined) ?? null)
-const documents = computed(() => data.value?.[3] ?? [])
-
-const sessions = computed(() => {
-  const groups = new Map<string, ChatHistoryMessage[]>()
-  for (const m of history.value) {
-    const list = groups.get(m.sessionId) ?? []
-    list.push(m)
-    groups.set(m.sessionId, list)
-  }
-  return [...groups.entries()].map(([id, messages]) => ({ id, messages }))
-})
+const status = computed<ChatbotStatus | null>(() => (data.value?.[1] as ChatbotStatus | undefined) ?? null)
+const documents = computed(() => data.value?.[2] ?? [])
 
 const { run: saveSettings, pending: savingSettings } = useAsyncAction(() =>
   Promise.all([
@@ -137,11 +127,6 @@ const saveDoc = async () => {
     message.error(apiErrorMessage(e) ?? 'Lưu thất bại')
   }
 }
-const openCreateDoc = () => {
-  editingDoc.value = null
-  Object.assign(docForm, { title: '', category: '', keywords: '', content: '', enabled: true })
-  docModal.value = true
-}
 const deleteDoc = (d: KnowledgeDoc) => {
   confirmRemove({
     title: 'Xóa tài liệu này?',
@@ -158,35 +143,39 @@ const deleteDoc = (d: KnowledgeDoc) => {
   })
 }
 const handleUpload = async ({ file }: { file: { file?: File | null } }) => {
-  if (file.file == null) {
+  const raw = file.file
+  if (!raw) {
     message.error('Không đọc được tệp tải lên')
-    return false
+    return
   }
+  if (raw.size > 10 * 1024 * 1024) {
+    message.error('Tệp vượt quá 10 MB')
+    return
+  }
+  uploadName.value = raw.name
+  uploadPercent.value = 0
+  uploading.value = true
   try {
-    const res = await adminUploadDocument(file.file, '', '', '')
-    message.success(`Đã nạp tài liệu "${res.title}", đang chia ${res.chunkCount ?? 0} phần`)
+    const res = await adminUploadDocument(raw, '', '', '', (percent) => {
+      uploadPercent.value = percent
+    })
+    uploadPercent.value = 100
+    message.success(`Đã nạp tài liệu "${res.title}"`)
+    uploadModal.value = false
     void refresh()
   } catch (e) {
     message.error(apiErrorMessage(e) ?? 'Tải lên thất bại')
+  } finally {
+    uploading.value = false
   }
-  return false
 }
 const reingest = async (id: number) => {
   try {
     await adminReingestDocument(id)
-    message.success('Đã tạo lại')
+    message.success('Đã cập nhật tài liệu')
     void refresh()
   } catch (e) {
-    message.error(apiErrorMessage(e) ?? 'Tạo lại thất bại')
-  }
-}
-const embedDoc = async (id: number) => {
-  try {
-    const res = await adminEmbedDocument(id)
-    message.success(`Đã embed ${res.embedded} phần, ${res.failed} lỗi`)
-    void refresh()
-  } catch (e) {
-    message.error(apiErrorMessage(e) ?? 'Embed thất bại')
+    message.error(apiErrorMessage(e) ?? 'Cập nhật thất bại')
   }
 }
 const viewChunks = async (d: KnowledgeDoc) => {
@@ -216,137 +205,32 @@ const docColumns: DataTableColumns<KnowledgeDoc> = [
       ),
   },
   {
-    title: 'Số phần',
-    key: 'chunkCount',
-    width: 80,
-    render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, row.chunkCount ?? 0),
-  },
-  {
-    title: 'Embedding',
-    key: 'embeddedChunks',
-    width: 100,
-    render: (row) =>
-      h('span', { class: 'tabular-nums text-stone-600' },
-        `${row.embeddedChunks ?? 0}/${row.chunkCount ?? 0}`),
-  },
-  {
-    title: 'Tệp nguồn',
-    key: 'fileName',
-    ellipsis: true,
-    render: (row) =>
-      row.fileName
-        ? h('span', { class: 'font-mono text-xs text-stone-600' }, row.fileName)
-        : h('span', { class: 'text-stone-400' }, '—'),
-  },
-  {
     title: 'Trạng thái',
     key: 'status',
     width: 120,
     render: (row) => {
-      let type: 'default' | 'success' | 'warning' | 'error' = 'default'
-      if (row.status === 'PENDING') type = 'warning'
-      else if (row.status === 'FAILED') type = 'error'
-      else if (row.enabled) type = 'success'
-      return h(
-        NTag,
-        { round: false, size: 'small', type },
-        () => statusLabel(row.status, row.enabled),
-      )
+      const dot = row.status === 'PENDING' || row.status === 'EMBEDDING'
+        ? 'bg-amber-500'
+        : row.status === 'FAILED' || !row.enabled
+          ? 'bg-stone-400'
+          : 'bg-emerald-500'
+      return h('span', { class: 'inline-flex items-center gap-1.5 text-xs text-stone-600' }, [
+        h('span', { class: `h-1.5 w-1.5 rounded-full ${dot}` }),
+        statusLabel(row.status, row.enabled),
+      ])
     },
   },
   {
     title: 'Thao tác',
     key: 'actions',
-    width: 260,
+    width: 210,
     render: (row) =>
       h('div', { class: 'flex flex-wrap items-center gap-1.5' }, [
         h(NButton, { size: 'tiny', onClick: () => openEditDoc(row) }, () => 'Sửa'),
         h(NButton, { size: 'tiny', onClick: () => viewChunks(row) }, () => 'Xem'),
-        h(NButton, { size: 'tiny', onClick: () => reingest(row.id) }, () => 'Tạo lại'),
-        h(NButton, { size: 'tiny', onClick: () => embedDoc(row.id) }, () => 'Embed'),
+        h(NButton, { size: 'tiny', onClick: () => reingest(row.id) }, () => 'Cập nhật'),
         h(NButton, { size: 'tiny', type: 'error', ghost: true, onClick: () => deleteDoc(row) }, () => 'Xóa'),
       ]),
-  },
-]
-
-const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessage[] }> = [
-  {
-    type: 'expand',
-    width: 48,
-    renderExpand: (row) =>
-      h(
-        'div',
-        { class: 'space-y-2 rounded-xl bg-stone-50/80 p-3' },
-        row.messages.map((m) =>
-          h('div', { class: `flex ${m.sender === 'BOT' ? 'justify-start' : 'justify-end'}` }, [
-            h('div', { class: 'max-w-[75%]' }, [
-              h(
-                'div',
-                {
-                  class: `rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                    m.sender === 'BOT'
-                      ? 'rounded-bl-sm bg-white text-stone-700 ring-1 ring-stone-200'
-                      : 'rounded-br-sm bg-orange-600 text-white'
-                  }`,
-                },
-                m.content,
-              ),
-              h(
-                'p',
-                { class: `mt-1 text-[11px] text-stone-400 ${m.sender === 'BOT' ? '' : 'text-right'}` },
-                `${m.sender === 'BOT' ? 'Bot' : 'Khách'} · ${formatTime(m.createdAt)}`,
-              ),
-            ]),
-          ]),
-        ),
-      ),
-  },
-  {
-    title: 'Khách hàng',
-    key: 'user',
-    width: 200,
-    render: (row) => {
-      const lastUser = [...row.messages].reverse().find((m) => m.user)
-      return lastUser?.user?.email
-        ? h('span', { class: 'block truncate font-medium text-stone-700' }, lastUser.user.email)
-        : h(
-            NTag,
-            { round: false, size: 'small', bordered: false, class: 'bg-stone-100 text-stone-500' },
-            () => 'Ẩn danh',
-          )
-    },
-  },
-  {
-    title: 'Số tin',
-    key: 'count',
-    width: 80,
-    render: (row) => h('span', { class: 'tabular-nums text-stone-600' }, row.messages.length),
-  },
-  {
-    title: 'Tin nhắn cuối',
-    key: 'last',
-    render: (row) => {
-      const last = row.messages[row.messages.length - 1]!
-      return h('span', { class: 'block max-w-md truncate text-xs text-stone-500' }, [
-        h(
-          'span',
-          { class: last.sender === 'BOT' ? 'font-medium text-orange-700' : 'text-stone-700' },
-          `${last.sender === 'BOT' ? 'Bot' : 'Khách'}: `,
-        ),
-        last.content,
-      ])
-    },
-  },
-  {
-    title: 'Thời gian',
-    key: 'time',
-    width: 160,
-    render: (row) =>
-      h(
-        'span',
-        { class: 'tabular-nums text-xs text-stone-500' },
-        new Date(row.messages[row.messages.length - 1]!.createdAt).toLocaleString('vi-VN'),
-      ),
   },
 ]
 </script>
@@ -426,22 +310,13 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
               </NButton>
             </template>
             <p class="max-w-xs text-xs leading-relaxed text-stone-700">
-              Tài liệu là thông tin quán (giờ mở cửa, giao hàng, thanh toán...). Hệ thống tự chia mỗi tài liệu thành các phần nội dung để chatbot tìm theo nghĩa. Bấm <b>Xem</b> để xem các phần đã chia, <b>Tạo lại</b> để chia lại khi bạn sửa nội dung.
+              Tài liệu là thông tin quán (giờ mở cửa, giao hàng, thanh toán...). Hệ thống tự chia mỗi tài liệu thành các phần nội dung để chatbot tìm theo nghĩa. Bấm <b>Xem</b> để xem các phần đã chia, <b>Cập nhật</b> để chia lại khi nội dung thay đổi.
             </p>
           </NPopover>
         </div>
-        <div class="flex items-center gap-2">
-          <NButton size="small" @click="openCreateDoc">
-            <template #icon><NIcon :size="14"><AddOutline /></NIcon></template>
-            Thêm thủ công
-          </NButton>
-          <NUpload :show-file-list="false" accept=".pdf,.docx,.txt,.md" :custom-request="handleUpload">
-            <NButton size="small" type="primary" secondary>
-              <template #icon><NIcon :size="14"><CloudUploadOutline /></NIcon></template>
-              Tải lên tệp
-            </NButton>
-          </NUpload>
-        </div>
+        <NButton size="small" type="primary" secondary @click="uploadModal = true">
+          Tải lên tệp
+        </NButton>
       </div>
 
       <NEmpty v-if="documents.length === 0" class="py-10" description="Chưa có tài liệu tri thức nào." />
@@ -455,27 +330,7 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
       />
     </PageCard>
 
-    <PageCard>
-      <div class="flex items-center gap-2 border-b border-stone-100 px-4 py-3">
-        <span class="font-semibold text-stone-800">Lịch sử hội thoại</span>
-        <NTag :round="false" size="small" :bordered="false" class="bg-stone-100 font-medium text-stone-600">
-          {{ sessions.length }} phiên
-        </NTag>
-      </div>
-
-      <NEmpty v-if="sessions.length === 0" class="py-10" description="Chưa có phiên trò chuyện nào." />
-      <NDataTable
-        v-else
-        :columns="historyColumns"
-        :data="sessions"
-        :row-key="(row: { id: string }) => row.id"
-        :pagination="{ pageSize: 8 }"
-        :scroll-x="720"
-        size="small"
-      />
-    </PageCard>
-
-    <FormModal :title="editingDoc ? editingDoc.title : 'Thêm tài liệu'" :show="docModal" :on-close="() => { docModal = false }" :on-submit="saveDoc">
+    <FormModal :title="editingDoc?.title ?? 'Sửa tài liệu'" :show="docModal" :on-close="() => { docModal = false }" :on-submit="saveDoc">
       <NForm :show-feedback="false" class="space-y-3 pt-1">
         <NFormItem label="Tiêu đề tài liệu">
           <NInput :value="docForm.title" placeholder="Ví dụ: Giờ mở cửa" size="small" @update:value="(v: string) => { docForm.title = v }" />
@@ -499,6 +354,27 @@ const historyColumns: DataTableColumns<{ id: string; messages: ChatHistoryMessag
         </NFormItem>
       </NForm>
     </FormModal>
+
+    <NModal v-model:show="uploadModal" preset="card" title="Tải lên tài liệu" :style="{ maxWidth: '32rem' }">
+      <div class="space-y-3">
+        <p class="text-xs leading-relaxed text-stone-500">
+          Chấp nhận PDF, DOCX, TXT, MD, dung lượng tối đa 10 MB. Tài liệu sẽ được tự động chia phần và tạo vector để chatbot tra cứu.
+        </p>
+        <NUpload v-if="!uploading" :show-file-list="false" accept=".pdf,.docx,.txt,.md" :custom-request="handleUpload">
+          <NUploadDragger>
+            <div class="px-4 py-8 text-center">
+              <NIcon :size="28" class="text-stone-400"><CloudUploadOutline /></NIcon>
+              <p class="mt-2 text-sm text-stone-600">Kéo thả tệp vào đây hoặc bấm để chọn</p>
+            </div>
+          </NUploadDragger>
+        </NUpload>
+        <div v-else class="space-y-2">
+          <p class="truncate text-sm text-stone-700">{{ uploadName }}</p>
+          <NProgress type="line" :percentage="uploadPercent" :height="8" :show-indicator="false" />
+          <p class="text-xs text-stone-500">{{ uploadPercent >= 100 ? 'Đang xử lý nội dung...' : 'Đang tải lên...' }}</p>
+        </div>
+      </div>
+    </NModal>
 
     <NModal :show="chunksDoc !== null" preset="card" :title="chunksDoc ? `Nội dung đã chia của &quot;${chunksDoc.title}&quot;` : 'Nội dung đã chia'" :style="{ maxWidth: '38rem' }" @update:show="(v: boolean) => !v && (chunksDoc = null)">
       <div class="max-h-[420px] space-y-2.5 overflow-auto pr-1">

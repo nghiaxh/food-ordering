@@ -147,16 +147,6 @@ export interface ChatbotStatus {
   notice: string | null
 }
 
-export interface ChatHistoryMessage {
-  id: number
-  /** Lich su cua khach vang lai co the khong gan voi user da dang nhap. */
-  user: User | null
-  sessionId: string
-  sender: 'USER' | 'BOT'
-  content: string
-  createdAt: string
-}
-
 /** Mot phien trong danh sach lich su chatbot cua khach dang dang nhap. */
 export interface ChatSessionSummary {
   sessionId: string

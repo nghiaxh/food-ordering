@@ -31,9 +31,6 @@ const documentUpload = multer({
 
 export const chatbotAdminRouter = Router();
 
-chatbotAdminRouter.get("/chatbot/history", async (_req, res) => {
-  res.json(await chatbotService.chatHistory());
-});
 chatbotAdminRouter.get("/chatbot/settings", async (_req, res) => {
   res.json(await chatbotService.listAiSettings());
 });
