@@ -268,7 +268,8 @@ Khi không dùng được:
   không chặn bấm vào thẻ món.
 - **Trạng thái tiến trình thay cho gõ chữ**: server trả một JSON (không streaming); trong lúc chờ,
   `useChatConversation.ts` vòng qua các trạng thái "Đang phân tích..." → "Đang tra cứu..." →
-  "Đang soạn câu trả lời..." (khoảng 3s/bước). Câu trả lời AI tối đa 2 câu (`CHAT_PROMPT`,
+  "Đang soạn câu trả lời..." (~600ms/bước, đủ 3 trạng thái trong 2-3s, dừng ở trạng thái cuối không
+  quay lại). `MIN_REPLY_MS` giữ phản hồi tối thiểu 2s để kịp hiện các trạng thái. Câu trả lời AI tối đa 2 câu (`CHAT_PROMPT`,
   `limitSentences` 3 câu). Câu trả lời hiện nguyên khối khi có kết quả. Khung chỉ tự cuộn khi
   người đọc đang ở đáy (cách đáy ≤ 64px), cuộn lên thì hiện nút "Tin mới nhất". Thẻ món và quick replies
   hiện cùng lúc với câu trả lời. Vùng tin nhắn là `role="log"` với `aria-live` tắt trong lúc chờ để
