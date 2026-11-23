@@ -1,7 +1,5 @@
 import http from '@/shared/api/http'
-import type { ChatHistoryMessage, KnowledgeChunkView, KnowledgeDoc, AiSetting } from '@/shared/types'
-
-export const adminGetChatHistory = () => http.get<ChatHistoryMessage[]>('/admin/chatbot/history').then((r) => r.data)
+import type { KnowledgeChunkView, KnowledgeDoc, AiSetting } from '@/shared/types'
 
 export const adminGetSettings = () => http.get<{ settingKey: string; settingValue: string }[]>('/admin/chatbot/settings').then((r) => r.data)
 
@@ -20,19 +18,28 @@ export const adminSaveDocument = (id: number | null, data: object) =>
 
 export const adminDeleteDocument = (id: number) => http.delete(`/admin/chatbot/documents/${id}`)
 
-export const adminUploadDocument = (file: File, title: string, category: string, keywords: string) => {
+export const adminUploadDocument = (
+  file: File,
+  title: string,
+  category: string,
+  keywords: string,
+  onProgress?: (percent: number) => void,
+) => {
   const form = new FormData()
   form.append('file', file)
   if (title.trim()) form.append('title', title.trim())
   if (category.trim()) form.append('category', category.trim())
   if (keywords.trim()) form.append('keywords', keywords.trim())
-  return http.post<KnowledgeDoc>('/admin/chatbot/documents/upload', form).then((r) => r.data)
+  return http
+    .post<KnowledgeDoc>('/admin/chatbot/documents/upload', form, {
+      onUploadProgress: (event) => {
+        if (event.total) onProgress?.(Math.min(100, Math.round((event.loaded * 100) / event.total)))
+      },
+    })
+    .then((r) => r.data)
 }
 
 export const adminReingestDocument = (id: number) =>
   http.post<KnowledgeDoc>(`/admin/chatbot/documents/${id}/reingest`, {}).then((r) => r.data)
-
-export const adminEmbedDocument = (id: number) =>
-  http.post<{ embedded: number; failed: number }>(`/admin/chatbot/documents/${id}/embed`, {}).then((r) => r.data)
 
 export type { AiSetting }
