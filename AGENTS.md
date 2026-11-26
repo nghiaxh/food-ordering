@@ -67,9 +67,9 @@ Người dùng → Chatbot → (1) Server đọc tiêu chí bằng regex
 
 AI **không bao giờ** được tự nghĩ ra món/giá. Prompt trả lời chỉ nhận danh sách món server đã lọc từ
 `foods`; criteria regex không bao giờ được coi là rỗng (tiêu chí rỗng khớp mọi món, khách hỏi món chay
-lại nhận cà phê đá). AI lỗi (429/5xx, timeout, JSON hỏng) thì `chat()` ném `502`. Chỉ khách **đã đăng
-nhập** mới ghi lịch sử hội thoại (`requireAuth` routes.ts); khách vãng lai chat được nhờ
-`history`/`lastFoodIds` đọc ở `loadContext` trong `service.ts`, không lưu vào DB.
+lại nhận cà phê đá). AI lỗi 5xx/timeout/JSON hỏng thì `chat()` ném `502`; bị rate limit thì ném `429`.
+`POST /api/chatbot/chat` dùng `requireAuth`, nên mọi lượt chat đều gắn tài khoản và ghi
+`chat_messages`; `history`/`lastFoodIds` đọc ở `loadContext` theo `userId` trong `service.ts`.
 
 **Cổng ý định**: `normalizeChat` đổi teencode phủ định ("ko/k/hok/hem" -> "không", "100 k" -> "100k")
 trước khi đọc regex. Câu không có tín hiệu món ăn (`hasFoodSignal`) **và** không có ràng buộc nào
@@ -106,19 +106,16 @@ món đó bằng `NOT IN`; `refersToLastPicks` ("món đó", "mấy món trên")
 `IN`. Từ khoá là đại từ bị `isReferenceKeyword` loại trước khi lọc ILIKE, không thì danh sách ra rỗng.
 Không dùng độ dài câu để đoán hỏi tiếp.
 
-**Lịch sử hội thoại**: chỉ khách đã đăng nhập mới có lịch sử (`GET`/`DELETE /api/chatbot/sessions/**`,
-`requireAuth`; `listSessions`/`getSession`/`deleteSession` trong `user/chatbot/service.ts`). Tin BOT
-lưu kèm `chat_messages.payload` (jsonb) gồm `foods`/`intent`/`citations`/`quickReplies`, nên mở lại
-phiên vẫn còn thẻ món; giá trong thẻ là giá lúc trả lời, còn thêm vào giỏ/đặt đơn vẫn lấy giá hiện
-tại từ DB. Danh sách trả tối đa 20 phiên mới nhất, tiêu đề lấy từ câu hỏi USER đầu tiên
-(`sessions.ts` `sessionTitle`, cắt 60 ký tự). Phiên của người khác trả 404 như phiên không tồn tại.
-Client (`useChatConversation.ts`) chỉ nạp phiên mới nhất khi máy chưa có cache, giữ hội thoại đang
-dở nếu đã có. Cache nằm ở `localStorage['chatbot.state']` dạng `{ ownerId, sessionId, messages }`;
-`ownerId` là id tài khoản, `null` là khách vãng lai. Khi nạp, cache khác chủ bị bỏ chứ không hiển thị,
-nên mở lại máy, hết phiên hay đổi tài khoản đều không lộ hội thoại người trước. `syncChatOwner`
-gọi từ `App.vue` (widget chỉ mount ở layout khách, trang đăng nhập/đăng ký thì không) để dọn cache
-khi đổi tài khoản; mỗi lần đổi chủ hoặc làm mới hội thoại tăng `requestEpoch` để phản hồi đang bay
-của chủ cũ bị bỏ, không rơi vào hội thoại mới. Tin khách gửi trước khi đăng nhập không được tải lên server.
+**Lịch sử hội thoại**: mỗi tài khoản có lịch sử riêng (`GET`/`DELETE /api/chatbot/sessions/**`,
+`requireAuth`; `listSessions`/`getLatestSession`/`getSession`/`deleteSession` trong
+`user/chatbot/service.ts`). Tin BOT lưu kèm `chat_messages.payload` (jsonb) gồm
+`foods`/`intent`/`citations`/`quickReplies`, nên mở lại phiên vẫn còn thẻ món; giá trong thẻ là giá
+lúc trả lời, còn thêm vào giỏ/đặt đơn vẫn lấy giá hiện tại từ DB. Danh sách trả tối đa 20 phiên mới
+nhất, tiêu đề lấy từ câu hỏi USER đầu tiên (`sessions.ts` `sessionTitle`, cắt 60 ký tự). Phiên của
+người khác trả 404 như phiên không tồn tại. Client (`useChatConversation.ts`) gọi
+`GET /api/chatbot/sessions/latest` khi mount (chỉ với CUSTOMER) để khôi phục phiên mới nhất từ server;
+không còn cache `localStorage`. `requestEpoch` tăng mỗi lần `resetChat`/`applyHistory` để phản hồi
+đang bay của phiên cũ bị bỏ.
 
 **Thiếu hoặc hỏng khoá AI**: `lib/provider.ts` `isConfigured()` false khi không có khoá nào còn sống,
 tức `AI_API_KEYS` rỗng **hoặc** mọi khoá đều bị từ chối (401/403, hay 400 kèm
@@ -141,7 +138,7 @@ Khi không dùng được:
 - **Security**: middleware stateless `requireAuth`/`optionalAuth`/`requireRole` ở
   `src/middleware/auth.ts`, không session. Public: `/api/auth/register`,
   `/api/auth/login`, GET `/api/foods/**` `/api/categories/**` `/api/reviews/**`
-  `/api/uploads/**`, `/api/chatbot/status` và `/api/chatbot/chat` (khách vãng lai vẫn chat được);
+  `/api/uploads/**`, `/api/chatbot/status`; `/api/chatbot/chat` và
   `/api/chatbot/sessions/**` yêu cầu đăng nhập;
   `/api/admin/**` yêu cầu role `ADMIN`; `/api/cart/**`, `/api/orders`, `/api/orders/**` yêu cầu
   role `CUSTOMER`; phần còn lại cần đăng nhập. Mọi lỗi đi qua `middleware/error.ts` và trả
@@ -149,9 +146,9 @@ Khi không dùng được:
   Token sinh bằng `src/lib/jwt.ts`, middleware tra CSDL mỗi request để tài khoản bị
   khoá mất quyền ngay. CORS mở cho demo.
 - **Giá luôn lấy từ DB**: `user/order` `createOrder` set `price` = giá trong DB, không tin client.
-- **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; ở thẻ chatbot nút thêm món bị
-  khoá kèm tooltip "Đăng nhập để thêm món vào giỏ" (NTooltip trong thẻ chatbot), ở thẻ món
-  trang thực đơn thì bấm nút dấu cộng sẽ được đưa sang `/login`; `/checkout` nằm trong
+- **Giỏ bắt buộc đăng nhập**: khách vãng lai không có giỏ local; thẻ món trên trang thực đơn
+  không disable nút dấu cộng mà đưa khách sang `/login`; chatbot cũng yêu cầu đăng nhập nên
+  thẻ món trong khung chat chỉ dùng được sau khi đăng nhập. `/checkout` nằm trong
   requireAuth còn `/cart` chỉ chuyển hướng về `/checkout`. Giỏ mở bằng drawer toàn cục
   (`user/cart/components/CartDrawer.vue`), khách bấm giỏ khi chưa đăng nhập được đưa sang `/login` kèm cờ
   `openCart` để mở lại sau khi đăng nhập. `cartStore.add` trả `Promise<boolean>` và từ chối khi
@@ -257,10 +254,10 @@ Khi không dùng được:
   `sm` vì mobile vốn đã full màn hình. `Esc` thu nhỏ trước, `Esc` lần nữa mới đóng; `closeChat()`
   reset `chatExpanded` để lần mở sau trở về kích thước nhỏ.
 - **Chatbot chỉ giữ thẻ của tin bot mới nhất** (tối đa 5); tin bot cũ vẫn còn chữ nhưng mất
-  `foods`, nên khung chat không dồn thẻ. Không còn nút "Xem thực đơn" trong khung chat. Nút
-  thêm món trong thẻ chatbot yêu cầu đăng nhập: khách vãng lai thấy nút disabled kèm tooltip
-  và bấm không điều hướng theo link của thẻ. Nút dấu cộng trên thẻ món ở trang thực đơn thì
-  không disable: khách vãng lai bấm được và được đưa sang `/login`.
+  `foods`, nên khung chat không dồn thẻ. Không còn nút "Xem thực đơn" trong khung chat. Chat
+  yêu cầu đăng nhập nên nút thêm món trong thẻ chatbot luôn dùng được; nếu chưa đăng nhập thì
+  widget hiện nút "Đăng nhập". Nút dấu cộng trên thẻ món ở trang thực đơn thì không disable:
+  khách vãng lai bấm được và được đưa sang `/login`.
 - **Cụm chatbot bám trang** bằng `fixed inset-x-0 bottom-0 top-[var(--header-h)]` + `justify-end`,
   khung chat
   `flex-1` nên tự co theo màn hình. Không hard-code chiều cao khung chat bằng `100dvh - Xrem`,
