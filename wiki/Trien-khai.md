@@ -1,79 +1,58 @@
-## Chạy production bằng Docker Compose
+# Triển khai
+
+## Ba profile
+
+Một file `docker-compose.yml`, ba profile:
+
+| Profile | Chạy gì | Dùng khi |
+|---|---|---|
+| `prod` | db + server-prod + client-prod | Demo và production |
+| `dev` | db + server-dev + client-dev với volume mount, hot reload | Phát triển |
+| `tools` | Drizzle Studio | Kiểm tra DB |
+
+Service `database` không khai báo `profiles`, nên Postgres luôn chạy theo mọi profile và cả khi gọi `docker compose up` không profile (`docker-compose.yml:2-6`).
+
+## Lệnh
 
 ```bash
-cp .env.example .env
-# điền JWT_SECRET và AI_API_KEYS
+# Phát triển
+docker compose --profile dev up --build
+
+# Production / demo
 docker compose --profile prod up --build -d
+
+# Drizzle Studio
+docker compose --profile tools up -d
 ```
 
-Kết quả:
+## Image và volume
 
-- Client tại http://localhost (Nginx phục vụ SPA).
-- API tại http://localhost:8080/api.
-- Postgres tại localhost:5432.
+- Postgres: `pgvector/pgvector:0.8.7-pg18` (hỗ trợ pgvector).
+- Dữ liệu DB trong volume `db_data`.
+- Ảnh tải lên trong volume `uploads`, mount vào `/app/uploads`.
+- Compose tự dựng `DATABASE_URL` từ `DB_NAME`; `UPLOAD_DIR=/app/uploads`.
 
-Service `client-prod` chờ `server-prod` healthy rồi mới chạy, nên lần đầu mất khoảng 30 giây.
+## CI/CD
 
-## Thành phần
+`.github/workflows/ci.yml`: push/PR vào `main` chạy typecheck + build cho client và server, плюс e2e với stack dev. `.github/workflows/publish-wiki.yml` mirror `wiki/` sang GitHub Wiki khi push vào `main`, chạy `scripts/check-wiki-refs.mjs` trước.
 
-| Service | Vai trò |
-|---|---|
-| `database` | PostgreSQL 18 + pgvector, luôn chạy |
-| `server-prod` | API Express đã build |
-| `client-prod` | Nginx phục vụ file tĩnh |
-| `server-dev`, `client-dev` | Chỉ profile `dev`, có hot reload |
-| `drizzle-studio` | Chỉ profile `tools` |
+## Healthcheck và thời gian khởi động
+
+`client-dev`/`client-prod` chờ `condition: service_healthy`, server chờ database healthy (`docker-compose.yml:72-74`). Lần đầu chậm khoảng 30 giây là đúng. Đừng bỏ healthcheck.
 
 ## Biến môi trường production
 
-Bắt buộc:
+Đọc từ `.env` ở root. Tên khớp cấu hình server: `DB_USER`/`DB_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `AI_API_KEYS`, `AI_MODELS`, `EMBEDDING_MODELS`, `ORDER_PAYMENT_TIMEOUT_MINUTES`.
 
-- `JWT_SECRET`: tối thiểu 32 ký tự.
-- `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
+`JWT_SECRET` phải có ít nhất 32 ký tự, nếu không server thoát (`server/src/config/env.ts:26`).
 
-Tuỳ chọn:
-
-- `JWT_EXPIRATION_MS`
-- `AI_API_KEYS`
-- `AI_MODELS`
-- `EMBEDDING_MODELS`
-- `ORDER_PAYMENT_TIMEOUT_MINUTES`
-- `UPLOAD_DIR` (compose đặt `/app/uploads`)
-
-Compose tự dựng `DATABASE_URL` từ `DB_*`.
-
-## Ảnh tải lên
-
-- File lưu trong volume `uploads`, mount vào `/app/uploads`.
-- Phục vụ công khai tại `/api/uploads/**`.
-- Endpoint upload trả URL tuyệt đối, nên không cần sửa Nginx.
-- Volume phải được giữ lại khi deploy lại; xoá volume sẽ mất ảnh đã tải.
-
-## pgvector
-
-- Image bắt buộc: `pgvector/pgvector:0.8.7-pg18`.
-- Migration tạo extension `vector` trước khi thêm cột `vector(768)`.
-- Chỉ số HNSW dùng `vector_cosine_ops`.
-- Volume cũ cùng major Postgres 18 dùng lại được.
-
-## Dữ liệu và seed
-
-- Server tự seed khi bảng `users` còn trống.
-- Database đã có dữ liệu thì seed bị bỏ qua, kể cả khi đổi dữ liệu mẫu.
-- Reset toàn bộ dữ liệu demo:
+## Reset toàn bộ
 
 ```bash
 docker compose --profile prod down -v
 docker compose --profile prod up --build -d
 ```
 
-`down -v` xoá cả volume database và ảnh tải lên. Cân nhắc trước khi chạy trên môi trường thật.
+`down -v` xoá cả database và ảnh đã tải lên.
 
-## Kiểm tra sau khi deploy
-
-1. `GET http://localhost:8080/api/categories` trả 200.
-2. Mở client, đăng nhập bằng tài khoản demo.
-3. `GET /api/chatbot/status` trả `available = true` nếu khoá AI hợp lệ.
-4. Tải một ảnh món từ trang quản trị và mở URL trả về.
-
-Nếu chatbot báo `available = false`, kiểm tra `AI_API_KEYS`. Kết quả kiểm tra khoá được giữ trong bộ nhớ, nên thay khoá phải khởi động lại server.
+Tiếp theo: [Xử lý sự cố](Xu-ly-su-co).

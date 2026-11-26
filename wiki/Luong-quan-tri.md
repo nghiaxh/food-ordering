@@ -1,130 +1,64 @@
-Khu quản trị nằm dưới `/admin/*`, dùng `client/src/layouts/AdminLayout.vue`.
+# Luồng quản trị
 
-- Menu trái 4 nhóm, 8 mục: Bán hàng (Tổng quan, Đơn hàng, Khách hàng), Thực đơn (Món ăn, Danh mục), Marketing (Khuyến mãi), Hệ thống (Chatbot, Báo cáo).
-- Không có khung chatbot ở khu quản trị.
-- Toàn bộ `/api/admin/**` được bảo vệ bằng `requireRole("ADMIN")` ở `server/src/admin/routes.ts`.
-- Giao diện dùng palette orange riêng khai báo ở `client/src/shared/theme.ts`.
+Trang này đi theo các việc admin làm được và các ràng buộc chặn sai sót. Quyền `ADMIN` được kiểm ở `server/src/admin/routes.ts:15` bằng `requireRole(\"ADMIN\")` trên cả cây `/api/admin`.
 
-Router guard ở `client/src/router/index.ts` chỉ là UX; quyền thật do server kiểm tra.
+## Trải nghiệm trên màn hình
 
-## 1. Tổng quan
+- `/admin` là `AdminLayout`: menu trái 4 nhóm / 8 mục, không có khung chatbot.
+- Các trang: dashboard, món ăn, danh mục, đơn hàng, khách hàng, khuyến mãi, báo cáo, tài liệu chatbot.
+- Màu accent trong khu quản trị dùng class `orange-*`, không dùng `amber-*`.
 
-- Trang: `client/src/admin/dashboard/pages/AdminDashboardPage.vue`.
-- Dữ liệu lấy từ các endpoint báo cáo và danh sách đơn.
-- Hiển thị doanh thu, đơn chờ, món bán chạy.
+## Quản lý món và danh mục
 
-## 2. Món ăn và danh mục
+Endpoint ở `server/src/admin/menu/routes.ts`. Admin thêm/sửa/xoá món, đổi `available`, tải ảnh lên `POST /api/admin/uploads/image` (JPG/PNG/WEBP, ≤ 2 MB, kiểm bằng chữ ký đầu file) hoặc dán URL ngoài.
 
-- Trang: `client/src/admin/menu/pages/AdminFoodsPage.vue`, `AdminCategoriesPage.vue`.
-- API: `POST/PUT/DELETE /api/admin/foods`, `/api/admin/categories`.
-- Server: `server/src/admin/menu/routes.ts`, `service.ts`, `schema.ts`.
+Ảnh lưu ở `UPLOAD_DIR` (volume `uploads`) và phục vụ tại `/api/uploads/**`. Endpoint trả URL tuyệt đối.
 
-Món có các trường: tên, danh mục, mô tả, nguyên liệu, giá, khẩu phần, độ cay, nhãn chế độ ăn, dị ứng, ảnh, trạng thái còn bán.
+Dữ liệu ảnh seed dùng file local dưới `client/public/images/foods/`. Đổi định dạng phải sửa `server/src/db/seed.ts` và chạy `UPDATE` cho DB cũ.
 
-Ảnh món:
+## Duyệt và sửa đơn
 
-- Tải file qua `POST /api/admin/uploads/image` (`server/src/admin/upload/routes.ts`).
-- Chỉ nhận JPG/PNG/WEBP, tối đa 2 MB.
-- Server kiểm chữ ký đầu file, không tin `Content-Type`.
-- File lưu ở `UPLOAD_DIR` (volume `uploads`), phục vụ tại `/api/uploads/**`.
-- Endpoint trả URL tuyệt đối. Có thể dán URL ngoài trong form.
+Xem [Đặt món và thanh toán](Luong-dat-mon) cho luật trạng thái. Admin có thêm:
 
-Ảnh local trong seed nằm ở `client/public/images/foods/` và phải là `.webp`.
+- `adminUpdateStatus(id, status)` (`server/src/admin/order/service.ts:43-70`): chuyển trạng thái một chiều và gửi thông báo theo trạng thái.
+- `adminUpdateOrder` (`service.ts:145-264`): áp `paid` **trước** khi đổi trạng thái để guard QR thấy trạng thái thanh toán mới.
+- `adminDeleteOrder` (`service.ts:265-276`): xoá trong transaction.
 
-## 3. Đơn hàng
+## Khách hàng
 
-- Trang: `client/src/admin/order/pages/AdminOrdersPage.vue`.
-- API: `server/src/admin/order/routes.ts`, `server/src/admin/payment/routes.ts`.
-- Server: `server/src/admin/order/service.ts`.
+`/api/admin/customers/**`: xem danh sách, khoá/mở tài khoản, reset mật khẩu. Không sửa/khoá/xoá tài khoản quản trị. Xem `server/src/admin/customer/service.ts`.
 
-Chức năng:
+## Khuyến mãi
 
-- `GET /api/admin/orders`: danh sách toàn bộ đơn.
-- `POST /api/admin/orders`: tạo đơn hộ khách.
-- `PUT /api/admin/orders/:id`: sửa đơn.
-- `DELETE /api/admin/orders/:id`: xoá đơn.
-- `PATCH /api/admin/orders/:id/status`: đổi trạng thái.
-- `PATCH /api/admin/orders/:id/payment?paid=true|false`: đánh dấu đã/chưa thanh toán.
+Schema ở `server/src/admin/promotion/schema.ts`. Ràng buộc:
 
-### Quy tắc sửa đơn
+- Phạm vi `CATEGORY`/`FOOD` **phải** có `targetIds`; danh sách rỗng thì KM không khớp món nào, server trả 400 và client chặn trước khi gửi (`schema.ts:33-43`).
+- `usageLimit` bằng `0` nghĩa là **không giới hạn** (lưu `null`).
+- `minOrderTotal` là hạn mức tổng đơn tối thiểu; engine `user/pricing` chỉ áp KM khi tổng đơn đạt mức (`minOrderReached`), nên trên thực đơn các KM có hạn mức không hiện giảm.
 
-- Món chỉ sửa được khi đơn `PENDING` **và** `UNPAID` (`canEditItems` trong `server/src/user/order/transitions.ts`).
-- Đơn `COMPLETED` hoặc `CANCELLED` khoá hoàn toàn, kể cả thông tin giao hàng.
-- Các trạng thái còn lại chỉ sửa người nhận, số điện thoại, địa chỉ, ghi chú và trạng thái.
-- `items: []` nghĩa là **không đổi món**, chỉ sửa thông tin giao hàng.
-- Đổi món thì phải tính lại giá món cũ để trả `usedCount` cho khuyến mãi cũ, rồi mới đánh dấu khuyến mãi mới (`syncPromotionUsage`).
+## Báo cáo
 
-### Quy tắc tạo đơn
+`/api/admin/reports/**`: doanh thu, top món, phân bố trạng thái. Dùng `parseBusinessRange` (`server/src/lib/businessTime.ts`) nên ngày theo lịch Việt. `topFoods` gom theo `foodId`, nên hai món trùng tên vẫn là hai món khác nhau.
 
-- Đơn mới luôn bắt đầu `PENDING`.
-- Chỉ tạo được trạng thái đi tiếp được từ `PENDING`: `PENDING`, `CONFIRMED`, `CANCELLED` (`isCreatableStatus`).
-- `CONFIRMED` + `QR` phải đã thu tiền.
+Xuất Excel ở client từ dữ liệu API.
 
-### Trạng thái và thanh toán
+## Tài liệu chatbot
 
-- Khi cập nhật đơn, server áp `paid` **trước** rồi mới đổi trạng thái, để guard QR thấy trạng thái thanh toán mới.
-- Nhãn `PREPARING` hiển thị là "Đang vận chuyển". Mã trong CSDL không đổi.
-- Nút admin `CONFIRMED -> PREPARING` có nhãn "Giao hàng".
+Trang `/admin/chatbot` chỉ có bảng tài liệu 4 cột: tiêu đề, nhóm, trạng thái, thao tác (Sửa/Xem/Cập nhật/Xóa). Nút \"Tải lên tệp\" mở modal kéo thả hoặc chọn tệp, upload ngay kèm progress bar (`onUploadProgress` của axios), nhận PDF/DOCX/TXT/MD tối đa 10 MB.
 
-### Xoá đơn
+Không còn nút \"Thêm thủ công\", nút Embed riêng hay khối lịch sử hội thoại. Đã bỏ endpoint `/api/admin/chatbot/history`.
 
-Xoá trong một transaction gồm thông báo, giao dịch thanh toán, dòng món và đơn, để không còn dữ liệu móc.
+Cập nhật tài liệu (`ingest.ts`):
 
-## 4. Khách hàng
+- Upload, parse, chunk không gọi AI, luôn chạy.
+- Embed chunk chỉ khi `isConfigured()` = true.
+- Nút \"Cập nhật\" chia lại chunk rồi embed lại.
+- `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
 
-- Trang: `client/src/admin/customer/pages/AdminCustomersPage.vue`.
-- API: `server/src/admin/customer/routes.ts`, `service.ts`.
+`ai_setting` chỉ lưu `max_suggestions` và `extra_rules` (`server/src/user/chatbot/service.ts:31-39`); model/embedding đọc từ biến môi trường.
 
-Chức năng: danh sách, tạo, sửa, xoá, khoá/mở khoá tài khoản.
+## Thống kê và seed
 
-Ràng buộc: không sửa, khoá hoặc xoá tài khoản quản trị.
+Seed bị bỏ qua nếu DB đã có user. Đổi dữ liệu mẫu thì database cũ vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
 
-Số điện thoại phải khớp `^0\d{9}$`.
-
-## 5. Khuyến mãi
-
-- Trang: `client/src/admin/promotion/pages/AdminPromotionsPage.vue`.
-- API: `server/src/admin/promotion/routes.ts`, `service.ts`, `schema.ts`.
-- Engine áp dụng: `server/src/user/pricing/engine.ts`.
-
-Trường chính:
-
-- `discountType`: `PERCENT` hoặc `FIXED`.
-- `scope`: `GLOBAL`, `CATEGORY`, `FOOD`.
-- `targetIds`: bắt buộc khi scope là `CATEGORY`/`FOOD`; danh sách rỗng thì server trả 400 và client chặn trước khi gửi.
-- `startsAt`, `endsAt`, `daysOfWeek`, `startTime`, `endTime`.
-- `usageLimit`: `0` nghĩa là không giới hạn.
-- `minOrderTotal`: tổng đơn tối thiểu để áp khuyến mãi. Trên thực đơn chưa có tổng đơn nên các khuyến mãi có hạn mức không hiện giảm.
-
-Mỗi dòng chỉ nhận một khuyến mãi tự động tốt nhất.
-
-## 6. Báo cáo
-
-- Trang: `client/src/admin/report/pages/AdminReportsPage.vue`.
-- API: `server/src/admin/report/routes.ts`, `service.ts`.
-- Endpoint: `/api/admin/reports/summary`, `/revenue`, `/top-foods`, `/export`.
-
-Ngày `from`/`to`:
-
-- Client gửi chuỗi `"YYYY-MM-DD"` theo ngày đã chọn.
-- Server đọc bằng `parseBusinessRange` (`server/src/lib/businessTime.ts`) theo ngày lịch Việt Nam.
-- Bảng hiển thị bằng `dayLabel` để không lệch múi giờ máy.
-
-`topFoods` gom theo `foodId`, nên hai món trùng tên vẫn là hai dòng khác nhau.
-
-Xuất Excel trả file `.xlsx` từ `GET /api/admin/reports/export`.
-
-## 7. Chatbot và tài liệu tri thức
-
-- Trang: `client/src/admin/chatbot/pages/AdminChatbotPage.vue`.
-- API: `server/src/admin/chatbot/routes.ts`, `service.ts`.
-- Cấu hình: `GET/PUT /api/admin/chatbot/settings` cho `max_suggestions` và `extra_rules`.
-- Tài liệu: danh sách, thống kê, xem chunk, sửa, xoá, tải lên, cập nhật (chia lại chunk và embed).
-- Upload nhận PDF/DOCX/TXT/MD tối đa 10 MB, có progress bar phía client.
-- Trang không còn xem lịch sử hội thoại của khách; lịch sử nằm ở `/api/chatbot/sessions/**` dành cho chính khách.
-
-Nút **Cập nhật** chia lại chunk rồi embed lại. `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
-
-Embedding chỉ chạy khi provider dùng được; thiếu khoá thì chunk vẫn lưu nhưng thiếu vector.
-
-Xem thêm [Chatbot](Luong-chatbot).
+Tiếp theo: [API](API) hoặc [Kiểm thử](Kiem-thu).
