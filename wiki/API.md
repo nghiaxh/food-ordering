@@ -1,143 +1,169 @@
-Base URL khi chạy dev: `http://localhost:8080/api`.
+# API
 
-- Client gửi token qua header `Authorization: Bearer <token>`.
-- Lỗi trả `{ "message": "..." }` bằng tiếng Việt với mã 4xx/5xx phù hợp (`server/src/middleware/error.ts`).
-- Route được gắn trong `server/src/app.ts`.
+Tất cả endpoint gắn dưới `/api` (xem `server/src/app.ts:34-43`). Trả JSON, lỗi trả `{ message }` tiếng Việt. Token Bearer trong header `Authorization`.
 
-## Công khai
+Quy ước cột quyền: `Public` không cần token, `Auth` cần đăng nhập, `Customer` cần role `CUSTOMER`, `Admin` cần role `ADMIN`.
 
-| Method | Đường dẫn | Ghi chú |
-|---|---|---|
-| POST | `/auth/register` | Đăng ký |
-| POST | `/auth/login` | Trả token |
-| GET | `/categories` | Danh sách danh mục |
-| GET | `/foods` | Query: `keyword`, `categoryId`, `minPrice`, `maxPrice`, `people` |
-| GET | `/foods/:id` | Chi tiết món |
-| GET | `/reviews/food/:foodId` | Đánh giá của món; `optionalAuth` để đánh dấu `mine` |
-| GET | `/uploads/**` | File ảnh đã tải lên |
-| GET | `/chatbot/status` | Trạng thái trợ lý AI |
+## Auth
 
-## Cần đăng nhập
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/auth/register` | Public | Đăng ký; trả token và user |
+| POST | `/api/auth/login` | Public | Đăng nhập |
+| GET | `/api/auth/me` | Auth | Hồ sơ hiện tại |
+| PUT | `/api/auth/me` | Auth | Cập nhật hồ sơ |
+| PUT | `/api/auth/password` | Auth | Đổi mật khẩu (cần mật khẩu cũ) |
 
-| Method | Đường dẫn | Ghi chú |
-|---|---|---|
-| GET | `/auth/me` | Người dùng hiện tại |
-| PUT | `/auth/me` | Sửa hồ sơ |
-| PUT | `/auth/password` | Đổi mật khẩu |
-| GET | `/addresses` | Địa chỉ đã lưu |
-| POST | `/addresses` | Thêm địa chỉ |
-| PUT | `/addresses/:id` | Sửa địa chỉ |
-| PATCH | `/addresses/:id/default` | Đặt mặc định |
-| DELETE | `/addresses/:id` | Xoá địa chỉ |
-| GET | `/notifications` | Danh sách thông báo |
-| POST | `/notifications/read-all` | Đánh dấu tất cả đã đọc |
-| DELETE | `/notifications/read` | Xoá thông báo đã đọc |
-| POST | `/notifications/:id/read` | Đánh dấu một thông báo |
-| DELETE | `/notifications/:id` | Xoá một thông báo |
-| POST | `/reviews` | Tạo đánh giá |
-| PUT | `/reviews/:id` | Sửa đánh giá của mình |
-| DELETE | `/reviews/:id` | Xoá đánh giá của mình |
-| POST | `/chatbot/chat` | Body: `message`, `sessionId?` |
-| GET | `/chatbot/sessions` | Tối đa 20 phiên mới nhất |
-| GET | `/chatbot/sessions/latest` | Phiên mới nhất |
-| GET | `/chatbot/sessions/:sessionId` | Chi tiết phiên |
-| DELETE | `/chatbot/sessions/:sessionId` | Xoá phiên |
+## Thực đơn
 
-Chatbot và lịch sử hội thoại yêu cầu đăng nhập; khách vãng lai không chat được.
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/categories` | Public | Danh sách danh mục |
+| GET | `/api/foods` | Public | Lọc theo `category`, `keyword`, `min`, `max`, `people`, `page` |
+| GET | `/api/foods/:id` | Public | Chi tiết món |
 
-## Khách hàng (`CUSTOMER`)
+## Đánh giá
 
-| Method | Đường dẫn | Ghi chú |
-|---|---|---|
-| GET | `/cart` | Giỏ hiện tại |
-| POST | `/cart/items` | Body: `foodId`, `quantity` |
-| PATCH | `/cart/items/:foodId` | Đổi số lượng |
-| DELETE | `/cart/items/:foodId` | Xoá một món |
-| DELETE | `/cart` | Xoá cả giỏ |
-| POST | `/cart/quote` | Tính tiền cho danh sách dòng client đang hiển thị |
-| POST | `/orders` | Tạo đơn |
-| GET | `/orders/my` | Đơn của tôi |
-| PATCH | `/orders/:id/cancel` | Hủy đơn `PENDING` chưa thanh toán |
-| PATCH | `/orders/:id/pay` | Đánh dấu đã thanh toán (QR) |
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/reviews/food/:foodId` | Public | Đánh giá của món |
+| POST | `/api/reviews` | Auth | Viết đánh giá (phải đã mua) |
+| PUT | `/api/reviews/:id` | Auth | Sửa đánh giá của mình |
+| DELETE | `/api/reviews/:id` | Auth | Xoá đánh giá của mình |
 
-## Quản trị (`ADMIN`)
+## Giỏ hàng
 
-Tất cả nằm dưới `/api/admin`. Middleware `requireRole("ADMIN")` gắn ở `server/src/admin/routes.ts`.
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/cart` | Customer | Danh sách dòng giỏ |
+| POST | `/api/cart/items` | Customer | Thêm món, cộng dồn số lượng |
+| PATCH | `/api/cart/items/:foodId` | Customer | Đổi số lượng |
+| DELETE | `/api/cart/items/:foodId` | Customer | Xoá một dòng |
+| DELETE | `/api/cart` | Customer | Xoá toàn bộ giỏ |
+| POST | `/api/cart/quote` | Customer | Tính tiền theo danh sách dòng client gửi |
 
-### Thực đơn
+## Đơn hàng khách
 
-| Method | Đường dẫn |
-|---|---|
-| POST | `/admin/foods` |
-| PUT | `/admin/foods/:id` |
-| DELETE | `/admin/foods/:id` |
-| POST | `/admin/categories` |
-| PUT | `/admin/categories/:id` |
-| DELETE | `/admin/categories/:id` |
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/orders` | Customer | Tạo đơn từ giỏ/đơn hàng |
+| GET | `/api/orders/my` | Customer | Danh sách đơn của mình |
+| PATCH | `/api/orders/:id/cancel` | Customer | Hủy đơn `PENDING` + `UNPAID` |
 
-### Đơn hàng và thanh toán
+## Thanh toán
 
-| Method | Đường dẫn | Ghi chú |
-|---|---|---|
-| GET | `/admin/orders` | Toàn bộ đơn |
-| POST | `/admin/orders` | Tạo đơn hộ khách |
-| PUT | `/admin/orders/:id` | Sửa đơn |
-| DELETE | `/admin/orders/:id` | Xoá đơn |
-| PATCH | `/admin/orders/:id/status` | Body: `status` |
-| PATCH | `/admin/orders/:id/payment?paid=true\|false` | Đã/chưa thanh toán |
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| PATCH | `/api/payment/:id/pay` | Customer | Đánh dấu đã trả tiền (QR) |
 
-### Khách hàng
+## Thông báo
 
-| Method | Đường dẫn | Ghi chú |
-|---|---|---|
-| GET | `/admin/users` | Danh sách |
-| POST | `/admin/users` | Tạo tài khoản |
-| PUT | `/admin/users/:id` | Sửa tài khoản |
-| DELETE | `/admin/users/:id` | Xoá tài khoản |
-| PATCH | `/admin/users/:id/active?active=true\|false` | Khoá/mở khoá |
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/notifications` | Auth | Danh sách thông báo |
+| POST | `/api/notifications/read-all` | Auth | Đánh dấu tất cả đã đọc |
+| POST | `/api/notifications/:id/read` | Auth | Đánh dấu một thông báo đã đọc |
+| DELETE | `/api/notifications/read` | Auth | Xoá thông báo đã đọc |
+| DELETE | `/api/notifications/:id` | Auth | Xoá một thông báo |
 
-Không sửa, khoá hoặc xoá tài khoản quản trị.
+## Hồ sơ và địa chỉ
 
-### Khuyến mãi
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/profile/addresses` | Auth | Danh sách địa chỉ |
+| POST | `/api/profile/addresses` | Auth | Thêm địa chỉ |
+| PUT | `/api/profile/addresses/:id` | Auth | Sửa địa chỉ |
+| PATCH | `/api/profile/addresses/:id/default` | Auth | Đặt mặc định |
+| DELETE | `/api/profile/addresses/:id` | Auth | Xoá địa chỉ |
 
-| Method | Đường dẫn |
-|---|---|
-| GET | `/admin/promotions` |
-| POST | `/admin/promotions` |
-| PUT | `/admin/promotions/:id` |
-| DELETE | `/admin/promotions/:id` |
+## Chatbot
 
-### Báo cáo
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/chatbot/status` | Public | Trạng thái provider AI |
+| GET | `/api/chatbot/sessions` | Auth | Danh sách phiên (tối đa 20) |
+| GET | `/api/chatbot/sessions/latest` | Auth | Khôi phục phiên mới nhất |
+| GET | `/api/chatbot/sessions/:sessionId` | Auth | Chi tiết một phiên |
+| DELETE | `/api/chatbot/sessions/:sessionId` | Auth | Xoá phiên |
+| POST | `/api/chatbot/chat` | Auth | Gửi một lượt chat (rate limit) |
 
-| Method | Đường dẫn | Query |
-|---|---|---|
-| GET | `/admin/reports/summary` | `from`, `to` |
-| GET | `/admin/reports/revenue` | `from`, `to` |
-| GET | `/admin/reports/top-foods` | `from`, `to`, `limit` |
-| GET | `/admin/reports/export` | `from`, `to`; trả file `.xlsx` |
+## Quản trị: món và danh mục
 
-`from`/`to` dạng `"YYYY-MM-DD"` là ngày lịch Việt Nam.
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/api/admin/foods` | Admin | Thêm món |
+| PUT | `/api/admin/foods/:id` | Admin | Sửa món |
+| DELETE | `/api/admin/foods/:id` | Admin | Xoá món |
+| POST | `/api/admin/categories` | Admin | Thêm danh mục |
+| PUT | `/api/admin/categories/:id` | Admin | Sửa danh mục |
+| DELETE | `/api/admin/categories/:id` | Admin | Xoá danh mục |
 
-### Chatbot
+## Quản trị: đơn hàng
 
-| Method | Đường dẫn | Ghi chú |
-|---|---|---|
-| GET | `/admin/chatbot/settings` | Cấu hình |
-| PUT | `/admin/chatbot/settings` | `settingKey`, `settingValue` |
-| GET | `/admin/chatbot/documents` | Danh sách tài liệu |
-| GET | `/admin/chatbot/documents/stats` | Thống kê chunk/vector |
-| GET | `/admin/chatbot/documents/:id/chunks` | Xem chunk |
-| POST | `/admin/chatbot/documents` | Thêm tài liệu bằng text |
-| PUT | `/admin/chatbot/documents/:id` | Sửa tài liệu |
-| DELETE | `/admin/chatbot/documents/:id` | Xoá tài liệu |
-| POST | `/admin/chatbot/documents/upload` | Upload PDF/DOCX/TXT/MD, tối đa 10 MB |
-| POST | `/admin/chatbot/documents/:id/reingest` | Chia lại chunk |
-| POST | `/admin/chatbot/documents/:id/embed` | Embed một tài liệu |
-| POST | `/admin/chatbot/documents/embed-missing` | Embed các chunk còn thiếu |
-| POST | `/admin/chatbot/documents/search-preview` | Thử tìm chunk |
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/orders` | Admin | Danh sách đơn |
+| POST | `/api/admin/orders` | Admin | Tạo đơn hộ khách |
+| PUT | `/api/admin/orders/:id` | Admin | Sửa đơn |
+| DELETE | `/api/admin/orders/:id` | Admin | Xoá đơn |
+| PATCH | `/api/admin/orders/:id/status` | Admin | Đổi trạng thái |
+| PATCH | `/api/admin/orders/:id/payment` | Admin | Đổi trạng thái thanh toán |
 
-### Ảnh
+## Quản trị: khách hàng
 
-| Method | Đường dẫn | Ghi chú |
-|---|---|---|
-| POST | `/admin/uploads/image` | JPG/PNG/WEBP, tối đa 2 MB, trả URL tuyệt đối |
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/users` | Admin | Danh sách khách |
+| POST | `/api/admin/users` | Admin | Tạo tài khoản |
+| PUT | `/api/admin/users/:id` | Admin | Sửa tài khoản |
+| DELETE | `/api/admin/users/:id` | Admin | Xoá tài khoản |
+| PATCH | `/api/admin/users/:id/active` | Admin | Khoá/mở tài khoản |
+
+## Quản trị: khuyến mãi
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/promotions` | Admin | Danh sách khuyến mãi |
+| POST | `/api/admin/promotions` | Admin | Tạo khuyến mãi |
+| PUT | `/api/admin/promotions/:id` | Admin | Sửa khuyến mãi |
+| DELETE | `/api/admin/promotions/:id` | Admin | Xoá khuyến mãi |
+
+## Quản trị: chatbot và tài liệu
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/chatbot/settings` | Admin | Đọc `max_suggestions`, `extra_rules` |
+| PUT | `/api/admin/chatbot/settings` | Admin | Ghi cài đặt |
+| GET | `/api/admin/chatbot/documents` | Admin | Danh sách tài liệu |
+| GET | `/api/admin/chatbot/documents/stats` | Admin | Thống kê chunk/embed |
+| GET | `/api/admin/chatbot/documents/:id/chunks` | Admin | Xem chunk của tài liệu |
+| POST | `/api/admin/chatbot/documents` | Admin | Tạo tài liệu thủ công |
+| PUT | `/api/admin/chatbot/documents/:id` | Admin | Sửa tài liệu |
+| DELETE | `/api/admin/chatbot/documents/:id` | Admin | Xoá tài liệu và chunk |
+| POST | `/api/admin/chatbot/documents/upload` | Admin | Tải lên tệp |
+| POST | `/api/admin/chatbot/documents/:id/reingest` | Admin | Chia lại chunk và embed |
+| POST | `/api/admin/chatbot/documents/:id/embed` | Admin | Embed một tài liệu |
+| POST | `/api/admin/chatbot/documents/embed-missing` | Admin | Embed các chunk thiếu vector |
+| POST | `/api/admin/chatbot/documents/search-preview` | Admin | Xem trước kết quả retrieval |
+
+## Quản trị: báo cáo và upload
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/admin/reports/summary` | Admin | Tổng quan |
+| GET | `/api/admin/reports/revenue` | Admin | Doanh thu theo ngày |
+| GET | `/api/admin/reports/top-foods` | Admin | Top món |
+| GET | `/api/admin/reports/export` | Admin | Xuất dữ liệu |
+| POST | `/api/admin/uploads/image` | Admin | Tải ảnh món |
+
+## Ảnh tĩnh
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/uploads/**` | Public | Phục vụ file đã tải lên |
+
+## Mã lỗi
+
+Xem [Kiến trúc](Kien-truc) phần \"Mã lỗi\". Mọi lỗi đi qua `middleware/error.ts` và trả `{ message }`.
+
+Tiếp theo: [Kiểm thử](Kiem-thu).

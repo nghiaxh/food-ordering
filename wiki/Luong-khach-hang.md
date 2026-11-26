@@ -1,104 +1,93 @@
-Trang này mô tả các luồng phía khách hàng. Đặt món và thanh toán được tách riêng ở [Đặt món và thanh toán](Luong-dat-mon).
+# Luồng khách hàng
 
-## 1. Đăng ký và đăng nhập
+Trang này đi theo trải nghiệm của khách: từ trang chủ tới chi tiết món, giỏ hàng và thông báo. Trang [Đặt món và thanh toán](Luong-dat-mon) xử lý phần đặt đơn.
 
-- Trang: `client/src/user/auth/pages/LoginPage.vue`, `RegisterPage.vue`, khung chung `AuthShell.vue`.
-- API: `POST /api/auth/register`, `POST /api/auth/login`; lấy thông tin hiện tại `GET /api/auth/me`.
-- Server: `server/src/user/auth/routes.ts`, `service.ts`, `schema.ts`; mật khẩu băm bằng bcrypt, token sinh ở `server/src/lib/jwt.ts`.
-- Client gọi API qua `client/src/user/auth/api.ts`, lưu người dùng ở `client/src/user/auth/store.ts`.
+## Trải nghiệm trên màn hình
 
-Sau khi đăng nhập, `client/src/shared/api/http.ts` tự gắn `Authorization: Bearer <token>` cho mọi request.
+- Trang chủ `/` là thực đơn. Header sticky, chip danh mục, bộ lọc giá, khẩu phần, chế độ ăn, sắp xếp, phân trang 12 món/trang.
+- Bấm vào ảnh hoặc tên món đi tới `/foods/:id`, trang chi tiết trong `DefaultLayout`.
+- Bấm dấu cộng trên thẻ món: nếu chưa đăng nhập thì chuyển sang `/login`, nếu đã đăng nhập thì thêm vào giỏ và mở drawer giỏ.
+- Nút giỏ trên header mở drawer toàn cục; chuông mở drawer thông báo.
 
-Khách chưa đăng nhập vẫn xem thực đơn được. Các thao tác cần tài khoản sẽ đưa sang `/login`:
+## Trang chủ và lọc món
 
-- Bấm giỏ hàng: mở lại giỏ sau khi đăng nhập nhờ cờ `openCart`.
-- Bấm nút thêm món trên thẻ món.
-- Mở chatbot: widget hiện nút "Đăng nhập".
+`client/src/user/menu/pages/FoodsPage.vue` đọc filter từ URL query (`category`, `keyword`, `min`, `max`, `people`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`) bằng `useRoute().query`. Mỗi thay đổi filter gọi lại API.
 
-## 2. Xem thực đơn
+Hai nơi lọc:
 
-- Trang chủ: `client/src/user/menu/pages/FoodsPage.vue`.
-- API: `GET /api/categories`, `GET /api/foods`.
-- Server: `server/src/user/menu/routes.ts`, `service.ts`.
+1. Server trả danh sách theo danh mục, giá, khẩu phần, từ khoá, còn bán (`server/src/user/menu/service.ts:9-33`).
+2. Client lọc thêm theo chế độ ăn, độ cay, khuyến mãi đang có (`FoodsPage.vue:129-140`), vì những tiêu chí này là transient do pricing engine điền thêm vào Food.
 
-Bộ lọc nằm trên URL để chia sẻ và quay lại vẫn giữ nguyên:
+Phân trang 12 món/trang (`FoodsPage.vue:161-165`).
 
+## Chi tiết món
+
+`client/src/user/menu/pages/FoodDetailPage.vue` lấy món theo id, hiển thị giá gốc, giá sau khuyến mãi nếu có (`discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel` từ serializer ở `server/src/lib/serializers.ts:23-33`), đánh giá và nút thêm giỏ.
+
+`GET /api/foods/:id` không yêu cầu đăng nhập.
+
+## Thêm vào giỏ
+
+Luồng đầy đủ:
+
+```mermaid
+sequenceDiagram
+  participant U as Khách
+  participant C as FoodsPage/FoodDetail
+  participant S as cartStore.add
+  participant A as API
+  participant D as DB
+  U->>C: bấm dấu cộng
+  C->>S: add(foodId, 1)
+  S->>S: kiểm tra đã đăng nhập
+  S->>A: POST /api/cart {foodId, quantity}
+  A->>D: insert on conflict update quantity
+  D-->>A: CartItem
+  A-->>S: CartItem server
+  S->>S: thay dòng tạm bằng CartItem server
 ```
-/?category=1&keyword=pho&min=30000&max=90000&people=2&sort=price-asc&diet=chay&spicy=0&available=1&deal=1&page=1
-```
 
-Cách lọc:
+- `client/src/user/cart/store.ts:70-110` `add` trả `Promise<boolean>`. Nếu chưa đăng nhập thì trả `false` và caller đưa khách sang `/login`.
+- Store dùng `requestSeq` (`store.ts:26-29`) để áp response đúng thứ tự, tránh race khi thêm nhanh nhiều món.
+- `withServerItem` (`store.ts:13-24`) thay dòng optimistic bằng `CartItem` server trả về, để món thêm từ chatbot có đủ field và giá đúng.
+- Server `addToCart` (`server/src/user/cart/service.ts:28-52`) dùng `insert ... onConflictDoUpdate` cộng dồn `quantity`, nhờ unique index `(user_id, food_id)` ở `server/src/db/schema.ts:105-107`.
+- Món ngừng phục vụ bị chặn ở server (`server/src/user/cart/service.ts:34-46`).
 
-| Bộ lọc | Xử lý ở đâu |
-|---|---|
-| `category`, `min`, `max`, `people`, `keyword` | Server, trong `searchFoods` |
-| `diet`, `spicy`, `available`, `deal`, `sort` | Client, sau khi nhận danh sách |
-| `page` | Client, 12 món mỗi trang |
+## Giỏ hàng
 
-`people` lọc món có `servingSize >= people`. Giao diện gửi `people=6` cho lựa chọn "Trên 5 người".
+Drawer giỏ mở bằng `uiStore` (`client/src/shared/stores/uiStore.ts`), không phải state cục bộ. Khách chưa đăng nhập bấm giỏ thì đưa sang `/login` kèm cờ `openCart` để mở lại sau đăng nhập.
 
-Thẻ món ở `client/src/user/menu/components/FoodCard.vue`. Nút dấu cộng không bị disable với khách vãng lai; bấm vào sẽ được đưa sang `/login`.
+Quote (tính tiền) chạy ở `client/src/composables/useCartQuote.ts:13-50`:
 
-## 3. Chi tiết món
+- Debounce 250 ms, huỷ request cũ bằng `AbortController`.
+- Gọi `POST /api/cart/quote` với đúng danh sách dòng đang hiển thị.
+- Server tính bằng `priceOrder` (`server/src/user/pricing/service.ts:61-115`), không đọc lại giỏ DB.
+- Client chỉ hiển thị lại `QuoteLine.lineDiscount` cho từng dòng.
 
-- Trang riêng: `client/src/user/menu/pages/FoodDetailPage.vue`, route `/foods/:id`.
-- API: `GET /api/foods/:id` trong `server/src/user/menu/routes.ts`.
-- Giá và khuyến mãi được trang trí ở server qua `decorateFoods` (`server/src/user/pricing/service.ts`).
+Chi tiết tiền ở [Kiến trúc](Kien-truc).
 
-Khi quay lại, trang dùng `state.from` để giữ nguyên query của thực đơn.
+## Thông báo
 
-## 4. Giỏ hàng
+`user/notification/store.ts` là nguồn chung cho header (số chưa đọc) và drawer (danh sách). `load()` lỗi mạng thì **giữ nguyên** danh sách cũ, không xoá sạch (`store.ts:20-29`).
 
-- Store: `client/src/user/cart/store.ts`.
-- API: `client/src/user/cart/api.ts`; server `server/src/user/cart/routes.ts`, `service.ts`.
-- Giao diện: `client/src/user/cart/components/CartDrawer.vue`.
+Thông báo được tạo ở server khi:
 
-Quy tắc:
+- Tạo đơn (`server/src/user/order/service.ts:128-132`).
+- Khách hủy đơn (`server/src/user/order/service.ts:172`).
+- Thanh toán (`server/src/user/order/service.ts:208-214`).
+- Admin đổi trạng thái hoặc sửa đơn (`server/src/admin/order/service.ts`).
+- Job hết hạn đơn QR (`server/src/user/order/expiryJob.ts`).
 
-- Chỉ tài khoản `CUSTOMER` có giỏ. Router server dùng `requireRole("CUSTOMER")`.
-- Giỏ lưu trong DB, không lưu local.
-- `cartStore.add` trả `Promise<boolean>` và từ chối khi chưa đăng nhập.
-- Store thay dòng tạm bằng `CartItem` server trả, để món thêm từ chatbot có đủ trường và đúng giá.
-- Phản hồi chỉ được áp theo đúng thứ tự request của từng món.
-- `CartItem.quantity` mặc định là `1`, nên module cart tạo dòng mới với `quantity = 0` trước khi cộng.
+Drawer thông báo cố tình bỏ `#header` và `closable`, nên không có thanh tiêu đề hay nút X; đóng bằng mask hoặc Esc.
 
-Giá hiển thị lấy từ quote:
+## Đánh giá món
 
-- `POST /api/cart/quote` nhận đúng danh sách dòng client đang hiển thị.
-- Client chỉ dùng `client/src/composables/useCartQuote.ts` để gọi quote.
-- Quote không đọc lại giỏ trong DB, tránh phản hồi cũ ghi đè giỏ mới.
+- Khách đã mua món mới được viết đánh giá (`server/src/user/review/service.ts`).
+- Mỗi người một đánh giá cho mỗi món, chặn bằng code vì không có unique index (`server/src/user/review/service.ts:71-80`).
+- `mine` trong DTO chỉ là gợi ý hiển thị nút Sửa/Xoá; quyền thật kiểm ở server.
 
-## 5. Đánh giá món
+## Hồ sơ
 
-- Giao diện: `client/src/user/review/components/ReviewSection.vue`, `RatingStars.vue`.
-- API: `GET /api/reviews/food/:foodId` công khai; `POST`, `PUT /:id`, `DELETE /:id` cần đăng nhập.
-- Server: `server/src/user/review/routes.ts`, `service.ts`.
+`GET /api/profile`, `PUT /api/profile`, `PUT /api/profile/password`. Đổi mật khẩu yêu cầu mật khẩu cũ. Xem `server/src/user/profile/routes.ts`.
 
-Ràng buộc:
-
-- Chỉ được đánh giá món đã có trong đơn `COMPLETED` của chính mình.
-- Mỗi người một đánh giá cho mỗi món; muốn đổi thì sửa đánh giá cũ.
-- Chỉ sửa/xoá được đánh giá của mình. Cờ `mine` trong response chỉ để hiện nút, quyền thật kiểm tra ở server.
-
-## 6. Thông báo
-
-- Store: `client/src/user/notification/store.ts`; API `notification/api.ts`.
-- Giao diện: chuông trên header và `NotificationsDrawer.vue`.
-- Server: `server/src/user/notification/routes.ts`, `service.ts`.
-
-Thông báo được tạo trong cùng transaction với thao tác phát sinh: tạo đơn, hủy đơn, thanh toán, đổi trạng thái, đơn QR hết hạn.
-
-Store là nguồn chung cho số chưa đọc trên header và danh sách trong drawer. Khi tải lỗi mạng, store giữ nguyên danh sách cũ thay vì xoá sạch.
-
-## 7. Hồ sơ và địa chỉ
-
-- Trang: `client/src/user/profile/pages/ProfilePage.vue`.
-- API: `server/src/user/profile/routes.ts`.
-- Người dùng sửa họ tên, số điện thoại, đổi mật khẩu.
-- Địa chỉ đã lưu: thêm, sửa, xoá, đặt mặc định. Mỗi endpoint đều yêu cầu đăng nhập.
-
-## 8. Chatbot
-
-Chatbot cũng là một luồng của khách hàng nhưng có trang riêng vì logic dài: xem [Chatbot](Luong-chatbot).
-
-Tóm tắt: phải đăng nhập mới dùng được; server đọc tiêu chí, lọc món thật trong SQL rồi mới để AI viết câu trả lời. Thẻ món luôn lấy ID và giá từ CSDL.
+Tiếp theo: [Đặt món và thanh toán](Luong-dat-mon) để theo dõi đơn sau khi đặt.

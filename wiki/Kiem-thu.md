@@ -1,90 +1,64 @@
-## Lệnh kiểm tra
+# Kiểm thử
 
-### Client
-
-```bash
-cd client
-npm run typecheck   # vue-tsc --noEmit
-npm run build       # typecheck + vite build
-npm run test:e2e    # Playwright, cần stack dev đang chạy
-```
-
-Không có lint target; kiểm tra bằng typecheck và build.
-
-### Server
+## Lệnh
 
 ```bash
+# Server unit test (Vitest, không cần DB)
 cd server
-npm run typecheck   # tsc --noEmit
-npm test            # vitest run
-npm run build       # tsc -p tsconfig.build.json
-```
+npm test
 
-Unit test nằm trong `server/tests/`, không cần database.
+# Server typecheck
+npm run typecheck
 
-## Unit test hiện có
+# Server build
+npm run build
 
-```
-server/tests/
-  chatbotConstraints.test.ts
-  chatbotGrounding.test.ts
-  chatbotIntent.test.ts
-  chatbotSessions.test.ts
-  orderExpiry.test.ts
-  orderLifecycle.test.ts
-  orderSchema.test.ts
-  adminOrderSchema.test.ts
-  pricing.test.ts
-  promotionSchema.test.ts
-  providerModels.test.ts
-  reportRange.test.ts
-  textNormalizer.test.ts
-```
-
-Các nhóm chính:
-
-- Chatbot: đọc tiêu chí, chặn câu ngoài phạm vi, giới hạn câu, phiên hội thoại.
-- Đơn hàng: vòng đời trạng thái, hết hạn QR, schema tạo/sửa đơn.
-- Giá và khuyến mãi: engine chọn khuyến mãi, schema khuyến mãi.
-- Báo cáo: đọc khoảng ngày theo giờ Việt.
-- Provider: xoay model khi lỗi.
-
-## E2E
-
-Spec nằm trong `client/e2e/`:
-
-```
-auth.spec.ts
-ordering.spec.ts
-reviews.spec.ts
-notifications.spec.ts
-chatbot.spec.ts
-```
-
-Chạy local:
-
-```bash
+# Client typecheck + build
 cd client
+npm run typecheck
+npm run build
+
+# Client E2E (Playwright, cần stack dev đang chạy)
 npm run test:e2e
 ```
 
-Cần stack dev đang chạy (`docker compose --profile dev up --build`).
+CI chạy typecheck và build cho cả hai phía (`client` và `server` job), плюс e2e job dựng stack dev bằng compose. Xem `.github/workflows/ci.yml`.
 
-## CI
+## Unit test server
 
-Workflow: `.github/workflows/ci.yml`, chạy khi push lên `main`, mở PR vào `main`, hoặc chạy tay.
+Vitest trong `server/tests/`, chạy độc lập không cần database. Các nhóm:
 
-| Job | Nội dung |
+| File | Phủ gì |
 |---|---|
-| `client` | `npm ci`, typecheck, build |
-| `server` | `npm ci`, typecheck, `npm test`, build |
-| `e2e` | Dựng stack dev bằng Docker Compose, chờ service sẵn sàng, chạy Playwright |
+| `orderLifecycle.test.ts` | Luật chuyển trạng thái đơn |
+| `orderExpiry.test.ts` | Hết hạn đơn QR |
+| `orderSchema.test.ts`, `adminOrderSchema.test.ts` | Validate đơn |
+| `pricing.test.ts` | Tính tiền và khuyến mãi |
+| `promotionSchema.test.ts` | Validate khuyến mãi |
+| `chatbotConstraints.test.ts` | Đọc tiêu chí chatbot |
+| `chatbotIntent.test.ts` | Ý định chatbot |
+| `chatbotGrounding.test.ts` | Dọn câu trả lời |
+| `chatbotSessions.test.ts` | Lịch sử hội thoại |
+| `providerModels.test.ts` | Xoay model |
+| `reportRange.test.ts` | Parse ngày báo cáo |
+| `textNormalizer.test.ts` | Chuẩn hoá teencode |
 
-Job `e2e` dùng `AI_API_KEYS` rỗng. Hai ca chatbot cần AI sẽ tự skip; các ca còn lại vẫn chạy. Khi lỗi, workflow in log container và tải `playwright-report`.
+## E2E client
 
-## Kiểm tra trước khi mở PR
+Playwright spec trong `client/e2e/`: `auth`, `chatbot`, `notifications`, `ordering`, `reviews`. Cần stack dev đang chạy. Khi `AI_API_KEYS` rỗng thì 2 ca chatbot cần AI tự skip, các ca còn lại vẫn chạy.
 
-1. `cd server && npm run typecheck && npm test && npm run build`
-2. `cd client && npm run typecheck && npm run build`
-3. Nếu đổi luồng giao diện: chạy `npm run test:e2e` với stack dev.
-4. Kiểm tra `git diff` không chứa `.env`, khoá hay dữ liệu bí mật.
+## Kiểm dẫn chứng wiki
+
+```bash
+node scripts/check-wiki-refs.mjs
+```
+
+Kiểm tra file tồn tại, khoảng dòng hợp lệ, link nội bộ không chết, không em dash, không chữ Hán.
+
+## Điều không có
+
+- Không có lint target ở client. Kiểm tra bằng typecheck + build.
+- Không có test framework cho component Vue; chỉ build + typecheck.
+- Không có integration test chạm database.
+
+Tiếp theo: [Triển khai](Trien-khai).

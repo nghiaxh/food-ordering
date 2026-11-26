@@ -1,22 +1,22 @@
 ### FoodOrdering
 
-- [Trang chủ](Home)
+- [Home](Home)
 - [Tổng quan](Tong-quan)
 - [Cài đặt](Cai-dat)
 - [Kiến trúc](Kien-truc)
+- [Mô hình dữ liệu](Mo-hinh-du-lieu)
 
-### Khách hàng
+### Luồng
 
 - [Luồng khách hàng](Luong-khach-hang)
 - [Đặt món và thanh toán](Luong-dat-mon)
-- [Chatbot](Luong-chatbot)
-
-### Quản trị
-
+- [Luồng chatbot](Luong-chatbot)
 - [Luồng quản trị](Luong-quan-tri)
 
-### Tham khảo
+### Tham chiếu
 
 - [API](API)
 - [Kiểm thử](Kiem-thu)
 - [Triển khai](Trien-khai)
+- [Thuật ngữ](Thuat-ngu)
+- [Xử lý sự cố](Xu-ly-su-co)

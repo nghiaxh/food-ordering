@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Chan dang wiki khi dan chung code tro sai file hoac vuot so dong.
+      - name: Check wiki code references
+        run: node scripts/check-wiki-refs.mjs
       # Mirror thu muc wiki/ sang repo <owner>/<repo>.wiki.git.
       # Cung repo nen github.token + contents: write du quyen; khac repo phai dung PAT.
       - uses: Andrew-Chen-Wang/github-wiki-action@v5

@@ -1,8 +1,18 @@
+# Cài đặt
+
 ## Yêu cầu
 
-- Docker và Docker Compose, hoặc
-- Node.js 20.19 trở lên (khuyến nghị 26) nếu chạy từng phần.
-- Một khoá Gemini trong `AI_API_KEYS` nếu muốn dùng chatbot và embedding.
+- Docker và Docker Compose (cách nhanh nhất), hoặc
+- Node.js 20.19 trở lên nếu chạy từng phần. CI dùng Node 26.
+- Một khoá Gemini trong `AI_API_KEYS` nếu muốn dùng chatbot và embedding. Thiếu khoá thì phần còn lại vẫn chạy.
+
+Kiểm tra nhanh:
+
+```bash
+docker --version
+docker compose version
+node -v
+```
 
 ## Biến môi trường
 
@@ -18,31 +28,50 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Các biến chính:
+| Biến | Bắt buộc | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `DB_NAME` | Không | `food_ordering` | Tên database |
+| `DB_USER` | Không | `postgres` | Tài khoản Postgres |
+| `DB_PASSWORD` | Không | `postgres` | Mật khẩu Postgres |
+| `DATABASE_URL` | Không | tự ghép từ `DB_*` | Compose tự đặt khi chạy container |
+| `JWT_SECRET` | **Có** | không có | Tối thiểu 32 ký tự, thiếu thì server dừng |
+| `JWT_EXPIRATION_MS` | Không | `86400000` | Hạn token, 1 ngày |
+| `AI_API_KEYS` | Không | rỗng | Một khoá hoặc danh sách Gemini, phân tách dấu phẩy hoặc xuống dòng |
+| `AI_MODELS` | Không | 3 model flash | Danh sách model chat, xoay khi lỗi |
+| `EMBEDDING_MODELS` | Không | `gemini-embedding-2` | Model embedding, phải trả 768 chiều |
+| `UPLOAD_DIR` | Không | `uploads` | Nơi lưu ảnh; compose đặt `/app/uploads` |
+| `PORT` | Không | `8080` | Cổng API |
+| `ORDER_PAYMENT_TIMEOUT_MINUTES` | Không | `30` | Số phút trước khi đơn QR chưa trả tiền bị huỷ |
 
-| Biến | Ý nghĩa |
-|---|---|
-| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Thông tin Postgres; compose tự dựng `DATABASE_URL` |
-| `JWT_SECRET` | Bắt buộc, tối thiểu 32 ký tự |
-| `JWT_EXPIRATION_MS` | Hạn token, mặc định 86400000 (1 ngày) |
-| `AI_API_KEYS` | Một khoá hoặc danh sách Gemini, phân tách dấu phẩy/xuống dòng |
-| `AI_MODELS` | Danh sách model chat, xoay khi lỗi 503/404/timeout |
-| `EMBEDDING_MODELS` | Model embedding, phải trả về 768 chiều |
-| `ORDER_PAYMENT_TIMEOUT_MINUTES` | Số phút trước khi đơn QR chưa thanh toán bị hủy, mặc định 30 |
+Cấu hình được kiểm bằng zod ở `server/src/config/env.ts:18-35`. Sai hoặc thiếu biến bắt buộc thì server in danh sách lỗi rồi thoát, không chạy nửa vời (`server/src/config/env.ts:37-41`).
 
-`.env` không được commit. Cấu hình được đọc và kiểm tra bằng zod ở `server/src/config/env.ts`; thiếu `JWT_SECRET` thì server dừng ngay.
+Server đọc `.env` theo thứ tự: root repo, rồi `server/.env`, rồi thư mục hiện tại (`server/src/config/env.ts:6-13`). Nhờ vậy chạy `npm run dev` trong `server/` vẫn thấy file `.env` ở root.
+
+`.env` không được commit. `.gitignore` đã chặn.
 
 ## Chạy bằng Docker Compose
 
 ```bash
-# Phát triển (hot reload)
+# Phát triển, có hot reload
 docker compose --profile dev up --build
 
-# Demo hoặc production
+# Production hoặc demo
 docker compose --profile prod up --build -d
 
 # Drizzle Studio
-docker compose --profile tools up -d drizzle-studio
+docker compose --profile tools up -d
+```
+
+```mermaid
+flowchart LR
+  subgraph dev
+    D1["database"] --> S1["server-dev"]
+    S1 --> C1["client-dev"]
+  end
+  subgraph prod
+    D2["database"] --> S2["server-prod"]
+    S2 --> C2["client-prod"]
+  end
 ```
 
 | Thành phần | Dev | Prod |
@@ -50,62 +79,96 @@ docker compose --profile tools up -d drizzle-studio
 | Client | http://localhost:5173 | http://localhost |
 | API | http://localhost:8080/api | http://localhost:8080/api |
 | Database | localhost:5432 | localhost:5432 |
-| Drizzle Studio | http://localhost:4983 | - |
+| Drizzle Studio | http://localhost:4983 | không có |
 
-Service `database` không khai báo `profiles`, nên Postgres luôn chạy kể cả khi gọi `docker compose up` không profile.
+Service `database` không khai báo `profiles`, nên Postgres luôn chạy theo mọi profile và cả khi gọi `docker compose up` không profile (`docker-compose.yml:2-6`).
 
-Server dev dùng `tsx watch`, tự reload khi file trong `server/src` đổi. Lần chạy đầu chậm khoảng 30 giây vì client chờ server healthy.
+Hai điểm dễ nhầm:
 
-## Chạy từng phần
+- **Lần đầu chậm khoảng 30 giây là đúng.** `client-dev` chờ `server-dev` healthy, server chờ database healthy (`docker-compose.yml:72-74`). Trước đó client gọi vào cổng 8080 đã publish nhưng chưa có backend, nên trình duyệt báo `net::ERR_EMPTY_RESPONSE`. Đợi rồi tải lại.
+- **Không thêm anonymous volume cho `node_modules`.** Comment ở `docker-compose.yml:56-58` giải thích: nó sẽ che `node_modules` của image, làm mất cả `drizzle-kit`.
+
+## Kiểm tra đã chạy đúng
+
+1. `curl http://localhost:8080/api/categories` trả mảng JSON, không phải lỗi.
+2. Mở http://localhost:5173 thấy lưới món.
+3. Đăng nhập `tuanpham@demo.com` / `tuanpham`, bấm dấu cộng trên một món, giỏ có món.
+4. `curl http://localhost:8080/api/chatbot/status` trả `{"available":true}` nếu khoá AI hợp lệ.
+
+## Chạy từng phần, không dùng Docker
+
+Cần Postgres đang chạy ở `localhost:5432` với database khớp `.env`.
 
 ```bash
-# Server
+# Terminal 1
 cd server
 npm ci
+npm run db:migrate
+npm run db:seed
 npm run dev
+```
 
-# Client (terminal khác)
+```bash
+# Terminal 2
 cd client
 npm ci
 npm run dev
 ```
 
-Server đọc `.env` ở root repo trước, sau đó đến `server/.env`. Client dùng `VITE_API_URL` làm `baseURL` của Axios, không có proxy `/api` trong Vite.
+Client lấy địa chỉ API từ `VITE_API_URL`, mặc định `http://localhost:8080/api` (`client/src/shared/api/http.ts:5-7`). `vite.config.ts` không có proxy `/api`, nên đổi cổng server phải đổi biến này.
 
 ## Dữ liệu mẫu
 
-`server/src/db/seed.ts` chỉ chạy khi bảng `users` còn trống. Dữ liệu gồm 5 danh mục, 32 món, 4 khuyến mãi, 15 đơn, 12 đánh giá và vài thông báo.
+`server/src/db/seed.ts` tạo 10 tài khoản, 5 danh mục, 32 món (4 món ngừng phục vụ), 4 khuyến mãi, 15 đơn, 12 đánh giá và vài thông báo.
 
-Mật khẩu demo bằng phần trước dấu `@` trong email:
+Seed **bỏ qua** nếu bảng `users` đã có dữ liệu (`server/src/db/seed.ts:26-36`). Vì vậy sửa dữ liệu mẫu không có tác dụng trên database cũ.
+
+Mật khẩu demo bằng phần trước dấu `@`:
 
 | Vai trò | Tên | Email | Mật khẩu |
 |---|---|---|---|
 | ADMIN | Nguyễn Hoàng Nam | namnguyen@demo.com | namnguyen |
 | ADMIN | Trần Thu Hương | huongtran@demo.com | huongtran |
-| Customer | Phạm Văn Tuấn | tuanpham@demo.com | tuanpham |
-| Customer | Nguyễn Minh Khang | khangnguyen@demo.com | khangnguyen |
-| Customer | Trần Phương Thảo | thaotran@demo.com | thaotran |
-| Customer | Dương Ngọc Linh | linhduong@demo.com | linhduong |
-| Customer | Nguyễn Thanh Sơn | sonnguyen@demo.com | sonnguyen |
-| Customer | Đặng Quốc Trung | trungdang@demo.com | trungdang |
-| Customer | Hoàng Minh Đức | duchoang@demo.com | duchoang |
-| Customer | Hoàng Thanh Tùng | tunghoang@demo.com | tunghoang |
+| CUSTOMER | Phạm Văn Tuấn | tuanpham@demo.com | tuanpham |
+| CUSTOMER | Nguyễn Minh Khang | khangnguyen@demo.com | khangnguyen |
+| CUSTOMER | Trần Phương Thảo | thaotran@demo.com | thaotran |
+| CUSTOMER | Dương Ngọc Linh | linhduong@demo.com | linhduong |
+| CUSTOMER | Nguyễn Thanh Sơn | sonnguyen@demo.com | sonnguyen |
+| CUSTOMER | Đặng Quốc Trung | trungdang@demo.com | trungdang |
+| CUSTOMER | Hoàng Minh Đức | duchoang@demo.com | duchoang |
+| CUSTOMER | Hoàng Thanh Tùng | tunghoang@demo.com | tunghoang |
 
-Đổi dữ liệu mẫu trên database cũ sẽ không có tác dụng vì seed bị bỏ qua. Reset bằng cách xoá volume:
+Reset toàn bộ:
 
 ```bash
 docker compose --profile prod down -v
 docker compose --profile prod up --build -d
 ```
 
-## Lệnh CSDL
+`down -v` xoá cả database và ảnh đã tải lên. Chỉ dùng khi chấp nhận mất dữ liệu.
+
+## Lệnh cơ sở dữ liệu
 
 ```bash
 cd server
-npm run db:generate   # tạo migration từ schema
+npm run db:generate   # tạo migration từ schema.ts
 npm run db:migrate    # áp dụng migration
 npm run db:seed       # nạp dữ liệu demo
 npm run db:studio     # mở Drizzle Studio
 ```
 
-Schema khai báo ở `server/src/db/schema.ts`, migration nằm trong `server/drizzle/`, cấu hình ở `server/drizzle.config.ts`.
+Schema ở `server/src/db/schema.ts`, migration trong `server/drizzle/`, cấu hình ở `server/drizzle.config.ts`.
+
+## Lỗi thường gặp khi cài
+
+| Triệu chứng | Nguyên nhân | Cách sửa |
+|---|---|---|
+| `JWT_SECRET phai co it nhat 32 ky tu` rồi thoát | Thiếu hoặc quá ngắn | Điền chuỗi dài hơn 32 ký tự vào `.env` |
+| `port is already allocated` ở 5432 | Máy đã có Postgres khác | Tắt Postgres local hoặc đổi cổng publish |
+| Trình duyệt báo `ERR_EMPTY_RESPONSE` | Client chạy trước khi server sẵn sàng | Đợi khoảng 30 giây rồi tải lại |
+| Đổi dữ liệu mẫu mà không thấy khác | Seed bị bỏ qua vì `users` đã có dòng | `down -v` rồi `up` lại |
+| `relation "vector" does not exist` | Chưa chạy migration | `npm run db:migrate` |
+| Chatbot `available: false` | `AI_API_KEYS` rỗng hoặc sai | Xem [Xử lý sự cố](Xu-ly-su-co) |
+| Gọi API bị `Network Error` | Sai `VITE_API_URL` | Khớp cổng server, mặc định 8080 |
+
+Tiếp theo: [Kiến trúc](Kien-truc) để hiểu code, hoặc [Luồng khách hàng](Luong-khach-hang) để đi theo một lượt mua.
