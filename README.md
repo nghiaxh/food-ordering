@@ -20,13 +20,13 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 - Đăng ký, đăng nhập bằng JWT, xem thực đơn theo danh mục, tìm kiếm và lọc theo tên, loại, giá, ăn kiêng, độ cay.
 - Xem chi tiết món, thêm vào giỏ theo tài khoản, đặt món COD hoặc QR, theo dõi đơn và thanh toán.
 - Đánh giá sao cho món trong đơn hoàn thành, nhận thông báo, đặt lại đơn cũ, hủy đơn chờ xác nhận.
-- Chatbot tư vấn theo khẩu vị, dị ứng, số người và ngân sách, gợi ý món kèm thẻ đặt món.
+- Chatbot tư vấn theo khẩu vị, dị ứng, số người và ngân sách, gợi ý món kèm thẻ đặt món (cần đăng nhập).
 
 **Quản trị viên**
 
 - Tổng quan doanh thu, đơn chờ, món bán chạy, duyệt đơn, quản lý món, danh mục, đơn hàng, người dùng.
 - Quản lý khuyến mãi tự động theo toàn thực đơn, danh mục hoặc món, theo ngày và khung giờ.
-- Cấu hình chatbot, xem hội thoại, báo cáo doanh thu và xuất Excel, tải ảnh món lên server.
+- Cấu hình chatbot, quản lý tài liệu tri thức, báo cáo doanh thu và xuất Excel, tải ảnh món lên server.
 
 ## Bắt đầu nhanh
 
