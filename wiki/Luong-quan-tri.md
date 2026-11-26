@@ -1,64 +1,178 @@
-# Luồng quản trị
+# Luong quan tri
 
-Trang này đi theo các việc admin làm được và các ràng buộc chặn sai sót. Quyền `ADMIN` được kiểm ở `server/src/admin/routes.ts:15` bằng `requireRole(\"ADMIN\")` trên cả cây `/api/admin`.
+Trang nay di theo cac viec admin lam duoc va cac rang buoc chan sai sot. Quyen `ADMIN` duoc kiem o `server/src/admin/routes.ts:15` bang `requireRole("ADMIN")` tren ca cay `/api/admin`.
 
-## Trải nghiệm trên màn hình
+## Trai nghiem tren man hinh
 
-- `/admin` là `AdminLayout`: menu trái 4 nhóm / 8 mục, không có khung chatbot.
-- Các trang: dashboard, món ăn, danh mục, đơn hàng, khách hàng, khuyến mãi, báo cáo, tài liệu chatbot.
-- Màu accent trong khu quản trị dùng class `orange-*`, không dùng `amber-*`.
+- `/admin` la `AdminLayout`: menu trai 4 nhom / 8 muc, khong co khung chatbot.
+- Cac trang: dashboard, mon an, danh muc, don hang, khach hang, khuyen mai, bao cao, tai lieu chatbot.
+- Mau accent trong khu quan tri dung class `orange-*`, khong dung `amber-*`.
 
-## Quản lý món và danh mục
+## So do tuan tu: admin xu ly don hang
 
-Endpoint ở `server/src/admin/menu/routes.ts`. Admin thêm/sửa/xoá món, đổi `available`, tải ảnh lên `POST /api/admin/uploads/image` (JPG/PNG/WEBP, ≤ 2 MB, kiểm bằng chữ ký đầu file) hoặc dán URL ngoài.
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Admin
+  participant C as AdminOrdersPage
+  participant S as admin/order/service
+  participant D as PostgreSQL
+  A->>C: chon don va doi trang thai
+  C->>S: PATCH /api/admin/orders/:id/status
+  S->>D: doc don
+  D-->>S: order
+  S->>S: transition(order, next) kiem luat mot chieu
+  S->>D: update status + notify trong transaction
+  D-->>S: order moi
+  S-->>C: toOrderJson
+  C-->>A: hien thi trang thai moi
+```
 
-Ảnh lưu ở `UPLOAD_DIR` (volume `uploads`) và phục vụ tại `/api/uploads/**`. Endpoint trả URL tuyệt đối.
+## Quan ly mon va danh muc
 
-Dữ liệu ảnh seed dùng file local dưới `client/public/images/foods/`. Đổi định dạng phải sửa `server/src/db/seed.ts` và chạy `UPDATE` cho DB cũ.
+Endpoint o `server/src/admin/menu/routes.ts`. Admin them/sua/xoa mon, doi `available`, tai anh len `POST /api/admin/uploads/image` (JPG/PNG/WEBP, <= 2 MB, kiem bang chu ky dau file) hoac dan URL ngoai.
 
-## Duyệt và sửa đơn
+Anh luu o `UPLOAD_DIR` (volume `uploads`) va phuc vu tai `/api/uploads/**`. Endpoint tra URL tuyet doi.
 
-Xem [Đặt món và thanh toán](Luong-dat-mon) cho luật trạng thái. Admin có thêm:
+Du lieu anh seed dung file local duoi `client/public/images/foods/`. Doi dinh dang phai sua `server/src/db/seed.ts` va chay `UPDATE` cho DB cu.
 
-- `adminUpdateStatus(id, status)` (`server/src/admin/order/service.ts:43-70`): chuyển trạng thái một chiều và gửi thông báo theo trạng thái.
-- `adminUpdateOrder` (`service.ts:145-264`): áp `paid` **trước** khi đổi trạng thái để guard QR thấy trạng thái thanh toán mới.
-- `adminDeleteOrder` (`service.ts:265-276`): xoá trong transaction.
+## Duyet va sua don
 
-## Khách hàng
+Xem [Dat mon va thanh toan](Luong-dat-mon) cho luat trang thai. Admin co them:
 
-`/api/admin/customers/**`: xem danh sách, khoá/mở tài khoản, reset mật khẩu. Không sửa/khoá/xoá tài khoản quản trị. Xem `server/src/admin/customer/service.ts`.
+- `adminUpdateStatus(id, status)` (`server/src/admin/order/service.ts:43-70`): chuyen trang thai mot chieu va gui thong bao theo trang thai.
+- `adminUpdateOrder` (`service.ts:145-264`): ap `paid` **truoc** khi doi trang thai de guard QR thay trang thai thanh toan moi.
+- `adminDeleteOrder` (`service.ts:265-276`): xoa trong transaction.
 
-## Khuyến mãi
+### Code: khoa don da chot va xoa an toan
 
-Schema ở `server/src/admin/promotion/schema.ts`. Ràng buộc:
+Toa do: `server/src/admin/order/service.ts:145-152` va `:265-276`.
 
-- Phạm vi `CATEGORY`/`FOOD` **phải** có `targetIds`; danh sách rỗng thì KM không khớp món nào, server trả 400 và client chặn trước khi gửi (`schema.ts:33-43`).
-- `usageLimit` bằng `0` nghĩa là **không giới hạn** (lưu `null`).
-- `minOrderTotal` là hạn mức tổng đơn tối thiểu; engine `user/pricing` chỉ áp KM khi tổng đơn đạt mức (`minOrderReached`), nên trên thực đơn các KM có hạn mức không hiện giảm.
+Vao: `id` cua don va request sua/xoa. Ra: loi 400 neu don da COMPLETED/CANCELLED, hoac xoa thanh cong.
 
-## Báo cáo
+```ts
+// Khoa hoan toan don da chot: khong sua duoc ca thong tin giao hang.
+if (order.status === "COMPLETED" || order.status === "CANCELLED") {
+  throw badRequest(
+    `Don da ${order.status === "COMPLETED" ? "hoan thanh" : "huy"} nen khong sua duoc nua`,
+  );
+}
 
-`/api/admin/reports/**`: doanh thu, top món, phân bố trạng thái. Dùng `parseBusinessRange` (`server/src/lib/businessTime.ts`) nên ngày theo lịch Việt. `topFoods` gom theo `foodId`, nên hai món trùng tên vẫn là hai món khác nhau.
+// Xoa trong mot transaction de khong con du lieu moc.
+await db.transaction(async (tx) => {
+  await tx.delete(notifications).where(eq(notifications.orderId, id));
+  await tx.delete(paymentTransactions).where(eq(paymentTransactions.orderId, id));
+  await tx.delete(orderItems).where(eq(orderItems.orderId, id));
+  await tx.delete(orders).where(eq(orders.id, id));
+});
+```
 
-Xuất Excel ở client từ dữ liệu API.
+Tung buoc:
+- `service.ts:148-152`: chan sua don da chot, ke ca thong tin giao hang.
+- `service.ts:265-276`: xoa thong bao (khong co khoa ngoai nen xoa tay), giao dich, dong mon, don.
 
-## Tài liệu chatbot
+Vi sao: `notifications.order_id` khong co khoa ngoai nen phai xoa bang tay; gom vao transaction de khong con du lieu moc.
 
-Trang `/admin/chatbot` chỉ có bảng tài liệu 4 cột: tiêu đề, nhóm, trạng thái, thao tác (Sửa/Xem/Cập nhật/Xóa). Nút \"Tải lên tệp\" mở modal kéo thả hoặc chọn tệp, upload ngay kèm progress bar (`onUploadProgress` của axios), nhận PDF/DOCX/TXT/MD tối đa 10 MB.
+## Quan tri toan bo API
 
-Không còn nút \"Thêm thủ công\", nút Embed riêng hay khối lịch sử hội thoại. Đã bỏ endpoint `/api/admin/chatbot/history`.
+### Code: guard ADMIN tren ca cay
 
-Cập nhật tài liệu (`ingest.ts`):
+Toa do: `server/src/admin/routes.ts:12-24`.
 
-- Upload, parse, chunk không gọi AI, luôn chạy.
-- Embed chunk chỉ khi `isConfigured()` = true.
-- Nút \"Cập nhật\" chia lại chunk rồi embed lại.
-- `GET /api/admin/chatbot/documents/stats` trả `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
+Vao: moi request toi `/api/admin/**`. Ra: 401/403 neu khong phai ADMIN.
 
-`ai_setting` chỉ lưu `max_suggestions` và `extra_rules` (`server/src/user/chatbot/service.ts:31-39`); model/embedding đọc từ biến môi trường.
+```ts
+// Toan bo khu vuc quan tri yeu cau role ADMIN; route guard phia client chi la UX.
+adminRouter.use(requireRole("ADMIN"));
 
-## Thống kê và seed
+adminRouter.use(menuAdminRouter);
+adminRouter.use(orderAdminRouter);
+adminRouter.use(customerAdminRouter);
+adminRouter.use(promotionAdminRouter);
+adminRouter.use(chatbotAdminRouter);
+adminRouter.use(paymentAdminRouter);
+adminRouter.use(reportAdminRouter);
+adminRouter.use(uploadAdminRouter);
+```
 
-Seed bị bỏ qua nếu DB đã có user. Đổi dữ liệu mẫu thì database cũ vẫn giữ giá trị cũ; reset bằng `docker compose --profile prod down -v` rồi `up` lại.
+Vi sao: kiem quyen o middleware, khong o giao dien, nen sua guard client khong vuot duoc.
 
-Tiếp theo: [API](API) hoặc [Kiểm thử](Kiem-thu).
+## Khach hang
+
+`/api/admin/customers/**`: xem danh sach, khoa/mo tai khoan, reset mat khau. Khong sua/khoa/xoa tai khoan quan tri. Xem `server/src/admin/customer/service.ts`.
+
+## Khuyen mai
+
+Schema o `server/src/admin/promotion/schema.ts`. Rang buoc:
+
+- Pham vi `CATEGORY`/`FOOD` **phai** co `targetIds`; danh sach rong thi KM khong khop mon nao, server tra 400 va client chan truoc khi gui (`schema.ts:33-43`).
+
+### Code: bat buoc targetIds
+
+Toa do: `server/src/admin/promotion/schema.ts:33-43`.
+
+```ts
+// Pham vi CATEGORY/FOOD chi ap cho id da chon; danh sach rong thi khong khop mon nao.
+if (v.scope !== "GLOBAL" && (v.targetIds?.length ?? 0) === 0) {
+  ctx.addIssue({
+    code: "custom",
+    message:
+      v.scope === "CATEGORY"
+        ? "Chon it nhat mot danh muc ap dung"
+        : "Chon it nhat mot mon ap dung",
+    path: ["targetIds"],
+  });
+}
+```
+
+- `usageLimit` bang `0` nghia la **khong gioi han** (luu `null`).
+- `minOrderTotal` la han muc tong don toi thieu; engine `user/pricing` chi ap KM khi tong don dat muc (`minOrderReached`), nen tren thuc don cac KM co han muc khong hien giam.
+
+## Bao cao
+
+`/api/admin/reports/**`: doanh thu, top mon, phan bo trang thai. Dung `parseBusinessRange` (`server/src/lib/businessTime.ts`) nen ngay theo lich Viet. `topFoods` gom theo `foodId`, nen hai mon trung ten van la hai mon khac nhau.
+
+Xuat Excel o client tu du lieu API.
+
+## Tai lieu chatbot
+
+Trang `/admin/chatbot` chi co bang tai lieu 4 cot: tieu de, nhom, trang thai, thao tac (Sua/Xem/Cap nhat/Xoa). Nut "Tai len tep" mo modal keo tha hoac chon tep, upload ngay kem progress bar (`onUploadProgress` cua axios), nhan PDF/DOCX/TXT/MD toi da 10 MB.
+
+Khong con nut "Them thu cong", nut Embed rieng hay khoi lich su hoi thoai. Da bo endpoint `/api/admin/chatbot/history`.
+
+Cap nhat tai lieu (`ingest.ts`):
+
+- Upload, parse, chunk khong goi AI, luon chay.
+- Embed chunk chi khi `isConfigured()` = true.
+- Nut "Cap nhat" chia lai chunk roi embed lai.
+- `GET /api/admin/chatbot/documents/stats` tra `totalDocuments`, `totalChunks`, `embeddedChunks`, `ready`, `failed`.
+
+`ai_setting` chi luu `max_suggestions` va `extra_rules` (`server/src/user/chatbot/service.ts:31-39`); model/embedding doc tu bien moi truong.
+
+### Code: upload va embed
+
+Toa do: `server/src/admin/chatbot/routes.ts:69-86`.
+
+```ts
+// Tai len tep, parse + chunk ngay; embed neu provider dung duoc.
+chatbotAdminRouter.post("/chatbot/documents/upload", documentUpload.single("file"), async (req, res) => {
+  const file = req.file;
+  if (!file || file.size === 0) throw badRequest("Tap rong");
+  const title = typeof req.body?.title === "string" && req.body.title.trim() ? req.body.title.trim() : null;
+  const category = typeof req.body?.category === "string" && req.body.category.trim() ? req.body.category.trim() : null;
+  res.json(await ingestFile(file.originalname || "document.txt", file.buffer, title, category, null));
+});
+
+// Chia lai chunk va embed lai (nut "Cap nhat").
+chatbotAdminRouter.post("/chatbot/documents/:id/reingest", async (req, res) => {
+  res.json(await reingestDocument(idParam(req.params.id)));
+});
+```
+
+Vi sao: upload + chunk khong goi AI nen luon chay; embed chi khi `isConfigured()`.
+
+## Thong ke va seed
+
+Seed bi bo qua neu DB da co user. Doi du lieu mau thi database cu van giu gia tri cu; reset bang `docker compose --profile prod down -v` roi `up` lai.
+
+Tiep theo: [API](API) hoac [Kiem thu](Kiem-thu).
