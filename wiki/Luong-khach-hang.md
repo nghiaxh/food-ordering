@@ -1,57 +1,57 @@
-# Luong khach hang
+# Luồng khách hàng
 
-Trang nay di theo trai nghiem cua khach: tu trang chu toi chi tiet mon, gio hang va thong bao. Trang [Dat mon va thanh toan](Luong-dat-mon) xu ly phan dat don.
+Trang này đi theo trải nghiệm của khách: từ trang chủ tới chi tiết món, giỏ hàng và thông báo. Trang [Đặt món và thanh toán](Luong-dat-mon) xử lý phần đặt đơn.
 
-## Trai nghiem tren man hinh
+## Trải nghiệm trên màn hình
 
-- Trang chu `/` la thuc don. Header sticky, chip danh muc, bo loc gia, khau phan, che do an, sap xep, phan trang 12 mon/trang.
-- Bam vao anh hoac ten mon di toi `/foods/:id`, trang chi tiet trong `DefaultLayout`.
-- Bam dau cong tren the mon: neu chua dang nhap thi chuyen sang `/login`, neu da dang nhap thi them vao gio va mo drawer gio.
-- Nut gio tren header mo drawer toan cuc; chuong mo drawer thong bao.
+- Trang chủ `/` là thực đơn. Header sticky, chip danh mục, bộ lọc giá, khẩu phần, chế độ ăn, sắp xếp, phân trang 12 món/trang.
+- Bấm vào ảnh hoặc tên món đi tới `/foods/:id`, trang chi tiết trong `DefaultLayout`.
+- Bấm dấu cộng trên thẻ món: nếu chưa đăng nhập thì chuyển sang `/login`, nếu đã đăng nhập thì thêm vào giỏ và mở drawer giỏ.
+- Nút giỏ trên header mở drawer toàn cục; chuông mở drawer thông báo.
 
-## So do tuan tu: them mon vao gio
+## Sơ đồ tuần tự: thêm món vào giỏ
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant U as Khach
+  participant U as Khách
   participant C as FoodsPage / FoodDetail
   participant S as cartStore.add
   participant A as API
   participant D as PostgreSQL
-  U->>C: bam dau cong
+  U->>C: bấm dấu cộng
   C->>S: add(food, 1)
-  S->>S: kiem tra da dang nhap (auth.user)
-  alt chua dang nhap
+  S->>S: kiểm tra đã đăng nhập (auth.user)
+  alt chưa đăng nhập
     S-->>C: false
-    C->>U: chuyen sang /login
-  else da dang nhap
+    C->>U: chuyển sang /login
+  else đã đăng nhập
     S->>A: POST /api/cart/items {foodId, quantity}
     A->>D: insert on conflict do update quantity
     D-->>A: CartItem
     A-->>S: CartItem server
-    S->>S: thay dong tam bang CartItem server (withServerItem)
+    S->>S: thay dòng tạm bằng CartItem server (withServerItem)
     S-->>C: true
-    C->>U: mo drawer gio
+    C->>U: mở drawer giỏ
   end
 ```
 
-## Trang chu va loc mon
+## Trang chủ và lọc món
 
-`client/src/user/menu/pages/FoodsPage.vue` doc filter tu URL query (`category`, `keyword`, `min`, `max`, `people`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`) bang `useRoute().query`. Moi thay doi filter goi lai API.
+`client/src/user/menu/pages/FoodsPage.vue` đọc filter từ URL query (`category`, `keyword`, `min`, `max`, `people`, `sort`, `diet`, `spicy`, `available`, `deal`, `page`) bằng `useRoute().query`. Mỗi thay đổi filter gọi lại API.
 
-Hai noi loc:
+Hai nơi lọc:
 
-1. Server tra danh sach theo danh muc, gia, khau phan, tu khoa, con ban (`server/src/user/menu/service.ts:9-33`).
-2. Client loc them theo che do an, do cay, khuyen mai dang co (`FoodsPage.vue:129-140`), vi nhung tieu chi nay la transient do pricing engine dien them vao Food.
+1. Server trả danh sách theo danh mục, giá, khẩu phần, từ khóa, còn bán (`server/src/user/menu/service.ts:9-33`).
+2. Client lọc thêm theo chế độ ăn, độ cay, khuyến mãi đang có (`FoodsPage.vue:129-140`), vì những tiêu chí này là transient do pricing engine điền thêm vào Food.
 
-Phan trang 12 mon/trang (`FoodsPage.vue:161-165`).
+Phân trang 12 món/trang (`FoodsPage.vue:161-165`).
 
-### Code: loc client theo che do an va do cay
+### Code: lọc client theo chế độ ăn và độ cay
 
-Toa do: `client/src/user/menu/pages/FoodsPage.vue:129-140` va `:161-165`.
+Tọa độ: `client/src/user/menu/pages/FoodsPage.vue:129-140` và `:161-165`.
 
-Vao: danh sach mon server tra ve. Ra: danh sach da loc + so trang.
+Vào: danh sách món server trả về. Ra: danh sách đã lọc + số trang.
 
 ```ts
 // Loc them o client: che do an, do cay, con ban, khuyen mai.
@@ -76,50 +76,50 @@ const visible = computed(() =>
 );
 ```
 
-Tung buoc:
-- `FoodsPage.vue:129-140`: loc them cac tieu chi transient (che do an, do cay, co khuyen mai).
-- `FoodsPage.vue:161-165`: tinh so trang va cat danh sach theo trang.
+Từng bước:
+- `FoodsPage.vue:129-140`: lọc thêm các tiêu chí transient (chế độ ăn, độ cay, còn bán, có khuyến mãi).
+- `FoodsPage.vue:161-165`: tính số trang và cắt danh sách theo trang.
 
-Vi sao: cac tieu chi nay khong co trong query server vi la du lieu tinh them boi pricing engine; loc o client tranh goi API lai.
+Vì sao: các tiêu chí này không có trong query server vì là dữ liệu tính thêm bởi pricing engine; lọc ở client tránh gọi API lại.
 
-## Chi tiet mon
+## Chi tiết món
 
-`client/src/user/menu/pages/FoodDetailPage.vue` lay mon theo id, hien thi gia goc, gia sau khuyen mai neu co (`discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel` tu serializer o `server/src/lib/serializers.ts:23-33`), danh gia va nut them gio.
+`client/src/user/menu/pages/FoodDetailPage.vue` lấy món theo id, hiển thị giá gốc, giá sau khuyến mãi nếu có (`discountedPrice`, `discountAmount`, `discountPercent`, `discountLabel` từ serializer ở `server/src/lib/serializers.ts:23-33`), đánh giá và nút thêm giỏ.
 
-`GET /api/foods/:id` khong yeu cau dang nhap.
+`GET /api/foods/:id` không yêu cầu đăng nhập.
 
-## Them vao gio
+## Thêm vào giỏ
 
-Luong day du:
+Luồng đầy đủ:
 
 ```mermaid
 sequenceDiagram
-  participant U as Khach
+  participant U as Khách
   participant C as FoodsPage/FoodDetail
   participant S as cartStore.add
   participant A as API
   participant D as DB
-  U->>C: bam dau cong
+  U->>C: bấm dấu cộng
   C->>S: add(foodId, 1)
-  S->>S: kiem tra da dang nhap
+  S->>S: kiểm tra đã đăng nhập
   S->>A: POST /api/cart {foodId, quantity}
   A->>D: insert on conflict update quantity
   D-->>A: CartItem
   A-->>S: CartItem server
-  S->>S: thay dong optimistic bang CartItem server
+  S->>S: thay dòng optimistic bằng CartItem server
 ```
 
-- `client/src/user/cart/store.ts:70-110` `add` tra `Promise<boolean>`. Neu chua dang nhap thi tra `false` va caller dua khach sang `/login`.
-- Store dung `requestSeq` (`store.ts:26-29`) de ap response dung thu tu, tranh race khi them nhanh nhieu mon.
-- `withServerItem` (`store.ts:13-24`) thay dong optimistic bang `CartItem` server tra ve, de mon them tu chatbot co du field va gia dung.
-- Server `addToCart` (`server/src/user/cart/service.ts:28-52`) dung `insert ... onConflictDoUpdate` cong don `quantity`, nho unique index `(user_id, food_id)` o `server/src/db/schema.ts:105-107`.
-- Mon ngung phuc vu bi chan o server (`server/src/user/cart/service.ts:34-46`).
+- `client/src/user/cart/store.ts:70-110` `add` trả `Promise<boolean>`. Nếu chưa đăng nhập thì trả `false` và caller đưa khách sang `/login`.
+- Store dùng `requestSeq` (`store.ts:26-29`) để áp response đúng thứ tự, tránh race khi thêm nhanh nhiều món.
+- `withServerItem` (`store.ts:13-24`) thay dòng optimistic bằng `CartItem` server trả về, để món thêm từ chatbot có đủ field và giá đúng.
+- Server `addToCart` (`server/src/user/cart/service.ts:28-52`) dùng `insert ... onConflictDoUpdate` cộng dồn `quantity`, nhờ unique index `(user_id, food_id)` ở `server/src/db/schema.ts:105-107`.
+- Món ngừng phục vụ bị chặn ở server (`server/src/user/cart/service.ts:34-46`).
 
-### Code: store them mon va ap response dung thu tu
+### Code: store thêm món và áp response đúng thứ tự
 
-Toa do: `client/src/user/cart/store.ts:13-24` va `:26-29` va `:70-110`.
+Tọa độ: `client/src/user/cart/store.ts:13-24` và `:26-39` và `:70-89`.
 
-Vao: `Food` va `quantity`. Ra: `Promise<boolean>` (true neu thanh cong).
+Vào: `Food` và `quantity`. Ra: `Promise<boolean>` (true nếu thành công).
 
 ```ts
 // Thay dong optimistic bang CartItem server tra ve.
@@ -160,18 +160,18 @@ async add(food: Food, quantity = 1): Promise<boolean> {
 }
 ```
 
-Tung buoc:
-- `store.ts:13-24`: thay dong tam bang CartItem server de du field va gia dung.
-- `store.ts:26-29`: danh so thu tu request.
-- `store.ts:70-110`: them optimistic, goi API, chi ap response neu la request moi nhat.
+Từng bước:
+- `store.ts:13-24`: thay dòng tạm bằng CartItem server để đủ field và giá đúng.
+- `store.ts:26-39`: đánh số thứ tự request theo từng món.
+- `store.ts:70-89`: thêm optimistic, gọi API, chỉ áp response nếu là request mới nhất.
 
-Vi sao: khi them nhanh nhieu mon, response cu co the ghi de response moi; `requestSeq` chan dieu do.
+Vì sao: khi thêm nhanh nhiều món, response cũ có thể ghi đè response mới; `beginRequest`/`canApply` chặn điều đó.
 
-### Code: server cong don so luong
+### Code: server cộng dồn số lượng
 
-Toa do: `server/src/user/cart/service.ts:28-52`.
+Tọa độ: `server/src/user/cart/service.ts:28-52`.
 
-Vao: `email`, `foodId`, `quantity`. Ra: `CartItem` da cong don.
+Vào: `email`, `foodId`, `quantity`. Ra: `CartItem` đã cộng dồn.
 
 ```ts
 // Them mon vao gio, cong don so luong nho unique index (user_id, food_id).
@@ -179,7 +179,7 @@ export async function addToCart(email: string, foodId: number, quantity: number)
   const user = await getUserOrThrow(email);
   const food = await db.query.foods.findFirst({ where: eq(foods.id, foodId) });
   if (!food) throw badRequest("Mon khong ton tai");
-  if (!food.available) throw badRequest(`Mon "${food.name}" da ngung phuc vu`);
+  if (!food.available) throw badRequest(`Mon "${food.name}" hien khong phuc vu`);
 
   const [item] = await db
     .insert(cartItems)
@@ -195,30 +195,31 @@ export async function addToCart(email: string, foodId: number, quantity: number)
     with: { food: { with: { category: true } } },
   });
   return toCartItemJson(saved!);
+}
 ```
 
-Tung buoc:
-- `service.ts:34-46`: kiem mon ton tai va con ban.
-- `service.ts:48-52`: insert, neu trung (user, food) thi cong don quantity.
+Từng bước:
+- `service.ts:30-34`: kiểm món tồn tại và còn bán.
+- `service.ts:36-44`: insert, nếu trùng (user, food) thì cộng dồn quantity.
 
-Vi sao: unique index `(user_id, food_id)` (`server/src/db/schema.ts:105-107`) la dieu kien cho `onConflictDoUpdate`; tranh read-then-write.
+Vì sao: unique index `(user_id, food_id)` (`server/src/db/schema.ts:105-107`) là điều kiện cho `onConflictDoUpdate`; tránh read-then-write.
 
-## Gio hang
+## Giỏ hàng
 
-Drawer gio mo bang `uiStore` (`client/src/shared/stores/uiStore.ts`), khong phai state cuc bo. Khach chua dang nhap bam gio thi dua sang `/login` kem co `openCart` de mo lai sau dang nhap.
+Drawer giỏ mở bằng `uiStore` (`client/src/shared/stores/uiStore.ts`), không phải state cục bộ. Khách chưa đăng nhập bấm giỏ thì đưa sang `/login` kèm cờ `openCart` để mở lại sau đăng nhập.
 
-Quote (tinh tien) chay o `client/src/composables/useCartQuote.ts:13-50`:
+Quote (tính tiền) chạy ở `client/src/composables/useCartQuote.ts:13-50`:
 
-- Debounce 250 ms, huy request cu bang `AbortController`.
-- Goi `POST /api/cart/quote` voi dung danh sach dong dang hien thi.
-- Server tinh bang `priceOrder` (`server/src/user/pricing/service.ts:61-115`), khong doc lai gio DB.
-- Client chi hien thi lai `QuoteLine.lineDiscount` cho tung dong.
+- Debounce 250 ms, hủy request cũ bằng `AbortController`.
+- Gọi `POST /api/cart/quote` với đúng danh sách dòng đang hiển thị.
+- Server tính bằng `priceOrder` (`server/src/user/pricing/service.ts:61-115`), không đọc lại giỏ DB.
+- Client chỉ hiển thị lại `QuoteLine.lineDiscount` cho từng dòng.
 
-### Code: quote voi debounce va huy request cu
+### Code: quote với debounce và hủy request cũ
 
-Toa do: `client/src/composables/useCartQuote.ts:13-50`.
+Tọa độ: `client/src/composables/useCartQuote.ts:13-50`.
 
-Vao: danh sach `CartItem[]`. Ra: `CartQuote | null`.
+Vào: danh sách `CartItem[]`. Ra: `CartQuote | null`.
 
 ```ts
 watch(
@@ -261,30 +262,30 @@ watch(
 );
 ```
 
-Vi sao: debounce 250ms tranh spam API khi sua so luong; `AbortController` tranh response cu ghi de response moi.
+Vì sao: debounce 250ms tránh spam API khi sửa số lượng; `AbortController` tránh response cũ ghi đè response mới.
 
-## Thong bao
+## Thông báo
 
-`user/notification/store.ts` la nguon chung cho header (so chua doc) va drawer (danh sach). `load()` loi mang thi **giu nguyen** danh sach cu, khong xoa sach (`store.ts:20-29`).
+`user/notification/store.ts` là nguồn chung cho header (số chưa đọc) và drawer (danh sách). `load()` lỗi mạng thì **giữ nguyên** danh sách cũ, không xóa sạch (`store.ts:20-29`).
 
-Thong bao duoc tao o server khi:
+Thông báo được tạo ở server khi:
 
-- Tao don (`server/src/user/order/service.ts:128-132`).
-- Khach huy don (`server/src/user/order/service.ts:172`).
-- Thanh toan (`server/src/user/order/service.ts:208-214`).
-- Admin doi trang thai hoac sua don (`server/src/admin/order/service.ts`).
-- Job het han don QR (`server/src/user/order/expiryJob.ts`).
+- Tạo đơn (`server/src/user/order/service.ts:128-132`).
+- Khách hủy đơn (`server/src/user/order/service.ts:172`).
+- Thanh toán (`server/src/user/order/service.ts:208-214`).
+- Admin đổi trạng thái hoặc sửa đơn (`server/src/admin/order/service.ts`).
+- Job hết hạn đơn QR (`server/src/user/order/expiryJob.ts`).
 
-Drawer thong bao co tinh bo `#header` va `closable`, nen khong co thanh tieu de hay nut X; dong bang mask hoac Esc.
+Drawer thông báo cố tình bỏ `#header` và `closable`, nên không có thanh tiêu đề hay nút X; đóng bằng mask hoặc Esc.
 
-## Danh gia mon
+## Đánh giá món
 
-- Khach da mua mon moi duoc viet danh gia (`server/src/user/review/service.ts`).
-- Moi nguoi mot danh gia cho moi mon, chan bang code vi khong co unique index (`server/src/user/review/service.ts:71-80`).
-- `mine` trong DTO chi la goi y hien thi nut Sua/Xoa; quyen that kiem o server.
+- Khách đã mua món mới được viết đánh giá (`server/src/user/review/service.ts`).
+- Mỗi người một đánh giá cho mỗi món, chặn bằng code vì không có unique index (`server/src/user/review/service.ts:71-80`).
+- `mine` trong DTO chỉ là gợi ý hiển thị nút Sửa/Xóa; quyền thật kiểm ở server.
 
-## Ho so
+## Hồ sơ
 
-`GET /api/profile`, `PUT /api/profile`, `PUT /api/profile/password`. Doi mat khau yeu cau mat khau cu. Xem `server/src/user/profile/routes.ts`.
+`GET /api/profile`, `PUT /api/profile`, `PUT /api/profile/password`. Đổi mật khẩu yêu cầu mật khẩu cũ. Xem `server/src/user/profile/routes.ts`.
 
-Tiep theo: [Dat mon va thanh toan](Luong-dat-mon) de theo doi don sau khi dat.
+Tiếp theo: [Đặt món và thanh toán](Luong-dat-mon) để theo dõi đơn sau khi đặt.
