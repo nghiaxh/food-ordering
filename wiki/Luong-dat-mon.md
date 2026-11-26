@@ -1,15 +1,15 @@
-# Luong dat mon va thanh toan
+# Luồng đặt món và thanh toán
 
-Trang nay di theo mot don tu luc dat toi luc hoan thanh hoac huy, cung cac rang buoc ve trang thai, thanh toan va khuyen mai.
+Trang này đi theo một đơn từ lúc đặt tới lúc hoàn thành hoặc hủy, cùng các ràng buộc về trạng thái, thanh toán và khuyến mãi.
 
-## Trai nghiem tren man hinh
+## Trải nghiệm trên màn hình
 
-- `/checkout` hien thi gio hien tai, form nguoi nhan, chon COD hoac QR, tong tien.
-- Sau khi dat, chuyen toi `/orders` voi don moi nhat o dau. Don QR chua tra tien co dong ho dem nguoc.
-- Nut thanh toan bi khoa khi het han; danh sach tu tai lai sau khi server kip quet.
-- Nut huy chi hien khi don `PENDING` va chua tra tien. Nut dat lai chi hien khi don `COMPLETED`.
+- `/checkout` hiển thị giỏ hiện tại, form người nhận, chọn COD hoặc QR, tổng tiền.
+- Sau khi đặt, chuyển tới `/orders` với đơn mới nhất ở đầu. Đơn QR chưa trả tiền có đồng hồ đếm ngược.
+- Nút thanh toán bị khóa khi hết hạn; danh sách tự tải lại sau khi server kịp quét.
+- Nút hủy chỉ hiện khi đơn `PENDING` và chưa trả tiền. Nút đặt lại chỉ hiện khi đơn `COMPLETED`.
 
-## So do tuan tu: tao don
+## Sơ đồ tuần tự: tạo đơn
 
 ```mermaid
 sequenceDiagram
@@ -19,42 +19,42 @@ sequenceDiagram
   participant P as pricing/service priceOrder
   participant D as PostgreSQL
   C->>S: POST /api/orders
-  S->>D: tim user theo email
+  S->>D: tìm user theo email
   S->>S: fillItems -> requireSellable + priceOrder
   S->>P: priceOrder(items, tx)
-  P->>D: doc gia mon + khuyen mai
+  P->>D: đọc giá món + khuyến mãi
   P-->>S: priced (lines, total, appliedPromotions)
   S->>D: insert orders (total, discountTotal)
   S->>D: insert order_items (price, discountAmount snapshot)
   S->>D: markUsed(appliedPromotions)
   S->>D: insert payment_transactions
-  S->>D: notify (thong bao cho khach)
-  S-->>C: toOrderJson(don day du)
+  S->>D: notify (thông báo cho khách)
+  S-->>C: toOrderJson(đơn đầy đủ)
 ```
 
-## Tao don
+## Tạo đơn
 
-Endpoint `POST /api/orders`, schema o `server/src/user/order/schema.ts:13-20`.
+Endpoint `POST /api/orders`, schema ở `server/src/user/order/schema.ts:13-20`.
 
-Luong server (`server/src/user/order/service.ts:88-141`):
+Luồng server (`server/src/user/order/service.ts:88-141`):
 
-1. Tim user theo email.
-2. Trong mot transaction:
-   - `fillItems` (`service.ts:56-72`) kiem mon con ban roi goi `priceOrder` de tinh gia.
-   - Insert `orders` voi `total` va `discountTotal` do server tinh.
-   - Insert `order_items`, moi dong `price` va `discountAmount` la anh chup tai luc mua.
-   - `markUsed` tang `used_count` cua khuyen mai da ap, bang update co dieu kien de khong vuot `usage_limit`.
-   - Insert `payment_transactions` voi `amount` bang tong don.
-   - `notify` tao thong bao cho khach.
-3. Tra don day du qua `toOrderJson`.
+1. Tìm user theo email.
+2. Trong một transaction:
+   - `fillItems` (`service.ts:56-72`) kiểm món còn bán rồi gọi `priceOrder` để tính giá.
+   - Insert `orders` với `total` và `discountTotal` do server tính.
+   - Insert `order_items`, mỗi dòng `price` và `discountAmount` là ảnh chụp tại lúc mua.
+   - `markUsed` tăng `used_count` của khuyến mãi đã áp, bằng update có điều kiện để không vượt `usage_limit`.
+   - Insert `payment_transactions` với `amount` bằng tổng đơn.
+   - `notify` tạo thông báo cho khách.
+3. Trả đơn đầy đủ qua `toOrderJson`.
 
-Gia luon lay tu DB, khong tin client (`server/src/user/order/service.ts:73-78` goi `client.query.foods.findFirst`).
+Giá luôn lấy từ DB, không tin client (`server/src/user/order/service.ts:73-78` gọi `client.query.foods.findFirst`).
 
-### Code: tao don trong transaction
+### Code: tạo đơn trong transaction
 
-Toa do: `server/src/user/order/service.ts:88-141`.
+Tọa độ: `server/src/user/order/service.ts:88-141`.
 
-Vao: `email` va `CreateOrderRequest`. Ra: `OrderJson`.
+Vào: `email` và `CreateOrderRequest`. Ra: `OrderJson`.
 
 ```ts
 export async function createOrder(email: string, req: CreateOrderRequest) {
@@ -100,18 +100,18 @@ export async function createOrder(email: string, req: CreateOrderRequest) {
 }
 ```
 
-Tung buoc:
-- `service.ts:92`: mo transaction de tat ca thanh cong hoac rollback.
-- `service.ts:93`: `fillItems` kiem mon con ban va tinh gia.
-- `service.ts:94-106`: insert `orders` voi tong tien do server tinh.
-- `service.ts:109-119`: insert `order_items`, gia la anh chup.
-- `service.ts:122`: tru luot khuyen mai trong cung transaction.
-- `service.ts:123-127`: tao giao dich thanh toan.
-- `service.ts:128-132`: thong bao cho khach.
+Từng bước:
+- `service.ts:92`: mở transaction để tất cả thành công hoặc rollback.
+- `service.ts:93`: `fillItems` kiểm món còn bán và tính giá.
+- `service.ts:94-106`: insert `orders` với tổng tiền do server tính.
+- `service.ts:109-119`: insert `order_items`, giá là ảnh chụp.
+- `service.ts:122`: trừ lượt khuyến mãi trong cùng transaction.
+- `service.ts:123-127`: tạo giao dịch thanh toán.
+- `service.ts:128-132`: thông báo cho khách.
 
-Vi sao: gom vao transaction de khong co trang thai nua voi (don tao nhung chua co giao dich, hoac KM tru nhung don that bai).
+Vì sao: gom vào transaction để không có trạng thái nửa vời (đơn tạo nhưng chưa có giao dịch, hoặc KM trừ nhưng đơn thất bại).
 
-## Luat chuyen trang thai
+## Luật chuyển trạng thái
 
 ```mermaid
 stateDiagram-v2
@@ -123,19 +123,19 @@ stateDiagram-v2
   PREPARING --> COMPLETED
 ```
 
-- `PREPARING` nghia la "Dang van chuyen", ma DB khong doi.
-- Khong the huy sau `PREPARING`.
-- `PENDING -> CONFIRMED` voi QR bat buoc `payment_status = PAID` (`server/src/user/order/transitions.ts:12-15` va `service.ts:41-43`).
-- Luat thuan o `server/src/user/order/transitions.ts:16-31`, tach rieng de test duoc.
-- Nhan hien thi o `ORDER_STATUS_LABEL` (`transitions.ts:4-10`).
+- `PREPARING` nghĩa là "Đang vận chuyển", mã DB không đổi.
+- Không thể hủy sau `PREPARING`.
+- `PENDING -> CONFIRMED` với QR bắt buộc `payment_status = PAID` (`server/src/user/order/transitions.ts:12-15` và `service.ts:41-43`).
+- Luật thuần ở `server/src/user/order/transitions.ts:16-31`, tách riêng để test được.
+- Nhãn hiển thị ở `ORDER_STATUS_LABEL` (`transitions.ts:4-10`).
 
-`transition(order, next)` kiem ca luat chuyen va dieu kien thanh toan (`service.ts:31-45`).
+`transition(order, next)` kiểm cả luật chuyển và điều kiện thanh toán (`service.ts:31-45`).
 
-### Code: luat chuyen trang thai
+### Code: luật chuyển trạng thái
 
-Toa do: `server/src/user/order/transitions.ts:16-31` va `server/src/user/order/service.ts:31-45`.
+Tọa độ: `server/src/user/order/transitions.ts:16-31` và `server/src/user/order/service.ts:31-45`.
 
-Vao: `order` (status, paymentMethod, paymentStatus) va `next`. Ra: cap nhat `order.status` hoac nem 400.
+Vào: `order` (status, paymentMethod, paymentStatus) và `next`. Ra: cập nhật `order.status` hoặc ném 400.
 
 ```ts
 // transitions.ts: luat chuyen mot chieu.
@@ -163,22 +163,22 @@ export function transition(order, next) {
 }
 ```
 
-Vi sao: tach luat chuyen thanh ham thuan de test duoc; guard QR tranh xac nhan don chua tra tien.
+Vì sao: tách luật chuyển thành hàm thuần để test được; guard QR tránh xác nhận đơn chưa trả tiền.
 
-## Thanh toan
+## Thanh toán
 
-- `paymentMethod` la `COD` hoac `QR`.
-- COD tra tien khi giao, nen khong co han thanh toan.
-- QR chua tra tien qua `ORDER_PAYMENT_TIMEOUT_MINUTES` (mac dinh 30) thi job het han huy don (`server/src/user/order/expiry.ts` va `expiryJob.ts`).
-- `updatePayment(order, paid)` (`service.ts:223-228`) cap nhat ca `orders.payment_status` va `payment_transactions`.
-- Guard race: neu don vua bi job huy, `applyPaymentTx` khong ghi `PAID` (`service.ts:189-201`), chan tinh huong khach bam "Da chuyen khoan" dung luc job chay.
-- `toOrderJson` tra them `paymentDeadlineAt` (`server/src/lib/serializers.ts`), null voi COD, don da tra tien hoac da chot.
+- `paymentMethod` là `COD` hoặc `QR`.
+- COD trả tiền khi giao, nên không có hạn thanh toán.
+- QR chưa trả tiền quá `ORDER_PAYMENT_TIMEOUT_MINUTES` (mặc định 30) thì job hết hạn hủy đơn (`server/src/user/order/expiry.ts` và `expiryJob.ts`).
+- `updatePayment(order, paid)` (`service.ts:223-228`) cập nhật cả `orders.payment_status` và `payment_transactions`.
+- Guard race: nếu đơn vừa bị job hủy, `applyPaymentTx` không ghi `PAID` (`service.ts:189-201`), chặn tình huống khách bấm "Đã chuyển khoản" đúng lúc job chạy.
+- `toOrderJson` trả thêm `paymentDeadlineAt` (`server/src/lib/serializers.ts`), null với COD, đơn đã trả tiền hoặc đã chốt.
 
-### Code: guard race khi thanh toan
+### Code: guard race khi thanh toán
 
-Toa do: `server/src/user/order/service.ts:183-221`.
+Tọa độ: `server/src/user/order/service.ts:183-221`.
 
-Vao: `order`, `paid`. Ra: order da cap nhat hoac loi 400 neu don da huy.
+Vào: `order`, `paid`. Ra: order đã cập nhật hoặc lỗi 400 nếu đơn đã hủy.
 
 ```ts
 async function applyPaymentTx(tx, order, paid) {
@@ -206,22 +206,22 @@ async function applyPaymentTx(tx, order, paid) {
 }
 ```
 
-Vi sao: dieu kien `ne(orders.status, "CANCELLED")` lam update khong khop don da huy, nen khong ghi PAID len don da huy.
+Vì sao: điều kiện `ne(orders.status, "CANCELLED")` làm update không khớp đơn đã hủy, nên không ghi PAID lên đơn đã hủy.
 
-## Huy don
+## Hủy đơn
 
-Khach chi huy duoc don `PENDING` + `UNPAID` (`server/src/user/order/service.ts:156-180`):
+Khách chỉ hủy được đơn `PENDING` + `UNPAID` (`server/src/user/order/service.ts:156-180`):
 
-1. Kiem chu don (`ownOrder`, `service.ts:243-253`).
-2. Kiem trang thai va thanh toan.
-3. Trong transaction: set `status = CANCELLED`, gui thong bao.
-4. **Khong hoan `used_count`** cua khuyen mai, giong luong tu huy.
+1. Kiểm chủ đơn (`ownOrder`, `service.ts:243-253`).
+2. Kiểm trạng thái và thanh toán.
+3. Trong transaction: set `status = CANCELLED`, gửi thông báo.
+4. **Không hoàn `used_count`** của khuyến mãi, giống luồng tự hủy.
 
-`canCancelOrder` o `client/src/shared/utils/orders.ts` an nut o client, nhung kiem that o server.
+`canCancelOrder` ở `client/src/shared/utils/orders.ts` ẩn nút ở client, nhưng kiểm thật ở server.
 
-### Code: huy don
+### Code: hủy đơn
 
-Toa do: `server/src/user/order/service.ts:156-180`.
+Tọa độ: `server/src/user/order/service.ts:156-180`.
 
 ```ts
 export async function cancelOrder(email: string, id: number) {
@@ -241,45 +241,45 @@ export async function cancelOrder(email: string, id: number) {
 }
 ```
 
-Vi sao: chan huy don da vao che bien hoac da tra tien; khong hoan KM giong tu huy.
+Vì sao: chặn hủy đơn đã vào chế biến hoặc đã trả tiền; không hoàn KM giống tự hủy.
 
-## Sua don o quan tri
+## Sửa đơn ở quản trị
 
-Mon chi sua duoc khi don `PENDING` va `UNPAID` (`canEditItems`, `transitions.ts:12`). Don `COMPLETED` hoac `CANCELLED` khoa hoan toan ke ca thong tin giao hang (`adminUpdateOrder`, `server/src/admin/order/service.ts:148-152`).
+Món chỉ sửa được khi đơn `PENDING` và `UNPAID` (`canEditItems`, `transitions.ts:12`). Đơn `COMPLETED` hoặc `CANCELLED` khóa hoàn toàn kể cả thông tin giao hàng (`adminUpdateOrder`, `server/src/admin/order/service.ts:148-152`).
 
-Cac trang thai con lai chi sua duoc nguoi nhan, SĐT, dia chi, ghi chu va trang thai.
+Các trạng thái còn lại chỉ sửa được người nhận, SĐT, địa chỉ, ghi chú và trạng thái.
 
-Khi doi mon (`adminUpdateOrder`, `server/src/admin/order/service.ts:145-264`):
+Khi đổi món (`adminUpdateOrder`, `server/src/admin/order/service.ts:145-264`):
 
-- `items: []` nghia la **khong doi mon**, chi sua thong tin giao hang.
-- Doi mon thi tinh lai gia mon cu de tra lai `usedCount` cua khuyen mai cu, roi `markUsed` khuyen mai moi (`syncPromotionUsage`).
+- `items: []` nghĩa là **không đổi món**, chỉ sửa thông tin giao hàng.
+- Đổi món thì tính lại giá món cũ để trả lại `usedCount` của khuyến mãi cũ, rồi `markUsed` khuyến mãi mới (`syncPromotionUsage`).
 
-## Don admin tao moi
+## Đơn admin tạo mới
 
-`adminCreateOrder` (`server/src/admin/order/service.ts:72-143`) luon bat dau `PENDING`, chi tao duoc trang thai di tiep duoc tu `PENDING` (`PENDING`, `CONFIRMED`, `CANCELLED`, xem `isCreatableStatus` o `transitions.ts:38`). `CONFIRMED` + `QR` phai da thu tien.
+`adminCreateOrder` (`server/src/admin/order/service.ts:72-143`) luôn bắt đầu `PENDING`, chỉ tạo được trạng thái đi tiếp được từ `PENDING` (`PENDING`, `CONFIRMED`, `CANCELLED`, xem `isCreatableStatus` ở `transitions.ts:38`). `CONFIRMED` + `QR` phải đã thu tiền.
 
-## Xoa don
+## Xóa đơn
 
-`adminDeleteOrder` (`server/src/admin/order/service.ts:265-276`) xoa trong mot transaction gom thong bao, giao dich thanh toan, dong mon va don, de khong con du lieu moc. `notifications.order_id` khong co khoa ngoai nen phai xoa bang tay.
+`adminDeleteOrder` (`server/src/admin/order/service.ts:265-276`) xóa trong một transaction gồm thông báo, giao dịch thanh toán, dòng món và đơn, để không còn dữ liệu móc. `notifications.order_id` không có khóa ngoại nên phải xóa bằng tay.
 
-## Job het han
+## Job hết hạn
 
-`server/src/user/order/expiryJob.ts` quet ngay khi khoi dong roi moi 60 giay bang mot cau `UPDATE ... WHERE` co dieu kien, nen don vua thanh toan xong khong khop. Thong bao tao cung transaction. Chi don `PENDING` + `UNPAID` + `QR` tao qua han moi bi huy.
+`server/src/user/order/expiryJob.ts` quét ngay khi khởi động rồi mỗi 60 giây bằng một câu `UPDATE ... WHERE` có điều kiện, nên đơn vừa thanh toán xong không khớp. Thông báo tạo cùng transaction. Chỉ đơn `PENDING` + `UNPAID` + `QR` tạo quá hạn mới bị hủy.
 
-## Khuyen mai trong tinh tien
+## Khuyến mãi trong tính tiền
 
-`priceOrder` chay hai vong (`server/src/user/pricing/service.ts:61-115`):
+`priceOrder` chạy hai vòng (`server/src/user/pricing/service.ts:61-115`):
 
-1. Vong mot cong tong de biet don co dat `min_order_total` khong.
-2. Vong hai chon khuyen mai tot nhat cho tung dong theo tong don da biet.
+1. Vòng một cộng tổng để biết đơn có đạt `min_order_total` không.
+2. Vòng hai chọn khuyến mãi tốt nhất cho từng dòng theo tổng đơn đã biết.
 
-Moi dong chi nhan mot khuyen mai tu dong tot nhat. Client khong nhan phan tram hay tru khuyen mai, chi hien lai `QuoteLine.lineDiscount` (so tien giam cua ca dong).
+Mỗi dòng chỉ nhận một khuyến mãi tự động tốt nhất. Client không nhân phần trăm hay trừ khuyến mãi, chỉ hiện lại `QuoteLine.lineDiscount` (số tiền giảm của cả dòng).
 
-### Code: tinh gia hai vong
+### Code: tính giá hai vòng
 
-Toa do: `server/src/user/pricing/service.ts:61-115`.
+Tọa độ: `server/src/user/pricing/service.ts:61-115`.
 
-Vao: danh sach item (foodId, quantity). Ra: `PricedCart` (lines, subtotal, discountTotal, total, appliedPromotions).
+Vào: danh sách item (foodId, quantity). Ra: `PricedCart` (lines, subtotal, discountTotal, total, appliedPromotions).
 
 ```ts
 export async function priceOrder(items, client = db, now = new Date()) {
@@ -314,12 +314,12 @@ export async function priceOrder(items, client = db, now = new Date()) {
 }
 ```
 
-Vi sao: gom thanh mot vong se ap sai khuyen mai co han muc (chua biet tong don); `bestFor` chon KM tot nhat cho tung dong, moi dong chi nhan mot KM.
+Vì sao: gom thành một vòng sẽ áp sai khuyến mãi có hạn mức (chưa biết tổng đơn); `bestFor` chọn KM tốt nhất cho từng dòng, mỗi dòng chỉ nhận một KM.
 
-`markUsed` tang `used_count` bang update co dieu kien (`server/src/user/pricing/service.ts:163-179`), de hai don toi cung luc khong vuot `usage_limit`.
+`markUsed` tăng `used_count` bằng update có điều kiện (`server/src/user/pricing/service.ts:163-179`), để hai đơn tới cùng lúc không vượt `usage_limit`.
 
-## Bao cao theo ngay
+## Báo cáo theo ngày
 
-`from`/`to` cua `/api/admin/reports/**` doc bang `parseBusinessRange` (`server/src/lib/businessTime.ts`): chuoi `"YYYY-MM-DD"` la ngay lich Viet, chuoi ISO giu nguyen instant, ngay sai hoac `from > to` tra 400.
+`from`/`to` của `/api/admin/reports/**` đọc bằng `parseBusinessRange` (`server/src/lib/businessTime.ts`): chuỗi `"YYYY-MM-DD"` là ngày lịch Việt, chuỗi ISO giữ nguyên instant, ngày sai hoặc `from > to` trả 400.
 
-Tiep theo: [Luong chatbot](Luong-chatbot) de hieu cach tro ly AI tra loi.
+Tiếp theo: [Luồng chatbot](Luong-chatbot) để hiểu cách trợ lý AI trả lời.

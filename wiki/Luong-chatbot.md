@@ -1,38 +1,38 @@
-# Luong chatbot
+# Luồng chatbot
 
-Trang nay giai thich vi sao tro ly AI khong bia mon hoac gia, va cach tai lieu tri thuc cua quan duoc dung.
+Trang này giải thích vì sao trợ lý AI không bịa món hoặc giá, và cách tài liệu tri thức của quán được dùng.
 
-## Trai nghiem tren man hinh
+## Trải nghiệm trên màn hình
 
-- Widget chat mo bang `uiStore.chatOpen`, khong phai state cuc bo, nen hero va empty state cung mo duoc.
-- Chi khach `CUSTOMER` dung duoc lich su; admin va khach vang lai thay nut "Dang nhap".
-- Khi cho phan hoi, client vong qua cac trang thai "Dang phan tich..." -> "Dang tra cuu..." -> "Dang soan cau tra loi..." khoang 600 ms moi buoc; phan hoi toi thieu 2 giay.
-- Chi tin bot moi nhat giu the mon (toi da 5); tin cu mat the.
-- Khung tu cuon khi dang o day (cach day <= 64 px); cuon len thi hien nut "Tin moi nhat".
+- Widget chat mở bằng `uiStore.chatOpen`, không phải state cục bộ, nên hero và empty state cũng mở được.
+- Chỉ khách `CUSTOMER` dùng được lịch sử; admin và khách vãng lai thấy nút "Đăng nhập".
+- Khi chờ phản hồi, client vòng qua các trạng thái "Đang phân tích..." → "Đang tra cứu..." → "Đang soạn câu trả lời..." khoảng 600 ms mỗi bước; phản hồi tối thiểu 2 giây.
+- Chỉ tin bot mới nhất giữ thẻ món (tối đa 5); tin cũ mất thẻ.
+- Khung tự cuộn khi đang ở đáy (cách đáy ≤ 64 px); cuộn lên thì hiện nút "Tin mới nhất".
 
-## So do tuan tu: mot luot chat goi y mon
+## Sơ đồ tuần tự: một lượt chat gợi ý món
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant U as Khach
+  participant U as Khách
   participant W as ChatbotWidget
   participant S as chatbot/service chat
   participant P as parse/select/reply
   participant D as PostgreSQL
   participant AI as Gemini
-  U->>W: nhap cau hoi
+  U->>W: nhập câu hỏi
   W->>S: POST /api/chatbot/chat
   S->>D: loadContext (history, lastFoodIds)
   S->>D: saveUserMessage
   S->>P: parseMessage(raw, menu)
-  alt intent khong phai FOOD
-    S->>D: saveBotMessage (cau tra loi co dinh)
-    S-->>W: ChatResponseBody (khong goi AI)
+  alt intent không phải FOOD
+    S->>D: saveBotMessage (câu trả lời cố định)
+    S-->>W: ChatResponseBody (không gọi AI)
   else FOOD
     S->>P: filterMenu(criteria, options) -> SQL
     P->>D: select foods where ...
-    D-->>P: danh sach mon that
+    D-->>P: danh sách món thật
     S->>P: composeFoodReply(message, filtered, history, maxSugg, extraRules)
     P->>AI: generate(prompt, message, jsonMode)
     AI-->>P: { reply, pickedIds }
@@ -43,34 +43,34 @@ sequenceDiagram
   end
 ```
 
-## Bon buoc chong AI bia
+## Bốn bước chống AI bịa
 
 ```mermaid
 flowchart LR
-  U["Nguoi dung"] --> P["1. Doc tieu chi bang regex"]
-  P --> F["2. Loc mon bang SQL"]
-  F --> A["3. AI viet cau dua tren danh sach that"]
-  A --> C["4. The mon lay ID tu DB"]
+  U["Người dùng"] --> P["1. Đọc tiêu chí bằng regex"]
+  P --> F["2. Lọc món bằng SQL"]
+  F --> A["3. AI viết câu dựa trên danh sách thật"]
+  A --> C["4. Thẻ món lấy ID từ DB"]
 ```
 
-1. `parseMessage` (`server/src/user/chatbot/parse.ts:82`) doc rang buoc tu cau.
-2. `filterMenu` (`server/src/user/chatbot/select.ts:22`) dung dieu kien Drizzle va truy van SQL.
-3. `composeFoodReply` (`server/src/user/chatbot/reply.ts:51`) goi AI voi `jsonMode`, chi gui ten, gia, loai cua toi da 10 mon.
-4. `buildCards` (`server/src/user/chatbot/select.ts:93`) cat the theo `max_suggestions` va lay ID/gia tu DB.
+1. `parseMessage` (`server/src/user/chatbot/parse.ts:82`) đọc ràng buộc từ câu.
+2. `filterMenu` (`server/src/user/chatbot/select.ts:22`) dựng điều kiện Drizzle và truy vấn SQL.
+3. `composeFoodReply` (`server/src/user/chatbot/reply.ts:51`) gọi AI với `jsonMode`, chỉ gửi tên, giá, loại của tối đa 10 món.
+4. `buildCards` (`server/src/user/chatbot/select.ts:93`) cắt thẻ theo `max_suggestions` và lấy ID/giá từ DB.
 
-AI khong bao gio tu nghi ra mon hoac gia. Prompt chi nhan danh sach mon server da loc.
+AI không bao giờ tự nghĩ ra món hoặc giá. Prompt chỉ nhận danh sách món server đã lọc.
 
-## Cong y dinh
+## Cổng ý định
 
-`normalizeChat` doi teencode phu dinh ("ko/k/hok/hem" -> "khong", "100 k" -> "100k") truoc khi doc regex. Cau khong co tin hieu mon an (`hasFoodSignal`) va khong co rang buoc nao, hoac go lung tung (`looksLikeGibberish`, cum phu am >= 5) tra cau tu choi co dinh, `intent = OUT_OF_SCOPE`, khong goi AI va khong tra the mon.
+`normalizeChat` đổi teencode phủ định ("ko/k/hok/hem" → "không", "100 k" → "100k") trước khi đọc regex. Câu không có tín hiệu món ăn (`hasFoodSignal`) và không có ràng buộc nào, hoặc gõ lung tung (`looksLikeGibberish`, cụm phụ âm ≥ 5) trả câu từ chối cố định, `intent = OUT_OF_SCOPE`, không gọi AI và không trả thẻ món.
 
-`parseMessage` (`parse.ts:82`) tra ve `ParsedQuery` gom `intent`, `criteria`, `more`, `onlyLast`, `gibberish`.
+`parseMessage` (`parse.ts:82`) trả về `ParsedQuery` gồm `intent`, `criteria`, `more`, `onlyLast`, `gibberish`.
 
-### Code: doc y dinh va rang buoc
+### Code: đọc ý định và ràng buộc
 
-Toa do: `server/src/user/chatbot/parse.ts:56-121`.
+Tọa độ: `server/src/user/chatbot/parse.ts:56-121`.
 
-Vao: cau hoi goc + danh sach ten mon. Ra: `ParsedQuery`.
+Vào: câu hỏi gốc + danh sách tên món. Ra: `ParsedQuery`.
 
 ```ts
 export function parseMessage(raw: string, menu: DishName[]): ParsedQuery {
@@ -103,27 +103,27 @@ export function parseMessage(raw: string, menu: DishName[]): ParsedQuery {
 }
 ```
 
-Vi sao: co gang doc regex truoc; neu khong co tin hieu mon an va khong co rang buoc nao thi tu choi, tranh goi AI cho cau hoi ngoai pham vi.
+Vì sao: cố gắng đọc regex trước; nếu không có tín hiệu món ăn và không có ràng buộc nào thì từ chối, tránh gọi AI cho câu hỏi ngoài phạm vi.
 
-## Cach ap tieu chi
+## Cách áp tiêu chí
 
-Regex doc: `budget`, `people`, `spicyMax`, `spicyRequired`, `diets`, `exclude`, `groups`, `dishIds`. Criteria rong khop moi mon, nen phai co cong y dinh o tren de khong tra ca phe da cho cau "mon chay".
+Regex đọc: `budget`, `people`, `spicyMax`, `spicyRequired`, `diets`, `exclude`, `groups`, `dishIds`. Criteria rỗng khớp mọi món, nên phải có cổng ý định ở trên để không trả cà phê đá cho câu "món chay".
 
-Loc SQL trong `filterMenu` (`select.ts:22-91`):
+Lọc SQL trong `filterMenu` (`select.ts:22-91`):
 
-1. Chi mon `available`.
-2. `lastFoodIds`: loai ("mon khac" -> `NOT IN`) hoac gioi han ("mon do" -> `IN`).
-3. Loc `spicyMax`, `spicyRequired`, nhan che do an, thanh phan loai tru. `spicyMax = 0` chan them ten/nguyen lieu chua "ot" vi du lieu `spicyLevel` co the sai (`select.ts:36-39`).
-4. Ngan sach la **tong** cua ca nhom, nen moi mon bi chan o `floor(budget / people)` (`select.ts:16-20`).
-5. Ket qua toi da 40 dong, sap theo gia tang dan va uu tien mon chinh (`select.ts:60`, `:64-78`).
+1. Chỉ món `available`.
+2. `lastFoodIds`: loại ("món khác" → `NOT IN`) hoặc giới hạn ("món đó" → `IN`).
+3. Lọc `spicyMax`, `spicyRequired`, nhãn chế độ ăn, thành phần loại trừ. `spicyMax = 0` chặn thêm tên/nguyên liệu chứa "ớt" vì dữ liệu `spicyLevel` có thể sai (`select.ts:36-39`).
+4. Ngân sách là **tổng** của cả nhóm, nên mỗi món bị chặn ở `floor(budget / people)` (`select.ts:16-20`).
+5. Kết quả tối đa 40 dòng, sắp theo giá tăng dần và ưu tiên món chính (`select.ts:60`, `:64-78`).
 
-The tra ve toi da 5 (`buildCards`, `select.ts:93-100`), theo `ai_setting.max_suggestions` kep 1..5 (`service.ts:31-39`).
+Thẻ trả về tối đa 5 (`buildCards`, `select.ts:93-100`), theo `ai_setting.max_suggestions` kẹp 1..5 (`service.ts:31-39`).
 
-### Code: loc mon bang SQL
+### Code: lọc món bằng SQL
 
-Toa do: `server/src/user/chatbot/select.ts:22-91`.
+Tọa độ: `server/src/user/chatbot/select.ts:22-91`.
 
-Vao: `Criteria` + options (lastFoodIds, excludeIds, restrictToLast, restrictIds). Ra: danh sach `FoodWithCategory[]`.
+Vào: `Criteria` + options (lastFoodIds, excludeIds, restrictToLast, restrictIds). Ra: danh sách `FoodWithCategory[]`.
 
 ```ts
 export const filterMenu = async (criteria, options) => {
@@ -174,21 +174,21 @@ export const filterMenu = async (criteria, options) => {
 };
 ```
 
-Vi sao: toan bo loc chay bang SQL, khong chấm điểm; `spicyMax = 0` chan them "ot" vi du lieu `spicyLevel` co the sai.
+Vì sao: toàn bộ lọc chạy bằng SQL, không chấm điểm; `spicyMax = 0` chặn thêm "ớt" vì dữ liệu `spicyLevel` có thể sai.
 
-## Khi AI loi
+## Khi AI lỗi
 
-- `chat()` nem 503 truoc khi luu cau hoi hay chon mon neu `!isConfigured()` (`service.ts:76`).
-- AI loi 5xx/timeout/JSON hong thi `composeFoodReply` nem 502 (`reply.ts:79-92`).
-- Bi rate limit thi nem 429 (`reply.ts:79`).
-- Cau tra loi dung template an toan khi AI tra ngon ngu lech (`hasForeignScript`, `grounding.ts:4-6`).
-- `dropTrailingQuestion` bo cau hoi cuoi, `limitSentences` cat con 3 cau (`grounding.ts:8-19`).
+- `chat()` ném 503 trước khi lưu câu hỏi hay chọn món nếu `!isConfigured()` (`service.ts:76`).
+- AI lỗi 5xx/timeout/JSON hỏng thì `composeFoodReply` ném 502 (`reply.ts:79-92`).
+- Bị rate limit thì ném 429 (`reply.ts:79`).
+- Câu trả lời dùng template an toàn khi AI trả ngôn ngữ lệch (`hasForeignScript`, `grounding.ts:4-6`).
+- `dropTrailingQuestion` bỏ câu hỏi cuối, `limitSentences` cắt còn 3 câu (`grounding.ts:8-19`).
 
-### Code: goi AI va kiem ket qua
+### Code: gọi AI và kiểm kết quả
 
-Toa do: `server/src/user/chatbot/reply.ts:51-97`.
+Tọa độ: `server/src/user/chatbot/reply.ts:51-97`.
 
-Vao: `message`, `candidates`, `history`, `maxSugg`, `extraRules`. Ra: `{ reply, picked }`.
+Vào: `message`, `candidates`, `history`, `maxSugg`, `extraRules`. Ra: `{ reply, picked }`.
 
 ```ts
 export const composeFoodReply = async (message, candidates, history, maxSugg, extraRules) => {
@@ -228,18 +228,18 @@ export const composeFoodReply = async (message, candidates, history, maxSugg, ex
 };
 ```
 
-Tung buoc:
-- `reply.ts:58-70`: lap prompt tu danh sach mon that (toi da 10 mon).
-- `reply.ts:72-82`: goi AI voi `jsonMode`; loi 429/502 theo loai loi.
-- `reply.ts:84-92`: parse JSON, lay `pickedIds`.
-- `reply.ts:94`: `validPicked` loai bo ID khong nam trong candidates (chong AI bia mon).
-- `reply.ts:95`: `safeReply` don cau tra loi, dung template neu ngon ngu lech.
+Từng bước:
+- `reply.ts:58-70`: lập prompt từ danh sách món thật (tối đa 10 món).
+- `reply.ts:72-82`: gọi AI với `jsonMode`; lỗi 429/502 theo loại lỗi.
+- `reply.ts:84-92`: parse JSON, lấy `pickedIds`.
+- `reply.ts:94`: `validPicked` loại bỏ ID không nằm trong candidates (chống AI bịa món).
+- `reply.ts:95`: `safeReply` dọn câu trả lời, dùng template nếu ngôn ngữ lệch.
 
-Vi sao: the mon lay tu `validPicked` (ID trong candidates), khong tin text AI.
+Vì sao: thẻ món lấy từ `validPicked` (ID trong candidates), không tin text AI.
 
-### Code: don cau tra loi
+### Code: dọn câu trả lời
 
-Toa do: `server/src/user/chatbot/grounding.ts:1-19`.
+Tọa độ: `server/src/user/chatbot/grounding.ts:1-19`.
 
 ```ts
 export function hasForeignScript(reply: string): boolean {
@@ -259,64 +259,64 @@ export function limitSentences(reply: string, max = 3): string {
 }
 ```
 
-Vi sao: chan AI tra ngon ngu khac (template thay the); bo cau hoi cuoi va gioi han 3 cau.
+Vì sao: chặn AI trả ngôn ngữ khác (template thay thế); bỏ câu hỏi cuối và giới hạn 3 câu.
 
-## RAG tai lieu quan
+## RAG tài liệu quán
 
-Chi khi provider dung duoc:
+Chỉ khi provider dùng được:
 
-- Upload, parse, chunk **khong goi AI**, luon chay. Chunk v2: tach theo doan, giu tieu de, overlap 80 ky tu, khong cat giua tu (`documentParser.ts:27-99`).
-- Embed chunk chi khi `isConfigured()` = true; thieu khoa hoac provider loi thi chunk van luu, thieu vector.
-- Retrieval: `searchChunks` nhung cau hoi, cosine top 5, nguong 0.55, chi tai lieu `enabled` (`retrieval.ts:14-66`). Thieu vector -> rong.
-- Tra loi: `composeInfoReply` ghep bullet trich chunk (cat 400 ky tu) kem `citations`, khong goi AI luot 2 (`reply.ts:99-106`). Rong -> "Minh chua co thong tin xac thuc...".
-- Bo hoan toan tsvector va `keywordSearchKnowledge`. Khong con fallback keyword.
+- Upload, parse, chunk **không gọi AI**, luôn chạy. Chunk v2: tách theo đoạn, giữ tiêu đề, overlap 80 ký tự, không cắt giữa từ (`documentParser.ts:27-99`).
+- Embed chunk chỉ khi `isConfigured()` = true; thiếu khóa hoặc provider lỗi thì chunk vẫn lưu, thiếu vector.
+- Retrieval: `searchChunks` nhúng câu hỏi, cosine top 5, ngưỡng 0.55, chỉ tài liệu `enabled` (`retrieval.ts:14-66`). Thiếu vector → rỗng.
+- Trả lời: `composeInfoReply` ghép bullet trích chunk (cắt 400 ký tự) kèm `citations`, không gọi AI lượt 2 (`reply.ts:99-106`). Rỗng → "Mình chưa có thông tin xác thực...".
+- Bỏ hoàn toàn tsvector và `keywordSearchKnowledge`. Không còn fallback keyword.
 
-Model embedding: 768 chieu, chon theo `EMBEDDING_MODELS`. Cot `vector(768)` va HNSW index `vector_cosine_ops` (`server/src/db/schema.ts:245-257`).
+Model embedding: 768 chiều, chọn theo `EMBEDDING_MODELS`. Cột `vector(768)` và HNSW index `vector_cosine_ops` (`server/src/db/schema.ts:245-257`).
 
-## Cau hoi tiep
+## Câu hỏi tiếp
 
-`history` (3 cau gan nhat) va `lastFoodIds` (mon o tin bot gan nhat) doc o server (`loadContext`, `service.ts:41-55`), khong can client gui kem.
+`history` (3 câu gần nhất) và `lastFoodIds` (món ở tin bot gần nhất) đọc ở server (`loadContext`, `service.ts:41-55`), không cần client gửi kèm.
 
-- `wantsMoreDishes` ("mon khac", "goi y them") loai dung cac mon do bang `NOT IN`.
-- `refersToLastPicks` ("mon do", "may mon tren") chi xet trong `lastFoodIds` bang `IN`.
-- Dai tu tham chieu duoc loai truoc khi loc ILIKE, neu khong danh sach ra rong.
-- Khong dung do dai cau de doan hoi tiep.
+- `wantsMoreDishes` ("món khác", "gợi ý thêm") loại đúng các món đó bằng `NOT IN`.
+- `refersToLastPicks` ("món đó", "mấy món trên") chỉ xét trong `lastFoodIds` bằng `IN`.
+- Đại từ tham chiếu được loại trước khi lọc ILIKE, nếu không danh sách ra rỗng.
+- Không dùng độ dài câu để đoán hỏi tiếp.
 
-## Lich su hoi thoai
+## Lịch sử hội thoại
 
-Moi tai khoan co lich su rieng:
+Mỗi tài khoản có lịch sử riêng:
 
-- `GET/DELETE /api/chatbot/sessions/**` yeu cau dang nhap.
+- `GET/DELETE /api/chatbot/sessions/**` yêu cầu đăng nhập.
 - `listSessions`/`getLatestSession`/`getSession`/`deleteSession` trong `user/chatbot/service.ts`.
-- Tin BOT luu kem `chat_messages.payload` (jsonb) gom `foods`/`intent`/`citations`/`quickReplies`, nen mo lai phien van con the mon.
-- Gia trong the la gia luc tra loi; them vao gio/dat don van lay gia hien tai tu DB.
-- Danh sach tra toi da 20 phien moi nhat, tieu de lay tu cau hoi USER dau tien (`sessions.ts` `sessionTitle`, cat 60 ky tu).
-- Phien cua nguoi khac tra 404 nhu phien khong ton tai.
+- Tin BOT lưu kèm `chat_messages.payload` (jsonb) gồm `foods`/`intent`/`citations`/`quickReplies`, nên mở lại phiên vẫn còn thẻ món.
+- Giá trong thẻ là giá lúc trả lời; thêm vào giỏ/đặt đơn vẫn lấy giá hiện tại từ DB.
+- Danh sách trả tối đa 20 phiên mới nhất, tiêu đề lấy từ câu hỏi USER đầu tiên (`sessions.ts` `sessionTitle`, cắt 60 ký tự).
+- Phiên của người khác trả 404 như phiên không tồn tại.
 
-Client (`useChatConversation.ts`) goi `GET /api/chatbot/sessions/latest` khi mount (chi voi CUSTOMER) de khoi phuc phien moi nhat tu server; khong con cache `localStorage`. `requestEpoch` tang moi lan `resetChat`/`applyHistory` de phan hoi dang bay cua phien cu bi bo.
+Client (`useChatConversation.ts`) gọi `GET /api/chatbot/sessions/latest` khi mount (chỉ với CUSTOMER) để khôi phục phiên mới nhất từ server; không còn cache `localStorage`. `requestEpoch` tăng mỗi lần `resetChat`/`applyHistory` để phản hồi đang bay của phiên cũ bị bỏ.
 
-## Thieu hoac hong khoa AI
+## Thiếu hoặc hỏng khóa AI
 
-`lib/provider.ts` `isConfigured()` false khi khong co khoa nao con song (`provider.ts:141`).
+`lib/provider.ts` `isConfigured()` false khi không có khóa nào còn sống (`provider.ts:141`).
 
-- `GET /api/chatbot/status` goi `verifyKey()` va probe song song cac model; `available = false` chi khi **moi** model deu bao loi ro rang (503/404), con mot model cham (timeout) hay chet rieng le van tinh la dung duoc. Ket qua false giu 60s, true giu 5 phut (`provider.ts:15-16`).
-- `chat()` nem 503 truoc khi luu cau hoi hay chon mon (`service.ts:76`).
-- status tra `available = false` de client khoa o nhap, hien banner.
-- RAG tra "Minh chua co thong tin xac thuc ve muc nay trong tai lieu cua quan."
-- Embedding khong chay, chunk van luu nhung thieu vector.
-- Nhanh khong goi AI (chao, cam on, huong dan dat mon, cau ngoai pham vi) van chay binh thuong.
+- `GET /api/chatbot/status` gọi `verifyKey()` và probe song song các model; `available = false` chỉ khi **mọi** model đều báo lỗi rõ ràng (503/404), còn một model chậm (timeout) hay chết riêng lẻ vẫn tính là dùng được. Kết quả false giữ 60s, true giữ 5 phút (`provider.ts:15-16`).
+- `chat()` ném 503 trước khi lưu câu hỏi hay chọn món (`service.ts:76`).
+- status trả `available = false` để client khóa ô nhập, hiện banner.
+- RAG trả "Mình chưa có thông tin xác thực về mục này trong tài liệu của quán."
+- Embedding không chạy, chunk vẫn lưu nhưng thiếu vector.
+- Nhánh không gọi AI (chào, cảm ơn, hướng dẫn đặt món, câu ngoài phạm vi) vẫn chạy bình thường.
 
 ## Provider AI
 
-`server/src/lib/provider.ts` la lop duy nhat goi API AI (`generate` voi `jsonMode`) va sinh vector embedding (`embed`, `embedBatch`).
+`server/src/lib/provider.ts` là lớp duy nhất gọi API AI (`generate` với `jsonMode`) và sinh vector embedding (`embed`, `embedBatch`).
 
-- Chi ho tro Gemini (`@google/genai`).
-- Khoa doc tu `AI_API_KEYS`, model chat tu `AI_MODELS`, model embedding tu `EMBEDDING_MODELS`; ca ba nhan mot gia tri hoac danh sach phan tach dau phay/xuong dong.
-- Tu xoay khoa khi mot khoa bi 429 va loai khoa bi tu choi (401/403 hoac `API_KEY_INVALID`) toi khi khoi dong lai server.
-- Danh sach model mac dinh `gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.6-flash`; gap 503/404/timeout thi xoay model ke tiep, model 404 bi loai toi khi restart, model 503/timeout nghi 60s.
-- Vector 768 chieu (`EMBEDDING_DIM`).
-- Retry toi da 2 lan cho 5xx (delay 600 ms roi 1800 ms), khoa 25s sau mot 429 that va xoay khoa khac, deadline tong 45s (`provider.ts:8-22`).
-- Timeout rieng theo buoc (`AI_TIMEOUTS.reply` 20s, `embed` 8s); `thinkingBudget: 0` gui cho moi model chat, model nao tra 400 thi bo co va ghi nho theo model.
-- Prompt tra loi chi gui ten/gia/loai cua toi da 10 mon.
+- Chỉ hỗ trợ Gemini (`@google/genai`).
+- Khóa đọc từ `AI_API_KEYS`, model chat từ `AI_MODELS`, model embedding từ `EMBEDDING_MODELS`; cả ba nhận một giá trị hoặc danh sách phân tách dấu phẩy/xuống dòng.
+- Tự xoay khóa khi một khóa bị 429 và loại khóa bị từ chối (401/403 hoặc `API_KEY_INVALID`) tới khi khởi động lại server.
+- Danh sách model mặc định `gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.6-flash`; gặp 503/404/timeout thì xoay model kế tiếp, model 404 bị loại tới khi restart, model 503/timeout nghỉ 60s.
+- Vector 768 chiều (`EMBEDDING_DIM`).
+- Retry tối đa 2 lần cho 5xx (delay 600 ms rồi 1800 ms), khóa 25s sau một 429 thật và xoay khóa khác, deadline tổng 45s (`provider.ts:8-22`).
+- Timeout riêng theo bước (`AI_TIMEOUTS.reply` 20s, `embed` 8s); `thinkingBudget: 0` gửi cho mọi model chat, model nào trả 400 thì bỏ cờ và ghi nhớ theo model.
+- Prompt trả lời chỉ gửi tên/giá/loại của tối đa 10 món.
 
-Tiep theo: [Luong quan tri](Luong-quan-tri) hoac [API](API).
+Tiếp theo: [Luồng quản trị](Luong-quan-tri) hoặc [API](API).
