@@ -30,7 +30,7 @@ Nền tảng đặt món trực tuyến tích hợp trợ lý AI tư vấn món 
 
 ## Bắt đầu nhanh
 
-Yêu cầu: Docker + Docker Compose, hoặc Node.js 20.19 trở lên (khuyến nghị 26) để chạy từng phần lẻ.
+Yêu cầu: Docker Compose v2 (BuildKit), hoặc Node.js 20.19 trở lên (khuyến nghị 26) để chạy từng phần lẻ.
 
 Tạo file `.env` từ mẫu rồi điền `AI_API_KEYS` (một khoá hoặc danh sách cách nhau dấu phẩy) và
 `JWT_SECRET`. Model chat theo `AI_MODELS` (mặc định `gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.6-flash`),

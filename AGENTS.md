@@ -307,6 +307,10 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
 
 - Comment mới dùng **tiếng Việt không dấu**, ngắn gọn và giải thích **vì sao**, ràng buộc nghiệp vụ,
   nguồn dữ liệu, vòng đời state hoặc cách fallback; không lặp lại cú pháp hoặc từng dòng JSX.
+- Trong `Dockerfile` và `docker-compose.yml`, mỗi stage một nhãn ngắn viết thường
+  (`# dev: vite hot reload`), không dùng banner `# ---- ... ----` hay `# ===== ... =====`
+  và không lặp lại tên stage; chỉ thêm dòng giải thích cho bước khó hiểu
+  (`--fetch-retries`, `db:migrate && db:seed`).
 - Dùng `//` cho quyết định cục bộ, Javadoc/JSDoc cho hợp đồng hoặc ranh giới quan trọng.
 - Quy ước này áp cho **mọi comment trong mã và file cấu hình** (`client/src`, `client/e2e`,
   `server/src`, `server/tests`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `*.css`).
@@ -335,6 +339,8 @@ Chạy trong `client/` hoặc `server/` (không có script ở root).
   `condition: service_healthy`, mà server cần thời gian cài deps + khởi động Node. Trước đó client
   gọi vào cổng 8080 đã publish nhưng chưa có backend nên ra `net::ERR_EMPTY_RESPONSE`. Đừng bỏ
   healthcheck để "nhanh hơn".
+- **Dockerfile không còn `# syntax=docker/dockerfile:1`**: `RUN --mount=type=cache` cần BuildKit.
+  `docker compose` v2 và CI dùng BuildKit mặc định; build bằng `DOCKER_BUILDKIT=0` sẽ lỗi.
 - UI tiếng Việt (`lang: vi`). Giữ chuỗi giao diện và thông báo lỗi bằng tiếng Việt.
 - **Quyền ADMIN kiểm soát ở server** bằng middleware (`requireRole('ADMIN')` trên `/api/admin/**`),
   không chỉ dựa vào ẩn menu client. Route guard client chỉ là UX.
