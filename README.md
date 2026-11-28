@@ -128,4 +128,3 @@ CI có job `e2e` tự dựng stack dev bằng Docker Compose rồi chạy suite 
 ## Tài liệu
 
 - [AGENTS.md](AGENTS.md) - quy ước làm việc cho agent
-- [GitHub Wiki](https://github.com/nghiaxh/food-ordering/wiki) - hướng dẫn theo luồng khách hàng, quản trị và chatbot
